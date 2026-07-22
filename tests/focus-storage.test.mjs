@@ -1,0 +1,278 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+
+import {
+  createFocusStorage,
+  LEGACY_BIRTHDAYS_KEY,
+  LEGACY_DIARY_KEY,
+  LEGACY_NOTES_KEY,
+  LEGACY_SCHEDULES_KEY,
+  LEGACY_TASKS_KEY,
+  parseScheduleList,
+  REMINDERS_KEY,
+} from "../public/js/storage.js";
+
+test("parseScheduleList returns an empty list for invalid saved data", () => {
+  assert.deepEqual(parseScheduleList(null), []);
+  assert.deepEqual(parseScheduleList("{bad json"), []);
+  assert.deepEqual(parseScheduleList(JSON.stringify({ id: "not-a-list" })), []);
+});
+
+test("migrateSchedulesFromLocalStorage copies legacy schedules into IndexedDB", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const legacySchedules = [
+    { id: "school", title: "Уроки в школе", role: "participant" },
+    { id: "sport", title: "Тренировка", role: "participant" },
+  ];
+  const localStorage = createMemoryLocalStorage({
+    [LEGACY_SCHEDULES_KEY]: JSON.stringify(legacySchedules),
+  });
+  const storage = createFocusStorage({ indexedDB, localStorage });
+
+  const migrated = await storage.migrateSchedulesFromLocalStorage();
+  const loaded = await storage.loadSchedules();
+
+  assert.deepEqual(migrated, legacySchedules);
+  assert.deepEqual(loaded, legacySchedules);
+});
+
+test("saveSchedules persists and replaces the IndexedDB schedule list", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const localStorage = createMemoryLocalStorage();
+  const storage = createFocusStorage({ indexedDB, localStorage });
+
+  await storage.saveSchedules([{ id: "first", title: "Первое расписание" }]);
+  await storage.saveSchedules([{ id: "second", title: "Второе расписание" }]);
+
+  assert.deepEqual(await storage.loadSchedules(), [{ id: "second", title: "Второе расписание" }]);
+});
+
+test("saveReminders persists and replaces the IndexedDB reminder list", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const storage = createFocusStorage({ indexedDB, localStorage: createMemoryLocalStorage() });
+
+  await storage.saveReminders([{ id: "first", title: "Call", storageKey: REMINDERS_KEY }]);
+  await storage.saveReminders([{ id: "second", title: "Workout" }]);
+
+  assert.deepEqual(await storage.loadReminders(), [{ id: "second", title: "Workout" }]);
+});
+
+test("migrateTasksFromLocalStorage copies legacy tasks into IndexedDB", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const legacyTasks = [
+    { id: "task-1", title: "Prepare documents", label: "Work", dateKey: "2026-07-11" },
+  ];
+  const localStorage = createMemoryLocalStorage({
+    [LEGACY_TASKS_KEY]: JSON.stringify(legacyTasks),
+  });
+  const storage = createFocusStorage({ indexedDB, localStorage });
+
+  assert.deepEqual(await storage.migrateTasksFromLocalStorage(), legacyTasks);
+  assert.deepEqual(await storage.loadTasks(), legacyTasks);
+});
+
+test("saveTasks persists and replaces the IndexedDB task list", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const storage = createFocusStorage({ indexedDB, localStorage: createMemoryLocalStorage() });
+
+  await storage.saveTasks([{ id: "first", title: "First task" }]);
+  await storage.saveTasks([{ id: "second", title: "Second task" }]);
+
+  assert.deepEqual(await storage.loadTasks(), [{ id: "second", title: "Second task" }]);
+});
+
+test("migrateNotesFromLocalStorage copies legacy notes into IndexedDB", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const legacyNotes = [
+    { id: "note-1", body: "Идея для расписания", createdAt: "2026-07-11T10:00:00.000Z" },
+  ];
+  const localStorage = createMemoryLocalStorage({
+    [LEGACY_NOTES_KEY]: JSON.stringify(legacyNotes),
+  });
+  const storage = createFocusStorage({ indexedDB, localStorage });
+
+  assert.deepEqual(await storage.migrateNotesFromLocalStorage(), legacyNotes);
+  assert.deepEqual(await storage.loadNotes(), legacyNotes);
+});
+
+test("saveNotes persists and replaces the IndexedDB notes list", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const storage = createFocusStorage({ indexedDB, localStorage: createMemoryLocalStorage() });
+
+  await storage.saveNotes([{ id: "first", body: "First note" }]);
+  await storage.saveNotes([{ id: "second", body: "Second note" }]);
+
+  assert.deepEqual(await storage.loadNotes(), [{ id: "second", body: "Second note" }]);
+});
+
+test("migrateBirthdaysFromLocalStorage copies legacy birthdays into IndexedDB", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const legacyBirthdays = [
+    { id: "birthday-1", name: "Анна", dateOfBirth: "1990-07-11", reminderEnabled: true },
+  ];
+  const localStorage = createMemoryLocalStorage({
+    [LEGACY_BIRTHDAYS_KEY]: JSON.stringify(legacyBirthdays),
+  });
+  const storage = createFocusStorage({ indexedDB, localStorage });
+
+  assert.deepEqual(await storage.migrateBirthdaysFromLocalStorage(), legacyBirthdays);
+  assert.deepEqual(await storage.loadBirthdays(), legacyBirthdays);
+});
+
+test("saveBirthdays persists and replaces the IndexedDB birthdays list", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const storage = createFocusStorage({ indexedDB, localStorage: createMemoryLocalStorage() });
+
+  await storage.saveBirthdays([{ id: "first", name: "First", dateOfBirth: "1991-01-01" }]);
+  await storage.saveBirthdays([{ id: "second", name: "Second", dateOfBirth: "1992-02-02" }]);
+
+  assert.deepEqual(await storage.loadBirthdays(), [{ id: "second", name: "Second", dateOfBirth: "1992-02-02" }]);
+});
+
+test("migrateDiaryEntriesFromLocalStorage copies legacy diary entries into IndexedDB", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const legacyEntries = [
+    { id: "diary-1", dateKey: "2026-07-11", heading: "Итоги дня", text: "Спокойный день" },
+  ];
+  const localStorage = createMemoryLocalStorage({
+    [LEGACY_DIARY_KEY]: JSON.stringify(legacyEntries),
+  });
+  const storage = createFocusStorage({ indexedDB, localStorage });
+
+  assert.deepEqual(await storage.migrateDiaryEntriesFromLocalStorage(), legacyEntries);
+  assert.deepEqual(await storage.loadDiaryEntries(), legacyEntries);
+});
+
+test("saveDiaryEntries persists and replaces the IndexedDB diary list", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const storage = createFocusStorage({ indexedDB, localStorage: createMemoryLocalStorage() });
+
+  await storage.saveDiaryEntries([{ id: "first", dateKey: "2026-07-10", text: "First entry" }]);
+  await storage.saveDiaryEntries([{ id: "second", dateKey: "2026-07-11", text: "Second entry" }]);
+
+  assert.deepEqual(await storage.loadDiaryEntries(), [{ id: "second", dateKey: "2026-07-11", text: "Second entry" }]);
+});
+
+test("saveDiaryPinSettings persists and clears diary PIN settings", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const storage = createFocusStorage({ indexedDB, localStorage: createMemoryLocalStorage() });
+  const settings = {
+    salt: "001122",
+    hash: "aabbcc",
+    iterations: 120000,
+    updatedAt: "2026-07-11T00:00:00.000Z",
+  };
+
+  await storage.saveDiaryPinSettings(settings);
+  assert.deepEqual(await storage.loadDiaryPinSettings(), settings);
+
+  await storage.saveDiaryPinSettings(null);
+  assert.equal(await storage.loadDiaryPinSettings(), null);
+});
+
+function createMemoryLocalStorage(initialValues = {}) {
+  const data = new Map(Object.entries(initialValues));
+
+  return {
+    getItem(key) {
+      return data.has(key) ? data.get(key) : null;
+    },
+    removeItem(key) {
+      data.delete(key);
+    },
+    setItem(key, value) {
+      data.set(key, String(value));
+    },
+  };
+}
+
+function createFakeIndexedDB() {
+  const databases = new Map();
+
+  return {
+    open(name, version) {
+      const request = createRequest();
+
+      queueMicrotask(() => {
+        let record = databases.get(name);
+        const needsUpgrade = !record || record.version < version;
+
+        if (!record) {
+          record = {
+            stores: new Map(),
+            version,
+          };
+          databases.set(name, record);
+        }
+
+        const database = createFakeDatabase(record);
+        request.result = database;
+
+        if (needsUpgrade) {
+          request.onupgradeneeded?.({ target: request });
+          record.version = version;
+        }
+
+        request.onsuccess?.({ target: request });
+      });
+
+      return request;
+    },
+  };
+}
+
+function createFakeDatabase(record) {
+  return {
+    objectStoreNames: {
+      contains(name) {
+        return record.stores.has(name);
+      },
+    },
+    createObjectStore(name) {
+      if (!record.stores.has(name)) {
+        record.stores.set(name, new Map());
+      }
+    },
+    transaction(storeName) {
+      return {
+        objectStore() {
+          if (!record.stores.has(storeName)) {
+            record.stores.set(storeName, new Map());
+          }
+
+          const store = record.stores.get(storeName);
+
+          return {
+            get(key) {
+              const request = createRequest();
+              queueMicrotask(() => {
+                request.result = store.get(key);
+                request.onsuccess?.({ target: request });
+              });
+              return request;
+            },
+            put(value, key) {
+              const request = createRequest();
+              queueMicrotask(() => {
+                store.set(key, value);
+                request.result = key;
+                request.onsuccess?.({ target: request });
+              });
+              return request;
+            },
+          };
+        },
+      };
+    },
+  };
+}
+
+function createRequest() {
+  return {
+    error: null,
+    onerror: null,
+    onsuccess: null,
+    onupgradeneeded: null,
+    result: undefined,
+  };
+}

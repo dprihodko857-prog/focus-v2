@@ -1,0 +1,934 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="description" content="Фокус — личная панель дня для спокойного планирования, расписаний и фокуса." />
+  <meta name="theme-color" content="#1f2937" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="application-name" content="Фокус" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Фокус" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="msapplication-TileColor" content="#111827" />
+  <title>Фокус</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png" />
+  <link rel="apple-touch-startup-image" href="/assets/splash/iphone-8-portrait.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="/assets/splash/iphone-11-portrait.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="/assets/splash/iphone-12-mini-portrait.png" media="(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="/assets/splash/iphone-14-portrait.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="/assets/splash/iphone-15-pro-portrait.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="/assets/splash/iphone-15-pro-max-portrait.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="/assets/splash/ipad-pro-11-portrait.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+  <link rel="apple-touch-startup-image" href="/assets/splash/ipad-pro-12-portrait.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
+  <link rel="stylesheet" href="/css/tokens.css" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <div class="app-shell" data-theme="warm">
+    <aside class="sidebar" aria-label="Навигация">
+      <div class="sidebar__brand">
+        <div class="brand-mark">F</div>
+        <span>Фокус</span>
+      </div>
+      <nav class="sidebar__nav" aria-label="Разделы">
+        <button class="nav-item" type="button" aria-label="Мои напоминания" data-open-modal="reminders">
+          <span class="icon icon-bell"></span><span>Напоминания</span>
+        </button>
+        <button class="nav-item" type="button" aria-label="Мои расписания" data-open-modal="schedules">
+          <span class="icon icon-calendar"></span><span>Мои расписания</span>
+        </button>
+        <button class="nav-item" type="button" aria-label="Дни рождения" data-open-modal="birthdays">
+          <span class="icon icon-gift"></span><span>Дни рождения</span>
+        </button>
+        <button class="nav-item" type="button" aria-label="Заметки" data-open-modal="notes">
+          <span class="icon icon-note"></span><span>Заметки</span>
+        </button>
+        <button class="nav-item" type="button" aria-label="Дневник" data-open-modal="diary">
+          <span class="icon icon-book"></span><span>Дневник</span>
+        </button>
+        <button class="nav-item" type="button" aria-label="Полезное" data-open-modal="useful">
+          <span class="icon icon-sparkles"></span><span>Полезное</span>
+        </button>
+        <button class="nav-item" type="button" aria-label="Настройки" data-open-modal="sync">
+          <span class="icon icon-settings"></span><span>Настройки</span>
+        </button>
+      </nav>
+      <div class="sidebar__footer">
+        <button class="nav-item nav-item--muted" type="button" aria-label="Выйти">
+          <span class="icon icon-logout"></span><span>Выйти</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="focus-page">
+      <section class="top-dock" aria-label="Верхняя панель">
+        <div class="date-card glass-panel">
+          <span class="date-card__day" id="currentDay">Сегодня</span>
+          <strong id="currentDate">28 мая 2026</strong>
+        </div>
+        <div class="quote-card glass-panel">
+          <button class="icon-button" id="quotePrev" type="button" aria-label="Предыдущая цитата">
+            <span class="icon icon-arrow-left"></span>
+          </button>
+          <p id="quoteText">Делай сегодня то, что приблизит тебя к завтра.</p>
+          <button class="icon-button" id="quoteNext" type="button" aria-label="Следующая цитата">
+            <span class="icon icon-arrow-right"></span>
+          </button>
+        </div>
+        <div class="add-wrap">
+          <button class="add-button" id="addButton" type="button" aria-label="Добавить" aria-expanded="false">
+            <span class="plus">+</span>
+          </button>
+          <div class="add-menu glass-panel" id="addMenu" aria-label="Добавить" hidden>
+            <button type="button" data-open-modal="reminder"><span class="icon icon-bell"></span>Напоминание</button>
+            <button type="button" data-open-modal="task"><span class="icon icon-check"></span>Добавить дело</button>
+            <button type="button" data-open-modal="note"><span class="icon icon-note"></span>Добавить заметку</button>
+            <button type="button" data-open-modal="birthday"><span class="icon icon-gift"></span>Дни рождения</button>
+            <button type="button" data-open-modal="diaryEntry"><span class="icon icon-book"></span>Запись в дневник</button>
+            <button type="button" data-open-modal="schedule"><span class="icon icon-calendar"></span>Добавить расписание</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="dashboard-grid">
+        <div class="main-stack">
+          <article class="calendar-card glass-panel" aria-label="Календарь фокуса">
+            <div class="card-head">
+              <div>
+                <span class="eyebrow">Календарь фокуса</span>
+                <h1>Май 2026</h1>
+              </div>
+              <div class="head-actions">
+                <button class="icon-button" type="button" aria-label="Предыдущий месяц"><span class="icon icon-arrow-left"></span></button>
+                <button class="icon-button" type="button" aria-label="Следующий месяц"><span class="icon icon-arrow-right"></span></button>
+              </div>
+            </div>
+            <div class="calendar-weekdays" aria-hidden="true">
+              <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+          </article>
+
+          <section class="labels-row glass-panel" id="labelsRow" aria-label="Метки"></section>
+          <section class="interesting glass-panel">
+            <div class="section-title">
+              <h2>Интересное сегодня</h2>
+              <button class="icon-button icon-button--tiny" type="button" aria-label="Свернуть"><span class="icon icon-chevron"></span></button>
+            </div>
+            <div class="interesting__grid">
+              <article>
+                <h3>В этот день родились</h3>
+                <ul>
+                  <li><strong>Иосиф Бродский</strong><span>поэт, эссеист</span></li>
+                  <li><strong>Кайли Миноуг</strong><span>певица</span></li>
+                </ul>
+              </article>
+              <article>
+                <h3>События дня</h3>
+                <ul>
+                  <li><strong>1918</strong><span>учреждена пограничная служба</span></li>
+                  <li><strong>1987</strong><span>приземление Матиаса Руста</span></li>
+                </ul>
+              </article>
+            </div>
+          </section>
+        </div>
+
+        <aside class="side-stack">
+          <article class="focus-card summary-card">
+            <div class="section-title">
+              <h2>Сводка на сегодня</h2>
+              <button class="icon-button icon-button--tiny" type="button" aria-label="Свернуть"><span class="icon icon-chevron"></span></button>
+            </div>
+            <div class="summary-list" id="summaryList"></div>
+            <div class="thought-card">
+              <span>Вернуться к мысли</span>
+              <strong>Подготовить план поездки в горы</strong>
+            </div>
+          </article>
+
+          <article class="focus-card tasks-card">
+            <div class="section-title">
+              <h2>Дела на сегодня</h2>
+              <button class="icon-button icon-button--tiny" type="button" aria-label="Добавить дело" data-open-modal="task"><span class="icon icon-more"></span></button>
+            </div>
+            <div class="task-list" id="taskList"></div>
+          </article>
+        </aside>
+      </section>
+
+      <section class="interesting glass-panel interesting--legacy" hidden>
+        <div class="section-title">
+          <h2>Интересное сегодня</h2>
+          <button class="icon-button icon-button--tiny" type="button" aria-label="Свернуть"><span class="icon icon-chevron"></span></button>
+        </div>
+        <div class="interesting__grid">
+          <article>
+            <h3>В этот день родились</h3>
+            <ul>
+              <li><strong>Иосиф Бродский</strong><span>поэт, эссеист</span></li>
+              <li><strong>Кайли Миноуг</strong><span>певица</span></li>
+            </ul>
+          </article>
+          <article>
+            <h3>События дня</h3>
+            <ul>
+              <li><strong>1918</strong><span>учреждена пограничная служба</span></li>
+              <li><strong>1987</strong><span>приземление Матиаса Руста</span></li>
+            </ul>
+          </article>
+        </div>
+      </section>
+    </main>
+    <div class="modal-layer" id="modalLayer" hidden>
+      <section class="focus-modal" id="reminderModal" role="dialog" aria-modal="true" aria-labelledby="reminderTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Календарное событие</span>
+            <h2 id="reminderTitle">Напоминание</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <p class="modal-hint" id="reminderStatus">Локальные уведомления работают на этом устройстве, пока приложение открыто.</p>
+
+          <label class="field-block field-block--wide">
+            <span>Что нужно запомнить?</span>
+            <textarea id="reminderText" rows="5" placeholder="Например: позвонить врачу завтра в 15:00"></textarea>
+          </label>
+
+          <div class="modal-grid">
+            <label class="field-block">
+              <span>Дата</span>
+              <input id="reminderDate" type="text" inputmode="numeric" placeholder="дд.мм.гггг" />
+            </label>
+            <label class="field-block">
+              <span>Время</span>
+              <input id="reminderTime" type="text" inputmode="numeric" placeholder="--:--" />
+            </label>
+          </div>
+
+          <button class="voice-button" type="button">
+            <span class="icon icon-mic"></span>
+            <span>Диктовать</span>
+          </button>
+        </div>
+
+        <footer class="modal-actions">
+          <button class="secondary-button" type="button" id="reminderPermissionButton">Включить уведомления</button>
+          <button class="secondary-button" type="button" id="reminderTestPushButton" hidden>Проверить push</button>
+          <button class="primary-button" type="button" id="reminderSaveButton">Сохранить</button>
+        </footer>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="remindersModal" role="dialog" aria-modal="true" aria-labelledby="remindersTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Центр уведомлений</span>
+            <h2 id="remindersTitle">Мои напоминания</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <div class="saved-schedules-head reminders-head">
+            <p>Здесь собраны активные, прошедшие и доставленные напоминания этого аккаунта.</p>
+            <button class="primary-button primary-button--compact" type="button" data-open-modal="reminder">+ Добавить напоминание</button>
+          </div>
+          <div class="notification-panel">
+            <div class="notification-panel__head">
+              <div>
+                <span class="modal-kicker">Push</span>
+                <h3>Готовность уведомлений</h3>
+                <p id="reminderPushSummary">Проверяем локальные и серверные уведомления.</p>
+              </div>
+              <div class="notification-panel__actions">
+                <button class="secondary-button" type="button" id="reminderPushEnableButton">Включить</button>
+                <button class="secondary-button" type="button" id="reminderPushRefreshButton">Проверить</button>
+                <button class="secondary-button" type="button" id="reminderPushTestButton">Тест</button>
+              </div>
+            </div>
+            <div class="notification-diagnostics" id="reminderPushDiagnostics" aria-live="polite"></div>
+            <div class="notification-events" id="reminderPushEvents" aria-live="polite"></div>
+          </div>
+          <div class="schedule-filters" id="reminderFilters" aria-label="Фильтры напоминаний">
+            <button class="schedule-filter-chip is-active" type="button" data-reminder-filter="active" aria-pressed="true">Активные <span class="schedule-filter-count">0</span></button>
+            <button class="schedule-filter-chip" type="button" data-reminder-filter="overdue" aria-pressed="false">Просроченные <span class="schedule-filter-count">0</span></button>
+            <button class="schedule-filter-chip" type="button" data-reminder-filter="delivered" aria-pressed="false">Доставленные <span class="schedule-filter-count">0</span></button>
+            <button class="schedule-filter-chip" type="button" data-reminder-filter="all" aria-pressed="false">Все <span class="schedule-filter-count">0</span></button>
+          </div>
+          <div class="saved-reminders-list" id="savedRemindersList" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="focus-modal" id="taskModal" role="dialog" aria-modal="true" aria-labelledby="taskTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Сегодняшний список</span>
+            <h2 id="taskTitle">Добавить дело</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <label class="field-block field-block--wide">
+            <span>Новое дело</span>
+            <textarea id="taskText" rows="4" placeholder="Например: подготовить документы"></textarea>
+          </label>
+
+          <label class="field-block">
+            <span>Метка</span>
+            <input id="taskLabel" type="text" placeholder="Например: работа, дом, личное" />
+          </label>
+
+          <button class="voice-button" type="button">
+            <span class="icon icon-mic"></span>
+            <span>Диктовать</span>
+          </button>
+        </div>
+
+        <footer class="modal-actions">
+          <button class="primary-button" type="button" id="taskSaveButton">Сохранить</button>
+        </footer>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="notesModal" role="dialog" aria-modal="true" aria-labelledby="notesTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Мысли и заметки</span>
+            <h2 id="notesTitle">Мои заметки</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <div class="saved-schedules-head notes-head">
+            <p>Здесь собраны идеи, планы и важные детали, которые не должны потеряться.</p>
+            <button class="primary-button primary-button--compact" type="button" data-open-modal="note">+ Добавить заметку</button>
+          </div>
+          <div class="saved-notes-list" id="savedNotesList" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="focus-modal" id="noteModal" role="dialog" aria-modal="true" aria-labelledby="noteTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Мысли на будущее</span>
+            <h2 id="noteTitle">Добавить заметку</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <p class="modal-hint">Запиши будущее сначала в мыслях — потом в действиях.</p>
+
+          <label class="field-block field-block--wide">
+            <span>Заметка</span>
+            <textarea id="noteText" rows="7" placeholder="Например: идея, мысль, план или важная деталь на потом"></textarea>
+          </label>
+
+          <button class="voice-button" type="button">
+            <span class="icon icon-mic"></span>
+            <span>Диктовать</span>
+          </button>
+        </div>
+
+        <footer class="modal-actions">
+          <button class="primary-button" type="button" id="noteSaveButton">Сохранить</button>
+        </footer>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="birthdaysModal" role="dialog" aria-modal="true" aria-labelledby="birthdaysTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Важные даты</span>
+            <h2 id="birthdaysTitle">Дни рождения</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <div class="saved-schedules-head birthdays-head">
+            <p>Здесь собраны дни рождения, заметки к ним и ближайшие напоминания.</p>
+            <button class="primary-button primary-button--compact" type="button" data-open-modal="birthday">+ Добавить дату</button>
+          </div>
+          <div class="saved-birthdays-list" id="savedBirthdaysList" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="focus-modal" id="birthdayModal" role="dialog" aria-modal="true" aria-labelledby="birthdayTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Важная дата</span>
+            <h2 id="birthdayTitle">Дни рождения</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <div class="modal-grid modal-grid--birthday">
+            <label class="field-block">
+              <span>Фамилия, имя, отчество</span>
+              <input id="birthdayName" type="text" placeholder="Например: Иванова Анна Сергеевна" />
+            </label>
+            <label class="field-block">
+              <span>Дата рождения</span>
+              <input id="birthdayDate" type="text" inputmode="numeric" placeholder="дд.мм.гггг" />
+            </label>
+          </div>
+
+          <label class="field-block field-block--wide">
+            <span>Заметка</span>
+            <textarea id="birthdayNote" rows="4" placeholder="Например: что подарить, как поздравить или важная деталь"></textarea>
+          </label>
+
+          <label class="field-check">
+            <input id="birthdayReminder" type="checkbox" checked />
+            <span>Напомнить утром в день рождения</span>
+          </label>
+
+          <button class="voice-button" type="button">
+            <span class="icon icon-mic"></span>
+            <span>Диктовать</span>
+          </button>
+        </div>
+
+        <footer class="modal-actions">
+          <button class="primary-button" type="button" id="birthdaySaveButton">Сохранить</button>
+        </footer>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="diaryModal" role="dialog" aria-modal="true" aria-labelledby="diaryTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Личный дневник</span>
+            <h2 id="diaryTitle">Дневник</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <div class="saved-schedules-head diary-head">
+            <p>Здесь собраны записи по дням: мысли, настроение, выводы и важные наблюдения.</p>
+            <div class="diary-head-actions">
+              <button class="secondary-button secondary-button--compact" type="button" id="diaryLockButton">Заблокировать</button>
+              <button class="primary-button primary-button--compact" type="button" data-open-modal="diaryEntry">+ Добавить запись</button>
+            </div>
+          </div>
+          <div class="saved-diary-list" id="savedDiaryList" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="focus-modal" id="diaryEntryModal" role="dialog" aria-modal="true" aria-labelledby="diaryEntryTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Запись дня</span>
+            <h2 id="diaryEntryTitle">Добавить запись</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <div class="modal-grid">
+            <label class="field-block">
+              <span>Дата</span>
+              <input id="diaryDate" type="text" inputmode="numeric" placeholder="дд.мм.гггг" />
+            </label>
+            <label class="field-block">
+              <span>Настроение</span>
+              <input id="diaryMood" type="text" placeholder="Например: спокойно" />
+            </label>
+          </div>
+
+          <label class="field-block field-block--wide">
+            <span>Заголовок</span>
+            <input id="diaryEntryHeading" type="text" placeholder="Например: что получилось сегодня" />
+          </label>
+
+          <label class="field-block field-block--wide">
+            <span>Запись</span>
+            <textarea id="diaryText" rows="8" placeholder="Коротко опишите день, мысль, итог или наблюдение"></textarea>
+          </label>
+
+          <button class="voice-button" type="button">
+            <span class="icon icon-mic"></span>
+            <span>Диктовать</span>
+          </button>
+        </div>
+
+        <footer class="modal-actions">
+          <button class="primary-button" type="button" id="diarySaveButton">Сохранить</button>
+        </footer>
+      </section>
+
+      <section class="focus-modal" id="diaryUnlockModal" role="dialog" aria-modal="true" aria-labelledby="diaryUnlockTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Личный дневник</span>
+            <h2 id="diaryUnlockTitle">Введите PIN</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <p class="modal-hint" id="diaryUnlockStatus">Введите 4-значный PIN, чтобы открыть личный дневник.</p>
+          <label class="field-block field-block--wide diary-pin-field">
+            <span>PIN дневника</span>
+            <input id="diaryUnlockPin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="4" pattern="[0-9]{4}" placeholder="••••" />
+          </label>
+        </div>
+
+        <footer class="modal-actions">
+          <button class="primary-button" type="button" id="diaryUnlockButton">Открыть дневник</button>
+        </footer>
+      </section>
+
+      <section class="focus-modal" id="diaryPinModal" role="dialog" aria-modal="true" aria-labelledby="diaryPinTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Защита дневника</span>
+            <h2 id="diaryPinTitle">Установить PIN дневника</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <p class="modal-hint" id="diaryPinStatus">Создайте 4-значный цифровой PIN для входа в личный дневник.</p>
+
+          <label class="field-block field-block--wide diary-pin-field" id="diaryPinCurrentGroup" hidden>
+            <span>Текущий PIN</span>
+            <input id="diaryPinCurrent" type="password" inputmode="numeric" autocomplete="current-password" maxlength="4" pattern="[0-9]{4}" placeholder="••••" />
+          </label>
+
+          <div class="modal-grid">
+            <label class="field-block diary-pin-field">
+              <span>Новый PIN</span>
+              <input id="diaryPinNew" type="password" inputmode="numeric" autocomplete="new-password" maxlength="4" pattern="[0-9]{4}" placeholder="••••" />
+            </label>
+            <label class="field-block diary-pin-field">
+              <span>Повтор PIN</span>
+              <input id="diaryPinConfirm" type="password" inputmode="numeric" autocomplete="new-password" maxlength="4" pattern="[0-9]{4}" placeholder="••••" />
+            </label>
+          </div>
+        </div>
+
+        <footer class="modal-actions">
+          <button class="primary-button" type="button" id="diaryPinSaveButton">Установить PIN</button>
+        </footer>
+      </section>
+
+      <section class="focus-modal" id="syncModal" role="dialog" aria-modal="true" aria-labelledby="syncTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Аккаунт</span>
+            <h2 id="syncTitle">Синхронизация</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <p class="modal-hint" id="syncStatus">Синхронизация готовится.</p>
+
+          <div class="auth-panel">
+            <div>
+              <span class="modal-kicker">Orbit Auth</span>
+              <h3>Вход в аккаунт</h3>
+              <p id="authStatus">Проверяем доступность входа.</p>
+            </div>
+            <div class="auth-panel__actions">
+              <button class="primary-button" type="button" id="authLoginButton">Войти</button>
+              <button class="secondary-button" type="button" id="authLogoutButton" hidden>Выйти</button>
+            </div>
+          </div>
+
+          <label class="field-block field-block--wide">
+            <span>Код этого аккаунта</span>
+            <input id="syncAccountCode" type="text" readonly placeholder="Код появится после подключения" />
+          </label>
+
+          <label class="field-block field-block--wide">
+            <span>Подключить другое устройство</span>
+            <input id="syncConnectInput" type="text" autocomplete="off" spellcheck="false" placeholder="Вставьте код аккаунта" />
+          </label>
+
+          <div class="sync-account-panel">
+            <div class="sync-account-panel__head">
+              <div>
+                <span class="modal-kicker">Устройства</span>
+                <h3>Аккаунт и устройства</h3>
+                <p id="syncAccountSummary">Создайте код синхронизации, чтобы увидеть подключённые устройства.</p>
+              </div>
+              <button class="secondary-button" type="button" id="syncProfileSaveButton">Сохранить</button>
+            </div>
+            <div class="modal-grid">
+              <label class="field-block">
+                <span>Название аккаунта</span>
+                <input id="syncAccountName" type="text" maxlength="120" autocomplete="off" placeholder="Например: Личный фокус" />
+              </label>
+              <label class="field-block">
+                <span>Это устройство</span>
+                <input id="syncDeviceName" type="text" maxlength="120" autocomplete="off" placeholder="Например: iPhone Григория" />
+              </label>
+            </div>
+            <div class="sync-device-list" id="syncDeviceList" aria-live="polite"></div>
+          </div>
+
+          <div class="privacy-panel">
+            <div>
+              <span class="modal-kicker">Приватность</span>
+              <h3>Личный дневник</h3>
+              <p id="diaryPinSummary">PIN пока не установлен. Дневник предложит создать 4-значный код при первом входе.</p>
+            </div>
+            <button class="secondary-button" type="button" id="diaryPinSetupButton">Установить PIN</button>
+          </div>
+
+          <div class="install-quality-panel">
+            <div class="install-quality-panel__head">
+              <div>
+                <span class="modal-kicker">PWA</span>
+                <h3>Качество установки</h3>
+                <p id="pwaInstallSummary">Проверяем состояние приложения на этом устройстве.</p>
+              </div>
+              <button class="secondary-button" type="button" id="pwaInstallCheckButton">Проверить</button>
+            </div>
+            <div class="install-diagnostics" id="pwaInstallDiagnostics" aria-live="polite"></div>
+          </div>
+
+          <div class="device-check-panel">
+            <div class="device-check-panel__head">
+              <div>
+                <span class="modal-kicker">Проверка</span>
+                <h3>Контроль устройства</h3>
+                <p id="deviceCheckSummary">Проверяем установку, уведомления и push-доставку.</p>
+              </div>
+              <div class="device-check-actions">
+                <button class="secondary-button" type="button" id="deviceCheckRefreshButton">Обновить</button>
+                <button class="secondary-button" type="button" id="deviceCheckTestButton">Тест push</button>
+              </div>
+            </div>
+            <div class="device-checklist" id="deviceCheckList" aria-live="polite"></div>
+            <button class="secondary-button" type="button" id="deviceCheckReminderButton" data-open-modal="reminder">Создать проверочное напоминание</button>
+          </div>
+        </div>
+
+        <footer class="modal-actions">
+          <button class="secondary-button" type="button" id="syncRefreshButton">Показать код</button>
+          <button class="primary-button" type="button" id="syncConnectButton">Подключить</button>
+        </footer>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="usefulModal" role="dialog" aria-modal="true" aria-labelledby="usefulTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Сервисы</span>
+            <h2 id="usefulTitle">Полезное</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <div class="useful-intro">
+            <strong>Будущий центр дополнительных функций</strong>
+            <p>Здесь будут появляться вспомогательные сервисы проекта: быстрые инструменты, подборки, шаблоны и расширения для планирования.</p>
+          </div>
+
+          <div class="useful-grid" aria-label="Будущие сервисы">
+            <article class="useful-card">
+              <span class="icon icon-check" aria-hidden="true"></span>
+              <div>
+                <h3>Шаблоны дня</h3>
+                <p>Готовые сценарии для учёбы, работы, спорта и спокойного личного режима.</p>
+              </div>
+            </article>
+            <article class="useful-card">
+              <span class="icon icon-calendar" aria-hidden="true"></span>
+              <div>
+                <h3>Планирование недели</h3>
+                <p>Дополнительные представления и быстрые проверки нагрузки по дням.</p>
+              </div>
+            </article>
+            <article class="useful-card">
+              <span class="icon icon-note" aria-hidden="true"></span>
+              <div>
+                <h3>Подборки и заметки</h3>
+                <p>Место для полезных списков, личных материалов и быстрых справок.</p>
+              </div>
+            </article>
+            <article class="useful-card useful-card--soon">
+              <span class="icon icon-sparkles" aria-hidden="true"></span>
+              <div>
+                <h3>Новые сервисы</h3>
+                <p>Раздел подготовлен для будущих функций без изменения основной панели.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="schedulesModal" role="dialog" aria-modal="true" aria-labelledby="schedulesTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Расписания</span>
+            <h2 id="schedulesTitle">Мои расписания</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <div class="saved-schedules-head">
+            <p>Здесь будут собраны активные и приостановленные расписания.</p>
+            <button class="primary-button primary-button--compact" type="button" data-open-modal="schedule">+ Добавить расписание</button>
+          </div>
+          <div class="schedule-filters" id="scheduleFilters" aria-label="Фильтры расписаний">
+            <button class="schedule-filter-chip is-active" type="button" data-schedule-filter="all" aria-pressed="true">Все <span class="schedule-filter-count">0</span></button>
+            <button class="schedule-filter-chip" type="button" data-schedule-filter="active" aria-pressed="false">Активные <span class="schedule-filter-count">0</span></button>
+            <button class="schedule-filter-chip" type="button" data-schedule-filter="paused" aria-pressed="false">Пауза <span class="schedule-filter-count">0</span></button>
+            <button class="schedule-filter-chip" type="button" data-schedule-filter="participant" aria-pressed="false">Участник <span class="schedule-filter-count">0</span></button>
+            <button class="schedule-filter-chip" type="button" data-schedule-filter="mentor" aria-pressed="false">Наставник <span class="schedule-filter-count">0</span></button>
+          </div>
+          <div class="saved-schedules-list" id="savedSchedulesList" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="scheduleDetailModal" role="dialog" aria-modal="true" aria-labelledby="scheduleDetailTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Расписание</span>
+            <h2 id="scheduleDetailTitle">Расписание</h2>
+          </div>
+          <div class="modal-head-actions">
+            <button class="icon-button" type="button" aria-label="Назад к списку расписаний" title="Назад" data-back-to-schedules>
+              <span class="icon icon-arrow-left"></span>
+            </button>
+            <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+              <span class="icon icon-close"></span>
+            </button>
+          </div>
+        </header>
+
+        <div class="modal-body" id="scheduleDetailBody"></div>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="dayCardModal" role="dialog" aria-modal="true" aria-labelledby="dayCardTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Карточка дня</span>
+            <h2 id="dayCardTitle">День</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body" id="dayCardBody"></div>
+      </section>
+
+      <section class="focus-modal focus-modal--wide focus-modal--week" id="weekViewModal" role="dialog" aria-modal="true" aria-labelledby="weekViewTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Недельный вид</span>
+            <h2 id="weekViewTitle">Неделя</h2>
+          </div>
+          <div class="modal-head-actions">
+            <button class="icon-button" type="button" aria-label="Назад к карточке дня" title="Назад" data-back-to-day-card>
+              <span class="icon icon-arrow-left"></span>
+            </button>
+            <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+              <span class="icon icon-close"></span>
+            </button>
+          </div>
+        </header>
+
+        <div class="modal-body" id="weekViewBody"></div>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="scheduleModal" role="dialog" aria-modal="true" aria-labelledby="scheduleTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Мастер расписания</span>
+            <h2 id="scheduleTitle">Добавить расписание</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <section class="wizard-section schedule-step" data-schedule-step="role" aria-labelledby="scheduleTitle">
+            <div class="wizard-section__head">
+              <span class="wizard-step">Шаг 1</span>
+            </div>
+            <div class="choice-grid choice-grid--roles">
+              <button class="choice-card choice-card--active" type="button" data-schedule-role="participant">
+                <span>Участник</span>
+                <small>Для ученика, студента, спортсмена или личного ритма</small>
+              </button>
+              <button class="choice-card" type="button" data-schedule-role="mentor">
+                <span>Наставник</span>
+                <small>Для учителя, репетитора, тренера или ведущего занятий</small>
+              </button>
+            </div>
+          </section>
+
+          <section class="wizard-section schedule-step" data-schedule-step="type" aria-labelledby="scheduleTitle" hidden>
+            <div class="wizard-section__head">
+              <span class="wizard-step">Шаг 2</span>
+            </div>
+            <div class="choice-grid choice-grid--types" id="scheduleTypeGrid">
+              <button class="choice-card" type="button" data-schedule-type="sport">
+                <span>Спорт</span>
+                <small>Тренировки, секции, зал или бассейн</small>
+              </button>
+              <button class="choice-card" type="button" data-schedule-type="school">
+                <span>Уроки</span>
+                <small>Школа, техникум, институт или недельная сетка</small>
+              </button>
+              <button class="choice-card" type="button" data-schedule-type="classes">
+                <span>Занятия</span>
+                <small>Курсы, кружки, репетиторы и дополнительные занятия</small>
+              </button>
+              <button class="choice-card" type="button" data-schedule-type="arts">
+                <span>Школа искусств</span>
+                <small>Музыка, рисунок, танцы, театр и творческие занятия</small>
+              </button>
+              <button class="choice-card" type="button" data-schedule-type="custom">
+                <span>Своё</span>
+                <small>Любой повторяющийся ритм или личное расписание</small>
+              </button>
+            </div>
+          </section>
+
+          <section class="wizard-section schedule-step" data-schedule-step="details" aria-labelledby="scheduleDetailsTitle" hidden>
+            <div class="wizard-section__head">
+              <span class="wizard-step">Шаг 3</span>
+              <h3 id="scheduleDetailsTitle">Соберём детали расписания</h3>
+            </div>
+            <div class="scenario-form" id="scheduleDetailsBody"></div>
+          </section>
+
+          <section class="wizard-section schedule-step" data-schedule-step="followup" aria-labelledby="scheduleFollowupTitle" hidden>
+            <div class="wizard-section__head">
+              <span class="wizard-step">Шаг 4</span>
+              <h3 id="scheduleFollowupTitle">Следующий шаг</h3>
+            </div>
+            <div class="scenario-form" id="scheduleFollowupBody"></div>
+          </section>
+
+          <section class="wizard-section schedule-step" data-schedule-step="lessonTime" aria-labelledby="scheduleLessonTimeTitle" hidden>
+            <div class="wizard-section__head">
+              <span class="wizard-step">Шаг 5</span>
+              <h3 id="scheduleLessonTimeTitle">Время учебного дня</h3>
+            </div>
+            <div class="scenario-form" id="scheduleLessonTimeBody"></div>
+          </section>
+
+          <section class="wizard-section schedule-step" data-schedule-step="longBreak" aria-labelledby="scheduleLongBreakTitle" hidden>
+            <div class="wizard-section__head">
+              <span class="wizard-step">Шаг 6</span>
+              <h3 id="scheduleLongBreakTitle">Большая перемена</h3>
+            </div>
+            <div class="scenario-form" id="scheduleLongBreakBody"></div>
+          </section>
+
+          <section class="wizard-section schedule-step" data-schedule-step="subjects" aria-labelledby="scheduleSubjectsTitle" hidden>
+            <div class="wizard-section__head">
+              <span class="wizard-step">Шаг 7</span>
+              <h3 id="scheduleSubjectsTitle">Предметы</h3>
+            </div>
+            <div class="scenario-form" id="scheduleSubjectsBody"></div>
+          </section>
+
+          <section class="wizard-section schedule-step" data-schedule-step="teachers" aria-labelledby="scheduleTeachersTitle" hidden>
+            <div class="wizard-section__head">
+              <span class="wizard-step">Шаг 8</span>
+              <h3 id="scheduleTeachersTitle">Преподаватели</h3>
+            </div>
+            <div class="scenario-form" id="scheduleTeachersBody"></div>
+          </section>
+
+          <section class="wizard-section schedule-step" data-schedule-step="dayLessons" aria-labelledby="scheduleDayLessonsTitle" hidden>
+            <div class="wizard-section__head">
+              <span class="wizard-step">Шаг 9</span>
+              <h3 id="scheduleDayLessonsTitle">Понедельник</h3>
+            </div>
+            <div class="scenario-form" id="scheduleDayLessonsBody"></div>
+          </section>
+
+          <section class="wizard-section schedule-step" data-schedule-step="place" aria-labelledby="schedulePlaceTitle" hidden>
+            <div class="wizard-section__head">
+              <span class="wizard-step">Шаг 5</span>
+              <h3 id="schedulePlaceTitle">Где проходят занятия?</h3>
+            </div>
+            <div class="scenario-form" id="schedulePlaceBody"></div>
+          </section>
+
+          <section class="wizard-section schedule-step" data-schedule-step="reminder" aria-labelledby="scheduleReminderTitle" hidden>
+            <div class="wizard-section__head">
+              <span class="wizard-step">Шаг 6</span>
+              <h3 id="scheduleReminderTitle">Когда напомнить?</h3>
+            </div>
+            <div class="scenario-form" id="scheduleReminderBody"></div>
+          </section>
+
+          <section class="wizard-section schedule-step" data-schedule-step="color" aria-labelledby="scheduleColorTitle" hidden>
+            <div class="wizard-section__head">
+              <span class="wizard-step">Шаг 7</span>
+              <h3 id="scheduleColorTitle">Цвет и детали</h3>
+            </div>
+            <div class="scenario-form" id="scheduleColorBody"></div>
+          </section>
+
+          <section class="wizard-section schedule-step" data-schedule-step="preview" aria-labelledby="schedulePreviewTitle" hidden>
+            <div class="wizard-section__head">
+              <span class="wizard-step">Шаг 8</span>
+              <h3 id="schedulePreviewTitle">Проверьте расписание</h3>
+            </div>
+            <div class="scenario-form" id="schedulePreviewBody"></div>
+          </section>
+        </div>
+
+        <footer class="modal-actions modal-actions--schedule" id="scheduleActions" hidden>
+          <button class="secondary-button" type="button" id="scheduleBackButton">Назад</button>
+          <button class="primary-button" type="button" id="scheduleNextButton" hidden>Далее</button>
+        </footer>
+      </section>
+    </div>
+  </div>
+
+  <script src="/js/pwa.js" defer></script>
+  <script src="/js/app.js" type="module"></script>
+</body>
+</html>

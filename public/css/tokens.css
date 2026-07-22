@@ -1,0 +1,69 @@
+:root {
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --bg: #f5f1ea;
+  --bg-secondary: #efe8dd;
+  --text: #2b2622;
+  --text-soft: #4f463f;
+  --text-muted: #6c6157;
+  --accent: #5678f5;
+  --accent-2: #d89a3d;
+  --terracotta: #c56a4b;
+  --sage: #5f9073;
+  --lavender: #8c7ae6;
+  --rose: #c96a87;
+  --cyan: #47a7b8;
+  --glass-1: rgba(255, 252, 244, .26);
+  --glass-2: rgba(255, 252, 244, .38);
+  --glass-strong: rgba(255, 252, 244, .52);
+  --border: rgba(255, 255, 255, .48);
+  --border-soft: rgba(47, 42, 38, .1);
+  --shadow-main: 0 14px 44px rgba(0, 0, 0, .1);
+  --shadow-elevated: 0 30px 86px rgba(0, 0, 0, .16);
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --motion-fast: 140ms cubic-bezier(.2, .8, .2, 1);
+  --motion: 220ms cubic-bezier(.2, .8, .2, 1);
+  --motion-smooth: 320ms cubic-bezier(.2, .8, .2, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  touch-action: pan-x pan-y;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  background: #202836;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}

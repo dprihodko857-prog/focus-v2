@@ -1,0 +1,17 @@
+node_modules/
+output/
+test-results/
+
+.env
+.env.*
+!.env.example
+
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+/baseline-*.png
+/visual-*.png
+/tmp-*.js
+

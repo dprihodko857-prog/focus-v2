@@ -1,0 +1,995 @@
+import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import http from "node:http";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { test } from "node:test";
+
+import { createFocusSyncServer, createSyncDatabase, dispatchDueReminders } from "../server/sync-server.mjs";
+
+test("sync API creates an account and shares schedules across devices", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+
+  try {
+    const accountResponse = await fetch(`${baseUrl}/api/sync/accounts`, { method: "POST" });
+    assert.equal(accountResponse.status, 201);
+
+    const account = await accountResponse.json();
+    assert.match(account.accountId, /^[0-9a-f-]{36}$/);
+
+    const schedules = [{ id: "school", title: "School schedule", role: "participant" }];
+    const putResponse = await fetch(`${baseUrl}/api/sync/schedules`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": account.accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ schedules }),
+    });
+
+    assert.equal(putResponse.status, 200);
+    assert.equal((await putResponse.json()).revision, 1);
+
+    const getResponse = await fetch(`${baseUrl}/api/sync/schedules`, {
+      headers: {
+        "x-focus-account": account.accountId,
+        "x-focus-device": "phone",
+      },
+    });
+
+    assert.equal(getResponse.status, 200);
+    const snapshot = await getResponse.json();
+    assert.equal(snapshot.accountId, account.accountId);
+    assert.equal(snapshot.revision, 1);
+    assert.deepEqual(snapshot.schedules, schedules);
+    assert.match(snapshot.updatedAt, /\d{4}-\d{2}-\d{2}T/);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync API rejects schedule reads without an account key", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/schedules`);
+    assert.equal(response.status, 401);
+    assert.equal((await response.json()).error, "account_required");
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("auth API reports Orbit Auth configuration state", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    authConfig: {
+      issuer: "https://auth.dmnao83.ru",
+      authorizationEndpoint: "https://auth.dmnao83.ru/oauth/authorize",
+      tokenEndpoint: "https://auth.dmnao83.ru/oauth/token",
+      userinfoEndpoint: "https://auth.dmnao83.ru/userinfo",
+      clientId: "",
+      clientSecret: "",
+      redirectUri: "https://focus-v2.dmnao83.ru/api/auth/callback",
+      scope: "openid email profile offline_access",
+    },
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const sessionResponse = await fetch(`${baseUrl}/api/auth/session`);
+    assert.equal(sessionResponse.status, 200);
+    assert.deepEqual(await sessionResponse.json(), {
+      configured: false,
+      issuer: "https://auth.dmnao83.ru",
+      redirectUri: "https://focus-v2.dmnao83.ru/api/auth/callback",
+      scope: "openid email profile offline_access",
+      authenticated: false,
+      accountId: null,
+      user: null,
+    });
+
+    const loginResponse = await fetch(`${baseUrl}/api/auth/login`, { redirect: "manual" });
+    assert.equal(loginResponse.status, 503);
+    assert.equal((await loginResponse.json()).error, "auth_not_configured");
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("auth API completes Orbit Auth code flow and exposes a local session", async () => {
+  const db = createSyncDatabase(":memory:");
+  const authRequests = [];
+  const issuerServer = http.createServer(async (request, response) => {
+    const url = new URL(request.url || "/", "http://127.0.0.1");
+    authRequests.push({ method: request.method, pathname: url.pathname, headers: request.headers });
+
+    if (request.method === "POST" && url.pathname === "/oauth/token") {
+      const body = new URLSearchParams(await readBody(request));
+      assert.equal(body.get("grant_type"), "authorization_code");
+      assert.equal(body.get("code"), "auth-code");
+      assert.equal(body.get("client_id"), "focus-test-client");
+      assert.equal(Boolean(body.get("code_verifier")), true);
+      sendTestJson(response, 200, { access_token: "access-token", token_type: "Bearer", expires_in: 3600 });
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/userinfo") {
+      assert.equal(request.headers.authorization, "Bearer access-token");
+      sendTestJson(response, 200, {
+        sub: "orbit-user-1",
+        email: "user@example.test",
+        name: "Григорий",
+      });
+      return;
+    }
+
+    sendTestJson(response, 404, { error: "not_found" });
+  });
+  const issuerBaseUrl = await listen(issuerServer);
+  const authConfig = {
+    issuer: issuerBaseUrl,
+    authorizationEndpoint: `${issuerBaseUrl}/oauth/authorize`,
+    tokenEndpoint: `${issuerBaseUrl}/oauth/token`,
+    userinfoEndpoint: `${issuerBaseUrl}/userinfo`,
+    clientId: "focus-test-client",
+    clientSecret: "",
+    redirectUri: "",
+    scope: "openid email profile offline_access",
+  };
+  const server = createFocusSyncServer({
+    db,
+    authConfig,
+    now: () => "2026-07-12T10:00:00.000Z",
+  });
+  const baseUrl = await listen(server);
+  authConfig.redirectUri = `${baseUrl}/api/auth/callback`;
+
+  try {
+    const loginResponse = await fetch(`${baseUrl}/api/auth/login?returnTo=%2F`, {
+      redirect: "manual",
+      headers: {
+        host: "focus-v2.dmnao83.ru",
+        "x-forwarded-proto": "https",
+      },
+    });
+    assert.equal(loginResponse.status, 302);
+
+    const authorizeUrl = new URL(loginResponse.headers.get("location"));
+    assert.equal(authorizeUrl.origin, issuerBaseUrl);
+    assert.equal(authorizeUrl.pathname, "/oauth/authorize");
+    assert.equal(authorizeUrl.searchParams.get("client_id"), "focus-test-client");
+    assert.equal(authorizeUrl.searchParams.get("redirect_uri"), `${baseUrl}/api/auth/callback`);
+    assert.equal(authorizeUrl.searchParams.get("code_challenge_method"), "S256");
+    assert.equal(Boolean(authorizeUrl.searchParams.get("code_challenge")), true);
+
+    const transientCookie = loginResponse.headers.get("set-cookie").split(";")[0];
+    const callbackResponse = await fetch(`${baseUrl}/api/auth/callback?code=auth-code&state=${authorizeUrl.searchParams.get("state")}`, {
+      redirect: "manual",
+      headers: {
+        cookie: transientCookie,
+        host: "focus-v2.dmnao83.ru",
+        "x-forwarded-proto": "https",
+      },
+    });
+    assert.equal(callbackResponse.status, 302);
+    assert.equal(callbackResponse.headers.get("location"), "/");
+    const setCookieHeader = callbackResponse.headers.get("set-cookie");
+    assert.match(setCookieHeader, /focus_auth_session=/);
+    assert.match(setCookieHeader, /focus_auth_pkce=.*Max-Age=0/);
+
+    const sessionCookie = setCookieHeader
+      .split(",")
+      .map(cookie => cookie.trim())
+      .find(cookie => cookie.startsWith("focus_auth_session="))
+      .split(";")[0];
+    const sessionResponse = await fetch(`${baseUrl}/api/auth/session`, {
+      headers: { cookie: sessionCookie },
+    });
+
+    assert.equal(sessionResponse.status, 200);
+    const session = await sessionResponse.json();
+    assert.equal(session.configured, true);
+    assert.equal(session.authenticated, true);
+    assert.match(session.accountId, /^orbit:[a-f0-9]{32}$/);
+    assert.deepEqual(session.user, {
+      sub: "orbit-user-1",
+      email: "user@example.test",
+      name: "Григорий",
+      preferredUsername: null,
+      picture: null,
+    });
+    assert.equal(authRequests.some(request => request.pathname === "/oauth/token"), true);
+    assert.equal(authRequests.some(request => request.pathname === "/userinfo"), true);
+  } finally {
+    await close(server);
+    await close(issuerServer);
+    db.close();
+  }
+});
+
+test("sync account profile tracks account and device metadata", async () => {
+  const db = createSyncDatabase(":memory:");
+  const ticks = [
+    "2026-07-12T08:00:00.000Z",
+    "2026-07-12T08:05:00.000Z",
+    "2026-07-12T08:10:00.000Z",
+  ];
+  let tickIndex = 0;
+  const server = createFocusSyncServer({
+    db,
+    now: () => ticks[Math.min(tickIndex++, ticks.length - 1)],
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-profile";
+
+  try {
+    const profileResponse = await fetch(`${baseUrl}/api/sync/account`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+        "x-focus-device-name": encodeURIComponent("Ноутбук"),
+      },
+    });
+
+    assert.equal(profileResponse.status, 200);
+    assert.deepEqual(await profileResponse.json(), {
+      accountId,
+      displayName: null,
+      createdAt: ticks[0],
+      updatedAt: ticks[0],
+      currentDeviceId: "desktop",
+      devices: [{
+        deviceId: "desktop",
+        deviceName: "Ноутбук",
+        firstSeenAt: ticks[0],
+        lastSeenAt: ticks[0],
+        isCurrent: true,
+      }],
+    });
+
+    const updateResponse = await fetch(`${baseUrl}/api/sync/account`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+        "x-focus-device-name": encodeURIComponent("Ноутбук"),
+      },
+      body: JSON.stringify({
+        displayName: "Личный фокус",
+        deviceName: "Рабочий ноутбук",
+      }),
+    });
+
+    assert.equal(updateResponse.status, 200);
+    const updatedProfile = await updateResponse.json();
+    assert.equal(updatedProfile.displayName, "Личный фокус");
+    assert.equal(updatedProfile.updatedAt, ticks[1]);
+    assert.equal(updatedProfile.devices[0].deviceName, "Рабочий ноутбук");
+    assert.equal(updatedProfile.devices[0].lastSeenAt, ticks[1]);
+
+    const phoneResponse = await fetch(`${baseUrl}/api/sync/account`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+        "x-focus-device-name": encodeURIComponent("iPhone Григория"),
+      },
+    });
+
+    assert.equal(phoneResponse.status, 200);
+    const phoneProfile = await phoneResponse.json();
+    assert.equal(phoneProfile.devices.length, 2);
+    assert.equal(phoneProfile.devices[0].deviceId, "phone");
+    assert.equal(phoneProfile.devices[0].isCurrent, true);
+    assert.equal(phoneProfile.devices[1].deviceId, "desktop");
+    assert.equal(phoneProfile.devices[1].isCurrent, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync database persists schedule snapshots across server restarts", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "focus-sync-"));
+  const dbPath = join(tempDir, "sync.json");
+  const accountId = "account-persisted";
+  const schedules = [{ id: "persisted", title: "Persisted schedule" }];
+
+  try {
+    const firstDb = createSyncDatabase(dbPath);
+    const firstServer = createFocusSyncServer({ db: firstDb });
+    const firstBaseUrl = await listen(firstServer);
+
+    const putResponse = await fetch(`${firstBaseUrl}/api/sync/schedules`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ schedules }),
+    });
+    assert.equal(putResponse.status, 200);
+
+    await close(firstServer);
+    firstDb.close();
+
+    const secondDb = createSyncDatabase(dbPath);
+    const secondServer = createFocusSyncServer({ db: secondDb });
+    const secondBaseUrl = await listen(secondServer);
+
+    const getResponse = await fetch(`${secondBaseUrl}/api/sync/schedules`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+      },
+    });
+
+    assert.equal(getResponse.status, 200);
+    const snapshot = await getResponse.json();
+    assert.equal(snapshot.revision, 1);
+    assert.deepEqual(snapshot.schedules, schedules);
+
+    await close(secondServer);
+    secondDb.close();
+  } finally {
+    rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test("sync API shares reminders across devices", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+  const accountId = "account-reminders";
+  const reminders = [{ id: "reminder-1", title: "Call Sergey", scheduledAt: "2026-07-11T09:30:00.000Z" }];
+
+  try {
+    const putResponse = await fetch(`${baseUrl}/api/sync/reminders`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ reminders }),
+    });
+
+    assert.equal(putResponse.status, 200);
+    assert.equal((await putResponse.json()).revision, 1);
+
+    const getResponse = await fetch(`${baseUrl}/api/sync/reminders`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+      },
+    });
+
+    assert.equal(getResponse.status, 200);
+    const snapshot = await getResponse.json();
+    assert.equal(snapshot.revision, 1);
+    assert.deepEqual(snapshot.reminders, reminders);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync API shares today tasks across devices", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+  const accountId = "account-tasks";
+  const tasks = [{ id: "task-1", title: "Prepare documents", label: "Work", dateKey: "2026-07-11" }];
+
+  try {
+    const putResponse = await fetch(`${baseUrl}/api/sync/tasks`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ tasks }),
+    });
+
+    assert.equal(putResponse.status, 200);
+    assert.equal((await putResponse.json()).revision, 1);
+
+    const getResponse = await fetch(`${baseUrl}/api/sync/tasks`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+      },
+    });
+
+    assert.equal(getResponse.status, 200);
+    const snapshot = await getResponse.json();
+    assert.equal(snapshot.revision, 1);
+    assert.deepEqual(snapshot.tasks, tasks);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync API shares notes across devices", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+  const accountId = "account-notes";
+  const notes = [{ id: "note-1", body: "Идея для недели", createdAt: "2026-07-11T10:00:00.000Z" }];
+
+  try {
+    const putResponse = await fetch(`${baseUrl}/api/sync/notes`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ notes }),
+    });
+
+    assert.equal(putResponse.status, 200);
+    assert.equal((await putResponse.json()).revision, 1);
+
+    const getResponse = await fetch(`${baseUrl}/api/sync/notes`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+      },
+    });
+
+    assert.equal(getResponse.status, 200);
+    const snapshot = await getResponse.json();
+    assert.equal(snapshot.revision, 1);
+    assert.deepEqual(snapshot.notes, notes);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync API shares birthdays across devices", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+  const accountId = "account-birthdays";
+  const birthdays = [{ id: "birthday-1", name: "Анна", dateOfBirth: "1990-07-11", reminderEnabled: true }];
+
+  try {
+    const putResponse = await fetch(`${baseUrl}/api/sync/birthdays`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ birthdays }),
+    });
+
+    assert.equal(putResponse.status, 200);
+    assert.equal((await putResponse.json()).revision, 1);
+
+    const getResponse = await fetch(`${baseUrl}/api/sync/birthdays`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+      },
+    });
+
+    assert.equal(getResponse.status, 200);
+    const snapshot = await getResponse.json();
+    assert.equal(snapshot.revision, 1);
+    assert.deepEqual(snapshot.birthdays, birthdays);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync API shares diary entries across devices", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+  const accountId = "account-diary";
+  const entries = [{ id: "diary-1", dateKey: "2026-07-11", heading: "Итоги дня", text: "Спокойный фокус" }];
+
+  try {
+    const putResponse = await fetch(`${baseUrl}/api/sync/diary`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ entries }),
+    });
+
+    assert.equal(putResponse.status, 200);
+    assert.equal((await putResponse.json()).revision, 1);
+
+    const getResponse = await fetch(`${baseUrl}/api/sync/diary`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+      },
+    });
+
+    assert.equal(getResponse.status, 200);
+    const snapshot = await getResponse.json();
+    assert.equal(snapshot.revision, 1);
+    assert.deepEqual(snapshot.entries, entries);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("push API stores a device subscription for an account", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db, pushPublicKey: "public-key" });
+  const baseUrl = await listen(server);
+  const subscription = {
+    endpoint: "https://push.example/send/1",
+    keys: {
+      p256dh: "p256dh-key",
+      auth: "auth-key",
+    },
+  };
+
+  try {
+    const configResponse = await fetch(`${baseUrl}/api/push/config`);
+    assert.equal(configResponse.status, 200);
+    assert.deepEqual(await configResponse.json(), { configured: true, publicKey: "public-key" });
+
+    const saveResponse = await fetch(`${baseUrl}/api/push/subscriptions`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": "account-push",
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ subscription }),
+    });
+
+    assert.equal(saveResponse.status, 200);
+    assert.deepEqual(await saveResponse.json(), { saved: true, subscriptions: 1 });
+    assert.equal(db.getPushSubscriptions("account-push")[0].endpoint, subscription.endpoint);
+
+    const renewedSubscription = createPushSubscription("https://push.example/send/renewed");
+    const renewResponse = await fetch(`${baseUrl}/api/push/subscriptions`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": "account-push",
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ subscription: renewedSubscription }),
+    });
+
+    assert.equal(renewResponse.status, 200);
+    assert.deepEqual(await renewResponse.json(), { saved: true, subscriptions: 1 });
+    assert.equal(db.getPushSubscriptions("account-push").length, 1);
+    assert.equal(db.getPushSubscriptions("account-push")[0].endpoint, renewedSubscription.endpoint);
+
+    const statusResponse = await fetch(`${baseUrl}/api/push/subscriptions/status`, {
+      headers: {
+        "x-focus-account": "account-push",
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(statusResponse.status, 200);
+    assert.deepEqual(await statusResponse.json(), {
+      configured: true,
+      accountId: "account-push",
+      deviceId: "desktop",
+      subscriptions: 1,
+      deviceSubscriptions: 1,
+      deviceRegistered: true,
+      updatedAt: db.getPushSubscriptions("account-push")[0].updatedAt,
+    });
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("push API sends a test notification to the current device", async () => {
+  const db = createSyncDatabase(":memory:");
+  const deliveries = [];
+  const server = createFocusSyncServer({
+    db,
+    pushPublicKey: "public-key",
+    pushSender: async delivery => {
+      deliveries.push(delivery);
+      return { ok: true, statusCode: 201 };
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-test-push";
+  const deviceId = "desktop";
+
+  try {
+    db.savePushSubscription({
+      accountId,
+      deviceId,
+      subscription: createPushSubscription("https://push.example/send/test"),
+      updatedAt: "2026-07-10T10:00:00.000Z",
+    });
+
+    const response = await fetch(`${baseUrl}/api/push/test`, {
+      method: "POST",
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": deviceId,
+      },
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      sent: 1,
+      failed: 0,
+      removed: 0,
+      deviceSubscriptions: 1,
+    });
+    assert.equal(deliveries.length, 1);
+    assert.equal(deliveries[0].payload.type, "focus-test");
+    assert.equal(deliveries[0].ttl, 60);
+
+    const eventsResponse = await fetch(`${baseUrl}/api/push/events`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": deviceId,
+      },
+    });
+    assert.equal(eventsResponse.status, 200);
+    const events = await eventsResponse.json();
+    assert.equal(events.events.length, 1);
+    assert.equal(events.events[0].type, "test");
+    assert.equal(events.events[0].status, "sent");
+    assert.equal(events.events[0].sent, 1);
+    assert.equal(events.events[0].failed, 0);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("push reminder diagnostics reports delivery states for the account", async () => {
+  const db = createSyncDatabase(":memory:");
+  const now = () => "2026-07-10T10:00:00.000Z";
+  const server = createFocusSyncServer({ db, now });
+  const baseUrl = await listen(server);
+  const accountId = "account-push-reminder-diagnostics";
+  const alreadySentReminder = {
+    id: "reminder-already-sent",
+    title: "Already sent",
+    scheduledAt: "2026-07-10T09:55:00.000Z",
+    deliveredAt: null,
+  };
+
+  try {
+    db.saveReminderSnapshot({
+      accountId,
+      reminders: [
+        { id: "reminder-invalid", title: "Invalid", scheduledAt: "not-a-date", deliveredAt: null },
+        { id: "reminder-pending", title: "Future", scheduledAt: "2026-07-10T10:01:00.000Z", deliveredAt: null },
+        { id: "reminder-expired", title: "Old", scheduledAt: "2026-06-30T10:00:00.000Z", deliveredAt: null },
+        { id: "reminder-delivered", title: "Done", scheduledAt: "2026-07-10T09:50:00.000Z", deliveredAt: "2026-07-10T09:50:30.000Z" },
+        alreadySentReminder,
+        { id: "reminder-no-subscriptions", title: "No subscribers", scheduledAt: "2026-07-10T09:58:00.000Z", deliveredAt: null },
+      ],
+      updatedAt: now(),
+    });
+    db.savePushDelivery({
+      accountId,
+      deliveryKey: `${alreadySentReminder.id}:${alreadySentReminder.scheduledAt}`,
+      reminderId: alreadySentReminder.id,
+      scheduledAt: alreadySentReminder.scheduledAt,
+      sentAt: now(),
+      deliveryCount: 1,
+    });
+
+    const response = await fetch(`${baseUrl}/api/push/reminders/status`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.status, "ok");
+    assert.equal(result.checkedAt, now());
+    assert.equal(result.subscriptions, 0);
+    assert.deepEqual(result.stats, {
+      scanned: 6,
+      due: 0,
+      noSubscriptions: 1,
+      expired: 1,
+      pending: 1,
+      alreadyDelivered: 1,
+      alreadySent: 1,
+      invalid: 1,
+    });
+    assert.equal(result.attention.length, 3);
+    assert.deepEqual(result.attention.map(item => item.state), ["invalid", "expired", "noSubscriptions"]);
+    assert.equal(result.next.id, "reminder-pending");
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("push dispatcher sends due reminders once", async () => {
+  const db = createSyncDatabase(":memory:");
+  const deliveries = [];
+  const now = () => "2026-07-10T10:00:00.000Z";
+  const accountId = "account-push-due";
+  const reminder = {
+    id: "reminder-due",
+    title: "Call Sergey",
+    scheduledAt: "2026-07-10T09:59:00.000Z",
+    deliveredAt: null,
+  };
+
+  db.saveReminderSnapshot({
+    accountId,
+    reminders: [reminder],
+    updatedAt: now(),
+  });
+  db.savePushSubscription({
+    accountId,
+    deviceId: "desktop",
+    subscription: createPushSubscription("https://push.example/send/due"),
+    updatedAt: now(),
+  });
+
+  const firstRun = await dispatchDueReminders({
+    db,
+    now,
+    pushSender: async delivery => {
+      deliveries.push(delivery);
+      return { ok: true, statusCode: 201 };
+    },
+  });
+  const secondRun = await dispatchDueReminders({
+    db,
+    now,
+    pushSender: async delivery => {
+      deliveries.push(delivery);
+      return { ok: true, statusCode: 201 };
+    },
+  });
+
+  assert.equal(firstRun.sent, 1);
+  assert.equal(firstRun.due, 1);
+  assert.equal(firstRun.delivered, 1);
+  assert.equal(secondRun.sent, 0);
+  assert.equal(secondRun.alreadyDelivered, 1);
+  assert.equal(deliveries.length, 1);
+  assert.equal(deliveries[0].payload.body, reminder.title);
+  assert.equal(deliveries[0].payload.reminderId, reminder.id);
+  const events = db.listPushEvents(accountId);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].type, "reminder");
+  assert.equal(events[0].status, "sent");
+  assert.equal(events[0].reminderId, reminder.id);
+  assert.equal(events[0].sent, 1);
+  const deliveredSnapshot = db.getReminderSnapshot(accountId);
+  assert.equal(deliveredSnapshot.revision, 2);
+  assert.equal(deliveredSnapshot.updatedAt, now());
+  assert.equal(deliveredSnapshot.reminders[0].deliveredAt, now());
+});
+
+test("sync API preserves delivered reminder state from stale client pushes", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+  const deliveries = [];
+  const now = () => "2026-07-10T10:00:00.000Z";
+  const accountId = "account-stale-delivery";
+  const reminder = {
+    id: "reminder-stale",
+    title: "Call Sergey",
+    scheduledAt: "2026-07-10T09:59:00.000Z",
+    deliveredAt: null,
+  };
+
+  try {
+    db.saveReminderSnapshot({
+      accountId,
+      reminders: [reminder],
+      updatedAt: now(),
+    });
+    db.savePushSubscription({
+      accountId,
+      deviceId: "phone",
+      subscription: createPushSubscription("https://push.example/send/stale"),
+      updatedAt: now(),
+    });
+
+    await dispatchDueReminders({
+      db,
+      now,
+      pushSender: async delivery => {
+        deliveries.push(delivery);
+        return { ok: true, statusCode: 201 };
+      },
+    });
+
+    const staleResponse = await fetch(`${baseUrl}/api/sync/reminders`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({
+        reminders: [{ ...reminder, title: "Call Sergey later", deliveredAt: null }],
+      }),
+    });
+
+    assert.equal(staleResponse.status, 200);
+    const staleSnapshot = await staleResponse.json();
+    assert.equal(staleSnapshot.reminders[0].title, "Call Sergey later");
+    assert.equal(staleSnapshot.reminders[0].deliveredAt, now());
+
+    const secondRun = await dispatchDueReminders({
+      db,
+      now,
+      pushSender: async delivery => {
+        deliveries.push(delivery);
+        return { ok: true, statusCode: 201 };
+      },
+    });
+
+    assert.equal(secondRun.sent, 0);
+    assert.equal(deliveries.length, 1);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("push dispatcher reports skipped reminder delivery reasons", async () => {
+  const db = createSyncDatabase(":memory:");
+  const now = () => "2026-07-10T10:00:00.000Z";
+  const accountId = "account-push-diagnostics";
+  const alreadySentReminder = {
+    id: "reminder-already-sent",
+    title: "Already sent",
+    scheduledAt: "2026-07-10T09:55:00.000Z",
+    deliveredAt: null,
+  };
+
+  db.saveReminderSnapshot({
+    accountId,
+    reminders: [
+      { id: "reminder-invalid", title: "Invalid", scheduledAt: "not-a-date", deliveredAt: null },
+      { id: "reminder-pending", title: "Future", scheduledAt: "2026-07-10T10:01:00.000Z", deliveredAt: null },
+      { id: "reminder-expired", title: "Old", scheduledAt: "2026-06-30T10:00:00.000Z", deliveredAt: null },
+      { id: "reminder-delivered", title: "Done", scheduledAt: "2026-07-10T09:50:00.000Z", deliveredAt: "2026-07-10T09:50:30.000Z" },
+      alreadySentReminder,
+      { id: "reminder-no-subscriptions", title: "No subscribers", scheduledAt: "2026-07-10T09:58:00.000Z", deliveredAt: null },
+    ],
+    updatedAt: now(),
+  });
+  db.savePushDelivery({
+    accountId,
+    deliveryKey: `${alreadySentReminder.id}:${alreadySentReminder.scheduledAt}`,
+    reminderId: alreadySentReminder.id,
+    scheduledAt: alreadySentReminder.scheduledAt,
+    sentAt: now(),
+    deliveryCount: 1,
+  });
+
+  const result = await dispatchDueReminders({
+    db,
+    now,
+    pushSender: async () => {
+      throw new Error("No delivery should be attempted without subscriptions.");
+    },
+  });
+
+  assert.equal(result.scanned, 6);
+  assert.equal(result.invalid, 1);
+  assert.equal(result.pending, 1);
+  assert.equal(result.expired, 1);
+  assert.equal(result.alreadyDelivered, 1);
+  assert.equal(result.alreadySent, 1);
+  assert.equal(result.due, 1);
+  assert.equal(result.noSubscriptions, 1);
+  assert.equal(result.sent, 0);
+  assert.equal(result.failed, 0);
+  assert.equal(result.delivered, 0);
+  assert.equal(db.getReminderSnapshot(accountId).revision, 1);
+});
+
+test("push dispatcher removes expired subscriptions", async () => {
+  const db = createSyncDatabase(":memory:");
+  const now = () => "2026-07-10T10:00:00.000Z";
+  const accountId = "account-push-expired";
+
+  db.saveReminderSnapshot({
+    accountId,
+    reminders: [{
+      id: "reminder-expired-subscription",
+      title: "Training",
+      scheduledAt: "2026-07-10T09:59:00.000Z",
+      deliveredAt: null,
+    }],
+    updatedAt: now(),
+  });
+  db.savePushSubscription({
+    accountId,
+    deviceId: "phone",
+    subscription: createPushSubscription("https://push.example/send/expired"),
+    updatedAt: now(),
+  });
+
+  const result = await dispatchDueReminders({
+    db,
+    now,
+    pushSender: async () => ({ ok: false, statusCode: 410 }),
+  });
+
+  assert.equal(result.failed, 1);
+  assert.equal(result.removed, 1);
+  assert.equal(db.getPushSubscriptions(accountId).length, 0);
+  const snapshot = db.getReminderSnapshot(accountId);
+  assert.equal(snapshot.revision, 1);
+  assert.equal(snapshot.reminders[0].deliveredAt, null);
+});
+
+function listen(server) {
+  return new Promise(resolve => {
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      resolve(`http://127.0.0.1:${address.port}`);
+    });
+  });
+}
+
+function close(server) {
+  return new Promise(resolve => server.close(resolve));
+}
+
+function readBody(request) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    request.on("data", chunk => {
+      body += chunk;
+    });
+    request.on("end", () => resolve(body));
+    request.on("error", reject);
+  });
+}
+
+function sendTestJson(response, status, body) {
+  response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+  response.end(JSON.stringify(body));
+}
+
+function createPushSubscription(endpoint) {
+  return {
+    endpoint,
+    keys: {
+      p256dh: "p256dh-key",
+      auth: "auth-key",
+    },
+  };
+}
