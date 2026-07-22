@@ -3160,6 +3160,11 @@ function renderReminderPushDiagnostics(state = reminderPushDiagnostics) {
   const refreshButton = document.querySelector("#reminderPushRefreshButton");
   const testButton = document.querySelector("#reminderPushTestButton");
   const permission = focusNotifications.getPermission();
+  const device = getDeviceRuntimeProfile();
+  const needsServerRegistration = permission === "granted" &&
+    device.pushApiSupported &&
+    state?.config?.configured !== false &&
+    !state?.status?.deviceRegistered;
 
   if (summary) {
     summary.textContent = getReminderPushSummary(state);
@@ -3180,8 +3185,11 @@ function renderReminderPushDiagnostics(state = reminderPushDiagnostics) {
   }
 
   if (enableButton) {
-    enableButton.hidden = permission === "granted";
-    enableButton.disabled = permission === "denied" || permission === "unsupported";
+    enableButton.hidden = permission === "granted" && !needsServerRegistration;
+    enableButton.textContent = permission === "granted" ? "Подключить" : "Включить";
+    enableButton.disabled = permission === "denied" ||
+      permission === "unsupported" ||
+      (permission === "granted" && state?.config?.configured === false);
   }
 
   if (refreshButton) {
@@ -3189,7 +3197,7 @@ function renderReminderPushDiagnostics(state = reminderPushDiagnostics) {
   }
 
   if (testButton) {
-    testButton.disabled = permission !== "granted" || !state?.status?.deviceRegistered;
+    testButton.disabled = permission !== "granted";
   }
 
   renderDeviceCheck();
@@ -3221,6 +3229,12 @@ async function refreshReminderPushDiagnostics({ register = false, message = "" }
     ) {
       state.registration = await registerServerPushSubscription();
       state.status = await scheduleSync.getPushSubscriptionStatus();
+    }
+
+    if (!state.message && state.registration) {
+      state.message = getReminderPushStatusMessage(state.registration);
+    } else if (!state.message && state.status?.deviceRegistered) {
+      state.message = getReminderPushStatusMessage(state.status);
     }
   }
 
