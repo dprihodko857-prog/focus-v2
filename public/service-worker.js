@@ -1,4 +1,4 @@
-const CACHE_NAME = "focus-pwa-v38";
+const CACHE_NAME = "focus-pwa-v39";
 
 const APP_SHELL = [
   "/",

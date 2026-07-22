@@ -620,6 +620,8 @@ function createEmptyReminderDeliveryStats() {
     pending: 0,
     alreadyDelivered: 0,
     alreadySent: 0,
+    retrying: 0,
+    retryExhausted: 0,
     invalid: 0,
   };
 }

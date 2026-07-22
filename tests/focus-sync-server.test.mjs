@@ -723,6 +723,8 @@ test("push reminder diagnostics reports delivery states for the account", async 
       pending: 1,
       alreadyDelivered: 1,
       alreadySent: 1,
+      retrying: 0,
+      retryExhausted: 0,
       invalid: 1,
     });
     assert.equal(result.attention.length, 3);
@@ -793,6 +795,204 @@ test("push dispatcher sends due reminders once", async () => {
   assert.equal(deliveredSnapshot.revision, 2);
   assert.equal(deliveredSnapshot.updatedAt, now());
   assert.equal(deliveredSnapshot.reminders[0].deliveredAt, now());
+});
+
+test("push dispatcher retries transient reminder failures after the retry delay", async () => {
+  const db = createSyncDatabase(":memory:");
+  const deliveries = [];
+  let nowValue = "2026-07-10T10:00:00.000Z";
+  const now = () => nowValue;
+  const accountId = "account-push-retry";
+  const reminder = {
+    id: "reminder-retry",
+    title: "Retry me",
+    scheduledAt: "2026-07-10T09:59:00.000Z",
+    deliveredAt: null,
+  };
+  const deliveryKey = `${reminder.id}:${reminder.scheduledAt}`;
+  const pushResults = [
+    { ok: false, statusCode: 503 },
+    { ok: true, statusCode: 201 },
+  ];
+  const pushSender = async delivery => {
+    deliveries.push(delivery);
+    return pushResults.shift();
+  };
+
+  db.saveReminderSnapshot({
+    accountId,
+    reminders: [reminder],
+    updatedAt: now(),
+  });
+  db.savePushSubscription({
+    accountId,
+    deviceId: "phone",
+    subscription: createPushSubscription("https://push.example/send/retry"),
+    updatedAt: now(),
+  });
+
+  const firstRun = await dispatchDueReminders({
+    db,
+    now,
+    retryDelayMs: 5 * 60 * 1000,
+    retryMaxAttempts: 3,
+    pushSender,
+  });
+
+  assert.equal(firstRun.failed, 1);
+  assert.equal(firstRun.retrying, 1);
+  assert.equal(firstRun.delivered, 0);
+  assert.equal(db.hasPushDelivery(accountId, deliveryKey), false);
+  const retry = db.getPushRetry(accountId, deliveryKey);
+  assert.equal(retry.attempts, 1);
+  assert.equal(retry.maxAttempts, 3);
+  assert.equal(retry.nextRetryAt, "2026-07-10T10:05:00.000Z");
+  assert.equal(db.getReminderSnapshot(accountId).revision, 1);
+  assert.equal(db.getReminderSnapshot(accountId).reminders[0].deliveredAt, null);
+
+  const skippedRun = await dispatchDueReminders({
+    db,
+    now,
+    retryDelayMs: 5 * 60 * 1000,
+    retryMaxAttempts: 3,
+    pushSender: async () => {
+      throw new Error("Retry should wait until nextRetryAt.");
+    },
+  });
+
+  assert.equal(skippedRun.sent, 0);
+  assert.equal(skippedRun.retrying, 1);
+  assert.equal(deliveries.length, 1);
+
+  nowValue = "2026-07-10T10:05:00.000Z";
+  const secondRun = await dispatchDueReminders({
+    db,
+    now,
+    retryDelayMs: 5 * 60 * 1000,
+    retryMaxAttempts: 3,
+    pushSender,
+  });
+
+  assert.equal(secondRun.sent, 1);
+  assert.equal(secondRun.delivered, 1);
+  assert.equal(db.getPushRetry(accountId, deliveryKey), null);
+  assert.equal(db.hasPushDelivery(accountId, deliveryKey), true);
+  const deliveredSnapshot = db.getReminderSnapshot(accountId);
+  assert.equal(deliveredSnapshot.revision, 2);
+  assert.equal(deliveredSnapshot.reminders[0].deliveredAt, nowValue);
+
+  const events = db.listPushEvents(accountId);
+  assert.equal(events.length, 2);
+  assert.equal(events[0].status, "sent");
+  assert.equal(events[0].attempts, 2);
+  assert.equal(events[1].status, "failed");
+  assert.equal(events[1].attempts, 1);
+  assert.equal(events[1].maxAttempts, 3);
+  assert.equal(events[1].nextRetryAt, "2026-07-10T10:05:00.000Z");
+});
+
+test("push dispatcher stops retrying transient reminder failures after the attempt limit", async () => {
+  const db = createSyncDatabase(":memory:");
+  const deliveries = [];
+  const now = () => "2026-07-10T10:00:00.000Z";
+  const accountId = "account-push-retry-exhausted";
+  const reminder = {
+    id: "reminder-retry-exhausted",
+    title: "Stop retrying",
+    scheduledAt: "2026-07-10T09:59:00.000Z",
+    deliveredAt: null,
+  };
+  const deliveryKey = `${reminder.id}:${reminder.scheduledAt}`;
+  const pushSender = async delivery => {
+    deliveries.push(delivery);
+    return { ok: false, statusCode: 503 };
+  };
+
+  db.saveReminderSnapshot({
+    accountId,
+    reminders: [reminder],
+    updatedAt: now(),
+  });
+  db.savePushSubscription({
+    accountId,
+    deviceId: "phone",
+    subscription: createPushSubscription("https://push.example/send/retry-exhausted"),
+    updatedAt: now(),
+  });
+
+  const firstRun = await dispatchDueReminders({
+    db,
+    now,
+    retryDelayMs: 0,
+    retryMaxAttempts: 3,
+    pushSender,
+  });
+  const secondRun = await dispatchDueReminders({
+    db,
+    now,
+    retryDelayMs: 0,
+    retryMaxAttempts: 3,
+    pushSender,
+  });
+  const thirdRun = await dispatchDueReminders({
+    db,
+    now,
+    retryDelayMs: 0,
+    retryMaxAttempts: 3,
+    pushSender,
+  });
+
+  assert.equal(firstRun.retrying, 1);
+  assert.equal(secondRun.retrying, 1);
+  assert.equal(thirdRun.retryExhausted, 1);
+  assert.equal(thirdRun.delivered, 0);
+  assert.equal(deliveries.length, 3);
+  assert.equal(db.getPushRetry(accountId, deliveryKey), null);
+  const failure = db.getPushFailure(accountId, deliveryKey);
+  assert.equal(failure.attempts, 3);
+  assert.equal(failure.maxAttempts, 3);
+  assert.equal(failure.failedAt, now());
+  const events = db.listPushEvents(accountId);
+  assert.equal(events[0].status, "retry-exhausted");
+  assert.equal(events[0].attempts, 3);
+  assert.equal(events[0].maxAttempts, 3);
+
+  const fourthRun = await dispatchDueReminders({
+    db,
+    now,
+    retryDelayMs: 0,
+    retryMaxAttempts: 3,
+    pushSender: async () => {
+      throw new Error("Retry should stop after the attempt limit.");
+    },
+  });
+
+  assert.equal(fourthRun.sent, 0);
+  assert.equal(fourthRun.failed, 0);
+  assert.equal(fourthRun.retryExhausted, 1);
+  assert.equal(deliveries.length, 3);
+
+  const server = createFocusSyncServer({ db, now });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/push/reminders/status`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.stats.retryExhausted, 1);
+    assert.equal(result.attention[0].state, "retryExhausted");
+    assert.equal(result.attention[0].failure.attempts, 3);
+    assert.equal(result.attention[0].failure.maxAttempts, 3);
+  } finally {
+    await close(server);
+    db.close();
+  }
 });
 
 test("sync API preserves delivered reminder state from stale client pushes", async () => {
@@ -950,6 +1150,7 @@ test("push dispatcher removes expired subscriptions", async () => {
   assert.equal(result.failed, 1);
   assert.equal(result.removed, 1);
   assert.equal(db.getPushSubscriptions(accountId).length, 0);
+  assert.equal(db.getPushRetry(accountId, "reminder-expired-subscription:2026-07-10T09:59:00.000Z"), null);
   const snapshot = db.getReminderSnapshot(accountId);
   assert.equal(snapshot.revision, 1);
   assert.equal(snapshot.reminders[0].deliveredAt, null);

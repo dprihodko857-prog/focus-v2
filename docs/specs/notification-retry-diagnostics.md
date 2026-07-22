@@ -1,8 +1,9 @@
 # Notification Retry Diagnostics Spec
 
-Status: DRAFT
+Status: IMPLEMENTED_LOCAL_COMMITTED
 Spec id: NOTIF-RETRY-001
-Owner decision: runtime implementation pending
+Owner decision: TASK-003 runtime implementation approved on 2026-07-22
+Implementation note: TASK-003 implemented and committed locally on 2026-07-22; deployment, backend restart, and live push testing remain separate owner gates.
 Template: SECURITY_PRIVACY_SPEC_TEMPLATE with JOB_QUEUE_SPEC_TEMPLATE retry fields
 
 ## Goal
@@ -108,4 +109,3 @@ Improve backend push reminder reliability by adding bounded retry state and clea
 
 - Whether the owner wants retry status shown in the UI immediately or only kept in diagnostics/API for the first implementation slice.
 - Whether retry delay should stay at 5 minutes or become configurable by environment variable after the first bounded implementation.
-

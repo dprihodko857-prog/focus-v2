@@ -9,6 +9,7 @@ Status: DRAFT
 - Important app data has IndexedDB-backed storage modules and sync client integration.
 - Node backend under `server/sync-server.mjs` supports sync, auth endpoints, push subscriptions, reminder dispatch, and push delivery event history.
 - Diary access is protected by a four digit PIN gate in the current app behavior.
+- TASK-003 is implemented locally: transient reminder push failures now enter bounded retry diagnostics, and max-attempt exhaustion is visible in diagnostics/events.
 
 ## In Progress
 
@@ -29,10 +30,10 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; `npm.cmd test` passed 83/83; baseline commit is created in local Git history.
+- Current result: local Git repository exists; baseline commits are present; TASK-003 is committed locally; `npm.cmd test` passed 85/85 after TASK-003.
 
 ## Open Questions
 
 - Which next product/runtime task should be promoted to `READY`.
 - Whether future backend/deployment changes should be handled only after a separate owner deployment approval.
-- Whether to approve `TASK-003` for bounded server-side notification retry diagnostics.
+- Whether to deploy TASK-003 after separate deployment approval.

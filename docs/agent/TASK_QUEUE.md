@@ -91,13 +91,13 @@ Status values: DRAFT, READY, IN_PROGRESS, BLOCKED, BLOCKED_OWNER, PARTIALLY_VERI
 ## TASK-003
 
 - title: Add bounded retry diagnostics for reminder push delivery
-- status: BLOCKED_OWNER
-- owner_gate: pending
+- status: DONE
+- owner_gate: approved
 - task_type: product_runtime
 - priority: high
 - source: `docs/specs/notification-retry-diagnostics.md`
 - spec_reference: `docs/specs/notification-retry-diagnostics.md#in-scope-for-task-003`
-- spec_status: draft_runtime_pending
+- spec_status: approved_for_task_003
 - goal: implement server-side retry metadata and diagnostics for transient reminder push failures without adding infrastructure.
 - out_of_scope:
   - production deployment
@@ -134,11 +134,11 @@ Status values: DRAFT, READY, IN_PROGRESS, BLOCKED, BLOCKED_OWNER, PARTIALLY_VERI
   - `tests/focus-sync-server.test.mjs`
   - optional client diagnostics contract tests if server response shape changes
 - dependencies:
-  - owner approval of TASK-003 runtime implementation
+  - owner approval of TASK-003 runtime implementation on 2026-07-22
 - design_review_required: false
 - security_review_required: true
-- outcome:
-- commit_status: not_required
-- notes: Do not start until owner explicitly approves TASK-003.
+- outcome: Implemented locally. Server stores bounded retry metadata for transient reminder push failures, skips retries until `nextRetryAt`, stops after max attempts, reports `retrying` and `retryExhausted` diagnostics, and keeps permanent `404`/`410` subscription removal out of retry state. Client diagnostics and service worker cache version were updated for the changed diagnostics contract.
+- commit_status: committed
+- notes: Owner approved TASK-003 runtime implementation and local commit on 2026-07-22. Local checks passed. No deployment, push, or backend restart approval included.
 
 Only implement tasks with `status: READY` and `owner_gate: not_required` or `owner_gate: approved`.

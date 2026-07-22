@@ -10,6 +10,8 @@ const DEFAULT_DB_PATH = process.env.FOCUS_SYNC_DB || join(process.cwd(), "data",
 const DEFAULT_PUSH_INTERVAL_MS = Number(process.env.FOCUS_PUSH_INTERVAL_MS || 30000);
 const DEFAULT_PUSH_TTL_SECONDS = Number(process.env.FOCUS_PUSH_TTL_SECONDS || 86400);
 const DEFAULT_PUSH_MAX_AGE_MS = Number(process.env.FOCUS_PUSH_MAX_AGE_MS || 7 * 24 * 60 * 60 * 1000);
+const DEFAULT_PUSH_RETRY_DELAY_MS = readNonNegativeNumberEnv("FOCUS_PUSH_RETRY_DELAY_MS", 5 * 60 * 1000);
+const DEFAULT_PUSH_RETRY_MAX_ATTEMPTS = readPositiveIntegerEnv("FOCUS_PUSH_RETRY_MAX_ATTEMPTS", 3);
 const MAX_BODY_BYTES = 1024 * 1024;
 const AUTH_SESSION_COOKIE = "focus_auth_session";
 const AUTH_TRANSIENT_COOKIE = "focus_auth_pkce";
@@ -247,7 +249,7 @@ class JsonSyncDatabase {
     return events.slice(0, Math.max(0, Number(limit) || 8));
   }
 
-  savePushEvent({ accountId, deviceId, type, status, title, reminderId, scheduledAt, sent, failed, removed, subscriptions, createdAt }) {
+  savePushEvent({ accountId, deviceId, type, status, title, reminderId, scheduledAt, sent, failed, removed, subscriptions, attempts, maxAttempts, nextRetryAt, createdAt }) {
     const currentEvents = Array.isArray(this.state.pushEvents[accountId])
       ? this.state.pushEvents[accountId]
       : [];
@@ -264,6 +266,9 @@ class JsonSyncDatabase {
       failed: Number(failed) || 0,
       removed: Number(removed) || 0,
       subscriptions: Number(subscriptions) || 0,
+      attempts: Number(attempts) || 0,
+      maxAttempts: Number(maxAttempts) || 0,
+      nextRetryAt: typeof nextRetryAt === "string" ? nextRetryAt : null,
       createdAt,
     };
     const dedupedEvents = event.type === "reminder" && event.reminderId && event.scheduledAt
@@ -302,7 +307,78 @@ class JsonSyncDatabase {
       sentAt,
       deliveryCount,
     };
+    if (this.state.pushRetries[accountId]) {
+      delete this.state.pushRetries[accountId][deliveryKey];
+    }
+    if (this.state.pushFailures[accountId]) {
+      delete this.state.pushFailures[accountId][deliveryKey];
+    }
     this.persist();
+  }
+
+  getPushRetry(accountId, deliveryKey) {
+    return this.state.pushRetries[accountId]?.[deliveryKey] || null;
+  }
+
+  savePushRetry({ accountId, deliveryKey, reminderId, scheduledAt, attempts, maxAttempts, lastAttemptAt, nextRetryAt, failed, removed, subscriptions }) {
+    this.state.pushRetries[accountId] ||= {};
+    const retry = {
+      accountId,
+      deliveryKey,
+      reminderId: sanitizeStoredName(reminderId),
+      scheduledAt: typeof scheduledAt === "string" ? scheduledAt : null,
+      attempts: Number(attempts) || 0,
+      maxAttempts: Number(maxAttempts) || 0,
+      lastAttemptAt,
+      nextRetryAt,
+      failed: Number(failed) || 0,
+      removed: Number(removed) || 0,
+      subscriptions: Number(subscriptions) || 0,
+    };
+    this.state.pushRetries[accountId][deliveryKey] = retry;
+    if (this.state.pushFailures[accountId]) {
+      delete this.state.pushFailures[accountId][deliveryKey];
+    }
+    this.persist();
+    return retry;
+  }
+
+  clearPushRetry({ accountId, deliveryKey }) {
+    if (!this.state.pushRetries[accountId]?.[deliveryKey]) {
+      return;
+    }
+    delete this.state.pushRetries[accountId][deliveryKey];
+    this.persist();
+  }
+
+  hasPushFailure(accountId, deliveryKey) {
+    return Boolean(this.state.pushFailures[accountId]?.[deliveryKey]);
+  }
+
+  getPushFailure(accountId, deliveryKey) {
+    return this.state.pushFailures[accountId]?.[deliveryKey] || null;
+  }
+
+  savePushFailure({ accountId, deliveryKey, reminderId, scheduledAt, attempts, maxAttempts, failedAt, failed, removed, subscriptions }) {
+    this.state.pushFailures[accountId] ||= {};
+    const failure = {
+      accountId,
+      deliveryKey,
+      reminderId: sanitizeStoredName(reminderId),
+      scheduledAt: typeof scheduledAt === "string" ? scheduledAt : null,
+      attempts: Number(attempts) || 0,
+      maxAttempts: Number(maxAttempts) || 0,
+      failedAt,
+      failed: Number(failed) || 0,
+      removed: Number(removed) || 0,
+      subscriptions: Number(subscriptions) || 0,
+    };
+    this.state.pushFailures[accountId][deliveryKey] = failure;
+    if (this.state.pushRetries[accountId]) {
+      delete this.state.pushRetries[accountId][deliveryKey];
+    }
+    this.persist();
+    return failure;
   }
 
   close() {}
@@ -336,6 +412,8 @@ function readState(dbPath) {
       diarySnapshots: isPlainObject(parsed.diarySnapshots) ? parsed.diarySnapshots : {},
       pushSubscriptions: isPlainObject(parsed.pushSubscriptions) ? parsed.pushSubscriptions : {},
       pushDeliveries: isPlainObject(parsed.pushDeliveries) ? parsed.pushDeliveries : {},
+      pushRetries: isPlainObject(parsed.pushRetries) ? parsed.pushRetries : {},
+      pushFailures: isPlainObject(parsed.pushFailures) ? parsed.pushFailures : {},
       pushEvents: isPlainObject(parsed.pushEvents) ? parsed.pushEvents : {},
       deviceSessions: isPlainObject(parsed.deviceSessions) ? parsed.deviceSessions : {},
     };
@@ -355,6 +433,8 @@ function createEmptyState() {
     diarySnapshots: {},
     pushSubscriptions: {},
     pushDeliveries: {},
+    pushRetries: {},
+    pushFailures: {},
     pushEvents: {},
     deviceSessions: {},
   };
@@ -378,7 +458,7 @@ function sanitizePushEventType(type) {
 }
 
 function sanitizePushEventStatus(status) {
-  return ["sent", "failed", "empty", "no-subscriptions"].includes(status) ? status : "failed";
+  return ["sent", "failed", "empty", "no-subscriptions", "retry-exhausted"].includes(status) ? status : "failed";
 }
 
 function createOrbitAuthConfig(env = process.env) {
@@ -1433,6 +1513,8 @@ function getReminderDeliveryDiagnostics(db, { accountId, now = new Date().toISOS
     pending: 0,
     alreadyDelivered: 0,
     alreadySent: 0,
+    retrying: 0,
+    retryExhausted: 0,
     invalid: 0,
   };
   const attention = [];
@@ -1454,9 +1536,15 @@ function getReminderDeliveryDiagnostics(db, { accountId, now = new Date().toISOS
     stats.scanned += 1;
     const deliveryKey = getReminderDeliveryKey(reminder);
     let state = getReminderDispatchState(reminder, nowTime, maxAgeMs);
+    const retry = deliveryKey ? db.getPushRetry(accountId, deliveryKey) : null;
+    const failure = deliveryKey ? db.getPushFailure(accountId, deliveryKey) : null;
 
     if (state === "due" && deliveryKey && db.hasPushDelivery(accountId, deliveryKey)) {
       state = "alreadySent";
+    } else if (state === "due" && failure) {
+      state = "retryExhausted";
+    } else if (state === "due" && isPushRetryWaiting(retry, nowTime)) {
+      state = "retrying";
     } else if (state === "due" && subscriptions.length === 0) {
       state = "noSubscriptions";
     }
@@ -1470,8 +1558,8 @@ function getReminderDeliveryDiagnostics(db, { accountId, now = new Date().toISOS
       }
     }
 
-    if (["due", "noSubscriptions", "expired", "invalid"].includes(state) && attention.length < 5) {
-      attention.push(createReminderDiagnosticItem(reminder, state));
+    if (["due", "noSubscriptions", "expired", "invalid", "retrying", "retryExhausted"].includes(state) && attention.length < 5) {
+      attention.push(createReminderDiagnosticItem(reminder, state, { retry, failure }));
     }
   });
 
@@ -1487,13 +1575,32 @@ function getReminderDeliveryDiagnostics(db, { accountId, now = new Date().toISOS
   };
 }
 
-function createReminderDiagnosticItem(reminder, state) {
-  return {
+function createReminderDiagnosticItem(reminder, state, { retry = null, failure = null } = {}) {
+  const item = {
     id: typeof reminder?.id === "string" ? reminder.id : "",
     title: typeof reminder?.title === "string" ? reminder.title.slice(0, 120) : "",
     scheduledAt: typeof reminder?.scheduledAt === "string" ? reminder.scheduledAt : null,
     state,
   };
+
+  if (retry) {
+    item.retry = {
+      attempts: Number(retry.attempts) || 0,
+      maxAttempts: Number(retry.maxAttempts) || 0,
+      nextRetryAt: typeof retry.nextRetryAt === "string" ? retry.nextRetryAt : null,
+      lastAttemptAt: typeof retry.lastAttemptAt === "string" ? retry.lastAttemptAt : null,
+    };
+  }
+
+  if (failure) {
+    item.failure = {
+      attempts: Number(failure.attempts) || 0,
+      maxAttempts: Number(failure.maxAttempts) || 0,
+      failedAt: typeof failure.failedAt === "string" ? failure.failedAt : null,
+    };
+  }
+
+  return item;
 }
 
 async function dispatchTestPushNotification({ db, accountId, deviceId, pushSender, now = () => new Date().toISOString() }) {
@@ -1568,6 +1675,8 @@ export async function dispatchDueReminders({
   pushSender,
   ttl = DEFAULT_PUSH_TTL_SECONDS,
   maxAgeMs = DEFAULT_PUSH_MAX_AGE_MS,
+  retryDelayMs = DEFAULT_PUSH_RETRY_DELAY_MS,
+  retryMaxAttempts = DEFAULT_PUSH_RETRY_MAX_ATTEMPTS,
 } = {}) {
   if (!db || !pushSender) {
     return createReminderDispatchStats();
@@ -1577,6 +1686,8 @@ export async function dispatchDueReminders({
   const nowIso = now();
   const nowTime = new Date(nowIso).getTime();
   const stats = createReminderDispatchStats();
+  const maxAttempts = normalizeRetryMaxAttempts(retryMaxAttempts);
+  const normalizedRetryDelayMs = normalizeRetryDelayMs(retryDelayMs);
 
   if (!Number.isFinite(nowTime)) {
     return stats;
@@ -1584,7 +1695,6 @@ export async function dispatchDueReminders({
 
   for (const snapshot of snapshots) {
     const reminders = Array.isArray(snapshot.reminders) ? snapshot.reminders : [];
-    const subscriptions = db.getPushSubscriptions(snapshot.accountId);
     let updatedReminders = reminders;
     let hasDeliveredReminder = false;
 
@@ -1608,10 +1718,23 @@ export async function dispatchDueReminders({
         continue;
       }
 
+      if (db.hasPushFailure(snapshot.accountId, deliveryKey)) {
+        stats.retryExhausted += 1;
+        continue;
+      }
+
+      const retry = db.getPushRetry(snapshot.accountId, deliveryKey);
+      if (isPushRetryWaiting(retry, nowTime)) {
+        stats.retrying += 1;
+        continue;
+      }
+
       stats.due += 1;
 
+      const subscriptions = db.getPushSubscriptions(snapshot.accountId);
       if (!subscriptions.length) {
         stats.noSubscriptions += 1;
+        db.clearPushRetry({ accountId: snapshot.accountId, deliveryKey });
         db.savePushEvent({
           accountId: snapshot.accountId,
           type: "reminder",
@@ -1631,12 +1754,18 @@ export async function dispatchDueReminders({
       let deliveredCount = 0;
       let failedCount = 0;
       let removedCount = 0;
+      let transientFailedCount = 0;
       for (const subscription of subscriptions) {
-        const result = await pushSender({
-          subscription,
-          payload: createReminderPushPayload(reminder),
-          ttl,
-        });
+        let result;
+        try {
+          result = await pushSender({
+            subscription,
+            payload: createReminderPushPayload(reminder),
+            ttl,
+          });
+        } catch (error) {
+          result = { ok: false, statusCode: 0, error };
+        }
 
         if (result?.ok) {
           deliveredCount += 1;
@@ -1646,17 +1775,65 @@ export async function dispatchDueReminders({
 
         stats.failed += 1;
         failedCount += 1;
-        if (result?.statusCode === 404 || result?.statusCode === 410) {
+        if (isPermanentPushFailure(result)) {
           db.removePushSubscription({ accountId: snapshot.accountId, endpoint: subscription.endpoint });
           stats.removed += 1;
           removedCount += 1;
+        } else {
+          transientFailedCount += 1;
         }
+      }
+
+      const attemptCount = failedCount > 0 || deliveredCount > 0
+        ? (Number(retry?.attempts) || 0) + 1
+        : 0;
+      const activeSubscriptionsAfterRemoval = db.getPushSubscriptions(snapshot.accountId).length;
+      let nextRetryAt = null;
+      let eventStatus = deliveredCount > 0 ? "sent" : "failed";
+
+      if (deliveredCount > 0) {
+        db.clearPushRetry({ accountId: snapshot.accountId, deliveryKey });
+      } else if (transientFailedCount > 0 && activeSubscriptionsAfterRemoval > 0) {
+        if (attemptCount >= maxAttempts) {
+          eventStatus = "retry-exhausted";
+          stats.retryExhausted += 1;
+          db.savePushFailure({
+            accountId: snapshot.accountId,
+            deliveryKey,
+            reminderId: reminder.id,
+            scheduledAt: reminder.scheduledAt,
+            attempts: attemptCount,
+            maxAttempts,
+            failedAt: nowIso,
+            failed: failedCount,
+            removed: removedCount,
+            subscriptions: subscriptions.length,
+          });
+        } else {
+          stats.retrying += 1;
+          nextRetryAt = createNextRetryAt(nowIso, normalizedRetryDelayMs);
+          db.savePushRetry({
+            accountId: snapshot.accountId,
+            deliveryKey,
+            reminderId: reminder.id,
+            scheduledAt: reminder.scheduledAt,
+            attempts: attemptCount,
+            maxAttempts,
+            lastAttemptAt: nowIso,
+            nextRetryAt,
+            failed: failedCount,
+            removed: removedCount,
+            subscriptions: subscriptions.length,
+          });
+        }
+      } else {
+        db.clearPushRetry({ accountId: snapshot.accountId, deliveryKey });
       }
 
       db.savePushEvent({
         accountId: snapshot.accountId,
         type: "reminder",
-        status: deliveredCount > 0 ? "sent" : "failed",
+        status: eventStatus,
         title: reminder.title,
         reminderId: reminder.id,
         scheduledAt: reminder.scheduledAt,
@@ -1664,6 +1841,9 @@ export async function dispatchDueReminders({
         failed: failedCount,
         removed: removedCount,
         subscriptions: subscriptions.length,
+        attempts: attemptCount,
+        maxAttempts: failedCount > 0 ? maxAttempts : 0,
+        nextRetryAt,
         createdAt: nowIso,
       });
 
@@ -1709,6 +1889,8 @@ function createReminderDispatchStats() {
     pending: 0,
     alreadyDelivered: 0,
     alreadySent: 0,
+    retrying: 0,
+    retryExhausted: 0,
     invalid: 0,
   };
 }
@@ -1744,6 +1926,44 @@ function getReminderDeliveryKey(reminder) {
   }
 
   return `${reminder.id}:${reminder.scheduledAt}`;
+}
+
+function isPermanentPushFailure(result) {
+  return result?.statusCode === 404 || result?.statusCode === 410;
+}
+
+function isPushRetryWaiting(retry, nowTime) {
+  if (!retry) {
+    return false;
+  }
+  const nextRetryTime = new Date(retry.nextRetryAt).getTime();
+  return Number.isFinite(nextRetryTime) && nextRetryTime > nowTime;
+}
+
+function normalizeRetryDelayMs(retryDelayMs) {
+  const parsed = Number(retryDelayMs);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_PUSH_RETRY_DELAY_MS;
+}
+
+function normalizeRetryMaxAttempts(retryMaxAttempts) {
+  const parsed = Math.floor(Number(retryMaxAttempts));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_PUSH_RETRY_MAX_ATTEMPTS;
+}
+
+function readNonNegativeNumberEnv(name, fallback) {
+  const parsed = Number(process.env[name]);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function readPositiveIntegerEnv(name, fallback) {
+  const parsed = Math.floor(Number(process.env[name]));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function createNextRetryAt(nowIso, retryDelayMs) {
+  const nowTime = new Date(nowIso).getTime();
+  const safeNowTime = Number.isFinite(nowTime) ? nowTime : Date.now();
+  return new Date(safeNowTime + retryDelayMs).toISOString();
 }
 
 function createReminderPushPayload(reminder) {

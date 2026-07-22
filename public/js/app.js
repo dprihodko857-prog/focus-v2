@@ -2946,12 +2946,20 @@ function getReminderDeliveryDiagnosticItem(delivery = reminderPushDiagnostics?.d
     return { title: "Доставка", value: "Есть ошибка", status: "bad", action: attentionText || "Одно из напоминаний сохранено с некорректной датой." };
   }
 
+  if (stats.retryExhausted > 0) {
+    return { title: "Доставка", value: "Лимит попыток", status: "bad", action: attentionText || "Сервер исчерпал попытки push-доставки для одного из напоминаний." };
+  }
+
   if (stats.noSubscriptions > 0) {
     return { title: "Доставка", value: "Нет подписки", status: "bad", action: attentionText || "Включите push на этом устройстве и повторите проверку." };
   }
 
   if (stats.expired > 0) {
     return { title: "Доставка", value: "Есть просроченные", status: "warn", action: attentionText || "Просроченные напоминания уже вне окна надежной push-доставки." };
+  }
+
+  if (stats.retrying > 0) {
+    return { title: "Доставка", value: `Повтор: ${stats.retrying}`, status: "warn", action: attentionText || "Сервер повторит push-доставку после короткой паузы." };
   }
 
   if (stats.due > 0) {
@@ -2974,6 +2982,8 @@ function getReminderDeliveryAttentionText(item) {
   if (item?.state === "invalid") return `Проверьте дату: ${title}.`;
   if (item?.state === "expired") return `${title} уже вне окна надежной доставки.`;
   if (item?.state === "noSubscriptions") return `Для ${title} нет активной push-подписки.`;
+  if (item?.state === "retrying") return `${title} ожидает повторной push-доставки.`;
+  if (item?.state === "retryExhausted") return `${title} исчерпало попытки push-доставки.`;
   if (item?.state === "due") return `${title} ожидает ближайшей серверной отправки.`;
   return "";
 }
@@ -2986,6 +2996,7 @@ function formatReminderDeliveryItemTime(item) {
 function getPushEventStatusMeta(event) {
   if (event?.status === "sent") return { label: "Отправлено", className: "ok" };
   if (event?.status === "no-subscriptions") return { label: "Нет подписок", className: "warn" };
+  if (event?.status === "retry-exhausted") return { label: "Лимит попыток", className: "bad" };
   if (event?.status === "empty") return { label: "Пусто", className: "warn" };
   return { label: "Ошибка", className: "bad" };
 }
