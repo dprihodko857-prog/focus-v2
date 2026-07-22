@@ -10,3 +10,4 @@ Keep entries short and factual.
 | 2026-07-22 | TASK-001 | Initialized local Git repository. | `git rev-parse --show-toplevel` returned the `focus-v2` path after `safe.directory` was configured. | DONE | Run tests and prepare commit brief. |
 | 2026-07-22 | TASK-001 | Ran required test suite. | `npm.cmd test` passed 83/83. | DONE | Ask owner for local baseline commit approval. |
 | 2026-07-22 | TASK-001 | Completed local baseline commit. | Owner approved local commit with message `chore: initialize focus v2 baseline`. | DONE | Select the next bounded task after owner direction. |
+| 2026-07-22 | TASK-002 | Prepared notification hardening spec. | `docs/specs/notification-retry-diagnostics.md` created; TASK-003 added as owner-gated runtime task. | DONE | Ask owner whether to approve TASK-003. |

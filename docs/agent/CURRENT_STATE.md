@@ -35,3 +35,4 @@ Status: DRAFT
 
 - Which next product/runtime task should be promoted to `READY`.
 - Whether future backend/deployment changes should be handled only after a separate owner deployment approval.
+- Whether to approve `TASK-003` for bounded server-side notification retry diagnostics.

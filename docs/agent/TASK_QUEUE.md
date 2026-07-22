@@ -52,13 +52,13 @@ Status values: DRAFT, READY, IN_PROGRESS, BLOCKED, BLOCKED_OWNER, PARTIALLY_VERI
 ## TASK-002
 
 - title: Prepare next approved notification hardening slice
-- status: DRAFT
-- owner_gate: pending
+- status: DONE
+- owner_gate: approved
 - task_type: spec_planning
 - priority: medium
-- source: prior owner discussion about notification hardening
-- spec_reference: missing
-- spec_status: missing
+- source: prior owner discussion about notification hardening; owner approved TASK-002 on 2026-07-22
+- spec_reference: `docs/specs/notification-retry-diagnostics.md`
+- spec_status: draft_runtime_pending
 - goal: define one bounded next notification reliability task with acceptance criteria and required checks.
 - out_of_scope:
   - runtime implementation
@@ -84,8 +84,61 @@ Status values: DRAFT, READY, IN_PROGRESS, BLOCKED, BLOCKED_OWNER, PARTIALLY_VERI
   - TASK-001 baseline completion
 - design_review_required: false
 - security_review_required: true
+- outcome: docs_only_spec_created
+- commit_status: committed
+- notes: Created NOTIF-RETRY-001 as the next bounded notification hardening spec. Runtime implementation remains owner-gated. Docs-only commit approved by owner on 2026-07-22; no push or deployment.
+
+## TASK-003
+
+- title: Add bounded retry diagnostics for reminder push delivery
+- status: BLOCKED_OWNER
+- owner_gate: pending
+- task_type: product_runtime
+- priority: high
+- source: `docs/specs/notification-retry-diagnostics.md`
+- spec_reference: `docs/specs/notification-retry-diagnostics.md#in-scope-for-task-003`
+- spec_status: draft_runtime_pending
+- goal: implement server-side retry metadata and diagnostics for transient reminder push failures without adding infrastructure.
+- out_of_scope:
+  - production deployment
+  - backend service restart
+  - new queue dependency, worker process, database engine, or cloud service
+  - UI redesign
+  - time-zone redesign
+  - real-device push smoke tests
+- acceptance_criteria:
+  - transient push failure does not set `deliveredAt` and creates retry metadata
+  - retry is skipped before `nextRetryAt`
+  - retry after `nextRetryAt` attempts delivery again
+  - successful retry saves delivery state, updates `deliveredAt`, and clears retry metadata
+  - `404` or `410` removes expired subscriptions without retrying that endpoint
+  - max attempts prevent endless retry loops and appear in diagnostics/events
+  - existing successful delivery behavior remains unchanged
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one product_runtime task
+- file_limit: up to 4 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 2
+- stop_conditions:
+  - implementation requires deployment, secrets, new dependencies, or external live push testing
+  - retry state requires a broader storage or architecture change
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - optional client diagnostics contract tests if server response shape changes
+- dependencies:
+  - owner approval of TASK-003 runtime implementation
+- design_review_required: false
+- security_review_required: true
 - outcome:
 - commit_status: not_required
-- notes:
+- notes: Do not start until owner explicitly approves TASK-003.
 
 Only implement tasks with `status: READY` and `owner_gate: not_required` or `owner_gate: approved`.
