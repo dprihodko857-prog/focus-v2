@@ -22,5 +22,5 @@ test("desktop dashboard keeps sections compact without squeezing today's tasks",
 });
 
 test("service worker cache is bumped after desktop layout CSS changes", () => {
-  assert.match(serviceWorker, /focus-pwa-v40/);
+  assert.match(serviceWorker, /focus-pwa-v41/);
 });

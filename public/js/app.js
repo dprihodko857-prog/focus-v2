@@ -2924,6 +2924,24 @@ function getDevicePlatformLabel(device = getDeviceRuntimeProfile()) {
   return "Desktop";
 }
 
+function getPushEnablePreflightMessage(device = getDeviceRuntimeProfile()) {
+  if (!device.isSecure) {
+    return "Push-уведомления доступны только через защищенный HTTPS-адрес. Откройте https://focus-v2.dmnao83.ru.";
+  }
+
+  if (device.isIos && !device.isStandalone) {
+    return "На iPhone/iPad сначала добавьте приложение на экран «Домой», откройте его с иконки «Фокус» и снова нажмите «Включить».";
+  }
+
+  if (!device.pushApiSupported) {
+    return device.isAndroid
+      ? "Этот Android-браузер не поддерживает Web Push. Откройте приложение в Chrome или установленной PWA."
+      : "Этот браузер не поддерживает Web Push. Серверные уведомления на этом устройстве недоступны.";
+  }
+
+  return "";
+}
+
 function getReminderDeliveryDiagnosticItem(delivery = reminderPushDiagnostics?.delivery) {
   if (!delivery) {
     return { title: "Доставка", value: "Не проверена", status: "warn", action: "Нажмите «Проверить», чтобы сверить напоминания на сервере." };
@@ -3185,10 +3203,14 @@ function renderReminderPushDiagnostics(state = reminderPushDiagnostics) {
   }
 
   if (enableButton) {
+    const canShowIosInstallHelp = device.isIos && !device.isStandalone;
     enableButton.hidden = permission === "granted" && !needsServerRegistration;
-    enableButton.textContent = permission === "granted" ? "Подключить" : "Включить";
-    enableButton.disabled = permission === "denied" ||
-      permission === "unsupported" ||
+    enableButton.textContent = canShowIosInstallHelp
+      ? "Как включить"
+      : permission === "granted" ? "Подключить" : "Включить";
+    enableButton.disabled = (permission === "denied" && !canShowIosInstallHelp) ||
+      (permission === "unsupported" && !canShowIosInstallHelp) ||
+      (!device.pushApiSupported && !canShowIosInstallHelp) ||
       (permission === "granted" && state?.config?.configured === false);
   }
 
@@ -3331,6 +3353,51 @@ async function requestReminderPermission() {
   } else {
     updateReminderPermissionState("Системные уведомления недоступны в этом браузере.");
     renderReminderPushDiagnostics({ message: "Системные уведомления недоступны в этом браузере." });
+  }
+}
+
+async function enableReminderPushFromButton() {
+  const device = getDeviceRuntimeProfile();
+  const preflightMessage = getPushEnablePreflightMessage(device);
+
+  if (preflightMessage) {
+    updateReminderPermissionState(preflightMessage);
+    renderReminderPushDiagnostics({ ...reminderPushDiagnostics, message: preflightMessage });
+    return;
+  }
+
+  const enableButton = document.querySelector("#reminderPushEnableButton");
+  const permissionButton = document.querySelector("#reminderPermissionButton");
+  const enableButtonText = enableButton?.textContent || "Включить";
+  const permissionButtonText = permissionButton?.textContent || "Включить уведомления";
+
+  if (enableButton) {
+    enableButton.disabled = true;
+    enableButton.textContent = "Включаем...";
+  }
+
+  if (permissionButton) {
+    permissionButton.disabled = true;
+    permissionButton.textContent = "Включаем...";
+  }
+
+  try {
+    await requestReminderPermission();
+  } catch {
+    const message = "Не удалось включить уведомления на этом устройстве. Проверьте разрешения сайта и повторите попытку.";
+    updateReminderPermissionState(message);
+    renderReminderPushDiagnostics({ ...reminderPushDiagnostics, message });
+  } finally {
+    if (focusNotifications.getPermission() !== "granted") {
+      if (enableButton) {
+        enableButton.disabled = false;
+        enableButton.textContent = enableButtonText;
+      }
+      if (permissionButton) {
+        permissionButton.disabled = false;
+        permissionButton.textContent = permissionButtonText;
+      }
+    }
   }
 }
 
@@ -3643,6 +3710,26 @@ function getReminderPushStatusMessage(result) {
 
   if (result?.status === "unsupported") {
     return `Уведомления включены локально, но этот браузер не поддерживает серверные push-напоминания.${countText}`;
+  }
+
+  if (result?.status === "permission-required") {
+    return `Сначала разрешите уведомления на этом устройстве, затем повторите подключение push.${countText}`;
+  }
+
+  if (result?.status === "permission-denied") {
+    return `Система заблокировала push-подписку. Разрешите уведомления в настройках сайта или приложения и повторите попытку.${countText}`;
+  }
+
+  if (result?.status === "permission-dismissed") {
+    return `Запрос уведомлений был закрыт без разрешения. Нажмите «Включить» и подтвердите системный запрос.${countText}`;
+  }
+
+  if (result?.status === "service-worker-not-ready") {
+    return `PWA ещё обновляет офлайн-основу. Закройте приложение, откройте снова и повторите включение уведомлений.${countText}`;
+  }
+
+  if (result?.status === "insecure-context") {
+    return `Push-уведомления доступны только через HTTPS. Откройте https://focus-v2.dmnao83.ru и повторите попытку.${countText}`;
   }
 
   if (result?.status === "failed") {
@@ -5419,11 +5506,11 @@ function bindControls() {
   });
 
   document.querySelector("#reminderPermissionButton")?.addEventListener("click", () => {
-    requestReminderPermission();
+    enableReminderPushFromButton();
   });
 
   document.querySelector("#reminderPushEnableButton")?.addEventListener("click", () => {
-    requestReminderPermission();
+    enableReminderPushFromButton();
   });
 
   document.querySelector("#reminderPushRefreshButton")?.addEventListener("click", () => {

@@ -1,4 +1,5 @@
-const CACHE_NAME = "focus-pwa-v40";
+const CACHE_NAME = "focus-pwa-v41";
+const NAVIGATION_TIMEOUT_MS = 8000;
 
 const APP_SHELL = [
   "/",
@@ -45,9 +46,7 @@ const APP_SHELL = [
 
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL))
+    warmAppShellCache()
       .then(() => self.skipWaiting())
   );
 });
@@ -116,11 +115,41 @@ self.addEventListener("message", event => {
   if (event.data?.type === "SKIP_WAITING") {
     event.waitUntil(self.skipWaiting());
   }
+
+  if (event.data?.type === "FOCUS_CLEAR_CACHES") {
+    event.waitUntil(
+      clearFocusCaches().then(() => {
+        event.ports?.[0]?.postMessage({ type: "FOCUS_CACHES_CLEARED" });
+      })
+    );
+  }
 });
+
+async function warmAppShellCache() {
+  const cache = await caches.open(CACHE_NAME);
+
+  await Promise.all(
+    APP_SHELL.map(async url => {
+      try {
+        const response = await fetch(new Request(url, { cache: "reload" }));
+        if (response && response.ok) {
+          await cache.put(url, response);
+        }
+      } catch (error) {
+        console.warn("Focus PWA cache warmup skipped.", url, error);
+      }
+    })
+  );
+}
+
+async function clearFocusCaches() {
+  const keys = await caches.keys();
+  await Promise.all(keys.filter(key => key.startsWith("focus-pwa-")).map(key => caches.delete(key)));
+}
 
 async function networkFirstNavigation(request) {
   try {
-    const response = await fetch(request);
+    const response = await fetchWithTimeout(request, NAVIGATION_TIMEOUT_MS);
     const cache = await caches.open(CACHE_NAME);
     cache.put("/index.html", response.clone());
     return response;
@@ -137,14 +166,25 @@ async function cacheFirst(request) {
     return cached;
   }
 
-  const response = await fetch(request);
+  const response = await fetch(request).catch(() => null);
 
   if (response && response.ok && response.type === "basic") {
     const cache = await caches.open(CACHE_NAME);
     cache.put(request, response.clone());
   }
 
-  return response;
+  return response || Response.error();
+}
+
+async function fetchWithTimeout(request, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(request, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function openOrFocusApp(url) {

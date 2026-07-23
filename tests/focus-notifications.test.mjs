@@ -138,6 +138,41 @@ test("push subscription renews when the VAPID application server key changes", a
   assert.equal(result.subscription.endpoint, "https://push.example/new");
 });
 
+test("push subscription reports actionable mobile failure reasons", async () => {
+  const notifications = createFocusNotifications({
+    notificationApi: { permission: "granted" },
+    navigatorApi: {
+      serviceWorker: {
+        ready: Promise.resolve({
+          pushManager: {
+            async getSubscription() {
+              return null;
+            },
+            async subscribe() {
+              throw new DOMException("Permission blocked", "NotAllowedError");
+            },
+          },
+        }),
+      },
+    },
+  });
+
+  const result = await notifications.subscribePush("AQIDBA");
+
+  assert.equal(result.status, "permission-denied");
+  assert.equal(result.errorName, "NotAllowedError");
+});
+
+test("push subscription requires notification permission before subscribing", async () => {
+  const notifications = createFocusNotifications({
+    notificationApi: { permission: "default" },
+  });
+
+  const result = await notifications.subscribePush("AQIDBA");
+
+  assert.equal(result.status, "permission-required");
+});
+
 test("notification scheduler reschedules reminders beyond the maximum timer delay", async () => {
   const timers = [];
   const delivered = [];

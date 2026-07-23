@@ -126,7 +126,7 @@ test("settings include install quality diagnostics and PWA update controls", () 
   assert.match(appJs, /focus-pwa-state-change/);
   assert.match(pwaJs, /focusPwaCheckForUpdate/);
   assert.match(pwaJs, /focusPwaApplyUpdate/);
-  assert.match(serviceWorker, /focus-pwa-v40/);
+  assert.match(serviceWorker, /focus-pwa-v41/);
   assert.match(serviceWorker, /SKIP_WAITING/);
 });
 
@@ -180,7 +180,10 @@ test("reminders center includes push readiness diagnostics", () => {
   assert.match(appJs, /stats\.retryExhausted/);
   assert.match(appJs, /retry-exhausted/);
   assert.match(appJs, /needsServerRegistration/);
-  assert.match(appJs, /enableButton\.textContent = permission === "granted" \? "Подключить" : "Включить";/);
+  assert.match(appJs, /function getPushEnablePreflightMessage/);
+  assert.match(appJs, /function enableReminderPushFromButton/);
+  assert.match(appJs, /canShowIosInstallHelp/);
+  assert.match(appJs, /Как включить/);
   assert.match(appJs, /testButton\.disabled = permission !== "granted";/);
   assert.match(appJs, /refreshReminderPushDiagnostics\(\{ register: true \}\)/);
   assert.match(appJs, /!state\.status\?\.deviceRegistered/);

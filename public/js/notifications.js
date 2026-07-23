@@ -106,6 +106,10 @@ export function createFocusNotifications({
       return { status: "missing-key" };
     }
 
+    if (getPermission() !== "granted") {
+      return { status: "permission-required" };
+    }
+
     try {
       const registration = await navigatorApi?.serviceWorker?.ready;
       if (!registration?.pushManager?.subscribe) {
@@ -137,8 +141,12 @@ export function createFocusNotifications({
         renewed: Boolean(existingSubscription),
         subscription: typeof subscription.toJSON === "function" ? subscription.toJSON() : subscription,
       };
-    } catch {
-      return { status: "failed" };
+    } catch (error) {
+      return {
+        status: getPushSubscribeFailureStatus(error),
+        errorName: error?.name || "",
+        errorMessage: error?.message || "",
+      };
     }
   };
 
@@ -267,6 +275,30 @@ function pushSubscriptionUsesKey(subscription, applicationServerKey) {
   }
 
   return existingBytes.every((byte, index) => byte === applicationServerKey[index]);
+}
+
+function getPushSubscribeFailureStatus(error) {
+  if (error?.name === "NotAllowedError") {
+    return "permission-denied";
+  }
+
+  if (error?.name === "AbortError") {
+    return "permission-dismissed";
+  }
+
+  if (error?.name === "InvalidStateError") {
+    return "service-worker-not-ready";
+  }
+
+  if (error?.name === "NotSupportedError") {
+    return "unsupported";
+  }
+
+  if (error?.name === "SecurityError") {
+    return "insecure-context";
+  }
+
+  return "failed";
 }
 
 function formatDateValue(date) {

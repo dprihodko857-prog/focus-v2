@@ -1,6 +1,7 @@
 (() => {
   const root = document.documentElement;
   let activeRegistration = null;
+  const hadServiceWorkerController = Boolean(navigator.serviceWorker?.controller);
 
   const dispatchPwaStateChange = detail => {
     window.dispatchEvent(new CustomEvent("focus-pwa-state-change", { detail }));
@@ -26,11 +27,28 @@
     dispatchPwaStateChange({ kind: "update", status: "available" });
   };
 
+  const activateWaitingWorker = registration => {
+    if (!registration.waiting || !navigator.serviceWorker.controller) {
+      return false;
+    }
+
+    root.dataset.pwaApplyingUpdate = "true";
+    registration.waiting.postMessage({ type: "SKIP_WAITING" });
+    return true;
+  };
+
+  const reloadAfterControllerChange = () => {
+    if (root.dataset.pwaReloading === "true") return;
+    root.dataset.pwaReloading = "true";
+    window.location.reload();
+  };
+
   const watchRegistration = registration => {
     activeRegistration = registration;
 
     if (registration.waiting && navigator.serviceWorker.controller) {
       markUpdateAvailable(registration);
+      activateWaitingWorker(registration);
     }
 
     registration.addEventListener("updatefound", () => {
@@ -106,22 +124,47 @@
   };
 
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (root.dataset.pwaApplyingUpdate !== "true") {
-      dispatchPwaStateChange({ kind: "service-worker", status: "controller-changed" });
+    dispatchPwaStateChange({ kind: "service-worker", status: "controller-changed" });
+
+    if (root.dataset.pwaApplyingUpdate === "true" || hadServiceWorkerController) {
+      reloadAfterControllerChange();
       return;
     }
-    if (root.dataset.pwaReloading === "true") return;
-    root.dataset.pwaReloading = "true";
-    window.location.reload();
   });
+
+  window.focusPwaClearCaches = async () => {
+    const registration = activeRegistration || await navigator.serviceWorker.ready;
+    const worker = registration.active || navigator.serviceWorker.controller;
+
+    if (!worker) {
+      return { status: "none" };
+    }
+
+    const channel = new MessageChannel();
+
+    const result = await new Promise(resolve => {
+      const timeout = window.setTimeout(() => resolve({ status: "timeout" }), 3000);
+
+      channel.port1.onmessage = () => {
+        window.clearTimeout(timeout);
+        resolve({ status: "cleared" });
+      };
+
+      worker.postMessage({ type: "FOCUS_CLEAR_CACHES" }, [channel.port2]);
+    });
+
+    await registration.update();
+    return result;
+  };
 
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("/service-worker.js", { scope: "/" })
-      .then(registration => {
+      .then(async registration => {
         watchRegistration(registration);
         root.dataset.pwaReady = registration.active ? "active" : "installing";
         dispatchPwaStateChange({ kind: "service-worker", status: root.dataset.pwaReady });
+        await registration.update().catch(() => null);
       })
       .catch(error => {
         root.dataset.pwaReady = "failed";
