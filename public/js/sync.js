@@ -7,6 +7,7 @@ const TASKS_REVISION_KEY = "focus-sync-tasks-revision";
 const NOTES_REVISION_KEY = "focus-sync-notes-revision";
 const BIRTHDAYS_REVISION_KEY = "focus-sync-birthdays-revision";
 const DIARY_REVISION_KEY = "focus-sync-diary-revision";
+const ACCOUNT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
 
 export function createFocusSyncClient({
   apiBaseUrl = "/api",
@@ -120,12 +121,15 @@ export function createFocusSyncClient({
   const getRevision = (key = REVISION_KEY) => Number(getStored(key) || 0);
   const setRevision = (revision, key = REVISION_KEY) => setStored(key, Number(revision) || 0);
 
-  const withHeaders = async () => ({
+  const normalizeAccountId = accountId => String(accountId || "").trim();
+  const isValidAccountId = accountId => ACCOUNT_ID_PATTERN.test(accountId);
+  const withAccountHeaders = accountId => ({
     "content-type": "application/json",
-    "x-focus-account": await getAccountId(),
+    "x-focus-account": accountId,
     "x-focus-device": getDeviceId(),
     "x-focus-device-name": encodeHeaderValue(getDeviceName()),
   });
+  const withHeaders = async () => withAccountHeaders(await getAccountId());
 
   const getRemoteSnapshot = async path => {
     const response = await fetchImpl(apiUrl(apiBaseUrl, path), {
@@ -206,8 +210,8 @@ export function createFocusSyncClient({
     setDeviceName,
 
     setAccountId(accountId) {
-      const normalizedAccountId = String(accountId || "").trim();
-      if (!/^[a-zA-Z0-9_.:-]{8,160}$/.test(normalizedAccountId)) {
+      const normalizedAccountId = normalizeAccountId(accountId);
+      if (!isValidAccountId(normalizedAccountId)) {
         throw new Error("Focus sync account key is invalid.");
       }
 
@@ -234,6 +238,36 @@ export function createFocusSyncClient({
     getAccountId,
     getDeviceId,
     getDeviceName,
+
+    async checkAccountId(accountId) {
+      const normalizedAccountId = normalizeAccountId(accountId);
+      if (!isValidAccountId(normalizedAccountId)) {
+        return { status: "invalid", accountId: normalizedAccountId };
+      }
+
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/account"), {
+          headers: withAccountHeaders(normalizedAccountId),
+        });
+
+        if (response.status === 404) {
+          return { status: "not-found", accountId: normalizedAccountId };
+        }
+
+        if (!response.ok) {
+          throw new Error("Focus sync account check failed.");
+        }
+
+        return { status: "ok", ...await response.json() };
+      } catch {
+        return {
+          status: "offline",
+          accountId: normalizedAccountId,
+          currentDeviceId: getDeviceId(),
+          devices: [],
+        };
+      }
+    },
 
     async getAccountProfile() {
       try {

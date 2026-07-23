@@ -604,6 +604,54 @@ test("account profile loads and updates device metadata", async () => {
   });
 });
 
+test("checkAccountId validates a shared account without storing it locally", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage();
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        accountId: "shared-account-123",
+        displayName: "Личный",
+        currentDeviceId: "device-1",
+        devices: [],
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.checkAccountId(" shared-account-123 ");
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.accountId, "shared-account-123");
+  assert.equal(storage.getItem("focus-sync-account-id"), null);
+  assert.equal(calls[0].url, "/api/sync/account");
+  assert.equal(calls[0].options.headers["x-focus-account"], "shared-account-123");
+  assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
+});
+
+test("checkAccountId reports invalid, missing, and offline codes without replacing the current account", async () => {
+  const storage = createMemoryLocalStorage({ "focus-sync-account-id": "current-account" });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      const accountId = options.headers["x-focus-account"];
+      if (url === "/api/sync/account" && accountId === "missing-account") {
+        return jsonResponse({ error: "account_not_found" }, 404);
+      }
+      throw new Error("offline");
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  assert.deepEqual(await client.checkAccountId("short"), { status: "invalid", accountId: "short" });
+  assert.equal((await client.checkAccountId("missing-account")).status, "not-found");
+  assert.equal((await client.checkAccountId("offline-account")).status, "offline");
+  assert.equal(client.peekAccountId(), "current-account");
+  assert.equal(storage.getItem("focus-sync-account-id"), "current-account");
+});
+
 test("setAccountId stores a shared account key and resets local revision", () => {
   const storage = createMemoryLocalStorage({
     "focus-sync-account-id": "old-account",

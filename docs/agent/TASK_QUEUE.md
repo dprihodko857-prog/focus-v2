@@ -952,3 +952,62 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Settings now exposes a disabled-until-ready copy action for the sync account code with Clipboard API and manual selection fallback.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-019
+
+- title: Validate sync account codes before connecting
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work on 2026-07-23 after TASK-018; account-code copy reduced mistakes, and the next bounded hardening is rejecting mistyped codes before they create empty accounts
+- spec_reference: `docs/specs/sync-account-code-validation.md`
+- spec_status: approved_for_task_019
+- goal: reject unknown sync account codes and validate a typed code before the client switches the local device to it.
+- out_of_scope:
+  - QR-code pairing
+  - short human-readable pairing codes
+  - server-side account deletion
+  - server-side device removal
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - sync and push API routes return `account_not_found` for unknown account ids
+  - unknown account ids do not create account records or snapshots
+  - `POST /api/sync/accounts` remains the explicit code-account creation path
+  - Orbit Auth callback explicitly creates its account record
+  - Settings validates a typed sync code before saving it locally
+  - invalid, missing, and offline code checks show distinct user statuses
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/sync.js`
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-client.test.mjs tests/focus-sync-server.test.mjs tests/sync-integration-assets.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one medium product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 18
+- stop_conditions:
+  - implementation requires account deletion, device deletion, or auth redesign
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/sync.js`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - sync server/client contract tests
+- dependencies:
+  - existing sync account code field and copy action
+  - existing sync backend account creation endpoint
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Sync and push routes now reject unknown account ids, Orbit Auth creates its account explicitly, and Settings validates typed codes before saving them locally.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.

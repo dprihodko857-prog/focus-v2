@@ -24,4 +24,5 @@ Status: DRAFT
 | SYNC-DATA-STATUS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-data-status-panel.md` | TASK-016 adds per-collection sync status diagnostics in Settings. |
 | SYNC-DISCONNECT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-disconnect-current-device.md` | TASK-017 adds a current-device disconnect action for code-based sync accounts. |
 | SYNC-CODE-COPY-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-code-copy-action.md` | TASK-018 adds a copy action for the current sync account code. |
+| SYNC-ACCOUNT-CODE-VALIDATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-account-code-validation.md` | TASK-019 validates typed sync account codes before switching the local device and rejects unknown accounts server-side. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

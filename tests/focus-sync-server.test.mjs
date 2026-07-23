@@ -67,6 +67,29 @@ test("sync API rejects schedule reads without an account key", async () => {
   }
 });
 
+test("sync API rejects unknown account keys without creating accounts", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/schedules`, {
+      headers: {
+        "x-focus-account": "missing-account",
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(response.status, 404);
+    assert.equal((await response.json()).error, "account_not_found");
+    assert.equal(db.getAccount("missing-account"), null);
+    assert.equal(db.getScheduleSnapshot("missing-account"), null);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("auth API reports Orbit Auth configuration state", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({
@@ -208,6 +231,7 @@ test("auth API completes Orbit Auth code flow and exposes a local session", asyn
       preferredUsername: null,
       picture: null,
     });
+    assert.equal(db.getAccount(session.accountId).displayName, "Григорий");
     assert.equal(authRequests.some(request => request.pathname === "/oauth/token"), true);
     assert.equal(authRequests.some(request => request.pathname === "/userinfo"), true);
   } finally {
@@ -231,6 +255,7 @@ test("sync account profile tracks account and device metadata", async () => {
   });
   const baseUrl = await listen(server);
   const accountId = "account-profile";
+  createTestAccount(db, accountId, ticks[0]);
 
   try {
     const profileResponse = await fetch(`${baseUrl}/api/sync/account`, {
@@ -309,6 +334,7 @@ test("sync database persists schedule snapshots across server restarts", async (
     const firstDb = createSyncDatabase(dbPath);
     const firstServer = createFocusSyncServer({ db: firstDb });
     const firstBaseUrl = await listen(firstServer);
+    createTestAccount(firstDb, accountId);
 
     const putResponse = await fetch(`${firstBaseUrl}/api/sync/schedules`, {
       method: "PUT",
@@ -352,6 +378,7 @@ test("sync API shares reminders across devices", async () => {
   const server = createFocusSyncServer({ db });
   const baseUrl = await listen(server);
   const accountId = "account-reminders";
+  createTestAccount(db, accountId);
   const reminders = [{ id: "reminder-1", title: "Call Sergey", scheduledAt: "2026-07-11T09:30:00.000Z" }];
 
   try {
@@ -390,6 +417,7 @@ test("sync API shares today tasks across devices", async () => {
   const server = createFocusSyncServer({ db });
   const baseUrl = await listen(server);
   const accountId = "account-tasks";
+  createTestAccount(db, accountId);
   const tasks = [{ id: "task-1", title: "Prepare documents", label: "Work", dateKey: "2026-07-11" }];
 
   try {
@@ -428,6 +456,7 @@ test("sync API shares notes across devices", async () => {
   const server = createFocusSyncServer({ db });
   const baseUrl = await listen(server);
   const accountId = "account-notes";
+  createTestAccount(db, accountId);
   const notes = [{ id: "note-1", body: "Идея для недели", createdAt: "2026-07-11T10:00:00.000Z" }];
 
   try {
@@ -466,6 +495,7 @@ test("sync API shares birthdays across devices", async () => {
   const server = createFocusSyncServer({ db });
   const baseUrl = await listen(server);
   const accountId = "account-birthdays";
+  createTestAccount(db, accountId);
   const birthdays = [{ id: "birthday-1", name: "Анна", dateOfBirth: "1990-07-11", reminderEnabled: true }];
 
   try {
@@ -504,6 +534,7 @@ test("sync API shares diary entries across devices", async () => {
   const server = createFocusSyncServer({ db });
   const baseUrl = await listen(server);
   const accountId = "account-diary";
+  createTestAccount(db, accountId);
   const entries = [{ id: "diary-1", dateKey: "2026-07-11", heading: "Итоги дня", text: "Спокойный фокус" }];
 
   try {
@@ -548,6 +579,7 @@ test("push API stores a device subscription for an account", async () => {
       auth: "auth-key",
     },
   };
+  createTestAccount(db, "account-push");
 
   try {
     const configResponse = await fetch(`${baseUrl}/api/push/config`);
@@ -621,6 +653,7 @@ test("push API sends a test notification to the current device", async () => {
   const baseUrl = await listen(server);
   const accountId = "account-test-push";
   const deviceId = "desktop";
+  createTestAccount(db, accountId);
 
   try {
     db.savePushSubscription({
@@ -674,6 +707,7 @@ test("push reminder diagnostics reports delivery states for the account", async 
   const server = createFocusSyncServer({ db, now });
   const baseUrl = await listen(server);
   const accountId = "account-push-reminder-diagnostics";
+  createTestAccount(db, accountId);
   const alreadySentReminder = {
     id: "reminder-already-sent",
     title: "Already sent",
@@ -896,6 +930,7 @@ test("push dispatcher stops retrying transient reminder failures after the attem
   const deliveries = [];
   const now = () => "2026-07-10T10:00:00.000Z";
   const accountId = "account-push-retry-exhausted";
+  createTestAccount(db, accountId);
   const reminder = {
     id: "reminder-retry-exhausted",
     title: "Stop retrying",
@@ -1002,6 +1037,7 @@ test("sync API preserves delivered reminder state from stale client pushes", asy
   const deliveries = [];
   const now = () => "2026-07-10T10:00:00.000Z";
   const accountId = "account-stale-delivery";
+  createTestAccount(db, accountId);
   const reminder = {
     id: "reminder-stale",
     title: "Call Sergey",
@@ -1183,6 +1219,11 @@ function readBody(request) {
 function sendTestJson(response, status, body) {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(body));
+}
+
+function createTestAccount(db, accountId, createdAt = "2026-07-10T00:00:00.000Z") {
+  db.createAccount({ accountId, displayName: null, createdAt });
+  return accountId;
 }
 
 function createPushSubscription(endpoint) {

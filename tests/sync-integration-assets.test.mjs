@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 const appJs = readFileSync("public/js/app.js", "utf8");
 const appCss = readFileSync("public/css/app.css", "utf8");
+const syncJs = readFileSync("public/js/sync.js", "utf8");
 const indexHtml = readFileSync("public/index.html", "utf8");
 const serviceWorker = readFileSync("public/service-worker.js", "utf8");
 
@@ -21,7 +22,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v56/);
+  assert.match(serviceWorker, /focus-pwa-v57/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
@@ -218,6 +219,15 @@ test("background sync pushes are guarded from unhandled rejections", () => {
   assert.match(appJs, /runBackgroundSync\(\(\) => scheduleSync\.pushBirthdays/);
   assert.match(appJs, /runBackgroundSync\(\(\) => scheduleSync\.pushDiaryEntries/);
   assert.match(appJs, /runBackgroundSync\(\(\) => scheduleSync\.pushReminders/);
+});
+
+test("sync account connection validates the remote code before switching local account", () => {
+  assert.match(appJs, /scheduleSync\.checkAccountId\(accountId\)/);
+  assert.match(appJs, /Проверяем код аккаунта/);
+  assert.match(appJs, /Такой аккаунт не найден/);
+  assert.match(appJs, /Не удалось проверить код/);
+  assert.match(syncJs, /async checkAccountId\(accountId\)/);
+  assert.match(syncJs, /status: "not-found"/);
 });
 
 test("online recovery sync is coalesced into one pass", () => {

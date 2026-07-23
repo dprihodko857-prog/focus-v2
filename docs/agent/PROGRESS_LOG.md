@@ -66,3 +66,7 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-018 | Implemented sync code copy action locally. | Sync code field action, Clipboard API fallback, service worker cache bump, and contract tests added. | DONE | Run checks and commit locally. |
 | 2026-07-23 | TASK-018 | Completed sync code copy action checks. | Syntax checks passed, targeted tests passed 31/31, and `npm.cmd run test` passed 99/99. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-23 | TASK-018 | Committed sync code copy action locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-23 | TASK-019 | Started sync account code validation. | Owner asked to continue project work after TASK-018; server still accepted unknown account ids. | IN_PROGRESS | Add strict account existence checks and client preflight validation. |
+| 2026-07-23 | TASK-019 | Implemented sync account code validation locally. | Sync/push routes reject unknown accounts, Orbit Auth creates its account, and Settings checks typed codes before saving them. | DONE | Run checks and commit locally. |
+| 2026-07-23 | TASK-019 | Completed sync account code validation checks. | Syntax checks passed, targeted tests passed 65/65, and `npm.cmd run test` passed 103/103. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-019 | Committed sync account code validation locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

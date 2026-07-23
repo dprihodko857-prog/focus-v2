@@ -4690,7 +4690,25 @@ async function connectSyncAccount() {
   }
 
   try {
-    scheduleSync.setAccountId(accountId);
+    setSyncStatus("Проверяем код аккаунта...");
+    const accountCheck = await scheduleSync.checkAccountId(accountId);
+
+    if (accountCheck.status === "invalid") {
+      setSyncStatus("Код аккаунта должен содержать от 8 до 160 символов.");
+      return;
+    }
+
+    if (accountCheck.status === "not-found") {
+      setSyncStatus("Такой аккаунт не найден. Проверьте код на другом устройстве.");
+      return;
+    }
+
+    if (accountCheck.status === "offline") {
+      setSyncStatus("Не удалось проверить код. Проверьте подключение и попробуйте ещё раз.");
+      return;
+    }
+
+    scheduleSync.setAccountId(accountCheck.accountId || accountId);
     setSyncStatus("Подключаем аккаунт...");
     const result = await syncSavedSchedules();
     await syncSavedTasks();

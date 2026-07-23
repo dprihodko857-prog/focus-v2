@@ -541,7 +541,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
   }
 
   if (request.method === "GET" && url.pathname === "/api/auth/callback") {
-    await finishAuthLogin({ request, response, url, authConfig, authSessions, createId, now, fetchImpl });
+    await finishAuthLogin({ request, response, url, db, authConfig, authSessions, createId, now, fetchImpl });
     return;
   }
 
@@ -559,14 +559,8 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
   }
 
   if (url.pathname === "/api/push/subscriptions/status") {
-    const accountId = getAccountId(request);
-    if (!accountId) {
-      sendJson(response, 401, { error: "account_required" });
-      return;
-    }
-
-    const deviceId = getDeviceId(request);
-    touchAccount(db, { accountId, deviceId, deviceName: getDeviceName(request), now: now() });
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
 
     if (request.method !== "GET") {
       sendJson(response, 405, { error: "method_not_allowed" });
@@ -574,22 +568,16 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     }
 
     sendJson(response, 200, getPushSubscriptionStatus(db, {
-      accountId,
-      deviceId,
+      accountId: accountContext.accountId,
+      deviceId: accountContext.deviceId,
       configured: Boolean(pushPublicKey),
     }));
     return;
   }
 
   if (url.pathname === "/api/push/reminders/status") {
-    const accountId = getAccountId(request);
-    if (!accountId) {
-      sendJson(response, 401, { error: "account_required" });
-      return;
-    }
-
-    const deviceId = getDeviceId(request);
-    touchAccount(db, { accountId, deviceId, deviceName: getDeviceName(request), now: now() });
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
 
     if (request.method !== "GET") {
       sendJson(response, 405, { error: "method_not_allowed" });
@@ -597,21 +585,15 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     }
 
     sendJson(response, 200, getReminderDeliveryDiagnostics(db, {
-      accountId,
+      accountId: accountContext.accountId,
       now: now(),
     }));
     return;
   }
 
   if (url.pathname === "/api/push/events") {
-    const accountId = getAccountId(request);
-    if (!accountId) {
-      sendJson(response, 401, { error: "account_required" });
-      return;
-    }
-
-    const deviceId = getDeviceId(request);
-    touchAccount(db, { accountId, deviceId, deviceName: getDeviceName(request), now: now() });
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
 
     if (request.method !== "GET") {
       sendJson(response, 405, { error: "method_not_allowed" });
@@ -619,21 +601,15 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     }
 
     sendJson(response, 200, {
-      accountId,
-      events: db.listPushEvents(accountId, 8),
+      accountId: accountContext.accountId,
+      events: db.listPushEvents(accountContext.accountId, 8),
     });
     return;
   }
 
   if (url.pathname === "/api/push/test") {
-    const accountId = getAccountId(request);
-    if (!accountId) {
-      sendJson(response, 401, { error: "account_required" });
-      return;
-    }
-
-    const deviceId = getDeviceId(request);
-    touchAccount(db, { accountId, deviceId, deviceName: getDeviceName(request), now: now() });
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
 
     if (request.method !== "POST") {
       sendJson(response, 405, { error: "method_not_allowed" });
@@ -647,8 +623,8 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
 
     sendJson(response, 200, await dispatchTestPushNotification({
       db,
-      accountId,
-      deviceId,
+      accountId: accountContext.accountId,
+      deviceId: accountContext.deviceId,
       pushSender,
       now,
     }));
@@ -669,19 +645,14 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
   }
 
   if (url.pathname === "/api/sync/account") {
-    const accountId = getAccountId(request);
-    if (!accountId) {
-      sendJson(response, 401, { error: "account_required" });
-      return;
-    }
-
-    const deviceId = getDeviceId(request);
-    const deviceName = getDeviceName(request);
-    const checkedAt = now();
-    touchAccount(db, { accountId, deviceId, deviceName, now: checkedAt });
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
 
     if (request.method === "GET") {
-      sendJson(response, 200, getAccountProfile(db, { accountId, deviceId }));
+      sendJson(response, 200, getAccountProfile(db, {
+        accountId: accountContext.accountId,
+        deviceId: accountContext.deviceId,
+      }));
       return;
     }
 
@@ -694,22 +665,25 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
 
       if (Object.prototype.hasOwnProperty.call(body || {}, "displayName")) {
         db.updateAccount({
-          accountId,
+          accountId: accountContext.accountId,
           displayName: body.displayName,
-          updatedAt: checkedAt,
+          updatedAt: accountContext.checkedAt,
         });
       }
 
       if (Object.prototype.hasOwnProperty.call(body || {}, "deviceName")) {
         db.updateDeviceSession({
-          accountId,
-          deviceId,
+          accountId: accountContext.accountId,
+          deviceId: accountContext.deviceId,
           deviceName: body.deviceName,
-          updatedAt: checkedAt,
+          updatedAt: accountContext.checkedAt,
         });
       }
 
-      sendJson(response, 200, getAccountProfile(db, { accountId, deviceId }));
+      sendJson(response, 200, getAccountProfile(db, {
+        accountId: accountContext.accountId,
+        deviceId: accountContext.deviceId,
+      }));
       return;
     }
 
@@ -718,17 +692,11 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
   }
 
   if (url.pathname === "/api/sync/schedules") {
-    const accountId = getAccountId(request);
-    if (!accountId) {
-      sendJson(response, 401, { error: "account_required" });
-      return;
-    }
-
-    const deviceId = getDeviceId(request);
-    touchAccount(db, { accountId, deviceId, deviceName: getDeviceName(request), now: now() });
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
 
     if (request.method === "GET") {
-      sendJson(response, 200, getScheduleSnapshot(db, accountId));
+      sendJson(response, 200, getScheduleSnapshot(db, accountContext.accountId));
       return;
     }
 
@@ -740,7 +708,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       }
 
       const snapshot = saveScheduleSnapshot(db, {
-        accountId,
+        accountId: accountContext.accountId,
         schedules: body.schedules,
         updatedAt: now(),
       });
@@ -753,17 +721,11 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
   }
 
   if (url.pathname === "/api/sync/reminders") {
-    const accountId = getAccountId(request);
-    if (!accountId) {
-      sendJson(response, 401, { error: "account_required" });
-      return;
-    }
-
-    const deviceId = getDeviceId(request);
-    touchAccount(db, { accountId, deviceId, deviceName: getDeviceName(request), now: now() });
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
 
     if (request.method === "GET") {
-      sendJson(response, 200, getReminderSnapshot(db, accountId));
+      sendJson(response, 200, getReminderSnapshot(db, accountContext.accountId));
       return;
     }
 
@@ -775,7 +737,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       }
 
       const snapshot = saveReminderSnapshot(db, {
-        accountId,
+        accountId: accountContext.accountId,
         reminders: body.reminders,
         updatedAt: now(),
       });
@@ -788,17 +750,11 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
   }
 
   if (url.pathname === "/api/sync/tasks") {
-    const accountId = getAccountId(request);
-    if (!accountId) {
-      sendJson(response, 401, { error: "account_required" });
-      return;
-    }
-
-    const deviceId = getDeviceId(request);
-    touchAccount(db, { accountId, deviceId, deviceName: getDeviceName(request), now: now() });
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
 
     if (request.method === "GET") {
-      sendJson(response, 200, getTaskSnapshot(db, accountId));
+      sendJson(response, 200, getTaskSnapshot(db, accountContext.accountId));
       return;
     }
 
@@ -810,7 +766,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       }
 
       const snapshot = saveTaskSnapshot(db, {
-        accountId,
+        accountId: accountContext.accountId,
         tasks: body.tasks,
         updatedAt: now(),
       });
@@ -823,17 +779,11 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
   }
 
   if (url.pathname === "/api/sync/notes") {
-    const accountId = getAccountId(request);
-    if (!accountId) {
-      sendJson(response, 401, { error: "account_required" });
-      return;
-    }
-
-    const deviceId = getDeviceId(request);
-    touchAccount(db, { accountId, deviceId, deviceName: getDeviceName(request), now: now() });
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
 
     if (request.method === "GET") {
-      sendJson(response, 200, getNoteSnapshot(db, accountId));
+      sendJson(response, 200, getNoteSnapshot(db, accountContext.accountId));
       return;
     }
 
@@ -845,7 +795,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       }
 
       const snapshot = saveNoteSnapshot(db, {
-        accountId,
+        accountId: accountContext.accountId,
         notes: body.notes,
         updatedAt: now(),
       });
@@ -858,17 +808,11 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
   }
 
   if (url.pathname === "/api/sync/birthdays") {
-    const accountId = getAccountId(request);
-    if (!accountId) {
-      sendJson(response, 401, { error: "account_required" });
-      return;
-    }
-
-    const deviceId = getDeviceId(request);
-    touchAccount(db, { accountId, deviceId, deviceName: getDeviceName(request), now: now() });
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
 
     if (request.method === "GET") {
-      sendJson(response, 200, getBirthdaySnapshot(db, accountId));
+      sendJson(response, 200, getBirthdaySnapshot(db, accountContext.accountId));
       return;
     }
 
@@ -880,7 +824,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       }
 
       const snapshot = saveBirthdaySnapshot(db, {
-        accountId,
+        accountId: accountContext.accountId,
         birthdays: body.birthdays,
         updatedAt: now(),
       });
@@ -893,17 +837,11 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
   }
 
   if (url.pathname === "/api/sync/diary") {
-    const accountId = getAccountId(request);
-    if (!accountId) {
-      sendJson(response, 401, { error: "account_required" });
-      return;
-    }
-
-    const deviceId = getDeviceId(request);
-    touchAccount(db, { accountId, deviceId, deviceName: getDeviceName(request), now: now() });
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
 
     if (request.method === "GET") {
-      sendJson(response, 200, getDiarySnapshot(db, accountId));
+      sendJson(response, 200, getDiarySnapshot(db, accountContext.accountId));
       return;
     }
 
@@ -915,7 +853,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       }
 
       const snapshot = saveDiarySnapshot(db, {
-        accountId,
+        accountId: accountContext.accountId,
         entries: body.entries,
         updatedAt: now(),
       });
@@ -928,14 +866,8 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
   }
 
   if (url.pathname === "/api/push/subscriptions") {
-    const accountId = getAccountId(request);
-    if (!accountId) {
-      sendJson(response, 401, { error: "account_required" });
-      return;
-    }
-
-    const deviceId = getDeviceId(request);
-    touchAccount(db, { accountId, deviceId, deviceName: getDeviceName(request), now: now() });
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
 
     if (request.method !== "PUT") {
       sendJson(response, 405, { error: "method_not_allowed" });
@@ -949,14 +881,14 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     }
 
     db.savePushSubscription({
-      accountId,
-      deviceId,
+      accountId: accountContext.accountId,
+      deviceId: accountContext.deviceId,
       subscription: body.subscription,
       updatedAt: now(),
     });
     sendJson(response, 200, {
       saved: true,
-      subscriptions: db.getPushSubscriptions(accountId).length,
+      subscriptions: db.getPushSubscriptions(accountContext.accountId).length,
     });
     return;
   }
@@ -1011,7 +943,7 @@ async function startAuthLogin({ request, response, url, authConfig, createId }) 
   ]);
 }
 
-async function finishAuthLogin({ request, response, url, authConfig, authSessions, createId, now, fetchImpl }) {
+async function finishAuthLogin({ request, response, url, db, authConfig, authSessions, createId, now, fetchImpl }) {
   if (!isAuthConfigured(authConfig)) {
     sendJson(response, 503, { error: "auth_not_configured" });
     return;
@@ -1039,6 +971,14 @@ async function finishAuthLogin({ request, response, url, authConfig, authSession
   const accountId = createOrbitAccountId(authConfig.issuer, safeUser.sub);
   const sessionId = createAuthToken(createId);
   const createdAt = now();
+
+  if (!db.getAccount(accountId)) {
+    db.createAccount({
+      accountId,
+      displayName: safeUser.name || safeUser.email || safeUser.preferredUsername || null,
+      createdAt,
+    });
+  }
 
   authSessions.set(sessionId, {
     sessionId,
@@ -1161,6 +1101,34 @@ function getDeviceName(request) {
   } catch {
     return sanitizeStoredName(rawDeviceName) || "";
   }
+}
+
+function getExistingAccountContext({ request, response, db, now }) {
+  const accountId = getAccountId(request);
+  if (!accountId) {
+    sendJson(response, 401, { error: "account_required" });
+    return null;
+  }
+
+  if (!db.getAccount(accountId)) {
+    sendJson(response, 404, { error: "account_not_found" });
+    return null;
+  }
+
+  const deviceId = getDeviceId(request);
+  const checkedAt = now();
+  touchAccount(db, {
+    accountId,
+    deviceId,
+    deviceName: getDeviceName(request),
+    now: checkedAt,
+  });
+
+  return {
+    accountId,
+    deviceId,
+    checkedAt,
+  };
 }
 
 function sanitizeStoredName(value) {
