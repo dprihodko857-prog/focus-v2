@@ -19,6 +19,7 @@ Status: DRAFT
 - TASK-008 is implemented locally: fire-and-forget client sync pushes are guarded from unexpected background rejection.
 - TASK-009 is implemented locally: same-collection client push snapshots are serialized to avoid older in-flight pushes overwriting newer snapshots.
 - TASK-010 is implemented locally: expected background sync `offline` results now show the deferred sync status instead of failing silently.
+- TASK-011 is implemented locally: sync metadata has an in-memory session fallback when `localStorage` is unavailable.
 
 ## In Progress
 
@@ -39,7 +40,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-010 checks passed locally; `npm.cmd run test` passed 92/92.
+- Current result: local Git repository exists; TASK-011 checks passed locally; `npm.cmd run test` passed 93/93.
 
 ## Open Questions
 

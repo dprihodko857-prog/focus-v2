@@ -58,6 +58,38 @@ test("getAccountId retries account creation after a failed request", async () =>
   assert.equal(storage.getItem("focus-sync-account-id"), "account-retry");
 });
 
+test("sync state stays stable in memory when localStorage is unavailable", async () => {
+  let accountCreateCalls = 0;
+  let deviceIdsCreated = 0;
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      if (url === "/api/sync/accounts" && options.method === "POST") {
+        accountCreateCalls += 1;
+        return jsonResponse({ accountId: "account-memory" }, 201);
+      }
+
+      throw new Error(`Unexpected request: ${url}`);
+    },
+    localStorage: createUnavailableLocalStorage(),
+    navigator: { platform: "", userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)" },
+    randomUUID: () => `device-${++deviceIdsCreated}`,
+  });
+
+  assert.equal(client.getDeviceId(), "device-1");
+  assert.equal(client.getDeviceId(), "device-1");
+  assert.equal(client.peekDeviceName(), "iPhone");
+  assert.equal(client.peekDeviceName(), "iPhone");
+  assert.equal(await client.getAccountId(), "account-memory");
+  assert.equal(await client.getAccountId(), "account-memory");
+  assert.equal(accountCreateCalls, 1);
+
+  client.setAccountId("shared-account-123");
+  assert.equal(client.peekAccountId(), "shared-account-123");
+  client.clearAccountId();
+  assert.equal(client.peekAccountId(), "");
+  assert.equal(client.getDeviceId(), "device-1");
+});
+
 test("syncSchedules pushes local schedules when the remote account is empty", async () => {
   const calls = [];
   const storage = createMemoryLocalStorage({ "focus-sync-account-id": "account-1" });
@@ -631,6 +663,20 @@ function createMemoryLocalStorage(initialValues = {}) {
     },
     removeItem(key) {
       data.delete(key);
+    },
+  };
+}
+
+function createUnavailableLocalStorage() {
+  return {
+    getItem() {
+      throw new Error("localStorage unavailable");
+    },
+    setItem() {
+      throw new Error("localStorage unavailable");
+    },
+    removeItem() {
+      throw new Error("localStorage unavailable");
     },
   };
 }

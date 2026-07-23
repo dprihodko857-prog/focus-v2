@@ -516,3 +516,56 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Background sync `offline` results now show the deferred sync status while preserving rejection handling.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-011
+
+- title: Keep sync metadata stable without localStorage
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue autonomously on 2026-07-23; installed/mobile contexts can fail Web Storage access
+- spec_reference: `docs/specs/sync-state-memory-fallback.md`
+- spec_status: approved_for_task_011
+- goal: keep sync account, device, and revision state stable inside the current app session when `localStorage` is unavailable.
+- out_of_scope:
+  - moving sync metadata to IndexedDB
+  - backend sync API changes
+  - account merge or device merge logic
+  - cross-session persistence when browser storage is unavailable
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - device id stays stable within one client session when `localStorage` throws
+  - device name stays stable within one client session when `localStorage` throws
+  - account id creation is not repeated within one client session after successful account creation
+  - `setAccountId` and `clearAccountId` work against the fallback store
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 8 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 10
+- stop_conditions:
+  - implementation requires backend/API changes or storage migration
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/sync.js`
+  - `public/service-worker.js`
+  - `tests/focus-sync-client.test.mjs`
+  - service worker cache id contract tests
+- dependencies:
+  - local Git baseline
+  - owner autonomous continuation approval on 2026-07-23
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Sync metadata now has an in-memory session fallback when `localStorage` is unavailable.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.

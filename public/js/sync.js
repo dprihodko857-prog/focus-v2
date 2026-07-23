@@ -17,28 +17,50 @@ export function createFocusSyncClient({
 } = {}) {
   let pendingAccountIdPromise = null;
   const pushQueues = new Map();
+  const memoryStore = new Map();
+  let storageFallbackActive = !localStorage;
 
   const getStored = key => {
-    try {
-      return localStorage?.getItem(key) || "";
-    } catch {
-      return "";
+    if (!storageFallbackActive) {
+      try {
+        const value = localStorage.getItem(key);
+        if (value === null || value === undefined) {
+          memoryStore.delete(key);
+          return "";
+        }
+
+        const normalizedValue = String(value);
+        memoryStore.set(key, normalizedValue);
+        return normalizedValue;
+      } catch {
+        storageFallbackActive = true;
+      }
     }
+
+    return memoryStore.get(key) || "";
   };
 
   const setStored = (key, value) => {
+    const normalizedValue = String(value);
+    memoryStore.set(key, normalizedValue);
+
     try {
-      localStorage?.setItem(key, String(value));
+      localStorage?.setItem(key, normalizedValue);
+      storageFallbackActive = !localStorage;
     } catch {
-      // Sync state is an enhancement; local IndexedDB remains the source of truth offline.
+      storageFallbackActive = true;
     }
   };
 
   const removeStored = key => {
+    memoryStore.delete(key);
+
     try {
       localStorage?.removeItem(key);
+      storageFallbackActive = !localStorage;
     } catch {
       // Sync state is an enhancement; local IndexedDB remains the source of truth offline.
+      storageFallbackActive = true;
     }
   };
 
