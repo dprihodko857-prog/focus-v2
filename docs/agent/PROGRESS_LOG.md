@@ -31,3 +31,6 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-007 | Committed push event retry details locally. | Local commit `7a67a4e`. | DONE | Continue with the next bounded client sync hardening task. |
 | 2026-07-23 | TASK-008 | Started background sync push guard. | Save paths used fire-and-forget `scheduleSync.push...` calls without a central guard. | IN_PROGRESS | Add helper, route calls through it, and run checks. |
 | 2026-07-23 | TASK-008 | Implemented background sync push guard locally. | `node --check public/js/app.js`, `node --check public/service-worker.js`, targeted contract tests, and `npm.cmd run test` passed 91/91. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-008 | Committed background sync push guard locally. | Local commit `d687bbc`. | DONE | Continue with the next bounded client sync hardening task. |
+| 2026-07-23 | TASK-009 | Started client push serialization. | Same-collection background pushes could run concurrently and finish out of order. | IN_PROGRESS | Add per-collection queue and focused tests. |
+| 2026-07-23 | TASK-009 | Implemented client push serialization locally. | `node --check public/js/sync.js`, `node --check public/service-worker.js`, focused client tests, and `npm.cmd run test` passed 92/92. | DONE | Commit locally; deploy remains separate. |

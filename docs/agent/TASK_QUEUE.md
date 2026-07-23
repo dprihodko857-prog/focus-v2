@@ -409,3 +409,57 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Fire-and-forget sync pushes now go through `runBackgroundSync`, which catches unexpected background rejection while preserving local save behavior.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-009
+
+- title: Serialize client push snapshots
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue autonomously on 2026-07-23; same-collection background pushes could run concurrently
+- spec_reference: `docs/specs/sync-push-serialization.md`
+- spec_status: approved_for_task_009
+- goal: serialize same-collection client push snapshots so an older in-flight push cannot complete after a newer push and overwrite newer server state.
+- out_of_scope:
+  - backend conflict resolution changes
+  - persistent retry queue
+  - cross-device merge algorithm
+  - changing explicit `sync...` pull/push behavior
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - same-collection background push calls execute in order
+  - a later same-collection snapshot cannot be overwritten by an earlier in-flight push
+  - existing offline fallback responses remain unchanged
+  - existing revision storage behavior remains unchanged
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 8 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 8
+- stop_conditions:
+  - implementation requires backend/API changes or persistent queue storage
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/sync.js`
+  - `public/service-worker.js`
+  - `tests/focus-sync-client.test.mjs`
+  - service worker cache id contract tests
+- dependencies:
+  - TASK-008 background sync guard
+  - local Git baseline
+  - owner autonomous continuation approval on 2026-07-23
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Same-collection push snapshots now execute through a per-collection queue, preserving order for background sync writes.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.

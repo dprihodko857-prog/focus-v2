@@ -117,6 +117,50 @@ test("pushSchedules keeps local data when the sync API is unavailable", async ()
   assert.equal(result.status, "offline");
 });
 
+test("pushSchedules serializes concurrent writes so later snapshots cannot be overwritten", async () => {
+  const pushedSnapshots = [];
+  let releaseFirstPush = null;
+  const firstPushStarted = new Promise(resolve => {
+    releaseFirstPush = resolve;
+  });
+  let finishFirstPush = null;
+  const firstPushFinished = new Promise(resolve => {
+    finishFirstPush = resolve;
+  });
+  const storage = createMemoryLocalStorage({ "focus-sync-account-id": "account-1" });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      assert.equal(url, "/api/sync/schedules");
+      assert.equal(options.method, "PUT");
+      const schedules = JSON.parse(options.body).schedules;
+      pushedSnapshots.push(schedules.map(item => item.id));
+
+      if (pushedSnapshots.length === 1) {
+        releaseFirstPush();
+        await firstPushFinished;
+      }
+
+      return jsonResponse({ revision: pushedSnapshots.length, schedules, updatedAt: "2026-07-23T00:00:00.000Z" });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const firstPush = client.pushSchedules([{ id: "old", title: "Old" }]);
+  const secondPush = client.pushSchedules([{ id: "new", title: "New" }]);
+
+  await firstPushStarted;
+  assert.deepEqual(pushedSnapshots, [["old"]]);
+
+  finishFirstPush();
+  const results = await Promise.all([firstPush, secondPush]);
+
+  assert.deepEqual(pushedSnapshots, [["old"], ["new"]]);
+  assert.equal(results[0].revision, 1);
+  assert.equal(results[1].revision, 2);
+  assert.equal(storage.getItem("focus-sync-revision"), "2");
+});
+
 test("syncReminders pushes local reminders when the remote account is empty", async () => {
   const calls = [];
   const client = createFocusSyncClient({

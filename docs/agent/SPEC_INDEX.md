@@ -14,4 +14,5 @@ Status: DRAFT
 | INDEXEDDB-LEGACY-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/indexeddb-legacy-cleanup.md` | TASK-006 removes migrated legacy `localStorage` data keys after successful IndexedDB migration/read. |
 | PUSH-EVENT-DETAILS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-event-retry-details.md` | TASK-007 shows retry attempts and next retry time in the push event log when server events include those fields. |
 | BACKGROUND-SYNC-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/background-sync-push-guard.md` | TASK-008 guards fire-and-forget client sync pushes from unexpected background rejection. |
+| SYNC-PUSH-SERIALIZATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-push-serialization.md` | TASK-009 serializes same-collection client push snapshots so newer snapshots cannot be overwritten by older in-flight pushes. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |
