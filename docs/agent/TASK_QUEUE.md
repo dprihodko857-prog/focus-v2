@@ -622,3 +622,57 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Repeated `online` events now share one in-flight recovery sync pass.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-013
+
+- title: Replace Focus logo assets
+- status: DONE
+- owner_gate: approved
+- task_type: design_runtime
+- priority: high
+- source: owner provided new logo concept image on 2026-07-23
+- spec_reference: `docs/specs/focus-brand-logo-update.md`
+- spec_status: approved_for_task_013
+- goal: replace the project logo with the new Focus mark based on the Russian letter `Ф`, target geometry, and the existing orange/graphite brand palette.
+- out_of_scope:
+  - redesigning the rest of the UI
+  - changing the app name or manifest metadata
+  - splash screen redesign
+  - backend, sync, auth, or push behavior changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - visible sidebar logo uses the new mark
+  - PWA install icons use the new mark at existing paths and sizes
+  - favicon uses the new mark
+  - service worker cache version is bumped
+  - existing tests pass
+- required_checks:
+  - `node --check scripts/generate-focus-logo-assets.mjs`
+  - `node --check public/service-worker.js`
+  - `node --test tests/install-quality-css.test.mjs tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one visual asset task
+- file_limit: up to 16 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 12
+- stop_conditions:
+  - implementation requires external design tools or a new image model run
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/assets`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - `scripts/generate-focus-logo-assets.mjs`
+  - install quality contract tests
+- dependencies:
+  - owner-provided logo concept
+  - local Git baseline
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. Visible and install logo assets now use the new `Ф` target mark generated at the existing app icon paths.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.

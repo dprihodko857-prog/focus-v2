@@ -9,6 +9,7 @@ const appJs = readFileSync("public/js/app.js", "utf8");
 const pwaJs = readFileSync("public/js/pwa.js", "utf8");
 const manifest = readFileSync("public/manifest.webmanifest", "utf8");
 const serviceWorker = readFileSync("public/service-worker.js", "utf8");
+const logoGenerator = readFileSync("scripts/generate-focus-logo-assets.mjs", "utf8");
 const manifestJson = JSON.parse(manifest);
 
 test("mobile viewport supports installed PWA safe areas", () => {
@@ -34,6 +35,16 @@ test("mobile bottom navigation has safe-area spacing and an opaque surface", () 
   assert.doesNotMatch(appCss, /\.sidebar__nav \.nav-item:nth-child\(n\+6\)/);
   assert.doesNotMatch(indexHtml, /aria-label="Фокус"[\s\S]*?icon-home/);
   assert.doesNotMatch(appCss, /\.icon-home/);
+});
+
+test("focus brand assets use the current target mark", () => {
+  assert.match(appCss, /background:\s*#10151e url\("\/assets\/focus-logo\.png"\) center\/100% 100% no-repeat;/);
+  assert.match(logoGenerator, /drawMark/);
+  assert.match(logoGenerator, /#F97316/);
+  assert.match(logoGenerator, /#374151/);
+  assert.deepEqual(readPngSize("public/assets/focus-logo.png"), { width: 128, height: 128 });
+  assert.deepEqual(readPngSize("public/assets/brand/focus-app-icon-reference.png"), { width: 1024, height: 1024 });
+  assert.deepEqual(readPngSize("public/assets/icons/favicon-32.png"), { width: 32, height: 32 });
 });
 
 test("desktop app switches to mobile chrome in compact windows", () => {
@@ -126,7 +137,7 @@ test("settings include install quality diagnostics and PWA update controls", () 
   assert.match(appJs, /focus-pwa-state-change/);
   assert.match(pwaJs, /focusPwaCheckForUpdate/);
   assert.match(pwaJs, /focusPwaApplyUpdate/);
-  assert.match(serviceWorker, /focus-pwa-v50/);
+  assert.match(serviceWorker, /focus-pwa-v51/);
   assert.match(serviceWorker, /SKIP_WAITING/);
 });
 

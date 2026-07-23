@@ -21,6 +21,7 @@ Status: DRAFT
 - TASK-010 is implemented locally: expected background sync `offline` results now show the deferred sync status instead of failing silently.
 - TASK-011 is implemented locally: sync metadata has an in-memory session fallback when `localStorage` is unavailable.
 - TASK-012 is implemented locally: repeated `online` events now share one in-flight recovery sync pass.
+- TASK-013 is implemented locally: visible and install logo assets now use the new `Ф` target mark.
 
 ## In Progress
 
@@ -41,7 +42,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-012 checks passed locally; `npm.cmd run test` passed 94/94.
+- Current result: local Git repository exists; TASK-013 checks passed locally; `npm.cmd run test` passed 95/95.
 
 ## Open Questions
 

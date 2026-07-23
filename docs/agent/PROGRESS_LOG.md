@@ -43,3 +43,6 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-011 | Committed sync metadata memory fallback locally. | Local commit `802cfab`. | DONE | Continue with the next bounded sync hardening task. |
 | 2026-07-23 | TASK-012 | Started online recovery sync coalescing. | Repeated `online` events could start overlapping full sync and push registration batches. | IN_PROGRESS | Add in-flight recovery guard and contract tests. |
 | 2026-07-23 | TASK-012 | Implemented online recovery sync coalescing locally. | `node --check public/js/app.js`, `node --check public/service-worker.js`, targeted contract tests passed 24/24, and `npm.cmd run test` passed 94/94. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-012 | Committed online recovery sync coalescing locally. | Local commit `7d387f1`. | DONE | Pause for owner-directed logo update. |
+| 2026-07-23 | TASK-013 | Started Focus logo replacement. | Owner provided new `Ф` target logo concept image. | IN_PROGRESS | Regenerate visible and install assets. |
+| 2026-07-23 | TASK-013 | Implemented Focus logo replacement locally. | Generator, PNG dimensions, visual asset check, targeted tests passed 27/27, and `npm.cmd run test` passed 95/95. | DONE | Commit locally; deploy remains separate. |
