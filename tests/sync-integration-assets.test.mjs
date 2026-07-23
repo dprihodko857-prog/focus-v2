@@ -21,7 +21,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v54/);
+  assert.match(serviceWorker, /focus-pwa-v55/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
@@ -44,6 +44,7 @@ test("settings expose the sync account connection modal", () => {
   assert.match(indexHtml, /id="syncDeviceName"/);
   assert.match(indexHtml, /id="syncDeviceList"/);
   assert.match(indexHtml, /id="syncProfileSaveButton"/);
+  assert.match(indexHtml, /id="syncDisconnectButton"/);
   assert.match(indexHtml, /id="deviceCheckSummary"/);
   assert.match(indexHtml, /id="deviceCheckList"/);
   assert.match(indexHtml, /id="deviceCheckRefreshButton"/);
@@ -54,9 +55,23 @@ test("settings expose the sync account connection modal", () => {
   assert.match(appJs, /logoutAuthSession/);
   assert.match(appJs, /refreshSyncAccountProfile/);
   assert.match(appJs, /saveSyncAccountProfile/);
+  assert.match(appJs, /disconnectSyncAccount/);
   assert.match(appJs, /function getDeviceCheckItems/);
   assert.match(appJs, /function renderDeviceCheck/);
   assert.match(appJs, /function refreshDeviceCheck/);
+});
+
+test("settings can disconnect code-based sync without clearing local data", () => {
+  assert.match(indexHtml, /id="syncDisconnectButton" hidden/);
+  assert.match(appCss, /\.sync-account-actions\s*{/);
+  assert.match(appCss, /\.secondary-button--danger\s*{/);
+  assert.match(appJs, /function disconnectSyncAccount/);
+  assert.match(appJs, /window\.confirm\("Отключить это устройство от синхронизации\? Локальные данные останутся на устройстве\."\)/);
+  assert.match(appJs, /scheduleSync\.clearAccountId\(\)/);
+  assert.match(appJs, /syncAccountProfile = null/);
+  assert.match(appJs, /resetSyncCollectionStates\(\)/);
+  assert.match(appJs, /Локальные данные остались на устройстве/);
+  assert.match(appJs, /document\.querySelector\("#syncDisconnectButton"\)\?\.addEventListener\("click"/);
 });
 
 test("settings expose per-collection sync status diagnostics", () => {

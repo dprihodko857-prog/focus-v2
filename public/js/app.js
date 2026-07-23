@@ -3994,6 +3994,13 @@ function setSyncCollectionState(collectionKey, patch) {
   renderSyncDataStatus();
 }
 
+function resetSyncCollectionStates() {
+  syncCollectionItems.forEach(item => {
+    syncCollectionStates[item.key] = { status: "idle", updatedAt: "", revision: 0 };
+  });
+  renderSyncDataStatus();
+}
+
 function updateSyncCollectionFromResult(collectionKey, result) {
   const status = result?.status || "idle";
   const normalizedStatus = ["pushed", "pulled", "idle", "offline"].includes(status) ? status : "idle";
@@ -4184,9 +4191,11 @@ function renderSyncAccountProfile(profile = syncAccountProfile) {
   const summary = document.querySelector("#syncAccountSummary");
   const deviceList = document.querySelector("#syncDeviceList");
   const saveButton = document.querySelector("#syncProfileSaveButton");
+  const disconnectButton = document.querySelector("#syncDisconnectButton");
   const accountId = scheduleSync.peekAccountId();
   const devices = Array.isArray(profile?.devices) ? profile.devices : [];
   const currentDevice = devices.find(device => device.isCurrent) || null;
+  const canDisconnect = Boolean(accountId) && !(authSession?.authenticated && accountId === authSession.accountId);
 
   if (accountName) {
     accountName.value = profile?.displayName || "";
@@ -4200,6 +4209,11 @@ function renderSyncAccountProfile(profile = syncAccountProfile) {
 
   if (saveButton) {
     saveButton.disabled = !accountId;
+  }
+
+  if (disconnectButton) {
+    disconnectButton.hidden = !canDisconnect;
+    disconnectButton.disabled = !canDisconnect;
   }
 
   if (summary) {
@@ -4279,6 +4293,30 @@ async function saveSyncAccountProfile() {
       saveButton.textContent = "Сохранить";
     }
   }
+}
+
+function disconnectSyncAccount() {
+  const accountId = scheduleSync.peekAccountId();
+
+  if (!accountId) {
+    renderSyncState();
+    setSyncStatus("Это устройство уже не подключено к синхронизации.");
+    return;
+  }
+
+  if (authSession?.authenticated && accountId === authSession.accountId) {
+    setSyncStatus("Для аккаунта Orbit используйте кнопку «Выйти». Локальные данные останутся на устройстве.");
+    return;
+  }
+
+  const confirmed = window.confirm("Отключить это устройство от синхронизации? Локальные данные останутся на устройстве.");
+  if (!confirmed) return;
+
+  scheduleSync.clearAccountId();
+  syncAccountProfile = null;
+  resetSyncCollectionStates();
+  renderSyncState();
+  setSyncStatus("Это устройство отключено от синхронизации. Локальные данные остались на устройстве.");
 }
 
 function getInstallDiagnosticItems() {
@@ -5807,6 +5845,10 @@ function bindControls() {
 
   document.querySelector("#syncProfileSaveButton")?.addEventListener("click", () => {
     saveSyncAccountProfile();
+  });
+
+  document.querySelector("#syncDisconnectButton")?.addEventListener("click", () => {
+    disconnectSyncAccount();
   });
 
   document.querySelector("#authLoginButton")?.addEventListener("click", () => {

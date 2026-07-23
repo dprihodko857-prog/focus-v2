@@ -842,3 +842,59 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. The sync modal now shows per-collection state cards and a manual all-collection refresh action.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-017
+
+- title: Add current-device sync disconnect action
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work on 2026-07-23 after TASK-016; earlier owner direction allowed autonomous bounded local continuation
+- spec_reference: `docs/specs/sync-disconnect-current-device.md`
+- spec_status: approved_for_task_017
+- goal: allow disconnecting this device from a code-based sync account without deleting local app data.
+- out_of_scope:
+  - backend account deletion
+  - server-side device removal
+  - Orbit Auth logout changes
+  - local data deletion
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - sync modal includes an `Отключить` action for code-based sync accounts
+  - disconnect is confirmed before changing local sync state
+  - existing `scheduleSync.clearAccountId()` performs the local disconnect
+  - local app data and device id remain intact
+  - per-collection sync diagnostics reset after disconnect
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 16
+- stop_conditions:
+  - implementation requires backend device deletion or auth redesign
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/index.html`
+  - `public/css/app.css`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - sync/install/desktop contract tests
+- dependencies:
+  - existing sync client `clearAccountId()`
+  - TASK-016 sync status diagnostics
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Settings now exposes a confirmed current-device disconnect action for code-based sync accounts and resets sync diagnostics after disconnect.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.

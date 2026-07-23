@@ -2379,6 +2379,13 @@ h3 {
   align-items: center;
 }
 
+.sync-account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .sync-account-panel h3 {
   margin: 4px 0;
   color: var(--text);
@@ -3466,6 +3473,12 @@ h3 {
   color: var(--text-soft);
 }
 
+.secondary-button--danger {
+  border-color: rgba(162, 65, 45, .22);
+  color: #7a2f24;
+  background: rgba(217, 107, 95, .16);
+}
+
 .primary-button:hover,
 .secondary-button:hover {
   transform: translateY(-1px);
@@ -3738,6 +3751,7 @@ h3 {
   }
 
   .auth-panel__actions,
+  .sync-account-actions,
   .auth-panel .primary-button,
   .auth-panel .secondary-button {
     width: 100%;
@@ -3752,6 +3766,7 @@ h3 {
   }
 
   .sync-account-panel .secondary-button,
+  .sync-account-actions .secondary-button,
   .sync-data-panel .secondary-button {
     width: 100%;
   }

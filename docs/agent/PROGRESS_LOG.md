@@ -58,3 +58,7 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-016 | Implemented sync data status diagnostics locally. | Sync modal panel, collection state tracking, manual refresh, service worker cache bump, and contract tests added. | DONE | Run checks and commit locally. |
 | 2026-07-23 | TASK-016 | Completed sync data status diagnostics checks. | Syntax checks passed, targeted tests passed 29/29, and `npm.cmd run test` passed 97/97. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-23 | TASK-016 | Committed sync data status diagnostics locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-23 | TASK-017 | Started current-device sync disconnect. | Owner asked to continue project work after TASK-016. | IN_PROGRESS | Add confirmed disconnect action and checks. |
+| 2026-07-23 | TASK-017 | Implemented current-device sync disconnect locally. | Sync settings button, confirmation flow, diagnostics reset, service worker cache bump, and contract tests added. | DONE | Run checks and commit locally. |
+| 2026-07-23 | TASK-017 | Completed current-device sync disconnect checks. | Syntax checks passed, targeted tests passed 30/30, and `npm.cmd run test` passed 98/98. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-017 | Committed current-device sync disconnect locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

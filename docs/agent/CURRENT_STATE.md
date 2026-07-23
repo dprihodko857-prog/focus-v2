@@ -27,6 +27,7 @@ Status: DRAFT
 - TASK-015 is implemented locally: Warm Glass text, summary rows, and event title contrast were strengthened without changing the app layout.
 - TASK-015 was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-23 with service worker cache `focus-pwa-v53`; backend and Nginx were active after deployment.
 - TASK-016 is implemented locally: Settings now includes per-collection sync status diagnostics and a manual all-collection refresh action; service worker cache is `focus-pwa-v54`.
+- TASK-017 is implemented locally: Settings now includes a confirmed current-device disconnect action for code-based sync accounts; service worker cache is `focus-pwa-v55`.
 
 ## In Progress
 
@@ -47,7 +48,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-016 checks passed locally; `npm.cmd run test` passed 97/97.
+- Current result: local Git repository exists; TASK-017 checks passed locally; `npm.cmd run test` passed 98/98.
 
 ## Open Questions
 
