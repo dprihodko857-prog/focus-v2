@@ -11,4 +11,5 @@ Status: DRAFT
 | NOTIF-RETRY-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/notification-retry-diagnostics.md` | TASK-003 implemented and committed locally after owner approval; deployment remains a separate owner gate. |
 | SYNC-ACCOUNT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-account-creation-coalescing.md` | TASK-004 coalesces concurrent first-load account creation in the sync client. |
 | DIARY-PIN-STORAGE-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/diary-pin-indexeddb-cleanup.md` | TASK-005 migrates valid legacy PIN fallback storage into IndexedDB and clears stale fallback copies after successful IndexedDB reads/writes. |
+| INDEXEDDB-LEGACY-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/indexeddb-legacy-cleanup.md` | TASK-006 removes migrated legacy `localStorage` data keys after successful IndexedDB migration/read. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

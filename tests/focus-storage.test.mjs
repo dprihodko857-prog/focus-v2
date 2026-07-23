@@ -34,6 +34,21 @@ test("migrateSchedulesFromLocalStorage copies legacy schedules into IndexedDB", 
 
   assert.deepEqual(migrated, legacySchedules);
   assert.deepEqual(loaded, legacySchedules);
+  assert.equal(localStorage.getItem(LEGACY_SCHEDULES_KEY), null);
+});
+
+test("migrateSchedulesFromLocalStorage removes stale legacy schedules when IndexedDB already has data", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const indexedSchedules = [{ id: "indexed", title: "Основное расписание" }];
+  const localStorage = createMemoryLocalStorage({
+    [LEGACY_SCHEDULES_KEY]: JSON.stringify([{ id: "legacy", title: "Старое расписание" }]),
+  });
+  const storage = createFocusStorage({ indexedDB, localStorage });
+
+  await storage.saveSchedules(indexedSchedules);
+
+  assert.deepEqual(await storage.migrateSchedulesFromLocalStorage(), indexedSchedules);
+  assert.equal(localStorage.getItem(LEGACY_SCHEDULES_KEY), null);
 });
 
 test("saveSchedules persists and replaces the IndexedDB schedule list", async () => {
@@ -69,6 +84,7 @@ test("migrateTasksFromLocalStorage copies legacy tasks into IndexedDB", async ()
 
   assert.deepEqual(await storage.migrateTasksFromLocalStorage(), legacyTasks);
   assert.deepEqual(await storage.loadTasks(), legacyTasks);
+  assert.equal(localStorage.getItem(LEGACY_TASKS_KEY), null);
 });
 
 test("saveTasks persists and replaces the IndexedDB task list", async () => {
@@ -93,6 +109,7 @@ test("migrateNotesFromLocalStorage copies legacy notes into IndexedDB", async ()
 
   assert.deepEqual(await storage.migrateNotesFromLocalStorage(), legacyNotes);
   assert.deepEqual(await storage.loadNotes(), legacyNotes);
+  assert.equal(localStorage.getItem(LEGACY_NOTES_KEY), null);
 });
 
 test("saveNotes persists and replaces the IndexedDB notes list", async () => {
@@ -117,6 +134,7 @@ test("migrateBirthdaysFromLocalStorage copies legacy birthdays into IndexedDB", 
 
   assert.deepEqual(await storage.migrateBirthdaysFromLocalStorage(), legacyBirthdays);
   assert.deepEqual(await storage.loadBirthdays(), legacyBirthdays);
+  assert.equal(localStorage.getItem(LEGACY_BIRTHDAYS_KEY), null);
 });
 
 test("saveBirthdays persists and replaces the IndexedDB birthdays list", async () => {
@@ -141,6 +159,7 @@ test("migrateDiaryEntriesFromLocalStorage copies legacy diary entries into Index
 
   assert.deepEqual(await storage.migrateDiaryEntriesFromLocalStorage(), legacyEntries);
   assert.deepEqual(await storage.loadDiaryEntries(), legacyEntries);
+  assert.equal(localStorage.getItem(LEGACY_DIARY_KEY), null);
 });
 
 test("saveDiaryEntries persists and replaces the IndexedDB diary list", async () => {

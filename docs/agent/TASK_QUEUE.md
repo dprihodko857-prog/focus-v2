@@ -247,3 +247,58 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Diary PIN settings now clear stale legacy fallback storage after successful IndexedDB reads/writes, and a valid legacy fallback is migrated into IndexedDB when no IndexedDB PIN settings exist.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-006
+
+- title: Remove migrated legacy localStorage data keys
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue autonomously on 2026-07-23; storage roadmap calls for important data to live in IndexedDB
+- spec_reference: `docs/specs/indexeddb-legacy-cleanup.md`
+- spec_status: approved_for_task_006
+- goal: remove stale legacy `localStorage` keys after important app data has been successfully loaded from or migrated into IndexedDB.
+- out_of_scope:
+  - data model changes
+  - backend sync changes
+  - account/auth changes
+  - removing fallback writes when IndexedDB is unavailable
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - migrating schedules removes `LEGACY_SCHEDULES_KEY` after successful IndexedDB save
+  - migrating tasks removes `LEGACY_TASKS_KEY` after successful IndexedDB save
+  - migrating notes removes `LEGACY_NOTES_KEY` after successful IndexedDB save
+  - migrating birthdays removes `LEGACY_BIRTHDAYS_KEY` after successful IndexedDB save
+  - migrating diary entries removes `LEGACY_DIARY_KEY` after successful IndexedDB save
+  - stale legacy schedules are removed when IndexedDB already has primary schedules
+  - existing fallback behavior remains available if IndexedDB fails
+- required_checks:
+  - `node --check public/js/storage.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-storage.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 8 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 5
+- stop_conditions:
+  - implementation requires changing data shapes or removing fallback behavior
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/storage.js`
+  - `public/service-worker.js`
+  - `tests/focus-storage.test.mjs`
+  - service worker cache id contract tests
+- dependencies:
+  - local Git baseline
+  - owner autonomous continuation approval on 2026-07-23
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Legacy `localStorage` keys for schedules, tasks, notes, birthdays, and diary entries are removed after successful IndexedDB migration, and stale schedule legacy data is removed when IndexedDB already has primary data.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.

@@ -22,3 +22,6 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-004 | Committed sync account creation coalescing locally. | Local commit `f0d01af`. | DONE | Continue with the next bounded storage/privacy task. |
 | 2026-07-23 | TASK-005 | Started diary PIN fallback cleanup. | Legacy PIN fallback could remain in `localStorage` after IndexedDB became available. | IN_PROGRESS | Migrate valid fallback, clear stale fallback copies, and run checks. |
 | 2026-07-23 | TASK-005 | Implemented diary PIN fallback cleanup locally. | `node --check public/js/app.js`, `node --check public/service-worker.js`, targeted asset test, and `npm.cmd run test` passed 89/89. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-005 | Committed diary PIN fallback cleanup locally. | Local commit `0574bd6`. | DONE | Continue with the next bounded IndexedDB cleanup task. |
+| 2026-07-23 | TASK-006 | Started migrated legacy key cleanup. | Main IndexedDB migrations left old `localStorage` data keys in place. | IN_PROGRESS | Remove keys after successful migration and run checks. |
+| 2026-07-23 | TASK-006 | Implemented migrated legacy key cleanup locally. | `node --check public/js/storage.js`, `node --check public/service-worker.js`, focused storage tests, and `npm.cmd run test` passed 90/90. | DONE | Commit locally; deploy remains separate. |

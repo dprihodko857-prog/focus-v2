@@ -53,6 +53,14 @@ export function createFocusStorage({
     return value;
   };
 
+  const removeLegacyValue = key => {
+    try {
+      localStorage?.removeItem(key);
+    } catch {
+      // Очистка legacy-ключей выполняется по возможности; основным хранилищем остается IndexedDB.
+    }
+  };
+
   return {
     isAvailable() {
       return Boolean(indexedDB);
@@ -140,6 +148,7 @@ export function createFocusStorage({
     async migrateSchedulesFromLocalStorage() {
       const indexedSchedules = await this.loadSchedules();
       if (indexedSchedules.length) {
+        removeLegacyValue(LEGACY_SCHEDULES_KEY);
         return indexedSchedules;
       }
 
@@ -149,12 +158,14 @@ export function createFocusStorage({
       }
 
       await this.saveSchedules(legacySchedules);
+      removeLegacyValue(LEGACY_SCHEDULES_KEY);
       return legacySchedules;
     },
 
     async migrateTasksFromLocalStorage() {
       const indexedTasks = await this.loadTasks();
       if (indexedTasks.length) {
+        removeLegacyValue(LEGACY_TASKS_KEY);
         return indexedTasks;
       }
 
@@ -164,12 +175,14 @@ export function createFocusStorage({
       }
 
       await this.saveTasks(legacyTasks);
+      removeLegacyValue(LEGACY_TASKS_KEY);
       return legacyTasks;
     },
 
     async migrateNotesFromLocalStorage() {
       const indexedNotes = await this.loadNotes();
       if (indexedNotes.length) {
+        removeLegacyValue(LEGACY_NOTES_KEY);
         return indexedNotes;
       }
 
@@ -179,12 +192,14 @@ export function createFocusStorage({
       }
 
       await this.saveNotes(legacyNotes);
+      removeLegacyValue(LEGACY_NOTES_KEY);
       return legacyNotes;
     },
 
     async migrateBirthdaysFromLocalStorage() {
       const indexedBirthdays = await this.loadBirthdays();
       if (indexedBirthdays.length) {
+        removeLegacyValue(LEGACY_BIRTHDAYS_KEY);
         return indexedBirthdays;
       }
 
@@ -194,12 +209,14 @@ export function createFocusStorage({
       }
 
       await this.saveBirthdays(legacyBirthdays);
+      removeLegacyValue(LEGACY_BIRTHDAYS_KEY);
       return legacyBirthdays;
     },
 
     async migrateDiaryEntriesFromLocalStorage() {
       const indexedEntries = await this.loadDiaryEntries();
       if (indexedEntries.length) {
+        removeLegacyValue(LEGACY_DIARY_KEY);
         return indexedEntries;
       }
 
@@ -209,6 +226,7 @@ export function createFocusStorage({
       }
 
       await this.saveDiaryEntries(legacyEntries);
+      removeLegacyValue(LEGACY_DIARY_KEY);
       return legacyEntries;
     },
   };

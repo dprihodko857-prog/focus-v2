@@ -14,6 +14,7 @@ Status: DRAFT
 - PWA/mobile push hardening was deployed and verified on iPhone by the owner on 2026-07-23.
 - TASK-004 is implemented locally: concurrent first-load sync account creation is coalesced in the client to avoid duplicate remote accounts.
 - TASK-005 is implemented locally: diary PIN settings now migrate a valid legacy fallback into IndexedDB and clear stale `localStorage` fallback copies after successful IndexedDB reads/writes.
+- TASK-006 is implemented locally: legacy `localStorage` keys for important app data are removed after successful IndexedDB migration/read cleanup.
 
 ## In Progress
 
@@ -34,7 +35,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-005 checks passed locally; `npm.cmd run test` passed 89/89.
+- Current result: local Git repository exists; TASK-006 checks passed locally; `npm.cmd run test` passed 90/90.
 
 ## Open Questions
 
