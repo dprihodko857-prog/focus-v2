@@ -21,4 +21,5 @@ Status: DRAFT
 | FOCUS-BRAND-LOGO-UPDATE-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/focus-brand-logo-update.md` | TASK-013 replaces the visible and install logo assets with the owner-provided `Ф` target concept. |
 | FOCUS-BRAND-ICON-CACHE-BUST-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/focus-brand-icon-cache-bust.md` | TASK-014 moves favicon, Apple touch, manifest, and notification icon references to versioned URLs. |
 | WARM-GLASS-CONTRAST-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/warm-glass-contrast-pass.md` | TASK-015 improves text and row contrast on Warm Glass summary/event panels. |
+| SYNC-DATA-STATUS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-data-status-panel.md` | TASK-016 adds per-collection sync status diagnostics in Settings. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

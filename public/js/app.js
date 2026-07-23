@@ -63,6 +63,20 @@ let syncAccountProfile = null;
 let scheduleEditDraft = null;
 let scheduleFilter = "all";
 
+const syncCollectionItems = [
+  { key: "schedules", title: "Расписания", getCount: () => savedSchedules.length },
+  { key: "reminders", title: "Напоминания", getCount: () => localReminders.length },
+  { key: "tasks", title: "Дела на сегодня", getCount: () => savedTasks.length },
+  { key: "notes", title: "Заметки", getCount: () => savedNotes.length },
+  { key: "birthdays", title: "Дни рождения", getCount: () => savedBirthdays.length },
+  { key: "diary", title: "Дневник", getCount: () => savedDiaryEntries.length },
+];
+
+const syncCollectionStates = Object.fromEntries(syncCollectionItems.map(item => [
+  item.key,
+  { status: "idle", updatedAt: "", revision: 0 },
+]));
+
 const installShortcutTargets = new Set([
   "reminder",
   "schedules",
@@ -959,7 +973,7 @@ async function saveTodayTask(onSaved) {
   savedTasks = normalizeTaskList([task, ...savedTasks]);
   await saveTasksLocally(savedTasks);
   const tasksSnapshot = [...savedTasks];
-  runBackgroundSync(() => scheduleSync.pushTasks(tasksSnapshot));
+  runBackgroundSync(() => scheduleSync.pushTasks(tasksSnapshot), "tasks");
   clearTaskForm();
   renderTasks();
   onSaved?.();
@@ -1105,7 +1119,7 @@ async function saveNote(onSaved) {
     : [note, ...savedNotes]);
   await saveNotesLocally(savedNotes);
   const notesSnapshot = [...savedNotes];
-  runBackgroundSync(() => scheduleSync.pushNotes(notesSnapshot));
+  runBackgroundSync(() => scheduleSync.pushNotes(notesSnapshot), "notes");
   noteEditId = null;
   clearNoteForm();
   renderNoteEditorState();
@@ -1361,7 +1375,7 @@ async function saveBirthday(onSaved) {
     : [birthday, ...savedBirthdays]);
   await saveBirthdaysLocally(savedBirthdays);
   const birthdaysSnapshot = [...savedBirthdays];
-  runBackgroundSync(() => scheduleSync.pushBirthdays(birthdaysSnapshot));
+  runBackgroundSync(() => scheduleSync.pushBirthdays(birthdaysSnapshot), "birthdays");
   await syncBirthdayReminder(birthday);
   birthdayEditId = null;
   clearBirthdayForm();
@@ -1939,7 +1953,7 @@ async function saveDiaryEntry(onSaved) {
     : [entry, ...savedDiaryEntries]);
   await saveDiaryEntriesLocally(savedDiaryEntries);
   const entriesSnapshot = [...savedDiaryEntries];
-  runBackgroundSync(() => scheduleSync.pushDiaryEntries(entriesSnapshot));
+  runBackgroundSync(() => scheduleSync.pushDiaryEntries(entriesSnapshot), "diary");
   diaryEditId = null;
   clearDiaryForm();
   renderDiaryEditorState();
@@ -2573,18 +2587,34 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function runBackgroundSync(syncAction) {
+function runBackgroundSync(syncAction, collectionKey = "") {
+  if (collectionKey) {
+    setSyncCollectionState(collectionKey, { status: "pending" });
+  }
+
   try {
     Promise.resolve(syncAction())
       .then(result => {
+        if (collectionKey) {
+          updateSyncCollectionFromResult(collectionKey, result);
+        }
+
         if (result?.status === "offline") {
           setSyncStatus("Локальные данные сохранены. Синхронизация повторится при подключении.");
         }
       })
       .catch(() => {
+        if (collectionKey) {
+          setSyncCollectionState(collectionKey, { status: "failed" });
+        }
+
         setSyncStatus("Локальные данные сохранены. Синхронизация повторится при подключении.");
       });
   } catch {
+    if (collectionKey) {
+      setSyncCollectionState(collectionKey, { status: "failed" });
+    }
+
     setSyncStatus("Локальные данные сохранены. Синхронизация повторится при подключении.");
   }
 }
@@ -2610,7 +2640,7 @@ function saveSchedulesLocally(schedules) {
 function persistSavedSchedules() {
   const schedulesSnapshot = [...savedSchedules];
   saveSchedulesLocally(schedulesSnapshot);
-  runBackgroundSync(() => scheduleSync.pushSchedules(schedulesSnapshot));
+  runBackgroundSync(() => scheduleSync.pushSchedules(schedulesSnapshot), "schedules");
 }
 
 function loadLegacySavedTasks() {
@@ -2636,7 +2666,7 @@ function persistSavedTasks() {
   const tasksSnapshot = normalizeTaskList(savedTasks);
   savedTasks = tasksSnapshot;
   saveTasksLocally(tasksSnapshot);
-  runBackgroundSync(() => scheduleSync.pushTasks(tasksSnapshot));
+  runBackgroundSync(() => scheduleSync.pushTasks(tasksSnapshot), "tasks");
 }
 
 function loadLegacySavedNotes() {
@@ -2662,7 +2692,7 @@ function persistSavedNotes() {
   const notesSnapshot = normalizeNoteList(savedNotes);
   savedNotes = notesSnapshot;
   saveNotesLocally(notesSnapshot);
-  runBackgroundSync(() => scheduleSync.pushNotes(notesSnapshot));
+  runBackgroundSync(() => scheduleSync.pushNotes(notesSnapshot), "notes");
 }
 
 function loadLegacySavedBirthdays() {
@@ -2688,7 +2718,7 @@ function persistSavedBirthdays() {
   const birthdaysSnapshot = normalizeBirthdayList(savedBirthdays);
   savedBirthdays = birthdaysSnapshot;
   saveBirthdaysLocally(birthdaysSnapshot);
-  runBackgroundSync(() => scheduleSync.pushBirthdays(birthdaysSnapshot));
+  runBackgroundSync(() => scheduleSync.pushBirthdays(birthdaysSnapshot), "birthdays");
 }
 
 function loadLegacySavedDiaryEntries() {
@@ -2714,7 +2744,7 @@ function persistSavedDiaryEntries() {
   const entriesSnapshot = normalizeDiaryEntryList(savedDiaryEntries);
   savedDiaryEntries = entriesSnapshot;
   saveDiaryEntriesLocally(entriesSnapshot);
-  runBackgroundSync(() => scheduleSync.pushDiaryEntries(entriesSnapshot));
+  runBackgroundSync(() => scheduleSync.pushDiaryEntries(entriesSnapshot), "diary");
 }
 
 function saveRemindersLocally(reminders) {
@@ -2730,7 +2760,7 @@ function saveRemindersLocally(reminders) {
 async function persistLocalReminders() {
   const remindersSnapshot = [...localReminders];
   await saveRemindersLocally(remindersSnapshot);
-  runBackgroundSync(() => scheduleSync.pushReminders(remindersSnapshot));
+  runBackgroundSync(() => scheduleSync.pushReminders(remindersSnapshot), "reminders");
 }
 
 function setReminderStatus(message) {
@@ -3591,99 +3621,227 @@ function renderReminderEditorState() {
   }
 }
 
-async function syncSavedSchedules({ render = true } = {}) {
-  const result = await scheduleSync.syncSchedules(savedSchedules);
+async function syncSavedSchedules({ render = true, track = true } = {}) {
+  if (track) {
+    setSyncCollectionState("schedules", { status: "syncing" });
+  }
 
-  if (result.status === "pulled") {
-    savedSchedules = result.schedules;
-    await saveSchedulesLocally(savedSchedules);
-    if (render) {
-      renderSavedSchedules();
+  try {
+    const result = await scheduleSync.syncSchedules(savedSchedules);
+
+    if (result.status === "pulled") {
+      savedSchedules = result.schedules;
+      await saveSchedulesLocally(savedSchedules);
+      if (render) {
+        renderSavedSchedules();
+      }
     }
-  }
 
-  return result;
+    if (track) {
+      updateSyncCollectionFromResult("schedules", result);
+    }
+
+    return result;
+  } catch (error) {
+    if (track) {
+      setSyncCollectionState("schedules", { status: "failed" });
+    }
+    throw error;
+  }
 }
 
-async function syncSavedReminders({ render = true } = {}) {
-  const result = await scheduleSync.syncReminders(localReminders);
-
-  if (result.status === "pulled") {
-    localReminders = result.reminders;
-    await saveRemindersLocally(localReminders);
+async function syncSavedReminders({ render = true, track = true } = {}) {
+  if (track) {
+    setSyncCollectionState("reminders", { status: "syncing" });
   }
 
-  if (render) {
-    scheduleLocalReminders();
-    renderReminderList();
-    updateReminderPermissionState();
-  }
+  try {
+    const result = await scheduleSync.syncReminders(localReminders);
 
-  return result;
+    if (result.status === "pulled") {
+      localReminders = result.reminders;
+      await saveRemindersLocally(localReminders);
+    }
+
+    if (render) {
+      scheduleLocalReminders();
+      renderReminderList();
+      updateReminderPermissionState();
+    }
+
+    if (track) {
+      updateSyncCollectionFromResult("reminders", result);
+    }
+
+    return result;
+  } catch (error) {
+    if (track) {
+      setSyncCollectionState("reminders", { status: "failed" });
+    }
+    throw error;
+  }
 }
 
-async function syncSavedTasks({ render = true } = {}) {
-  const result = await scheduleSync.syncTasks(savedTasks);
-
-  if (result.status === "pulled") {
-    savedTasks = normalizeTaskList(result.tasks);
-    await saveTasksLocally(savedTasks);
+async function syncSavedTasks({ render = true, track = true } = {}) {
+  if (track) {
+    setSyncCollectionState("tasks", { status: "syncing" });
   }
 
-  if (render) {
-    renderTasks();
-  }
+  try {
+    const result = await scheduleSync.syncTasks(savedTasks);
 
-  return result;
+    if (result.status === "pulled") {
+      savedTasks = normalizeTaskList(result.tasks);
+      await saveTasksLocally(savedTasks);
+    }
+
+    if (render) {
+      renderTasks();
+    }
+
+    if (track) {
+      updateSyncCollectionFromResult("tasks", result);
+    }
+
+    return result;
+  } catch (error) {
+    if (track) {
+      setSyncCollectionState("tasks", { status: "failed" });
+    }
+    throw error;
+  }
 }
 
-async function syncSavedNotes({ render = true } = {}) {
-  const result = await scheduleSync.syncNotes(savedNotes);
-
-  if (result.status === "pulled") {
-    savedNotes = normalizeNoteList(result.notes);
-    await saveNotesLocally(savedNotes);
+async function syncSavedNotes({ render = true, track = true } = {}) {
+  if (track) {
+    setSyncCollectionState("notes", { status: "syncing" });
   }
 
-  if (render) {
-    renderNotes();
-  }
+  try {
+    const result = await scheduleSync.syncNotes(savedNotes);
 
-  return result;
+    if (result.status === "pulled") {
+      savedNotes = normalizeNoteList(result.notes);
+      await saveNotesLocally(savedNotes);
+    }
+
+    if (render) {
+      renderNotes();
+    }
+
+    if (track) {
+      updateSyncCollectionFromResult("notes", result);
+    }
+
+    return result;
+  } catch (error) {
+    if (track) {
+      setSyncCollectionState("notes", { status: "failed" });
+    }
+    throw error;
+  }
 }
 
-async function syncSavedBirthdays({ render = true } = {}) {
-  const result = await scheduleSync.syncBirthdays(savedBirthdays);
-
-  if (result.status === "pulled") {
-    savedBirthdays = normalizeBirthdayList(result.birthdays);
-    await saveBirthdaysLocally(savedBirthdays);
+async function syncSavedBirthdays({ render = true, track = true } = {}) {
+  if (track) {
+    setSyncCollectionState("birthdays", { status: "syncing" });
   }
 
-  if (render) {
-    renderBirthdays();
-    renderCalendar();
-    renderSummary();
-  }
+  try {
+    const result = await scheduleSync.syncBirthdays(savedBirthdays);
 
-  return result;
+    if (result.status === "pulled") {
+      savedBirthdays = normalizeBirthdayList(result.birthdays);
+      await saveBirthdaysLocally(savedBirthdays);
+    }
+
+    if (render) {
+      renderBirthdays();
+      renderCalendar();
+      renderSummary();
+    }
+
+    if (track) {
+      updateSyncCollectionFromResult("birthdays", result);
+    }
+
+    return result;
+  } catch (error) {
+    if (track) {
+      setSyncCollectionState("birthdays", { status: "failed" });
+    }
+    throw error;
+  }
 }
 
-async function syncSavedDiaryEntries({ render = true } = {}) {
-  const result = await scheduleSync.syncDiaryEntries(savedDiaryEntries);
-
-  if (result.status === "pulled") {
-    savedDiaryEntries = normalizeDiaryEntryList(result.entries);
-    await saveDiaryEntriesLocally(savedDiaryEntries);
+async function syncSavedDiaryEntries({ render = true, track = true } = {}) {
+  if (track) {
+    setSyncCollectionState("diary", { status: "syncing" });
   }
 
-  if (render) {
-    renderDiaryEntries();
-    renderCalendar();
-    renderSummary();
+  try {
+    const result = await scheduleSync.syncDiaryEntries(savedDiaryEntries);
+
+    if (result.status === "pulled") {
+      savedDiaryEntries = normalizeDiaryEntryList(result.entries);
+      await saveDiaryEntriesLocally(savedDiaryEntries);
+    }
+
+    if (render) {
+      renderDiaryEntries();
+      renderCalendar();
+      renderSummary();
+    }
+
+    if (track) {
+      updateSyncCollectionFromResult("diary", result);
+    }
+
+    return result;
+  } catch (error) {
+    if (track) {
+      setSyncCollectionState("diary", { status: "failed" });
+    }
+    throw error;
+  }
+}
+
+async function refreshSyncDataStatus() {
+  const button = document.querySelector("#syncDataRefreshButton");
+
+  if (!scheduleSync.peekAccountId()) {
+    renderSyncDataStatus();
+    setSyncStatus("Сначала создайте код синхронизации.");
+    return;
   }
 
-  return result;
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Сверяем...";
+    }
+
+    const results = await Promise.allSettled([
+      syncSavedSchedules(),
+      syncSavedTasks(),
+      syncSavedNotes(),
+      syncSavedBirthdays(),
+      syncSavedDiaryEntries(),
+      syncSavedReminders(),
+    ]);
+    await refreshSyncAccountProfile().catch(() => null);
+
+    const failedCount = results.filter(result => result.status === "rejected").length;
+    setSyncStatus(failedCount
+      ? `Часть данных не удалось сверить: ${failedCount}. Повторите после подключения.`
+      : "Состояние данных обновлено.");
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Сверить";
+    }
+    renderSyncDataStatus();
+  }
 }
 
 async function registerServerPushSubscription() {
@@ -3826,6 +3984,108 @@ function setSyncStatus(message) {
   }
 }
 
+function setSyncCollectionState(collectionKey, patch) {
+  if (!syncCollectionStates[collectionKey]) return;
+  syncCollectionStates[collectionKey] = {
+    ...syncCollectionStates[collectionKey],
+    ...patch,
+    updatedAt: patch.updatedAt === undefined ? new Date().toISOString() : patch.updatedAt,
+  };
+  renderSyncDataStatus();
+}
+
+function updateSyncCollectionFromResult(collectionKey, result) {
+  const status = result?.status || "idle";
+  const normalizedStatus = ["pushed", "pulled", "idle", "offline"].includes(status) ? status : "idle";
+  setSyncCollectionState(collectionKey, {
+    status: normalizedStatus,
+    revision: Number(result?.revision || syncCollectionStates[collectionKey]?.revision || 0),
+  });
+}
+
+function getSyncCollectionBadge(collectionState, accountId) {
+  if (!accountId) return { label: "Не включено", tone: "warn" };
+
+  switch (collectionState?.status) {
+    case "pushed":
+      return { label: "Отправлено", tone: "ok" };
+    case "pulled":
+      return { label: "Получено", tone: "ok" };
+    case "syncing":
+      return { label: "Сверяем", tone: "warn" };
+    case "pending":
+      return { label: "Ожидает", tone: "warn" };
+    case "offline":
+      return { label: "Нет сети", tone: "warn" };
+    case "failed":
+      return { label: "Ошибка", tone: "bad" };
+    default:
+      return { label: "Готово", tone: "ok" };
+  }
+}
+
+function getSyncCollectionDetails(item, collectionState, accountId) {
+  const countText = `Записей: ${item.getCount()}.`;
+
+  if (!accountId) {
+    return `${countText} Создайте код синхронизации.`;
+  }
+
+  switch (collectionState?.status) {
+    case "pushed":
+      return `${countText} Последняя отправка: ${formatSyncTimestamp(collectionState.updatedAt)}.`;
+    case "pulled":
+      return `${countText} Загружено с сервера: ${formatSyncTimestamp(collectionState.updatedAt)}.`;
+    case "syncing":
+      return `${countText} Идёт сверка с сервером.`;
+    case "pending":
+      return `${countText} Ожидает фоновой отправки.`;
+    case "offline":
+      return `${countText} Будет отправлено после подключения.`;
+    case "failed":
+      return `${countText} Повторите сверку после подключения.`;
+    default:
+      return `${countText} Локальная копия готова.`;
+  }
+}
+
+function renderSyncDataStatus() {
+  const summary = document.querySelector("#syncDataSummary");
+  const list = document.querySelector("#syncDataList");
+  const accountId = scheduleSync.peekAccountId();
+
+  if (summary) {
+    const pendingCount = syncCollectionItems.filter(item => {
+      const status = syncCollectionStates[item.key]?.status;
+      return status === "pending" || status === "offline" || status === "failed";
+    }).length;
+
+    if (!accountId) {
+      summary.textContent = "Создайте код синхронизации, чтобы отправлять данные на другие устройства.";
+    } else if (pendingCount) {
+      summary.textContent = `Есть разделы, ожидающие повторной синхронизации: ${pendingCount}.`;
+    } else {
+      summary.textContent = "Локальные данные готовы к работе на нескольких устройствах.";
+    }
+  }
+
+  if (!list) return;
+
+  list.innerHTML = syncCollectionItems.map(item => {
+    const collectionState = syncCollectionStates[item.key] || {};
+    const badge = getSyncCollectionBadge(collectionState, accountId);
+    return `
+      <article class="sync-data-item sync-data-item--${escapeHtml(collectionState.status || "idle")}">
+        <div class="sync-data-item__head">
+          <strong>${escapeHtml(item.title)}</strong>
+          <span class="sync-data-status sync-data-status--${escapeHtml(badge.tone)}">${escapeHtml(badge.label)}</span>
+        </div>
+        <small>${escapeHtml(getSyncCollectionDetails(item, collectionState, accountId))}</small>
+      </article>
+    `;
+  }).join("");
+}
+
 function renderSyncState() {
   const accountCode = document.querySelector("#syncAccountCode");
   const accountId = scheduleSync.peekAccountId();
@@ -3838,6 +4098,7 @@ function renderSyncState() {
     ? "Синхронизация включена для этого аккаунта."
     : "Нажмите «Показать код», чтобы создать код синхронизации.");
   renderSyncAccountProfile();
+  renderSyncDataStatus();
 }
 
 function getAuthUserTitle(user) {
@@ -5536,6 +5797,10 @@ function bindControls() {
     });
   });
 
+  document.querySelector("#syncDataRefreshButton")?.addEventListener("click", () => {
+    refreshSyncDataStatus();
+  });
+
   document.querySelector("#syncConnectButton")?.addEventListener("click", () => {
     connectSyncAccount();
   });
@@ -5760,6 +6025,7 @@ renderSummary();
 renderTasks();
 renderLabels();
 renderScheduleTypes();
+renderSyncDataStatus();
 const controls = bindControls();
 loadDiaryPinSettings().catch(() => {
   renderDiaryPinSummary();

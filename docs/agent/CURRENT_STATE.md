@@ -25,6 +25,8 @@ Status: DRAFT
 - TASK-014 is implemented locally: favicon, Apple touch, manifest, and notification icon references now use versioned `v2` URLs to bypass stale icon caches.
 
 - TASK-015 is implemented locally: Warm Glass text, summary rows, and event title contrast were strengthened without changing the app layout.
+- TASK-015 was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-23 with service worker cache `focus-pwa-v53`; backend and Nginx were active after deployment.
+- TASK-016 is implemented locally: Settings now includes per-collection sync status diagnostics and a manual all-collection refresh action; service worker cache is `focus-pwa-v54`.
 
 ## In Progress
 
@@ -45,9 +47,9 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-015 checks passed locally; `npm.cmd run test` passed 96/96.
+- Current result: local Git repository exists; TASK-016 checks passed locally; `npm.cmd run test` passed 97/97.
 
 ## Open Questions
 
 - Which next product/runtime task should be promoted to `READY`.
-- Whether future backend/deployment changes should be handled only after a separate owner deployment approval.
+- Future backend/deployment changes still require a separate owner deployment approval.

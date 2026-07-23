@@ -191,7 +191,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - security_review_required: false
 - outcome: Implemented locally. Sync client now reuses one in-flight account creation request, so concurrent first-load sync calls share the same account id instead of creating duplicate accounts.
 - commit_status: committed
-- notes: Required local checks passed on 2026-07-23. No deployment or git push.
+- notes: Required local checks passed on 2026-07-23. Deployed to `focus-v2.dmnao83.ru` after separate owner approval. No git push.
 
 ## TASK-005
 
@@ -784,5 +784,61 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: true
 - security_review_required: false
 - outcome: Implemented locally. Warm Glass text tokens, summary/event rows, and readable category colors were strengthened.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-016
+
+- title: Add sync data status diagnostics
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work on 2026-07-23 after TASK-015 deployment; earlier owner direction allowed autonomous bounded local continuation
+- spec_reference: `docs/specs/sync-data-status-panel.md`
+- spec_status: approved_for_task_016
+- goal: show per-collection sync readiness and retry state in the Settings sync modal.
+- out_of_scope:
+  - backend API changes
+  - database schema changes
+  - conflict-resolution UI
+  - auth model changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - sync modal exposes a `Состояние синхронизации` diagnostics panel
+  - schedules, reminders, today tasks, notes, birthdays, and diary entries each have a visible state card
+  - background pushes update the affected collection state
+  - full sync helpers update collection state during and after sync
+  - manual `Сверить` action refreshes all local sync collections
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 15
+- stop_conditions:
+  - implementation requires backend changes, data migration, or new dependencies
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/index.html`
+  - `public/css/app.css`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - sync/install/desktop contract tests
+- dependencies:
+  - local Git baseline
+  - existing sync client and IndexedDB storage
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. The sync modal now shows per-collection state cards and a manual all-collection refresh action.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.

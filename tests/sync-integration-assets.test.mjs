@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const appJs = readFileSync("public/js/app.js", "utf8");
+const appCss = readFileSync("public/css/app.css", "utf8");
 const indexHtml = readFileSync("public/index.html", "utf8");
 const serviceWorker = readFileSync("public/service-worker.js", "utf8");
 
@@ -20,7 +21,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v53/);
+  assert.match(serviceWorker, /focus-pwa-v54/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
@@ -56,6 +57,26 @@ test("settings expose the sync account connection modal", () => {
   assert.match(appJs, /function getDeviceCheckItems/);
   assert.match(appJs, /function renderDeviceCheck/);
   assert.match(appJs, /function refreshDeviceCheck/);
+});
+
+test("settings expose per-collection sync status diagnostics", () => {
+  assert.match(indexHtml, /id="syncDataSummary"/);
+  assert.match(indexHtml, /id="syncDataList"/);
+  assert.match(indexHtml, /id="syncDataRefreshButton"/);
+  assert.match(appCss, /\.sync-data-panel\s*{/);
+  assert.match(appCss, /\.sync-data-grid\s*{/);
+  assert.match(appCss, /\.sync-data-status--ok\s*{/);
+  assert.match(appCss, /\.sync-data-status--warn\s*{/);
+  assert.match(appCss, /\.sync-data-status--bad\s*{/);
+  assert.match(appJs, /const syncCollectionItems = \[/);
+  assert.match(appJs, /const syncCollectionStates = Object\.fromEntries/);
+  assert.match(appJs, /function setSyncCollectionState/);
+  assert.match(appJs, /function updateSyncCollectionFromResult/);
+  assert.match(appJs, /function renderSyncDataStatus/);
+  assert.match(appJs, /function refreshSyncDataStatus/);
+  assert.match(appJs, /runBackgroundSync\(syncAction, collectionKey = ""\)/);
+  assert.match(appJs, /scheduleSync\.pushSchedules\(schedulesSnapshot\), "schedules"\)/);
+  assert.match(appJs, /scheduleSync\.pushReminders\(remindersSnapshot\), "reminders"\)/);
 });
 
 test("sidebar exposes the useful services hub", () => {

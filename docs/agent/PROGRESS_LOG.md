@@ -53,3 +53,8 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-015 | Started Warm Glass contrast pass. | Owner reported weak readability in the today summary panel screenshot. | IN_PROGRESS | Strengthen text tokens, event colors, and glass row separation. |
 | 2026-07-23 | TASK-015 | Implemented Warm Glass contrast pass locally. | Syntax checks passed, targeted tests passed 28/28, and `npm.cmd run test` passed 96/96. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-23 | TASK-015 | Committed Warm Glass contrast pass locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-23 | TASK-015 | Deployed current local commit to production. | `focus-v2.dmnao83.ru` served `focus-pwa-v53`; backend and Nginx were active; API health returned ok from the server. | DONE | Continue next bounded local task. |
+| 2026-07-23 | TASK-016 | Started sync data status diagnostics. | Owner asked to continue project work after TASK-015 deployment. | IN_PROGRESS | Add per-collection sync status panel and checks. |
+| 2026-07-23 | TASK-016 | Implemented sync data status diagnostics locally. | Sync modal panel, collection state tracking, manual refresh, service worker cache bump, and contract tests added. | DONE | Run checks and commit locally. |
+| 2026-07-23 | TASK-016 | Completed sync data status diagnostics checks. | Syntax checks passed, targeted tests passed 29/29, and `npm.cmd run test` passed 97/97. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-016 | Committed sync data status diagnostics locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
