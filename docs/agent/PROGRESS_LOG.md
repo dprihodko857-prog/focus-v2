@@ -34,3 +34,6 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-008 | Committed background sync push guard locally. | Local commit `d687bbc`. | DONE | Continue with the next bounded client sync hardening task. |
 | 2026-07-23 | TASK-009 | Started client push serialization. | Same-collection background pushes could run concurrently and finish out of order. | IN_PROGRESS | Add per-collection queue and focused tests. |
 | 2026-07-23 | TASK-009 | Implemented client push serialization locally. | `node --check public/js/sync.js`, `node --check public/service-worker.js`, focused client tests, and `npm.cmd run test` passed 92/92. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-009 | Committed client push serialization locally. | Local commit `75f7ea6`. | DONE | Continue with the next bounded client sync hardening task. |
+| 2026-07-23 | TASK-010 | Started background sync offline status handling. | `runBackgroundSync` caught rejection but did not surface expected `offline` results from the sync client. | IN_PROGRESS | Add resolved-result handling and run checks. |
+| 2026-07-23 | TASK-010 | Implemented background sync offline status handling locally. | `node --check public/js/app.js`, `node --check public/service-worker.js`, targeted contract tests, and `npm.cmd run test` passed 92/92. | DONE | Commit locally; deploy remains separate. |

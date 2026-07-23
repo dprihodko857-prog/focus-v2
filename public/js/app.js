@@ -2575,9 +2575,15 @@ function escapeHtml(value) {
 
 function runBackgroundSync(syncAction) {
   try {
-    Promise.resolve(syncAction()).catch(() => {
-      setSyncStatus("Локальные данные сохранены. Синхронизация повторится при подключении.");
-    });
+    Promise.resolve(syncAction())
+      .then(result => {
+        if (result?.status === "offline") {
+          setSyncStatus("Локальные данные сохранены. Синхронизация повторится при подключении.");
+        }
+      })
+      .catch(() => {
+        setSyncStatus("Локальные данные сохранены. Синхронизация повторится при подключении.");
+      });
   } catch {
     setSyncStatus("Локальные данные сохранены. Синхронизация повторится при подключении.");
   }

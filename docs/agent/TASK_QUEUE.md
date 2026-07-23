@@ -463,3 +463,56 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Same-collection push snapshots now execute through a per-collection queue, preserving order for background sync writes.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-010
+
+- title: Surface background sync offline status
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue autonomously on 2026-07-23; TASK-008 guarded rejection but expected offline results were still silent
+- spec_reference: `docs/specs/background-sync-offline-status.md`
+- spec_status: approved_for_task_010
+- goal: show a clear deferred sync status when a background sync push resolves with the expected `offline` result.
+- out_of_scope:
+  - new persistent sync queue
+  - backend sync API changes
+  - account/auth changes
+  - conflict resolution changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - background sync rejection is still caught
+  - background sync `offline` results show the deferred sync status
+  - background push call sites remain routed through `runBackgroundSync`
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 8 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 9
+- stop_conditions:
+  - implementation requires a persistent queue or backend changes
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - service worker cache id contract tests
+  - sync integration contract tests
+- dependencies:
+  - TASK-008 background sync guard
+  - local Git baseline
+  - owner autonomous continuation approval on 2026-07-23
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Background sync `offline` results now show the deferred sync status while preserving rejection handling.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.
