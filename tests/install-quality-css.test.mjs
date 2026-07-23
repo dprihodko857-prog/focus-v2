@@ -126,7 +126,7 @@ test("settings include install quality diagnostics and PWA update controls", () 
   assert.match(appJs, /focus-pwa-state-change/);
   assert.match(pwaJs, /focusPwaCheckForUpdate/);
   assert.match(pwaJs, /focusPwaApplyUpdate/);
-  assert.match(serviceWorker, /focus-pwa-v44/);
+  assert.match(serviceWorker, /focus-pwa-v45/);
   assert.match(serviceWorker, /SKIP_WAITING/);
 });
 
@@ -176,6 +176,11 @@ test("reminders center includes push readiness diagnostics", () => {
   assert.match(appJs, /scheduleSync\.getPushEvents/);
   assert.match(appJs, /function refreshReminderPushDiagnostics/);
   assert.match(appJs, /function renderPushEventLog/);
+  assert.match(appJs, /function getPushEventDetails/);
+  assert.match(appJs, /function formatPushEventRetryTime/);
+  assert.match(appJs, /event\?\.attempts/);
+  assert.match(appJs, /event\?\.maxAttempts/);
+  assert.match(appJs, /event\?\.nextRetryAt/);
   assert.match(appJs, /stats\.retrying/);
   assert.match(appJs, /stats\.retryExhausted/);
   assert.match(appJs, /retry-exhausted/);

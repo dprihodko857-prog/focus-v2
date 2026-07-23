@@ -302,3 +302,57 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Legacy `localStorage` keys for schedules, tasks, notes, birthdays, and diary entries are removed after successful IndexedDB migration, and stale schedule legacy data is removed when IndexedDB already has primary data.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-007
+
+- title: Show retry details in push event log
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue autonomously on 2026-07-23; TASK-003 server retry metadata already exposes attempts and next retry times
+- spec_reference: `docs/specs/push-event-retry-details.md`
+- spec_status: approved_for_task_007
+- goal: show retry attempt details from existing server push events inside the reminders notification center.
+- out_of_scope:
+  - backend retry policy changes
+  - new push endpoints
+  - push event retention changes
+  - visual redesign of the reminders center
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - push events still show sent/failed/removed counts
+  - retryable push events can show `попытка X/Y`
+  - retryable push events can show the next retry time
+  - existing push event labels remain unchanged
+  - existing notification diagnostics remain unchanged
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/install-quality-css.test.mjs tests/sync-integration-assets.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 8 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 6
+- stop_conditions:
+  - implementation requires backend/API changes
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - service worker cache id contract tests
+  - notification contract tests
+- dependencies:
+  - TASK-003 retry metadata implementation
+  - local Git baseline
+  - owner autonomous continuation approval on 2026-07-23
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. The push event log now includes retry attempt counts and next retry time when those fields are present in server events.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.

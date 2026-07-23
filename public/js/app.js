@@ -3044,6 +3044,34 @@ function formatPushEventTime(event) {
   return Number.isFinite(date.getTime()) ? `${formatDateValue(date)} ${formatTimeValue(date)}` : "время неизвестно";
 }
 
+function formatPushEventRetryTime(event) {
+  const date = new Date(event?.nextRetryAt);
+  return Number.isFinite(date.getTime()) ? `${formatDateValue(date)} ${formatTimeValue(date)}` : "";
+}
+
+function getPushEventDetails(event) {
+  const details = [
+    `отправлено ${Number(event?.sent) || 0}`,
+    `ошибок ${Number(event?.failed) || 0}`,
+    `удалено ${Number(event?.removed) || 0}`,
+  ];
+  const attempts = Number(event?.attempts) || 0;
+  const maxAttempts = Number(event?.maxAttempts) || 0;
+  const nextRetryAt = formatPushEventRetryTime(event);
+
+  if (attempts > 0 && maxAttempts > 0) {
+    details.push(`попытка ${attempts}/${maxAttempts}`);
+  } else if (attempts > 0) {
+    details.push(`попытка ${attempts}`);
+  }
+
+  if (nextRetryAt) {
+    details.push(`повтор ${nextRetryAt}`);
+  }
+
+  return details.join(" · ");
+}
+
 function renderPushEventLog(eventsState) {
   const events = Array.isArray(eventsState?.events) ? eventsState.events : [];
 
@@ -3072,11 +3100,7 @@ function renderPushEventLog(eventsState) {
     </div>
     ${events.map(event => {
       const status = getPushEventStatusMeta(event);
-      const details = [
-        `отправлено ${Number(event.sent) || 0}`,
-        `ошибок ${Number(event.failed) || 0}`,
-        `удалено ${Number(event.removed) || 0}`,
-      ].join(" · ");
+      const details = getPushEventDetails(event);
       return `
         <article class="notification-event notification-event--${status.className}">
           <div>

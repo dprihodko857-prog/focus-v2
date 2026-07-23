@@ -25,3 +25,6 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-005 | Committed diary PIN fallback cleanup locally. | Local commit `0574bd6`. | DONE | Continue with the next bounded IndexedDB cleanup task. |
 | 2026-07-23 | TASK-006 | Started migrated legacy key cleanup. | Main IndexedDB migrations left old `localStorage` data keys in place. | IN_PROGRESS | Remove keys after successful migration and run checks. |
 | 2026-07-23 | TASK-006 | Implemented migrated legacy key cleanup locally. | `node --check public/js/storage.js`, `node --check public/service-worker.js`, focused storage tests, and `npm.cmd run test` passed 90/90. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-006 | Committed migrated legacy key cleanup locally. | Local commit `eb64e8e`. | DONE | Continue with the next bounded notification UI task. |
+| 2026-07-23 | TASK-007 | Started push event retry detail UI. | Server events already include retry attempts and next retry time, but the UI log hid those details. | IN_PROGRESS | Add event detail formatting and run checks. |
+| 2026-07-23 | TASK-007 | Implemented push event retry details locally. | `node --check public/js/app.js`, `node --check public/service-worker.js`, targeted notification tests, and `npm.cmd run test` passed 90/90. | DONE | Commit locally; deploy remains separate. |
