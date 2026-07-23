@@ -4095,10 +4095,15 @@ function renderSyncDataStatus() {
 
 function renderSyncState() {
   const accountCode = document.querySelector("#syncAccountCode");
+  const copyButton = document.querySelector("#syncCodeCopyButton");
   const accountId = scheduleSync.peekAccountId();
 
   if (accountCode) {
     accountCode.value = accountId;
+  }
+
+  if (copyButton) {
+    copyButton.disabled = !accountId;
   }
 
   setSyncStatus(accountId
@@ -4106,6 +4111,26 @@ function renderSyncState() {
     : "Нажмите «Показать код», чтобы создать код синхронизации.");
   renderSyncAccountProfile();
   renderSyncDataStatus();
+}
+
+async function copySyncAccountCode() {
+  const accountCode = document.querySelector("#syncAccountCode");
+  const accountId = scheduleSync.peekAccountId();
+
+  if (!accountId) {
+    setSyncStatus("Сначала создайте код синхронизации.");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(accountId);
+    setSyncStatus("Код синхронизации скопирован.");
+  } catch {
+    accountCode?.focus();
+    accountCode?.select();
+    accountCode?.setSelectionRange?.(0, accountId.length);
+    setSyncStatus("Код выделен. Скопируйте его вручную.");
+  }
 }
 
 function getAuthUserTitle(user) {
@@ -5841,6 +5866,10 @@ function bindControls() {
 
   document.querySelector("#syncConnectButton")?.addEventListener("click", () => {
     connectSyncAccount();
+  });
+
+  document.querySelector("#syncCodeCopyButton")?.addEventListener("click", () => {
+    copySyncAccountCode();
   });
 
   document.querySelector("#syncProfileSaveButton")?.addEventListener("click", () => {

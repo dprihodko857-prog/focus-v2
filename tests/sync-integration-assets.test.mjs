@@ -21,7 +21,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v55/);
+  assert.match(serviceWorker, /focus-pwa-v56/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
@@ -39,6 +39,7 @@ test("settings expose the sync account connection modal", () => {
   assert.match(indexHtml, /id="authLoginButton"/);
   assert.match(indexHtml, /id="authLogoutButton"/);
   assert.match(indexHtml, /id="syncAccountCode"/);
+  assert.match(indexHtml, /id="syncCodeCopyButton"/);
   assert.match(indexHtml, /id="syncConnectInput"/);
   assert.match(indexHtml, /id="syncAccountName"/);
   assert.match(indexHtml, /id="syncDeviceName"/);
@@ -51,6 +52,7 @@ test("settings expose the sync account connection modal", () => {
   assert.match(indexHtml, /id="deviceCheckTestButton"/);
   assert.match(indexHtml, /id="deviceCheckReminderButton"/);
   assert.match(appJs, /connectSyncAccount/);
+  assert.match(appJs, /copySyncAccountCode/);
   assert.match(appJs, /refreshAuthSession/);
   assert.match(appJs, /logoutAuthSession/);
   assert.match(appJs, /refreshSyncAccountProfile/);
@@ -59,6 +61,19 @@ test("settings expose the sync account connection modal", () => {
   assert.match(appJs, /function getDeviceCheckItems/);
   assert.match(appJs, /function renderDeviceCheck/);
   assert.match(appJs, /function refreshDeviceCheck/);
+});
+
+test("settings can copy the sync account code", () => {
+  assert.match(indexHtml, /class="sync-code-field"/);
+  assert.match(indexHtml, /id="syncCodeCopyButton" disabled/);
+  assert.match(appCss, /\.sync-code-field\s*{/);
+  assert.match(appJs, /function copySyncAccountCode/);
+  assert.match(appJs, /navigator\.clipboard\.writeText\(accountId\)/);
+  assert.match(appJs, /accountCode\?\.select\(\)/);
+  assert.match(appJs, /Код синхронизации скопирован/);
+  assert.match(appJs, /Код выделен\. Скопируйте его вручную/);
+  assert.match(appJs, /copyButton\.disabled = !accountId/);
+  assert.match(appJs, /document\.querySelector\("#syncCodeCopyButton"\)\?\.addEventListener\("click"/);
 });
 
 test("settings can disconnect code-based sync without clearing local data", () => {

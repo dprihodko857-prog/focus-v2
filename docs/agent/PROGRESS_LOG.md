@@ -62,3 +62,7 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-017 | Implemented current-device sync disconnect locally. | Sync settings button, confirmation flow, diagnostics reset, service worker cache bump, and contract tests added. | DONE | Run checks and commit locally. |
 | 2026-07-23 | TASK-017 | Completed current-device sync disconnect checks. | Syntax checks passed, targeted tests passed 30/30, and `npm.cmd run test` passed 98/98. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-23 | TASK-017 | Committed current-device sync disconnect locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-23 | TASK-018 | Started sync code copy action. | Owner asked to continue project work after TASK-017. | IN_PROGRESS | Add copy action, fallback, cache bump, and checks. |
+| 2026-07-23 | TASK-018 | Implemented sync code copy action locally. | Sync code field action, Clipboard API fallback, service worker cache bump, and contract tests added. | DONE | Run checks and commit locally. |
+| 2026-07-23 | TASK-018 | Completed sync code copy action checks. | Syntax checks passed, targeted tests passed 31/31, and `npm.cmd run test` passed 99/99. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-018 | Committed sync code copy action locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

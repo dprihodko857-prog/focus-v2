@@ -898,3 +898,57 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Settings now exposes a confirmed current-device disconnect action for code-based sync accounts and resets sync diagnostics after disconnect.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-018
+
+- title: Add sync account code copy action
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work on 2026-07-23 after TASK-017; copying the account code reduces pairing mistakes without backend changes
+- spec_reference: `docs/specs/sync-code-copy-action.md`
+- spec_status: approved_for_task_018
+- goal: let the user copy the current sync account code from Settings with one action.
+- out_of_scope:
+  - backend API changes
+  - account-code format changes
+  - QR codes or pairing links
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - sync modal shows a `Скопировать` action next to the account code field
+  - copy action is disabled until a sync account exists
+  - successful Clipboard API copy updates sync status
+  - fallback selects the code field and tells the user to copy manually
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 17
+- stop_conditions:
+  - implementation requires backend pairing changes or new dependencies
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/index.html`
+  - `public/css/app.css`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - sync/install/desktop contract tests
+- dependencies:
+  - existing sync account code field
+  - local Git baseline
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Settings now exposes a disabled-until-ready copy action for the sync account code with Clipboard API and manual selection fallback.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.

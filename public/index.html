@@ -570,10 +570,13 @@
             </div>
           </div>
 
-          <label class="field-block field-block--wide">
+          <div class="field-block field-block--wide">
             <span>Код этого аккаунта</span>
-            <input id="syncAccountCode" type="text" readonly placeholder="Код появится после подключения" />
-          </label>
+            <div class="sync-code-field">
+              <input id="syncAccountCode" type="text" readonly placeholder="Код появится после подключения" />
+              <button class="secondary-button secondary-button--compact" type="button" id="syncCodeCopyButton" disabled>Скопировать</button>
+            </div>
+          </div>
 
           <label class="field-block field-block--wide">
             <span>Подключить другое устройство</span>

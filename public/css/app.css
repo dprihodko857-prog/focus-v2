@@ -2360,6 +2360,17 @@ h3 {
   gap: 8px;
 }
 
+.sync-code-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.sync-code-field .secondary-button {
+  height: 48px;
+}
+
 .sync-account-panel {
   display: grid;
   gap: 14px;
@@ -3838,6 +3849,14 @@ h3 {
 
   .modal-grid {
     grid-template-columns: 1fr;
+  }
+
+  .sync-code-field {
+    grid-template-columns: 1fr;
+  }
+
+  .sync-code-field .secondary-button {
+    width: 100%;
   }
 
   .modal-actions {
