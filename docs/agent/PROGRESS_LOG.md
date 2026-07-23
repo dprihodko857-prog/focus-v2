@@ -28,3 +28,6 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-006 | Committed migrated legacy key cleanup locally. | Local commit `eb64e8e`. | DONE | Continue with the next bounded notification UI task. |
 | 2026-07-23 | TASK-007 | Started push event retry detail UI. | Server events already include retry attempts and next retry time, but the UI log hid those details. | IN_PROGRESS | Add event detail formatting and run checks. |
 | 2026-07-23 | TASK-007 | Implemented push event retry details locally. | `node --check public/js/app.js`, `node --check public/service-worker.js`, targeted notification tests, and `npm.cmd run test` passed 90/90. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-007 | Committed push event retry details locally. | Local commit `7a67a4e`. | DONE | Continue with the next bounded client sync hardening task. |
+| 2026-07-23 | TASK-008 | Started background sync push guard. | Save paths used fire-and-forget `scheduleSync.push...` calls without a central guard. | IN_PROGRESS | Add helper, route calls through it, and run checks. |
+| 2026-07-23 | TASK-008 | Implemented background sync push guard locally. | `node --check public/js/app.js`, `node --check public/service-worker.js`, targeted contract tests, and `npm.cmd run test` passed 91/91. | DONE | Commit locally; deploy remains separate. |

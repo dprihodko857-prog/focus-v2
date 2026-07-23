@@ -20,7 +20,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v45/);
+  assert.match(serviceWorker, /focus-pwa-v46/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
@@ -152,6 +152,18 @@ test("diary section persists through IndexedDB, sync, and calendar events", () =
   assert.match(appJs, /scheduleStorage\.saveDiaryEntries/);
   assert.match(appJs, /scheduleSync\.syncDiaryEntries/);
   assert.match(appJs, /scheduleSync\.pushDiaryEntries/);
+  assert.match(appJs, /function runBackgroundSync/);
+  assert.match(appJs, /runBackgroundSync\(\(\) => scheduleSync\.pushDiaryEntries/);
+});
+
+test("background sync pushes are guarded from unhandled rejections", () => {
+  assert.match(appJs, /Promise\.resolve\(syncAction\(\)\)\.catch/);
+  assert.match(appJs, /runBackgroundSync\(\(\) => scheduleSync\.pushSchedules/);
+  assert.match(appJs, /runBackgroundSync\(\(\) => scheduleSync\.pushTasks/);
+  assert.match(appJs, /runBackgroundSync\(\(\) => scheduleSync\.pushNotes/);
+  assert.match(appJs, /runBackgroundSync\(\(\) => scheduleSync\.pushBirthdays/);
+  assert.match(appJs, /runBackgroundSync\(\(\) => scheduleSync\.pushDiaryEntries/);
+  assert.match(appJs, /runBackgroundSync\(\(\) => scheduleSync\.pushReminders/);
 });
 
 test("diary section is protected by a four digit PIN gate", () => {

@@ -16,6 +16,7 @@ Status: DRAFT
 - TASK-005 is implemented locally: diary PIN settings now migrate a valid legacy fallback into IndexedDB and clear stale `localStorage` fallback copies after successful IndexedDB reads/writes.
 - TASK-006 is implemented locally: legacy `localStorage` keys for important app data are removed after successful IndexedDB migration/read cleanup.
 - TASK-007 is implemented locally: the push event log now shows retry attempt counts and next retry time when server events include them.
+- TASK-008 is implemented locally: fire-and-forget client sync pushes are guarded from unexpected background rejection.
 
 ## In Progress
 
@@ -36,7 +37,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-007 checks passed locally; `npm.cmd run test` passed 90/90.
+- Current result: local Git repository exists; TASK-008 checks passed locally; `npm.cmd run test` passed 91/91.
 
 ## Open Questions
 

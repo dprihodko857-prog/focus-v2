@@ -356,3 +356,56 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. The push event log now includes retry attempt counts and next retry time when those fields are present in server events.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-008
+
+- title: Guard background sync push calls
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue autonomously on 2026-07-23; client save paths used fire-and-forget sync pushes
+- spec_reference: `docs/specs/background-sync-push-guard.md`
+- spec_status: approved_for_task_008
+- goal: guard client-side background sync push calls so local saves stay stable even if a future sync path throws unexpectedly.
+- out_of_scope:
+  - new persistent sync queue
+  - backend sync API changes
+  - account/auth changes
+  - conflict resolution changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - background push calls for schedules, reminders, tasks, notes, birthdays, and diary entries go through `runBackgroundSync`
+  - unexpected background sync rejection is caught
+  - local IndexedDB save flow is unchanged
+  - explicit user-triggered sync methods remain awaitable and visible in the sync UI
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 8 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 7
+- stop_conditions:
+  - implementation requires a persistent queue or backend changes
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - service worker cache id contract tests
+  - sync integration contract tests
+- dependencies:
+  - local Git baseline
+  - owner autonomous continuation approval on 2026-07-23
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Fire-and-forget sync pushes now go through `runBackgroundSync`, which catches unexpected background rejection while preserving local save behavior.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.

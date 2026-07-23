@@ -958,7 +958,8 @@ async function saveTodayTask(onSaved) {
 
   savedTasks = normalizeTaskList([task, ...savedTasks]);
   await saveTasksLocally(savedTasks);
-  scheduleSync.pushTasks(savedTasks);
+  const tasksSnapshot = [...savedTasks];
+  runBackgroundSync(() => scheduleSync.pushTasks(tasksSnapshot));
   clearTaskForm();
   renderTasks();
   onSaved?.();
@@ -1103,7 +1104,8 @@ async function saveNote(onSaved) {
     ? savedNotes.map(item => item.id === editingNote.id ? note : item)
     : [note, ...savedNotes]);
   await saveNotesLocally(savedNotes);
-  scheduleSync.pushNotes(savedNotes);
+  const notesSnapshot = [...savedNotes];
+  runBackgroundSync(() => scheduleSync.pushNotes(notesSnapshot));
   noteEditId = null;
   clearNoteForm();
   renderNoteEditorState();
@@ -1358,7 +1360,8 @@ async function saveBirthday(onSaved) {
     ? savedBirthdays.map(item => item.id === editingBirthday.id ? birthday : item)
     : [birthday, ...savedBirthdays]);
   await saveBirthdaysLocally(savedBirthdays);
-  scheduleSync.pushBirthdays(savedBirthdays);
+  const birthdaysSnapshot = [...savedBirthdays];
+  runBackgroundSync(() => scheduleSync.pushBirthdays(birthdaysSnapshot));
   await syncBirthdayReminder(birthday);
   birthdayEditId = null;
   clearBirthdayForm();
@@ -1935,7 +1938,8 @@ async function saveDiaryEntry(onSaved) {
     ? savedDiaryEntries.map(item => item.id === editingEntry.id ? entry : item)
     : [entry, ...savedDiaryEntries]);
   await saveDiaryEntriesLocally(savedDiaryEntries);
-  scheduleSync.pushDiaryEntries(savedDiaryEntries);
+  const entriesSnapshot = [...savedDiaryEntries];
+  runBackgroundSync(() => scheduleSync.pushDiaryEntries(entriesSnapshot));
   diaryEditId = null;
   clearDiaryForm();
   renderDiaryEditorState();
@@ -2569,6 +2573,16 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function runBackgroundSync(syncAction) {
+  try {
+    Promise.resolve(syncAction()).catch(() => {
+      setSyncStatus("Локальные данные сохранены. Синхронизация повторится при подключении.");
+    });
+  } catch {
+    setSyncStatus("Локальные данные сохранены. Синхронизация повторится при подключении.");
+  }
+}
+
 function loadLegacySavedSchedules() {
   try {
     return parseScheduleList(localStorage.getItem(LEGACY_SCHEDULES_KEY));
@@ -2590,7 +2604,7 @@ function saveSchedulesLocally(schedules) {
 function persistSavedSchedules() {
   const schedulesSnapshot = [...savedSchedules];
   saveSchedulesLocally(schedulesSnapshot);
-  scheduleSync.pushSchedules(schedulesSnapshot);
+  runBackgroundSync(() => scheduleSync.pushSchedules(schedulesSnapshot));
 }
 
 function loadLegacySavedTasks() {
@@ -2616,7 +2630,7 @@ function persistSavedTasks() {
   const tasksSnapshot = normalizeTaskList(savedTasks);
   savedTasks = tasksSnapshot;
   saveTasksLocally(tasksSnapshot);
-  scheduleSync.pushTasks(tasksSnapshot);
+  runBackgroundSync(() => scheduleSync.pushTasks(tasksSnapshot));
 }
 
 function loadLegacySavedNotes() {
@@ -2642,7 +2656,7 @@ function persistSavedNotes() {
   const notesSnapshot = normalizeNoteList(savedNotes);
   savedNotes = notesSnapshot;
   saveNotesLocally(notesSnapshot);
-  scheduleSync.pushNotes(notesSnapshot);
+  runBackgroundSync(() => scheduleSync.pushNotes(notesSnapshot));
 }
 
 function loadLegacySavedBirthdays() {
@@ -2668,7 +2682,7 @@ function persistSavedBirthdays() {
   const birthdaysSnapshot = normalizeBirthdayList(savedBirthdays);
   savedBirthdays = birthdaysSnapshot;
   saveBirthdaysLocally(birthdaysSnapshot);
-  scheduleSync.pushBirthdays(birthdaysSnapshot);
+  runBackgroundSync(() => scheduleSync.pushBirthdays(birthdaysSnapshot));
 }
 
 function loadLegacySavedDiaryEntries() {
@@ -2694,7 +2708,7 @@ function persistSavedDiaryEntries() {
   const entriesSnapshot = normalizeDiaryEntryList(savedDiaryEntries);
   savedDiaryEntries = entriesSnapshot;
   saveDiaryEntriesLocally(entriesSnapshot);
-  scheduleSync.pushDiaryEntries(entriesSnapshot);
+  runBackgroundSync(() => scheduleSync.pushDiaryEntries(entriesSnapshot));
 }
 
 function saveRemindersLocally(reminders) {
@@ -2710,7 +2724,7 @@ function saveRemindersLocally(reminders) {
 async function persistLocalReminders() {
   const remindersSnapshot = [...localReminders];
   await saveRemindersLocally(remindersSnapshot);
-  scheduleSync.pushReminders(remindersSnapshot);
+  runBackgroundSync(() => scheduleSync.pushReminders(remindersSnapshot));
 }
 
 function setReminderStatus(message) {
