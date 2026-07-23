@@ -1631,8 +1631,12 @@ function saveDiaryPinToLocalStorage(settings) {
       localStorage.removeItem(DIARY_PIN_KEY);
     }
   } catch {
-    // The diary remains protected for this session even if fallback storage is unavailable.
+    // Дневник остается защищенным в текущей сессии, даже если резервное хранилище недоступно.
   }
+}
+
+function clearDiaryPinFromLocalStorage() {
+  saveDiaryPinToLocalStorage(null);
 }
 
 async function loadDiaryPinSettings() {
@@ -1642,6 +1646,16 @@ async function loadDiaryPinSettings() {
 
   try {
     diaryPinSettings = normalizeDiaryPinSettings(await scheduleStorage.loadDiaryPinSettings());
+    if (diaryPinSettings) {
+      clearDiaryPinFromLocalStorage();
+    } else {
+      const legacyDiaryPinSettings = getDiaryPinFromLocalStorage();
+      if (legacyDiaryPinSettings) {
+        diaryPinSettings = legacyDiaryPinSettings;
+        await scheduleStorage.saveDiaryPinSettings(legacyDiaryPinSettings);
+        clearDiaryPinFromLocalStorage();
+      }
+    }
   } catch {
     diaryPinSettings = getDiaryPinFromLocalStorage();
   }
@@ -1658,6 +1672,7 @@ async function saveDiaryPinSettings(settings) {
 
   try {
     await scheduleStorage.saveDiaryPinSettings(normalizedSettings);
+    clearDiaryPinFromLocalStorage();
   } catch {
     saveDiaryPinToLocalStorage(normalizedSettings);
   }

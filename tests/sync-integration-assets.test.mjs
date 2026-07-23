@@ -20,7 +20,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v42/);
+  assert.match(serviceWorker, /focus-pwa-v43/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
@@ -168,4 +168,8 @@ test("diary section is protected by a four digit PIN gate", () => {
   assert.match(appJs, /verifyDiaryPin/);
   assert.match(appJs, /unlockDiary/);
   assert.match(appJs, /scheduleStorage\.saveDiaryPinSettings/);
+  assert.match(appJs, /function clearDiaryPinFromLocalStorage/);
+  assert.match(appJs, /const legacyDiaryPinSettings = getDiaryPinFromLocalStorage\(\)/);
+  assert.match(appJs, /await scheduleStorage\.saveDiaryPinSettings\(legacyDiaryPinSettings\)/);
+  assert.match(appJs, /await scheduleStorage\.saveDiaryPinSettings\(normalizedSettings\);\s+clearDiaryPinFromLocalStorage\(\);/);
 });

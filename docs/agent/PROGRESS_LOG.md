@@ -19,3 +19,6 @@ Keep entries short and factual.
 | 2026-07-23 | HOTFIX-PWA-MOBILE-PUSH | Hardened PWA updates and mobile push setup. | Owner verified iPhone install/push flow; local commit `b5351ce`. | DONE | Continue with the next bounded sync task. |
 | 2026-07-23 | TASK-004 | Started sync account creation coalescing. | Duplicate account creation risk identified from client code and prior access logs. | IN_PROGRESS | Implement client memoization and run checks. |
 | 2026-07-23 | TASK-004 | Implemented sync account creation coalescing locally. | `node --check public/js/sync.js`, targeted sync-client tests, and `npm.cmd test` passed 89/89. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-004 | Committed sync account creation coalescing locally. | Local commit `f0d01af`. | DONE | Continue with the next bounded storage/privacy task. |
+| 2026-07-23 | TASK-005 | Started diary PIN fallback cleanup. | Legacy PIN fallback could remain in `localStorage` after IndexedDB became available. | IN_PROGRESS | Migrate valid fallback, clear stale fallback copies, and run checks. |
+| 2026-07-23 | TASK-005 | Implemented diary PIN fallback cleanup locally. | `node --check public/js/app.js`, `node --check public/service-worker.js`, targeted asset test, and `npm.cmd run test` passed 89/89. | DONE | Commit locally; deploy remains separate. |

@@ -192,3 +192,58 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Sync client now reuses one in-flight account creation request, so concurrent first-load sync calls share the same account id instead of creating duplicate accounts.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-005
+
+- title: Clean up legacy diary PIN fallback storage
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue autonomously on 2026-07-23; diary PIN is privacy-sensitive and still had a direct legacy fallback path
+- spec_reference: `docs/specs/diary-pin-indexeddb-cleanup.md`
+- spec_status: approved_for_task_005
+- goal: keep diary PIN settings in IndexedDB as the primary storage and remove stale legacy `localStorage` copies after successful IndexedDB reads or writes.
+- out_of_scope:
+  - PIN algorithm changes
+  - biometric unlock
+  - server-side diary encryption
+  - backend sync changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - existing IndexedDB PIN settings continue to load normally
+  - valid legacy `localStorage` PIN fallback is copied into IndexedDB when IndexedDB has no PIN settings
+  - legacy `localStorage` PIN key is removed after successful IndexedDB migration
+  - saving or clearing the PIN through IndexedDB removes the legacy fallback key
+  - IndexedDB failure still uses the fallback key
+  - existing diary unlock behavior remains unchanged
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 8 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 4
+- stop_conditions:
+  - implementation requires changing the PIN algorithm or diary unlock flow
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/sync-integration-assets.test.mjs`
+  - `tests/desktop-layout-css.test.mjs`
+  - `tests/install-quality-css.test.mjs`
+- dependencies:
+  - local Git baseline
+  - owner autonomous continuation approval on 2026-07-23
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Diary PIN settings now clear stale legacy fallback storage after successful IndexedDB reads/writes, and a valid legacy fallback is migrated into IndexedDB when no IndexedDB PIN settings exist.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.
