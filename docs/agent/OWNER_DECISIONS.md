@@ -8,3 +8,4 @@
 | 2026-07-22 | Approve local commit for TASK-003. | APPROVED | Commit message: `feat: add notification retry diagnostics`. No push or deployment. |
 | 2026-07-22 | Approve TASK-003 deployment to `focus-v2.dmnao83.ru`. | APPROVED | Scope: upload files, restart backend, verify status. No git push. |
 | 2026-07-22 | Approve push-controls hotfix commit and deployment. | APPROVED | Commit message: `fix: clarify push subscription actions`. Scope: reminders push button UX, PWA cache bump, static deploy. No git push. |
+| 2026-07-23 | Continue autonomously after iOS PWA/push verification. | APPROVED | Scope interpreted as local continuation on the next bounded project task. No git push or production deployment without separate confirmation. |

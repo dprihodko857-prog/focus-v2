@@ -9,4 +9,5 @@ Status: DRAFT
 | Sync backend | INFERRED | Owner conversation and implemented files | Runtime behavior exists; future changes need approved scope. |
 | Notifications | INFERRED | Owner conversation and implemented files | Existing behavior inferred from code/tests. |
 | NOTIF-RETRY-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/notification-retry-diagnostics.md` | TASK-003 implemented and committed locally after owner approval; deployment remains a separate owner gate. |
+| SYNC-ACCOUNT-001 | IMPLEMENTED_LOCAL | `docs/specs/sync-account-creation-coalescing.md` | TASK-004 coalesces concurrent first-load account creation in the sync client. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

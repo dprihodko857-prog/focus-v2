@@ -15,6 +15,8 @@ export function createFocusSyncClient({
   navigator = globalThis.navigator,
   randomUUID = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
 } = {}) {
+  let pendingAccountIdPromise = null;
+
   const getStored = key => {
     try {
       return localStorage?.getItem(key) || "";
@@ -63,10 +65,7 @@ export function createFocusSyncClient({
     return normalizedDeviceName;
   };
 
-  const getAccountId = async () => {
-    const existing = getStored(ACCOUNT_KEY);
-    if (existing) return existing;
-
+  const createRemoteAccountId = async () => {
     const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/accounts"), {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -80,6 +79,19 @@ export function createFocusSyncClient({
     const account = await response.json();
     setStored(ACCOUNT_KEY, account.accountId);
     return account.accountId;
+  };
+
+  const getAccountId = async () => {
+    const existing = getStored(ACCOUNT_KEY);
+    if (existing) return existing;
+
+    if (!pendingAccountIdPromise) {
+      pendingAccountIdPromise = createRemoteAccountId().finally(() => {
+        pendingAccountIdPromise = null;
+      });
+    }
+
+    return pendingAccountIdPromise;
   };
 
   const getRevision = (key = REVISION_KEY) => Number(getStored(key) || 0);

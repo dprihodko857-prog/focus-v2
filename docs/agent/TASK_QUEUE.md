@@ -142,3 +142,53 @@ Status values: DRAFT, READY, IN_PROGRESS, BLOCKED, BLOCKED_OWNER, PARTIALLY_VERI
 - notes: Owner approved TASK-003 runtime implementation and local commit on 2026-07-22. Local checks passed. No deployment, push, or backend restart approval included.
 
 Only implement tasks with `status: READY` and `owner_gate: not_required` or `owner_gate: approved`.
+
+## TASK-004
+
+- title: Coalesce sync account creation requests
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue autonomously on 2026-07-23; duplicate account creation was observed in production access logs during load checks
+- spec_reference: `docs/specs/sync-account-creation-coalescing.md`
+- spec_status: approved_for_task_004
+- goal: prevent concurrent first-load sync calls from creating more than one account before the account id is saved locally.
+- out_of_scope:
+  - backend account merge or cleanup
+  - auth account redesign
+  - cross-account migration
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - concurrent `getAccountId()` calls share one account creation request
+  - all waiting callers receive the same account id
+  - the account id is saved to local sync storage
+  - existing sync behavior remains unchanged when an account id exists
+  - service worker cache is bumped because `sync.js` is part of the PWA shell
+- required_checks:
+  - `node --check public/js/sync.js`
+  - `node --test tests/focus-sync-client.test.mjs`
+  - `npm.cmd test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 7 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 3
+- stop_conditions:
+  - implementation requires backend merge logic or data migration
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/sync.js`
+  - `public/service-worker.js`
+  - `tests/focus-sync-client.test.mjs`
+- dependencies:
+  - local Git baseline
+  - owner autonomous continuation approval on 2026-07-23
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Sync client now reuses one in-flight account creation request, so concurrent first-load sync calls share the same account id instead of creating duplicate accounts.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.

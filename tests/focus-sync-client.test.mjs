@@ -3,6 +3,61 @@ import { test } from "node:test";
 
 import { createFocusSyncClient } from "../public/js/sync.js";
 
+test("getAccountId reuses one account creation request across concurrent sync calls", async () => {
+  let accountCreateCalls = 0;
+  let resolveAccountCreation = null;
+  const accountCreation = new Promise(resolve => {
+    resolveAccountCreation = resolve;
+  });
+  const storage = createMemoryLocalStorage();
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      if (url === "/api/sync/accounts" && options.method === "POST") {
+        accountCreateCalls += 1;
+        await accountCreation;
+        return jsonResponse({ accountId: "account-shared" }, 201);
+      }
+
+      throw new Error(`Unexpected request: ${url}`);
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const firstAccount = client.getAccountId();
+  const secondAccount = client.getAccountId();
+  resolveAccountCreation();
+
+  assert.deepEqual(await Promise.all([firstAccount, secondAccount]), ["account-shared", "account-shared"]);
+  assert.equal(accountCreateCalls, 1);
+  assert.equal(storage.getItem("focus-sync-account-id"), "account-shared");
+});
+
+test("getAccountId retries account creation after a failed request", async () => {
+  let accountCreateCalls = 0;
+  const storage = createMemoryLocalStorage();
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      if (url === "/api/sync/accounts" && options.method === "POST") {
+        accountCreateCalls += 1;
+        return accountCreateCalls === 1
+          ? jsonResponse({ error: "temporary" }, 503)
+          : jsonResponse({ accountId: "account-retry" }, 201);
+      }
+
+      throw new Error(`Unexpected request: ${url}`);
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  await assert.rejects(client.getAccountId(), /account creation failed/);
+
+  assert.equal(await client.getAccountId(), "account-retry");
+  assert.equal(accountCreateCalls, 2);
+  assert.equal(storage.getItem("focus-sync-account-id"), "account-retry");
+});
+
 test("syncSchedules pushes local schedules when the remote account is empty", async () => {
   const calls = [];
   const storage = createMemoryLocalStorage({ "focus-sync-account-id": "account-1" });
