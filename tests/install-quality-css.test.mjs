@@ -38,13 +38,23 @@ test("mobile bottom navigation has safe-area spacing and an opaque surface", () 
 });
 
 test("focus brand assets use the current target mark", () => {
-  assert.match(appCss, /background:\s*#10151e url\("\/assets\/focus-logo\.png"\) center\/100% 100% no-repeat;/);
+  assert.match(indexHtml, /<link rel="manifest" href="\/manifest\.webmanifest\?v=focus-logo-v2" \/>/);
+  assert.match(indexHtml, /href="\/assets\/icons\/favicon-v2-32\.png"/);
+  assert.match(indexHtml, /href="\/assets\/icons\/apple-touch-icon-v2\.png"/);
+  assert.match(appCss, /background:\s*#10151e url\("\/assets\/focus-logo-v2\.png"\) center\/100% 100% no-repeat;/);
+  assert.match(manifest, /"src": "\/assets\/icons\/icon-v2-1024\.png"[\s\S]*?"sizes": "1024x1024"/);
+  assert.match(serviceWorker, /"\/manifest\.webmanifest\?v=focus-logo-v2"/);
+  assert.match(serviceWorker, /"\/assets\/icons\/favicon-v2-32\.png"/);
+  assert.match(serviceWorker, /"\/assets\/icons\/apple-touch-icon-v2\.png"/);
+  assert.doesNotMatch(indexHtml, /href="\/assets\/icons\/favicon-32\.png"/);
+  assert.doesNotMatch(indexHtml, /href="\/assets\/icons\/apple-touch-icon\.png"/);
+  assert.doesNotMatch(manifest, /"src": "\/assets\/icons\/icon-192\.png"/);
   assert.match(logoGenerator, /drawMark/);
   assert.match(logoGenerator, /#F97316/);
   assert.match(logoGenerator, /#374151/);
-  assert.deepEqual(readPngSize("public/assets/focus-logo.png"), { width: 128, height: 128 });
-  assert.deepEqual(readPngSize("public/assets/brand/focus-app-icon-reference.png"), { width: 1024, height: 1024 });
-  assert.deepEqual(readPngSize("public/assets/icons/favicon-32.png"), { width: 32, height: 32 });
+  assert.deepEqual(readPngSize("public/assets/focus-logo-v2.png"), { width: 128, height: 128 });
+  assert.deepEqual(readPngSize("public/assets/brand/focus-app-icon-reference-v2.png"), { width: 1024, height: 1024 });
+  assert.deepEqual(readPngSize("public/assets/icons/favicon-v2-32.png"), { width: 32, height: 32 });
 });
 
 test("desktop app switches to mobile chrome in compact windows", () => {
@@ -83,8 +93,8 @@ test("ios install experience includes startup images and full app icon master", 
     ["ipad-pro-12-portrait.png", 2048, 2732],
   ];
 
-  assert.match(manifest, /"src": "\/assets\/icons\/icon-1024\.png"[\s\S]*?"sizes": "1024x1024"/);
-  assert.match(serviceWorker, /"\/assets\/icons\/icon-1024\.png"/);
+  assert.match(manifest, /"src": "\/assets\/icons\/icon-v2-1024\.png"[\s\S]*?"sizes": "1024x1024"/);
+  assert.match(serviceWorker, /"\/assets\/icons\/icon-v2-1024\.png"/);
 
   splashImages.forEach(([name, width, height]) => {
     const path = `public/assets/splash/${name}`;
@@ -103,18 +113,18 @@ test("android install experience exposes standalone maskable PWA and app shortcu
   assert.equal(manifestJson.background_color, "#111827");
   assert.equal(manifestJson.prefer_related_applications, false);
   assert.equal(manifestJson.categories.includes("productivity"), true);
-  assert.equal(manifestJson.icons.some(icon => icon.src === "/assets/icons/maskable-192.png" && icon.purpose === "maskable"), true);
-  assert.equal(manifestJson.icons.some(icon => icon.src === "/assets/icons/maskable-512.png" && icon.purpose === "maskable"), true);
+  assert.equal(manifestJson.icons.some(icon => icon.src === "/assets/icons/maskable-v2-192.png" && icon.purpose === "maskable"), true);
+  assert.equal(manifestJson.icons.some(icon => icon.src === "/assets/icons/maskable-v2-512.png" && icon.purpose === "maskable"), true);
 
   assert.deepEqual(manifestJson.shortcuts.map(shortcut => shortcut.url), [
     "/?open=reminder",
     "/?open=schedules",
     "/?open=diary",
   ]);
-  assert.equal(manifestJson.shortcuts.every(shortcut => shortcut.icons?.some(icon => icon.src === "/assets/icons/icon-192.png")), true);
+  assert.equal(manifestJson.shortcuts.every(shortcut => shortcut.icons?.some(icon => icon.src === "/assets/icons/icon-v2-192.png")), true);
 
-  assert.match(serviceWorker, /"\/assets\/icons\/icon-192\.png"/);
-  assert.match(serviceWorker, /"\/assets\/icons\/maskable-512\.png"/);
+  assert.match(serviceWorker, /"\/assets\/icons\/icon-v2-192\.png"/);
+  assert.match(serviceWorker, /"\/assets\/icons\/maskable-v2-512\.png"/);
   assert.match(appJs, /installShortcutTargets/);
   assert.match(appJs, /getInitialLaunchTarget/);
   assert.match(appJs, /openInitialLaunchTarget/);
@@ -137,7 +147,7 @@ test("settings include install quality diagnostics and PWA update controls", () 
   assert.match(appJs, /focus-pwa-state-change/);
   assert.match(pwaJs, /focusPwaCheckForUpdate/);
   assert.match(pwaJs, /focusPwaApplyUpdate/);
-  assert.match(serviceWorker, /focus-pwa-v51/);
+  assert.match(serviceWorker, /focus-pwa-v52/);
   assert.match(serviceWorker, /SKIP_WAITING/);
 });
 

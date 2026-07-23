@@ -16,31 +16,31 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/assets/icons/icon-192.png",
+      "src": "/assets/icons/icon-v2-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/assets/icons/icon-512.png",
+      "src": "/assets/icons/icon-v2-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/assets/icons/icon-1024.png",
+      "src": "/assets/icons/icon-v2-1024.png",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/assets/icons/maskable-192.png",
+      "src": "/assets/icons/maskable-v2-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/assets/icons/maskable-512.png",
+      "src": "/assets/icons/maskable-v2-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -54,7 +54,7 @@
       "url": "/?open=reminder",
       "icons": [
         {
-          "src": "/assets/icons/icon-192.png",
+          "src": "/assets/icons/icon-v2-192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -67,7 +67,7 @@
       "url": "/?open=schedules",
       "icons": [
         {
-          "src": "/assets/icons/icon-192.png",
+          "src": "/assets/icons/icon-v2-192.png",
           "sizes": "192x192",
           "type": "image/png"
         }
@@ -80,7 +80,7 @@
       "url": "/?open=diary",
       "icons": [
         {
-          "src": "/assets/icons/icon-192.png",
+          "src": "/assets/icons/icon-v2-192.png",
           "sizes": "192x192",
           "type": "image/png"
         }

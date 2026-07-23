@@ -676,3 +676,60 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Visible and install logo assets now use the new `Ф` target mark generated at the existing app icon paths.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-014
+
+- title: Force new logo icon URLs
+- status: DONE
+- owner_gate: approved
+- task_type: design_runtime
+- priority: high
+- source: owner reported stale favicon and iPhone Home Screen logo after TASK-013 on 2026-07-23
+- spec_reference: `docs/specs/focus-brand-icon-cache-bust.md`
+- spec_status: approved_for_task_014
+- goal: force browsers and installed PWA surfaces to load the new Focus logo by moving runtime icon references to versioned asset URLs.
+- out_of_scope:
+  - changing the logo drawing itself
+  - removing old compatibility icon files
+  - splash screen redesign
+  - backend, sync, auth, or push delivery behavior changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - browser favicon link uses a new URL
+  - iOS Apple touch icon link uses a new URL
+  - manifest install icons use new URLs
+  - push/local notification icon and badge use new URLs
+  - service worker precaches the new URLs
+  - existing tests pass
+- required_checks:
+  - `node --check scripts/generate-focus-logo-assets.mjs`
+  - `node --check public/js/notifications.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/install-quality-css.test.mjs tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/focus-notifications.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one visual asset/runtime reference task
+- file_limit: up to 24 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 13
+- stop_conditions:
+  - implementation requires external design tools or a new image model run
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/index.html`
+  - `public/manifest.webmanifest`
+  - `public/assets`
+  - `public/js/notifications.js`
+  - `public/service-worker.js`
+  - install quality contract tests
+- dependencies:
+  - TASK-013 logo asset generation
+  - owner report of stale icon cache
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. Runtime favicon, Apple touch, manifest, service worker, and notification icon references now point at versioned `v2` icon URLs.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.

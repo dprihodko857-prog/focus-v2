@@ -4,14 +4,23 @@ import { deflateSync } from "node:zlib";
 
 const outputs = [
   ["public/assets/focus-logo.png", 128],
+  ["public/assets/focus-logo-v2.png", 128],
   ["public/assets/brand/focus-app-icon-reference.png", 1024],
+  ["public/assets/brand/focus-app-icon-reference-v2.png", 1024],
   ["public/assets/icons/apple-touch-icon.png", 180],
+  ["public/assets/icons/apple-touch-icon-v2.png", 180],
   ["public/assets/icons/favicon-32.png", 32],
+  ["public/assets/icons/favicon-v2-32.png", 32],
   ["public/assets/icons/icon-1024.png", 1024],
+  ["public/assets/icons/icon-v2-1024.png", 1024],
   ["public/assets/icons/icon-192.png", 192],
+  ["public/assets/icons/icon-v2-192.png", 192],
   ["public/assets/icons/icon-512.png", 512],
+  ["public/assets/icons/icon-v2-512.png", 512],
   ["public/assets/icons/maskable-192.png", 192],
+  ["public/assets/icons/maskable-v2-192.png", 192],
   ["public/assets/icons/maskable-512.png", 512],
+  ["public/assets/icons/maskable-v2-512.png", 512],
 ];
 
 const colors = {

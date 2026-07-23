@@ -46,3 +46,6 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-012 | Committed online recovery sync coalescing locally. | Local commit `7d387f1`. | DONE | Pause for owner-directed logo update. |
 | 2026-07-23 | TASK-013 | Started Focus logo replacement. | Owner provided new `Ф` target logo concept image. | IN_PROGRESS | Regenerate visible and install assets. |
 | 2026-07-23 | TASK-013 | Implemented Focus logo replacement locally. | Generator, PNG dimensions, visual asset check, targeted tests passed 27/27, and `npm.cmd run test` passed 95/95. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-013 | Committed Focus logo replacement locally. | Local commit `78a608e`. | DONE | Fix stale browser and iOS icon caches with versioned URLs. |
+| 2026-07-23 | TASK-014 | Started Focus icon cache-busting. | Owner reported old favicon and iPhone Home Screen icon still appeared after reinstall. | IN_PROGRESS | Add versioned icon URLs and update install/runtime references. |
+| 2026-07-23 | TASK-014 | Implemented Focus icon cache-busting locally. | New `v2` icon files generated; runtime old icon URLs removed; targeted tests passed 35/35; `npm.cmd run test` passed 95/95. | DONE | Commit locally; deploy remains separate. |

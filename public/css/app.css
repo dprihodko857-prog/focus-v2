@@ -206,7 +206,7 @@
   place-items: center;
   border-radius: 14px;
   color: transparent;
-  background: #10151e url("/assets/focus-logo.png") center/100% 100% no-repeat;
+  background: #10151e url("/assets/focus-logo-v2.png") center/100% 100% no-repeat;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08), 0 12px 30px rgba(0, 0, 0, .12);
   font-weight: 900;
 }

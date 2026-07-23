@@ -1,10 +1,11 @@
-const CACHE_NAME = "focus-pwa-v51";
+const CACHE_NAME = "focus-pwa-v52";
 const NAVIGATION_TIMEOUT_MS = 8000;
 
 const APP_SHELL = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
+  "/manifest.webmanifest?v=focus-logo-v2",
   "/css/tokens.css",
   "/css/app.css",
   "/js/pwa.js",
@@ -13,15 +14,16 @@ const APP_SHELL = [
   "/js/notifications.js",
   "/js/storage.js",
   "/js/app.js",
-  "/assets/focus-logo.png",
+  "/assets/focus-logo-v2.png",
   "/assets/brand/focus-app-icon-reference.png",
-  "/assets/icons/apple-touch-icon.png",
-  "/assets/icons/favicon-32.png",
-  "/assets/icons/icon-1024.png",
-  "/assets/icons/icon-192.png",
-  "/assets/icons/icon-512.png",
-  "/assets/icons/maskable-192.png",
-  "/assets/icons/maskable-512.png",
+  "/assets/brand/focus-app-icon-reference-v2.png",
+  "/assets/icons/apple-touch-icon-v2.png",
+  "/assets/icons/favicon-v2-32.png",
+  "/assets/icons/icon-v2-1024.png",
+  "/assets/icons/icon-v2-192.png",
+  "/assets/icons/icon-v2-512.png",
+  "/assets/icons/maskable-v2-192.png",
+  "/assets/icons/maskable-v2-512.png",
   "/assets/splash/iphone-8-portrait.png",
   "/assets/splash/iphone-11-portrait.png",
   "/assets/splash/iphone-12-mini-portrait.png",
@@ -101,8 +103,8 @@ self.addEventListener("push", event => {
       body,
       tag: typeof payload.tag === "string" ? payload.tag : `focus-push-${Date.now()}`,
       renotify: true,
-      icon: "/assets/icons/icon-192.png",
-      badge: "/assets/icons/favicon-32.png",
+      icon: "/assets/icons/icon-v2-192.png",
+      badge: "/assets/icons/favicon-v2-32.png",
       data: {
         reminderId: payload.reminderId || null,
         url: typeof payload.url === "string" ? payload.url : "/",

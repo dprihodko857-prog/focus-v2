@@ -169,8 +169,8 @@ export function createFocusNotifications({
       body: reminder.title,
       tag: `focus-reminder-${reminder.id}`,
       renotify: true,
-      icon: "/assets/icons/icon-192.png",
-      badge: "/assets/icons/favicon-32.png",
+      icon: "/assets/icons/icon-v2-192.png",
+      badge: "/assets/icons/favicon-v2-32.png",
       data: {
         reminderId: reminder.id,
         url: "/",
