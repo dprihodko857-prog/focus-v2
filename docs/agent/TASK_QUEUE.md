@@ -733,3 +733,56 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Runtime favicon, Apple touch, manifest, service worker, and notification icon references now point at versioned `v2` icon URLs.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-015
+
+- title: Improve Warm Glass text contrast
+- status: DONE
+- owner_gate: approved
+- task_type: design_runtime
+- priority: high
+- source: owner reported weak text readability in today summary panel screenshot on 2026-07-23
+- spec_reference: `docs/specs/warm-glass-contrast-pass.md`
+- spec_status: approved_for_task_015
+- goal: increase readability on Warm Glass summary and event panels without changing the app layout or seasonal visual direction.
+- out_of_scope:
+  - whole-app redesign
+  - layout, sidebar, or breakpoint changes
+  - reminder, sync, auth, or backend behavior changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - summary text and subtitles are darker and easier to read over the seasonal background
+  - colored event titles keep category identity but are mixed toward graphite for contrast
+  - summary rows and day-card event rows have stronger glass separation from the background
+  - installed PWA clients receive the CSS update through a service worker cache bump
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/sync-integration-assets.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one visual contrast task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 14
+- stop_conditions:
+  - implementation requires a broader visual redesign
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/css/tokens.css`
+  - `public/css/app.css`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - desktop/install contract tests
+- dependencies:
+  - owner-provided screenshot report
+  - local Git baseline
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. Warm Glass text tokens, summary/event rows, and readable category colors were strengthened.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.

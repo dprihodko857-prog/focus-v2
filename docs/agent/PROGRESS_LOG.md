@@ -49,3 +49,7 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-013 | Committed Focus logo replacement locally. | Local commit `78a608e`. | DONE | Fix stale browser and iOS icon caches with versioned URLs. |
 | 2026-07-23 | TASK-014 | Started Focus icon cache-busting. | Owner reported old favicon and iPhone Home Screen icon still appeared after reinstall. | IN_PROGRESS | Add versioned icon URLs and update install/runtime references. |
 | 2026-07-23 | TASK-014 | Implemented Focus icon cache-busting locally. | New `v2` icon files generated; runtime old icon URLs removed; targeted tests passed 35/35; `npm.cmd run test` passed 95/95. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-014 | Committed Focus icon cache-busting locally. | Local commit `cfd536a`. | DONE | Address owner-reported text contrast issue. |
+| 2026-07-23 | TASK-015 | Started Warm Glass contrast pass. | Owner reported weak readability in the today summary panel screenshot. | IN_PROGRESS | Strengthen text tokens, event colors, and glass row separation. |
+| 2026-07-23 | TASK-015 | Implemented Warm Glass contrast pass locally. | Syntax checks passed, targeted tests passed 28/28, and `npm.cmd run test` passed 96/96. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-015 | Committed Warm Glass contrast pass locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

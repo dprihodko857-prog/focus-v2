@@ -665,7 +665,9 @@ h3 {
 
 .summary-card,
 .tasks-card {
-  box-shadow: 0 22px 58px rgba(0, 0, 0, .12), inset 0 1px 0 rgba(255, 255, 255, .2);
+  background: linear-gradient(145deg, rgba(255, 252, 244, .52), rgba(255, 252, 244, .34));
+  border-color: rgba(255, 255, 255, .66);
+  box-shadow: 0 22px 58px rgba(0, 0, 0, .16), inset 0 1px 0 rgba(255, 255, 255, .28);
 }
 
 .tasks-card {
@@ -697,19 +699,21 @@ h3 {
   gap: 10px;
   align-items: start;
   padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, .4);
+  border: 1px solid rgba(255, 255, 255, .62);
   border-radius: 16px;
-  background: linear-gradient(145deg, rgba(255, 252, 244, .26), rgba(255, 252, 244, .14));
+  background: linear-gradient(145deg, rgba(255, 252, 244, .54), rgba(255, 252, 244, .3));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22);
 }
 
 .summary-time {
-  color: var(--text-soft);
+  color: #332c27;
   font-weight: 860;
   line-height: 1.25;
 }
 
 .summary-title {
   display: block;
+  color: color-mix(in srgb, var(--summary-color, var(--text)), #1f1a16 42%);
   font-weight: 780;
   line-height: 1.25;
 }
@@ -2961,27 +2965,29 @@ h3 {
 }
 
 .day-card-event {
+  --event-readable-color: color-mix(in srgb, var(--event-color), #1f1a16 42%);
   display: grid;
   grid-template-columns: 92px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 12px 12px 12px 14px;
-  border: 1px solid rgba(255, 255, 255, .32);
+  border: 1px solid rgba(255, 255, 255, .66);
   border-radius: 18px;
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, .3), rgba(255, 255, 255, .12)),
-    radial-gradient(circle at 0 50%, color-mix(in srgb, var(--event-color), transparent 78%), transparent 30%);
+    linear-gradient(145deg, rgba(255, 252, 244, .56), rgba(255, 252, 244, .28)),
+    radial-gradient(circle at 0 50%, color-mix(in srgb, var(--event-color), transparent 82%), transparent 32%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .22);
 }
 
 .day-card-event__time {
-  color: var(--text-soft);
+  color: #332c27;
   font-size: 13px;
   font-weight: 850;
 }
 
 .day-card-event strong {
   display: block;
-  color: var(--event-color);
+  color: var(--event-readable-color);
   font-size: 15px;
   font-weight: 880;
   line-height: 1.22;
@@ -2990,9 +2996,9 @@ h3 {
 .day-card-event small {
   display: block;
   margin-top: 3px;
-  color: var(--text-soft);
+  color: #4c433a;
   font-size: 13px;
-  font-weight: 680;
+  font-weight: 720;
 }
 
 .day-card-empty {

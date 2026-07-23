@@ -24,6 +24,8 @@ Status: DRAFT
 - TASK-013 is implemented locally: visible and install logo assets now use the new `Ф` target mark.
 - TASK-014 is implemented locally: favicon, Apple touch, manifest, and notification icon references now use versioned `v2` URLs to bypass stale icon caches.
 
+- TASK-015 is implemented locally: Warm Glass text, summary rows, and event title contrast were strengthened without changing the app layout.
+
 ## In Progress
 
 - No Project Maestro task is currently in progress.
@@ -43,7 +45,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-014 checks passed locally; `npm.cmd run test` passed 95/95.
+- Current result: local Git repository exists; TASK-015 checks passed locally; `npm.cmd run test` passed 96/96.
 
 ## Open Questions
 

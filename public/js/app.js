@@ -823,7 +823,7 @@ function renderSummary() {
     <div class="summary-item">
       <span class="summary-time">${item.time}</span>
       <span>
-        <span class="summary-title" style="color:${item.color}">${item.title}</span>
+        <span class="summary-title" style="--summary-color:${item.color}">${item.title}</span>
         <span class="summary-subtitle">${item.subtitle}</span>
       </span>
     </div>
