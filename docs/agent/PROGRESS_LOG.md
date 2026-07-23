@@ -40,3 +40,6 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-010 | Committed background sync offline status handling locally. | Local commit `73e079a`. | DONE | Continue with the next bounded sync hardening task. |
 | 2026-07-23 | TASK-011 | Started sync metadata memory fallback. | `localStorage` failures could make account/device metadata unstable inside one app session. | IN_PROGRESS | Add memory fallback and focused tests. |
 | 2026-07-23 | TASK-011 | Implemented sync metadata memory fallback locally. | `node --check public/js/sync.js`, `node --check public/service-worker.js`, targeted sync/PWA tests passed 47/47, and `npm.cmd run test` passed 93/93. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-23 | TASK-011 | Committed sync metadata memory fallback locally. | Local commit `802cfab`. | DONE | Continue with the next bounded sync hardening task. |
+| 2026-07-23 | TASK-012 | Started online recovery sync coalescing. | Repeated `online` events could start overlapping full sync and push registration batches. | IN_PROGRESS | Add in-flight recovery guard and contract tests. |
+| 2026-07-23 | TASK-012 | Implemented online recovery sync coalescing locally. | `node --check public/js/app.js`, `node --check public/service-worker.js`, targeted contract tests passed 24/24, and `npm.cmd run test` passed 94/94. | DONE | Commit locally; deploy remains separate. |

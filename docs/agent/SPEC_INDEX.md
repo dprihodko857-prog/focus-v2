@@ -17,4 +17,5 @@ Status: DRAFT
 | SYNC-PUSH-SERIALIZATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-push-serialization.md` | TASK-009 serializes same-collection client push snapshots so newer snapshots cannot be overwritten by older in-flight pushes. |
 | BACKGROUND-SYNC-OFFLINE-STATUS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/background-sync-offline-status.md` | TASK-010 surfaces expected `offline` results from background sync pushes in the app sync status. |
 | SYNC-STATE-MEMORY-FALLBACK-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-state-memory-fallback.md` | TASK-011 keeps sync metadata stable within the current session when `localStorage` is unavailable. |
+| ONLINE-RECOVERY-SYNC-COALESCING-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/online-recovery-sync-coalescing.md` | TASK-012 coalesces repeated online recovery sync events into one in-flight pass. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

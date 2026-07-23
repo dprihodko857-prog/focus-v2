@@ -569,3 +569,56 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Sync metadata now has an in-memory session fallback when `localStorage` is unavailable.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-012
+
+- title: Coalesce online recovery sync
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue autonomously on 2026-07-23; repeated `online` events could start overlapping recovery batches
+- spec_reference: `docs/specs/online-recovery-sync-coalescing.md`
+- spec_status: approved_for_task_012
+- goal: prevent duplicate online recovery sync batches when the browser fires repeated `online` events.
+- out_of_scope:
+  - backend sync API changes
+  - persistent offline mutation queue
+  - conflict resolution changes
+  - push delivery policy changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - repeated `online` events reuse the current recovery promise while it is pending
+  - recovery still runs schedules, tasks, notes, birthdays, diary entries, reminders, push registration, and push status refresh
+  - one failed recovery operation does not block the rest
+  - the in-flight marker is cleared after the recovery pass finishes
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 8 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 11
+- stop_conditions:
+  - implementation requires backend/API changes or persistent queue storage
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - service worker cache id contract tests
+  - sync integration contract tests
+- dependencies:
+  - local Git baseline
+  - owner autonomous continuation approval on 2026-07-23
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Repeated `online` events now share one in-flight recovery sync pass.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-23. No deployment or git push.

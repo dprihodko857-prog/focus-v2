@@ -5775,29 +5775,27 @@ Promise.allSettled([schedulesReady, tasksReady, notesReady, remindersReady]).fin
   controls.openInitialLaunchTarget();
 });
 
+let pendingOnlineRecoverySync = null;
+
+function runOnlineRecoverySync() {
+  if (pendingOnlineRecoverySync) return pendingOnlineRecoverySync;
+
+  pendingOnlineRecoverySync = Promise.allSettled([
+    syncSavedSchedules(),
+    syncSavedTasks(),
+    syncSavedNotes(),
+    syncSavedBirthdays(),
+    syncSavedDiaryEntries(),
+    syncSavedReminders(),
+    registerServerPushSubscription(),
+    refreshReminderPushStatus(),
+  ]).finally(() => {
+    pendingOnlineRecoverySync = null;
+  });
+
+  return pendingOnlineRecoverySync;
+}
+
 window.addEventListener("online", () => {
-  syncSavedSchedules().catch(() => {
-    // IndexedDB remains current if the remote sync endpoint is temporarily unavailable.
-  });
-  syncSavedTasks().catch(() => {
-    // Today tasks remain local if the remote sync endpoint is temporarily unavailable.
-  });
-  syncSavedNotes().catch(() => {
-    // Notes remain local if the remote sync endpoint is temporarily unavailable.
-  });
-  syncSavedBirthdays().catch(() => {
-    // Birthdays remain local if the remote sync endpoint is temporarily unavailable.
-  });
-  syncSavedDiaryEntries().catch(() => {
-    // Diary entries remain local if the remote sync endpoint is temporarily unavailable.
-  });
-  syncSavedReminders().catch(() => {
-    // Local reminders remain scheduled if the remote sync endpoint is temporarily unavailable.
-  });
-  registerServerPushSubscription().catch(() => {
-    // Push subscriptions can be retried on the next online event.
-  });
-  refreshReminderPushStatus().catch(() => {
-    // Push diagnostics can be retried from the reminder modal.
-  });
+  runOnlineRecoverySync();
 });
