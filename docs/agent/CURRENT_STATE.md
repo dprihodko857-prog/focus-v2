@@ -31,6 +31,7 @@ Status: DRAFT
 - TASK-018 is implemented locally: Settings now includes a one-click sync code copy action with manual fallback; service worker cache is `focus-pwa-v56`.
 - TASK-019 is implemented locally: sync and push routes reject unknown account ids, Orbit Auth creates its account explicitly, and Settings validates typed sync codes before saving them; service worker cache is `focus-pwa-v57`.
 - TASK-020 is implemented locally: code-based sync disconnect removes the current server-side device session and current-device push subscriptions before clearing local sync state; service worker cache is `focus-pwa-v58`.
+- TASK-021 is implemented locally: failed current-device server cleanup is queued and retried on app startup and online recovery even after local sync account clearing; service worker cache is `focus-pwa-v59`.
 
 ## In Progress
 
@@ -51,7 +52,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-020 checks passed locally; `npm.cmd run test` passed 105/105.
+- Current result: local Git repository exists; TASK-021 checks passed locally; `npm.cmd run test` passed 106/106.
 
 ## Open Questions
 

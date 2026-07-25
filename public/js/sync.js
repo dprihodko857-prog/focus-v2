@@ -7,7 +7,9 @@ const TASKS_REVISION_KEY = "focus-sync-tasks-revision";
 const NOTES_REVISION_KEY = "focus-sync-notes-revision";
 const BIRTHDAYS_REVISION_KEY = "focus-sync-birthdays-revision";
 const DIARY_REVISION_KEY = "focus-sync-diary-revision";
+const PENDING_DEVICE_DISCONNECTS_KEY = "focus-sync-pending-device-disconnects";
 const ACCOUNT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
+const DEVICE_ID_PATTERN = /^[a-zA-Z0-9_.:-]{4,160}$/;
 
 export function createFocusSyncClient({
   apiBaseUrl = "/api",
@@ -123,13 +125,49 @@ export function createFocusSyncClient({
 
   const normalizeAccountId = accountId => String(accountId || "").trim();
   const isValidAccountId = accountId => ACCOUNT_ID_PATTERN.test(accountId);
-  const withAccountHeaders = accountId => ({
+  const withAccountHeaders = (accountId, deviceId = getDeviceId()) => ({
     "content-type": "application/json",
     "x-focus-account": accountId,
-    "x-focus-device": getDeviceId(),
+    "x-focus-device": deviceId,
     "x-focus-device-name": encodeHeaderValue(getDeviceName()),
   });
   const withHeaders = async () => withAccountHeaders(await getAccountId());
+
+  const getPendingDeviceDisconnects = () => {
+    try {
+      const parsed = JSON.parse(getStored(PENDING_DEVICE_DISCONNECTS_KEY) || "[]");
+      return Array.isArray(parsed)
+        ? parsed.filter(item => isValidAccountId(item?.accountId) && DEVICE_ID_PATTERN.test(item?.deviceId || ""))
+        : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const setPendingDeviceDisconnects = items => {
+    const disconnects = Array.isArray(items)
+      ? items.filter(item => isValidAccountId(item?.accountId) && DEVICE_ID_PATTERN.test(item?.deviceId || ""))
+      : [];
+
+    if (!disconnects.length) {
+      removeStored(PENDING_DEVICE_DISCONNECTS_KEY);
+      return;
+    }
+
+    setStored(PENDING_DEVICE_DISCONNECTS_KEY, JSON.stringify(disconnects));
+  };
+
+  const queuePendingDeviceDisconnect = disconnect => {
+    const pending = getPendingDeviceDisconnects();
+    const exists = pending.some(item => item.accountId === disconnect.accountId && item.deviceId === disconnect.deviceId);
+    if (!exists) {
+      pending.push({
+        accountId: disconnect.accountId,
+        deviceId: disconnect.deviceId,
+      });
+    }
+    setPendingDeviceDisconnects(pending);
+  };
 
   const getRemoteSnapshot = async path => {
     const response = await fetchImpl(apiUrl(apiBaseUrl, path), {
@@ -241,13 +279,17 @@ export function createFocusSyncClient({
         return { status: "idle", removedDeviceSessions: 0, removedPushSubscriptions: 0 };
       }
 
+      const deviceId = getDeviceId();
+
       try {
         const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/devices/current"), {
           method: "DELETE",
-          headers: withAccountHeaders(accountId),
+          headers: withAccountHeaders(accountId, deviceId),
         });
 
         if (response.status === 404) {
+          setPendingDeviceDisconnects(getPendingDeviceDisconnects()
+            .filter(item => item.accountId !== accountId || item.deviceId !== deviceId));
           return { status: "not-found", removedDeviceSessions: 0, removedPushSubscriptions: 0 };
         }
 
@@ -256,14 +298,58 @@ export function createFocusSyncClient({
         }
 
         const result = await response.json();
+        setPendingDeviceDisconnects(getPendingDeviceDisconnects()
+          .filter(item => item.accountId !== accountId || item.deviceId !== deviceId));
         return {
           status: "removed",
           removedDeviceSessions: result.removedDeviceSessions || 0,
           removedPushSubscriptions: result.removedPushSubscriptions || 0,
         };
       } catch {
+        queuePendingDeviceDisconnect({ accountId, deviceId });
         return { status: "offline", removedDeviceSessions: 0, removedPushSubscriptions: 0 };
       }
+    },
+
+    async flushPendingDeviceDisconnects() {
+      const pending = getPendingDeviceDisconnects();
+      if (!pending.length) {
+        return { status: "idle", attempted: 0, removed: 0, remaining: 0 };
+      }
+
+      const remaining = [];
+      let removed = 0;
+
+      for (const item of pending) {
+        try {
+          const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/devices/current"), {
+            method: "DELETE",
+            headers: withAccountHeaders(item.accountId, item.deviceId),
+          });
+
+          if (response.status === 404) {
+            removed += 1;
+            continue;
+          }
+
+          if (!response.ok) {
+            remaining.push(item);
+            continue;
+          }
+
+          removed += 1;
+        } catch {
+          remaining.push(item);
+        }
+      }
+
+      setPendingDeviceDisconnects(remaining);
+      return {
+        status: remaining.length ? "pending" : "cleared",
+        attempted: pending.length,
+        removed,
+        remaining: remaining.length,
+      };
     },
 
     getAccountId,

@@ -6144,10 +6144,15 @@ Promise.allSettled([schedulesReady, tasksReady, notesReady, remindersReady]).fin
 
 let pendingOnlineRecoverySync = null;
 
+function flushPendingSyncDeviceDisconnects() {
+  return scheduleSync.flushPendingDeviceDisconnects().catch(() => null);
+}
+
 function runOnlineRecoverySync() {
   if (pendingOnlineRecoverySync) return pendingOnlineRecoverySync;
 
   pendingOnlineRecoverySync = Promise.allSettled([
+    flushPendingSyncDeviceDisconnects(),
     syncSavedSchedules(),
     syncSavedTasks(),
     syncSavedNotes(),
@@ -6166,3 +6171,5 @@ function runOnlineRecoverySync() {
 window.addEventListener("online", () => {
   runOnlineRecoverySync();
 });
+
+flushPendingSyncDeviceDisconnects();

@@ -1070,3 +1070,60 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Code-based disconnect now removes the current server-side device session and current-device push subscriptions before clearing local sync state.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-25. No deployment or git push.
+
+## TASK-021
+
+- title: Retry pending sync device disconnect cleanup
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work after TASK-020; TASK-020 promised later server cleanup when offline, but no retry queue existed after local account clearing
+- spec_reference: `docs/specs/sync-pending-device-disconnect-retry.md`
+- spec_status: approved_for_task_021
+- goal: preserve and retry failed server-side current-device cleanup after local sync disconnect.
+- out_of_scope:
+  - account deletion
+  - removing other devices
+  - Background Sync API registration
+  - PushManager unsubscribe
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - failed server disconnect queues the old account id and device id
+  - local `clearAccountId()` does not clear the pending cleanup
+  - pending cleanup can run without a current local sync account
+  - pending cleanup retries on app startup
+  - pending cleanup retries during online recovery sync
+  - successful retry clears the queue
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/sync.js`
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 20
+- stop_conditions:
+  - implementation requires account deletion, cross-device removal, or auth redesign
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/sync.js`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - sync client and install contract tests
+- dependencies:
+  - TASK-020 current-device server disconnect endpoint
+  - TASK-012 online recovery sync coalescing
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Failed current-device server cleanup is now queued and retried on app startup and online recovery even after the local sync account is cleared.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-25. No deployment or git push.

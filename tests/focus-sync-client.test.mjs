@@ -723,6 +723,45 @@ test("disconnectCurrentDevice removes the remote current device without clearing
   assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
 });
 
+test("disconnectCurrentDevice queues failed server cleanup and flushes it after local disconnect", async () => {
+  const calls = [];
+  let online = false;
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "shared-account-123",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      if (!online) {
+        throw new Error("offline");
+      }
+      return jsonResponse({ disconnected: true, removedDeviceSessions: 1, removedPushSubscriptions: 1 });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-2",
+  });
+
+  assert.equal((await client.disconnectCurrentDevice()).status, "offline");
+  assert.match(storage.getItem("focus-sync-pending-device-disconnects"), /shared-account-123/);
+
+  client.clearAccountId();
+  online = true;
+
+  assert.deepEqual(await client.flushPendingDeviceDisconnects(), {
+    status: "cleared",
+    attempted: 1,
+    removed: 1,
+    remaining: 0,
+  });
+  assert.equal(storage.getItem("focus-sync-account-id"), null);
+  assert.equal(storage.getItem("focus-sync-pending-device-disconnects"), null);
+  assert.equal(calls[1].url, "/api/sync/devices/current");
+  assert.equal(calls[1].options.method, "DELETE");
+  assert.equal(calls[1].options.headers["x-focus-account"], "shared-account-123");
+  assert.equal(calls[1].options.headers["x-focus-device"], "device-1");
+});
+
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,

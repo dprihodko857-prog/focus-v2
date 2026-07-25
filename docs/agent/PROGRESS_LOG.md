@@ -75,3 +75,8 @@ Keep entries short and factual.
 | 2026-07-25 | TASK-020 | Completed targeted current-device disconnect checks. | Syntax checks passed and targeted tests passed 81/81. | DONE | Run `npm.cmd run test`; deploy remains separate. |
 | 2026-07-25 | TASK-020 | Completed current-device disconnect full checks. | `npm.cmd run test` passed 105/105. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-25 | TASK-020 | Committed current-device server disconnect locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-25 | TASK-021 | Started pending device disconnect retry. | TASK-020 could leave server cleanup incomplete if the server was offline before local account clearing. | IN_PROGRESS | Add retry queue and focused tests. |
+| 2026-07-25 | TASK-021 | Implemented pending device disconnect retry locally. | Sync client queues failed cleanup and app retries on startup/online recovery. | DONE | Run full checks and commit locally. |
+| 2026-07-25 | TASK-021 | Completed targeted pending disconnect retry checks. | Syntax checks passed and targeted tests passed 60/60. | DONE | Run `npm.cmd run test`; deploy remains separate. |
+| 2026-07-25 | TASK-021 | Completed pending disconnect retry full checks. | `npm.cmd run test` passed 106/106. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-25 | TASK-021 | Committed pending disconnect retry locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

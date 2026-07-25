@@ -147,7 +147,7 @@ test("settings include install quality diagnostics and PWA update controls", () 
   assert.match(appJs, /focus-pwa-state-change/);
   assert.match(pwaJs, /focusPwaCheckForUpdate/);
   assert.match(pwaJs, /focusPwaApplyUpdate/);
-  assert.match(serviceWorker, /focus-pwa-v58/);
+  assert.match(serviceWorker, /focus-pwa-v59/);
   assert.match(serviceWorker, /SKIP_WAITING/);
 });
 
