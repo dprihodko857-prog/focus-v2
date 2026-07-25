@@ -22,7 +22,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v59/);
+  assert.match(serviceWorker, /focus-pwa-v60/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
@@ -240,12 +240,15 @@ test("online recovery sync is coalesced into one pass", () => {
   assert.match(appJs, /syncSavedSchedules\(\)/);
   assert.match(appJs, /syncSavedReminders\(\)/);
   assert.match(appJs, /flushPendingSyncDeviceDisconnects\(\)/);
+  assert.match(appJs, /flushPendingSyncAccountProfileUpdate\(\)/);
+  assert.match(appJs, /scheduleSync\.flushPendingAccountProfileUpdate\(\)/);
   assert.match(appJs, /scheduleSync\.flushPendingDeviceDisconnects\(\)/);
   assert.match(appJs, /registerServerPushSubscription\(\)/);
   assert.match(appJs, /refreshReminderPushStatus\(\)/);
   assert.match(appJs, /pendingOnlineRecoverySync = null/);
   assert.match(appJs, /window\.addEventListener\("online", \(\) => {\s+runOnlineRecoverySync\(\);/);
   assert.match(appJs, /flushPendingSyncDeviceDisconnects\(\);/);
+  assert.match(appJs, /flushPendingSyncAccountProfileUpdate\(\);/);
 });
 
 test("diary section is protected by a four digit PIN gate", () => {

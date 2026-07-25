@@ -604,6 +604,65 @@ test("account profile loads and updates device metadata", async () => {
   });
 });
 
+test("account profile update queues offline changes and flushes them later", async () => {
+  const calls = [];
+  let online = false;
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+    "focus-sync-device-name": "iPhone Григория",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      if (!online) {
+        throw new Error("offline");
+      }
+
+      const body = JSON.parse(options.body);
+      return jsonResponse({
+        accountId: "account-1",
+        displayName: body.displayName,
+        currentDeviceId: "device-1",
+        devices: [{
+          deviceId: "device-1",
+          deviceName: body.deviceName,
+          firstSeenAt: "2026-07-12T08:00:00.000Z",
+          lastSeenAt: "2026-07-12T08:10:00.000Z",
+          isCurrent: true,
+        }],
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const offline = await client.updateAccountProfile({
+    displayName: "Личный фокус",
+    deviceName: "Ноутбук",
+  });
+
+  assert.equal(offline.status, "offline");
+  assert.equal(offline.displayName, "Личный фокус");
+  assert.equal(offline.devices[0].deviceName, "Ноутбук");
+  assert.match(storage.getItem("focus-sync-pending-account-profile"), /Личный фокус/);
+  assert.equal(storage.getItem("focus-sync-device-name"), "Ноутбук");
+
+  online = true;
+  const flushed = await client.flushPendingAccountProfileUpdate();
+
+  assert.equal(flushed.status, "saved");
+  assert.equal(flushed.displayName, "Личный фокус");
+  assert.equal(flushed.devices[0].deviceName, "Ноутбук");
+  assert.equal(storage.getItem("focus-sync-pending-account-profile"), null);
+  assert.equal(calls[1].url, "/api/sync/account");
+  assert.equal(calls[1].options.method, "PATCH");
+  assert.deepEqual(JSON.parse(calls[1].options.body), {
+    displayName: "Личный фокус",
+    deviceName: "Ноутбук",
+  });
+});
+
 test("checkAccountId validates a shared account without storing it locally", async () => {
   const calls = [];
   const storage = createMemoryLocalStorage();

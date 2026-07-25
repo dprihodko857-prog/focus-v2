@@ -8,6 +8,7 @@ const NOTES_REVISION_KEY = "focus-sync-notes-revision";
 const BIRTHDAYS_REVISION_KEY = "focus-sync-birthdays-revision";
 const DIARY_REVISION_KEY = "focus-sync-diary-revision";
 const PENDING_DEVICE_DISCONNECTS_KEY = "focus-sync-pending-device-disconnects";
+const PENDING_ACCOUNT_PROFILE_KEY = "focus-sync-pending-account-profile";
 const ACCOUNT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
 const DEVICE_ID_PATTERN = /^[a-zA-Z0-9_.:-]{4,160}$/;
 
@@ -169,6 +170,31 @@ export function createFocusSyncClient({
     setPendingDeviceDisconnects(pending);
   };
 
+  const getPendingAccountProfileUpdate = () => {
+    try {
+      const parsed = JSON.parse(getStored(PENDING_ACCOUNT_PROFILE_KEY) || "null");
+      if (!isValidAccountId(parsed?.accountId)) return null;
+
+      return {
+        accountId: parsed.accountId,
+        displayName: normalizeStoredName(parsed.displayName || ""),
+        deviceName: normalizeStoredName(parsed.deviceName || ""),
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const queuePendingAccountProfileUpdate = update => {
+    if (!isValidAccountId(update?.accountId)) return;
+
+    setStored(PENDING_ACCOUNT_PROFILE_KEY, JSON.stringify({
+      accountId: update.accountId,
+      displayName: normalizeStoredName(update.displayName || ""),
+      deviceName: normalizeStoredName(update.deviceName || ""),
+    }));
+  };
+
   const getRemoteSnapshot = async path => {
     const response = await fetchImpl(apiUrl(apiBaseUrl, path), {
       headers: await withHeaders(),
@@ -271,6 +297,7 @@ export function createFocusSyncClient({
       setRevision(0, NOTES_REVISION_KEY);
       setRevision(0, BIRTHDAYS_REVISION_KEY);
       setRevision(0, DIARY_REVISION_KEY);
+      removeStored(PENDING_ACCOUNT_PROFILE_KEY);
     },
 
     async disconnectCurrentDevice() {
@@ -408,6 +435,7 @@ export function createFocusSyncClient({
     },
 
     async updateAccountProfile({ displayName, deviceName } = {}) {
+      let accountId = getStored(ACCOUNT_KEY);
       const body = {};
       if (displayName !== undefined) {
         body.displayName = normalizeStoredName(displayName) || "";
@@ -417,9 +445,13 @@ export function createFocusSyncClient({
       }
 
       try {
+        if (!accountId) {
+          accountId = await getAccountId();
+        }
+
         const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/account"), {
           method: "PATCH",
-          headers: await withHeaders(),
+          headers: withAccountHeaders(accountId),
           body: JSON.stringify(body),
         });
 
@@ -427,14 +459,69 @@ export function createFocusSyncClient({
           throw new Error("Focus sync account profile save failed.");
         }
 
-        return { status: "ok", ...await response.json() };
+        const result = await response.json();
+        removeStored(PENDING_ACCOUNT_PROFILE_KEY);
+        return { status: "ok", ...result };
       } catch {
+        if (accountId) {
+          queuePendingAccountProfileUpdate({
+            accountId,
+            displayName: body.displayName,
+            deviceName: body.deviceName || getDeviceName(),
+          });
+        }
+
         return {
           status: "offline",
-          accountId: getStored(ACCOUNT_KEY),
+          accountId,
+          displayName: body.displayName || null,
           currentDeviceId: getDeviceId(),
-          devices: [],
+          devices: [{
+            deviceId: getDeviceId(),
+            deviceName: body.deviceName || getDeviceName(),
+            firstSeenAt: null,
+            lastSeenAt: null,
+            isCurrent: true,
+          }],
         };
+      }
+    },
+
+    async flushPendingAccountProfileUpdate() {
+      const pending = getPendingAccountProfileUpdate();
+      if (!pending) {
+        return { status: "idle" };
+      }
+
+      const accountId = getStored(ACCOUNT_KEY);
+      if (accountId !== pending.accountId) {
+        return { status: "waiting" };
+      }
+
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/account"), {
+          method: "PATCH",
+          headers: withAccountHeaders(pending.accountId),
+          body: JSON.stringify({
+            displayName: pending.displayName,
+            deviceName: pending.deviceName || getDeviceName(),
+          }),
+        });
+
+        if (response.status === 404) {
+          removeStored(PENDING_ACCOUNT_PROFILE_KEY);
+          return { status: "not-found" };
+        }
+
+        if (!response.ok) {
+          throw new Error("Focus pending account profile save failed.");
+        }
+
+        const result = await response.json();
+        removeStored(PENDING_ACCOUNT_PROFILE_KEY);
+        return { status: "saved", ...result };
+      } catch {
+        return { status: "offline" };
       }
     },
 

@@ -27,4 +27,5 @@ Status: DRAFT
 | SYNC-ACCOUNT-CODE-VALIDATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-account-code-validation.md` | TASK-019 validates typed sync account codes before switching the local device and rejects unknown accounts server-side. |
 | SYNC-CURRENT-DEVICE-SERVER-DISCONNECT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-current-device-server-disconnect.md` | TASK-020 removes the current server-side device session and current-device push subscriptions during code-based disconnect. |
 | SYNC-PENDING-DEVICE-DISCONNECT-RETRY-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-pending-device-disconnect-retry.md` | TASK-021 queues failed current-device server cleanup and retries it on startup and online recovery. |
+| SYNC-PENDING-PROFILE-UPDATE-RETRY-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-pending-profile-update-retry.md` | TASK-022 queues failed sync account profile saves and retries them on startup and online recovery. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

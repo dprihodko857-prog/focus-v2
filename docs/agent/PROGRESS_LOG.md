@@ -80,3 +80,8 @@ Keep entries short and factual.
 | 2026-07-25 | TASK-021 | Completed targeted pending disconnect retry checks. | Syntax checks passed and targeted tests passed 60/60. | DONE | Run `npm.cmd run test`; deploy remains separate. |
 | 2026-07-25 | TASK-021 | Completed pending disconnect retry full checks. | `npm.cmd run test` passed 106/106. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-25 | TASK-021 | Committed pending disconnect retry locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-25 | TASK-022 | Started pending sync profile update retry. | Offline profile saves could lose account display name after local-only failure handling. | IN_PROGRESS | Queue failed profile updates and retry on startup/online recovery. |
+| 2026-07-25 | TASK-022 | Implemented pending sync profile update retry locally. | Sync client stores pending profile updates and app retries them on startup/online recovery. | DONE | Run full checks and commit locally. |
+| 2026-07-25 | TASK-022 | Completed targeted pending profile update checks. | Syntax checks passed and targeted tests passed 61/61. | DONE | Run `npm.cmd run test`; deploy remains separate. |
+| 2026-07-25 | TASK-022 | Completed pending profile update full checks. | `npm.cmd run test` passed 107/107. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-25 | TASK-022 | Committed pending profile update retry locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

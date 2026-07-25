@@ -4310,7 +4310,7 @@ async function saveSyncAccountProfile() {
     });
     renderSyncAccountProfile(syncAccountProfile);
     setSyncStatus(syncAccountProfile.status === "offline"
-      ? "Имя устройства сохранено локально. Сервер обновится после подключения."
+      ? "Профиль сохранён локально. Сервер обновится после подключения."
       : "Профиль аккаунта обновлён.");
   } finally {
     if (saveButton) {
@@ -6148,11 +6148,16 @@ function flushPendingSyncDeviceDisconnects() {
   return scheduleSync.flushPendingDeviceDisconnects().catch(() => null);
 }
 
+function flushPendingSyncAccountProfileUpdate() {
+  return scheduleSync.flushPendingAccountProfileUpdate().catch(() => null);
+}
+
 function runOnlineRecoverySync() {
   if (pendingOnlineRecoverySync) return pendingOnlineRecoverySync;
 
   pendingOnlineRecoverySync = Promise.allSettled([
     flushPendingSyncDeviceDisconnects(),
+    flushPendingSyncAccountProfileUpdate(),
     syncSavedSchedules(),
     syncSavedTasks(),
     syncSavedNotes(),
@@ -6173,3 +6178,4 @@ window.addEventListener("online", () => {
 });
 
 flushPendingSyncDeviceDisconnects();
+flushPendingSyncAccountProfileUpdate();

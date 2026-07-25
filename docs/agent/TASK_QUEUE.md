@@ -1127,3 +1127,59 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Failed current-device server cleanup is now queued and retried on app startup and online recovery even after the local sync account is cleared.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-25. No deployment or git push.
+
+## TASK-022
+
+- title: Retry pending sync account profile updates
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work after TASK-021; offline profile saves could preserve device name locally but lose account display name
+- spec_reference: `docs/specs/sync-pending-profile-update-retry.md`
+- spec_status: approved_for_task_022
+- goal: preserve and retry failed sync account profile updates after offline saves.
+- out_of_scope:
+  - multi-account profile queues
+  - cross-device profile conflict resolution
+  - account deletion
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - offline profile save returns the typed display name and device name to the UI
+  - offline profile save writes a pending profile update
+  - local `clearAccountId()` clears pending profile updates for the disconnected account
+  - pending profile updates retry on app startup
+  - pending profile updates retry during online recovery sync
+  - successful retry clears the pending profile update
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/sync.js`
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 21
+- stop_conditions:
+  - implementation requires account deletion, conflict resolution, or auth redesign
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/sync.js`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - sync client and install contract tests
+- dependencies:
+  - existing sync profile edit UI
+  - TASK-012 online recovery sync coalescing
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Failed sync account profile saves are now queued and retried on app startup and online recovery.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-25. No deployment or git push.
