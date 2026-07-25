@@ -9,8 +9,10 @@ const BIRTHDAYS_REVISION_KEY = "focus-sync-birthdays-revision";
 const DIARY_REVISION_KEY = "focus-sync-diary-revision";
 const PENDING_DEVICE_DISCONNECTS_KEY = "focus-sync-pending-device-disconnects";
 const PENDING_ACCOUNT_PROFILE_KEY = "focus-sync-pending-account-profile";
+const PENDING_COLLECTION_PUSHES_KEY = "focus-sync-pending-collection-pushes";
 const ACCOUNT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
 const DEVICE_ID_PATTERN = /^[a-zA-Z0-9_.:-]{4,160}$/;
+const COLLECTION_KEYS = new Set(["schedules", "reminders", "tasks", "notes", "birthdays", "diary"]);
 
 export function createFocusSyncClient({
   apiBaseUrl = "/api",
@@ -195,6 +197,40 @@ export function createFocusSyncClient({
     }));
   };
 
+  const getPendingCollectionPushes = () => {
+    try {
+      const parsed = JSON.parse(getStored(PENDING_COLLECTION_PUSHES_KEY) || "[]");
+      const values = Array.isArray(parsed) ? parsed : Object.keys(parsed || {});
+      return values.filter(collectionKey => COLLECTION_KEYS.has(collectionKey));
+    } catch {
+      return [];
+    }
+  };
+
+  const setPendingCollectionPushes = collectionKeys => {
+    const uniqueKeys = [...new Set(Array.isArray(collectionKeys) ? collectionKeys : [])]
+      .filter(collectionKey => COLLECTION_KEYS.has(collectionKey));
+
+    if (!uniqueKeys.length) {
+      removeStored(PENDING_COLLECTION_PUSHES_KEY);
+      return;
+    }
+
+    setStored(PENDING_COLLECTION_PUSHES_KEY, JSON.stringify(uniqueKeys));
+  };
+
+  const markPendingCollectionPush = collectionKey => {
+    if (!COLLECTION_KEYS.has(collectionKey)) return;
+    setPendingCollectionPushes([...getPendingCollectionPushes(), collectionKey]);
+  };
+
+  const clearPendingCollectionPush = collectionKey => {
+    if (!COLLECTION_KEYS.has(collectionKey)) return;
+    setPendingCollectionPushes(getPendingCollectionPushes().filter(key => key !== collectionKey));
+  };
+
+  const hasPendingCollectionPush = collectionKey => getPendingCollectionPushes().includes(collectionKey);
+
   const getRemoteSnapshot = async path => {
     const response = await fetchImpl(apiUrl(apiBaseUrl, path), {
       headers: await withHeaders(),
@@ -258,6 +294,76 @@ export function createFocusSyncClient({
     entries: Array.isArray(entries) ? entries : [],
   });
 
+  const syncCollectionSnapshot = async ({
+    collectionKey,
+    localItems,
+    revisionKey,
+    resultKey,
+    getRemote,
+    putRemote,
+  }) => {
+    const items = Array.isArray(localItems) ? localItems : [];
+    const localRevision = getRevision(revisionKey);
+    const pushLocalSnapshot = async () => {
+      try {
+        const saved = await putRemote(items);
+        setRevision(saved.revision, revisionKey);
+        clearPendingCollectionPush(collectionKey);
+        return { status: "pushed", [resultKey]: items, revision: saved.revision };
+      } catch (error) {
+        markPendingCollectionPush(collectionKey);
+        throw error;
+      }
+    };
+
+    try {
+      if (hasPendingCollectionPush(collectionKey)) {
+        return await pushLocalSnapshot();
+      }
+
+      const remote = await getRemote();
+
+      if (remote.revision > localRevision) {
+        setRevision(remote.revision, revisionKey);
+        return {
+          status: "pulled",
+          [resultKey]: Array.isArray(remote[resultKey]) ? remote[resultKey] : [],
+          revision: remote.revision,
+        };
+      }
+
+      if (!items.length && remote.revision === 0) {
+        return { status: "idle", [resultKey]: items, revision: localRevision };
+      }
+
+      return await pushLocalSnapshot();
+    } catch {
+      return { status: "offline", [resultKey]: items };
+    }
+  };
+
+  const pushCollectionSnapshot = ({
+    collectionKey,
+    localItems,
+    revisionKey,
+    resultKey,
+    putRemote,
+  }) => {
+    const items = Array.isArray(localItems) ? [...localItems] : [];
+
+    return queuePushSnapshot(collectionKey, async () => {
+      try {
+        const saved = await putRemote(items);
+        setRevision(saved.revision, revisionKey);
+        clearPendingCollectionPush(collectionKey);
+        return { status: "pushed", [resultKey]: items, revision: saved.revision };
+      } catch {
+        markPendingCollectionPush(collectionKey);
+        return { status: "offline", [resultKey]: items };
+      }
+    });
+  };
+
   return {
     peekAccountId() {
       return getStored(ACCOUNT_KEY);
@@ -298,6 +404,7 @@ export function createFocusSyncClient({
       setRevision(0, BIRTHDAYS_REVISION_KEY);
       setRevision(0, DIARY_REVISION_KEY);
       removeStored(PENDING_ACCOUNT_PROFILE_KEY);
+      removeStored(PENDING_COLLECTION_PUSHES_KEY);
     },
 
     async disconnectCurrentDevice() {
@@ -526,254 +633,128 @@ export function createFocusSyncClient({
     },
 
     async syncSchedules(localSchedules) {
-      const schedules = Array.isArray(localSchedules) ? localSchedules : [];
-
-      try {
-        const remote = await getRemoteScheduleSnapshot();
-        const localRevision = getRevision();
-
-        if (remote.revision > localRevision) {
-          setRevision(remote.revision);
-          return {
-            status: "pulled",
-            schedules: Array.isArray(remote.schedules) ? remote.schedules : [],
-            revision: remote.revision,
-          };
-        }
-
-        if (!schedules.length && remote.revision === 0) {
-          return { status: "idle", schedules, revision: localRevision };
-        }
-
-        const saved = await putRemoteScheduleSnapshot(schedules);
-        setRevision(saved.revision);
-        return { status: "pushed", schedules, revision: saved.revision };
-      } catch {
-        return { status: "offline", schedules };
-      }
+      return syncCollectionSnapshot({
+        collectionKey: "schedules",
+        localItems: localSchedules,
+        revisionKey: REVISION_KEY,
+        resultKey: "schedules",
+        getRemote: getRemoteScheduleSnapshot,
+        putRemote: putRemoteScheduleSnapshot,
+      });
     },
 
     async pushSchedules(localSchedules) {
-      const schedules = Array.isArray(localSchedules) ? [...localSchedules] : [];
-
-      return queuePushSnapshot("schedules", async () => {
-        try {
-          const saved = await putRemoteScheduleSnapshot(schedules);
-          setRevision(saved.revision);
-          return { status: "pushed", schedules, revision: saved.revision };
-        } catch {
-          return { status: "offline", schedules };
-        }
+      return pushCollectionSnapshot({
+        collectionKey: "schedules",
+        localItems: localSchedules,
+        revisionKey: REVISION_KEY,
+        resultKey: "schedules",
+        putRemote: putRemoteScheduleSnapshot,
       });
     },
 
     async syncReminders(localReminders) {
-      const reminders = Array.isArray(localReminders) ? localReminders : [];
-
-      try {
-        const remote = await getRemoteReminderSnapshot();
-        const localRevision = getRevision(REMINDERS_REVISION_KEY);
-
-        if (remote.revision > localRevision) {
-          setRevision(remote.revision, REMINDERS_REVISION_KEY);
-          return {
-            status: "pulled",
-            reminders: Array.isArray(remote.reminders) ? remote.reminders : [],
-            revision: remote.revision,
-          };
-        }
-
-        if (!reminders.length && remote.revision === 0) {
-          return { status: "idle", reminders, revision: localRevision };
-        }
-
-        const saved = await putRemoteReminderSnapshot(reminders);
-        setRevision(saved.revision, REMINDERS_REVISION_KEY);
-        return { status: "pushed", reminders, revision: saved.revision };
-      } catch {
-        return { status: "offline", reminders };
-      }
+      return syncCollectionSnapshot({
+        collectionKey: "reminders",
+        localItems: localReminders,
+        revisionKey: REMINDERS_REVISION_KEY,
+        resultKey: "reminders",
+        getRemote: getRemoteReminderSnapshot,
+        putRemote: putRemoteReminderSnapshot,
+      });
     },
 
     async pushReminders(localReminders) {
-      const reminders = Array.isArray(localReminders) ? [...localReminders] : [];
-
-      return queuePushSnapshot("reminders", async () => {
-        try {
-          const saved = await putRemoteReminderSnapshot(reminders);
-          setRevision(saved.revision, REMINDERS_REVISION_KEY);
-          return { status: "pushed", reminders, revision: saved.revision };
-        } catch {
-          return { status: "offline", reminders };
-        }
+      return pushCollectionSnapshot({
+        collectionKey: "reminders",
+        localItems: localReminders,
+        revisionKey: REMINDERS_REVISION_KEY,
+        resultKey: "reminders",
+        putRemote: putRemoteReminderSnapshot,
       });
     },
 
     async syncTasks(localTasks) {
-      const tasks = Array.isArray(localTasks) ? localTasks : [];
-
-      try {
-        const remote = await getRemoteTaskSnapshot();
-        const localRevision = getRevision(TASKS_REVISION_KEY);
-
-        if (remote.revision > localRevision) {
-          setRevision(remote.revision, TASKS_REVISION_KEY);
-          return {
-            status: "pulled",
-            tasks: Array.isArray(remote.tasks) ? remote.tasks : [],
-            revision: remote.revision,
-          };
-        }
-
-        if (!tasks.length && remote.revision === 0) {
-          return { status: "idle", tasks, revision: localRevision };
-        }
-
-        const saved = await putRemoteTaskSnapshot(tasks);
-        setRevision(saved.revision, TASKS_REVISION_KEY);
-        return { status: "pushed", tasks, revision: saved.revision };
-      } catch {
-        return { status: "offline", tasks };
-      }
+      return syncCollectionSnapshot({
+        collectionKey: "tasks",
+        localItems: localTasks,
+        revisionKey: TASKS_REVISION_KEY,
+        resultKey: "tasks",
+        getRemote: getRemoteTaskSnapshot,
+        putRemote: putRemoteTaskSnapshot,
+      });
     },
 
     async pushTasks(localTasks) {
-      const tasks = Array.isArray(localTasks) ? [...localTasks] : [];
-
-      return queuePushSnapshot("tasks", async () => {
-        try {
-          const saved = await putRemoteTaskSnapshot(tasks);
-          setRevision(saved.revision, TASKS_REVISION_KEY);
-          return { status: "pushed", tasks, revision: saved.revision };
-        } catch {
-          return { status: "offline", tasks };
-        }
+      return pushCollectionSnapshot({
+        collectionKey: "tasks",
+        localItems: localTasks,
+        revisionKey: TASKS_REVISION_KEY,
+        resultKey: "tasks",
+        putRemote: putRemoteTaskSnapshot,
       });
     },
 
     async syncNotes(localNotes) {
-      const notes = Array.isArray(localNotes) ? localNotes : [];
-
-      try {
-        const remote = await getRemoteNoteSnapshot();
-        const localRevision = getRevision(NOTES_REVISION_KEY);
-
-        if (remote.revision > localRevision) {
-          setRevision(remote.revision, NOTES_REVISION_KEY);
-          return {
-            status: "pulled",
-            notes: Array.isArray(remote.notes) ? remote.notes : [],
-            revision: remote.revision,
-          };
-        }
-
-        if (!notes.length && remote.revision === 0) {
-          return { status: "idle", notes, revision: localRevision };
-        }
-
-        const saved = await putRemoteNoteSnapshot(notes);
-        setRevision(saved.revision, NOTES_REVISION_KEY);
-        return { status: "pushed", notes, revision: saved.revision };
-      } catch {
-        return { status: "offline", notes };
-      }
+      return syncCollectionSnapshot({
+        collectionKey: "notes",
+        localItems: localNotes,
+        revisionKey: NOTES_REVISION_KEY,
+        resultKey: "notes",
+        getRemote: getRemoteNoteSnapshot,
+        putRemote: putRemoteNoteSnapshot,
+      });
     },
 
     async pushNotes(localNotes) {
-      const notes = Array.isArray(localNotes) ? [...localNotes] : [];
-
-      return queuePushSnapshot("notes", async () => {
-        try {
-          const saved = await putRemoteNoteSnapshot(notes);
-          setRevision(saved.revision, NOTES_REVISION_KEY);
-          return { status: "pushed", notes, revision: saved.revision };
-        } catch {
-          return { status: "offline", notes };
-        }
+      return pushCollectionSnapshot({
+        collectionKey: "notes",
+        localItems: localNotes,
+        revisionKey: NOTES_REVISION_KEY,
+        resultKey: "notes",
+        putRemote: putRemoteNoteSnapshot,
       });
     },
 
     async syncBirthdays(localBirthdays) {
-      const birthdays = Array.isArray(localBirthdays) ? localBirthdays : [];
-
-      try {
-        const remote = await getRemoteBirthdaySnapshot();
-        const localRevision = getRevision(BIRTHDAYS_REVISION_KEY);
-
-        if (remote.revision > localRevision) {
-          setRevision(remote.revision, BIRTHDAYS_REVISION_KEY);
-          return {
-            status: "pulled",
-            birthdays: Array.isArray(remote.birthdays) ? remote.birthdays : [],
-            revision: remote.revision,
-          };
-        }
-
-        if (!birthdays.length && remote.revision === 0) {
-          return { status: "idle", birthdays, revision: localRevision };
-        }
-
-        const saved = await putRemoteBirthdaySnapshot(birthdays);
-        setRevision(saved.revision, BIRTHDAYS_REVISION_KEY);
-        return { status: "pushed", birthdays, revision: saved.revision };
-      } catch {
-        return { status: "offline", birthdays };
-      }
+      return syncCollectionSnapshot({
+        collectionKey: "birthdays",
+        localItems: localBirthdays,
+        revisionKey: BIRTHDAYS_REVISION_KEY,
+        resultKey: "birthdays",
+        getRemote: getRemoteBirthdaySnapshot,
+        putRemote: putRemoteBirthdaySnapshot,
+      });
     },
 
     async pushBirthdays(localBirthdays) {
-      const birthdays = Array.isArray(localBirthdays) ? [...localBirthdays] : [];
-
-      return queuePushSnapshot("birthdays", async () => {
-        try {
-          const saved = await putRemoteBirthdaySnapshot(birthdays);
-          setRevision(saved.revision, BIRTHDAYS_REVISION_KEY);
-          return { status: "pushed", birthdays, revision: saved.revision };
-        } catch {
-          return { status: "offline", birthdays };
-        }
+      return pushCollectionSnapshot({
+        collectionKey: "birthdays",
+        localItems: localBirthdays,
+        revisionKey: BIRTHDAYS_REVISION_KEY,
+        resultKey: "birthdays",
+        putRemote: putRemoteBirthdaySnapshot,
       });
     },
 
     async syncDiaryEntries(localEntries) {
-      const entries = Array.isArray(localEntries) ? localEntries : [];
-
-      try {
-        const remote = await getRemoteDiarySnapshot();
-        const localRevision = getRevision(DIARY_REVISION_KEY);
-
-        if (remote.revision > localRevision) {
-          setRevision(remote.revision, DIARY_REVISION_KEY);
-          return {
-            status: "pulled",
-            entries: Array.isArray(remote.entries) ? remote.entries : [],
-            revision: remote.revision,
-          };
-        }
-
-        if (!entries.length && remote.revision === 0) {
-          return { status: "idle", entries, revision: localRevision };
-        }
-
-        const saved = await putRemoteDiarySnapshot(entries);
-        setRevision(saved.revision, DIARY_REVISION_KEY);
-        return { status: "pushed", entries, revision: saved.revision };
-      } catch {
-        return { status: "offline", entries };
-      }
+      return syncCollectionSnapshot({
+        collectionKey: "diary",
+        localItems: localEntries,
+        revisionKey: DIARY_REVISION_KEY,
+        resultKey: "entries",
+        getRemote: getRemoteDiarySnapshot,
+        putRemote: putRemoteDiarySnapshot,
+      });
     },
 
     async pushDiaryEntries(localEntries) {
-      const entries = Array.isArray(localEntries) ? [...localEntries] : [];
-
-      return queuePushSnapshot("diary", async () => {
-        try {
-          const saved = await putRemoteDiarySnapshot(entries);
-          setRevision(saved.revision, DIARY_REVISION_KEY);
-          return { status: "pushed", entries, revision: saved.revision };
-        } catch {
-          return { status: "offline", entries };
-        }
+      return pushCollectionSnapshot({
+        collectionKey: "diary",
+        localItems: localEntries,
+        revisionKey: DIARY_REVISION_KEY,
+        resultKey: "entries",
+        putRemote: putRemoteDiarySnapshot,
       });
     },
 

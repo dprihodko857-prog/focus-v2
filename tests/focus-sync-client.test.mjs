@@ -149,6 +149,98 @@ test("pushSchedules keeps local data when the sync API is unavailable", async ()
   assert.equal(result.status, "offline");
 });
 
+test("offline schedule pushes are retried before pulling newer remote snapshots", async () => {
+  const calls = [];
+  let online = false;
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-revision": "1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+
+      if (options.method === "PUT") {
+        if (!online) {
+          throw new Error("offline");
+        }
+
+        const schedules = JSON.parse(options.body).schedules;
+        return jsonResponse({ revision: 6, schedules, updatedAt: "2026-07-25T00:00:00.000Z" });
+      }
+
+      return jsonResponse({
+        revision: 5,
+        schedules: [{ id: "remote", title: "Remote" }],
+        updatedAt: "2026-07-25T00:00:00.000Z",
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const localSchedules = [{ id: "local", title: "Local" }];
+
+  assert.equal((await client.pushSchedules(localSchedules)).status, "offline");
+  assert.match(storage.getItem("focus-sync-pending-collection-pushes"), /schedules/);
+
+  online = true;
+  const result = await client.syncSchedules(localSchedules);
+
+  assert.equal(result.status, "pushed");
+  assert.deepEqual(result.schedules, localSchedules);
+  assert.equal(storage.getItem("focus-sync-pending-collection-pushes"), null);
+  assert.equal(storage.getItem("focus-sync-revision"), "6");
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].url, "/api/sync/schedules");
+  assert.equal(calls[1].options.method, "PUT");
+});
+
+test("failed sync snapshot saves are marked pending for the next recovery", async () => {
+  const calls = [];
+  let putOnline = false;
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-revision": "1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+
+      if (options.method === "PUT") {
+        if (!putOnline) {
+          throw new Error("put failed");
+        }
+
+        const schedules = JSON.parse(options.body).schedules;
+        return jsonResponse({ revision: 2, schedules, updatedAt: "2026-07-25T00:00:00.000Z" });
+      }
+
+      return jsonResponse({
+        revision: 1,
+        schedules: [{ id: "existing", title: "Existing" }],
+        updatedAt: "2026-07-25T00:00:00.000Z",
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const localSchedules = [{ id: "local", title: "Local" }];
+
+  assert.equal((await client.syncSchedules(localSchedules)).status, "offline");
+  assert.match(storage.getItem("focus-sync-pending-collection-pushes"), /schedules/);
+
+  putOnline = true;
+  const result = await client.syncSchedules(localSchedules);
+
+  assert.equal(result.status, "pushed");
+  assert.deepEqual(result.schedules, localSchedules);
+  assert.equal(storage.getItem("focus-sync-pending-collection-pushes"), null);
+  assert.equal(calls.length, 3);
+  assert.equal(calls[2].options.method, "PUT");
+});
+
 test("pushSchedules serializes concurrent writes so later snapshots cannot be overwritten", async () => {
   const pushedSnapshots = [];
   let releaseFirstPush = null;
@@ -737,6 +829,8 @@ test("clearAccountId disconnects the current account without clearing the device
     "focus-sync-account-id": "orbit:account",
     "focus-sync-device-id": "device-1",
     "focus-sync-revision": "7",
+    "focus-sync-pending-collection-pushes": JSON.stringify(["schedules"]),
+    "focus-sync-pending-account-profile": JSON.stringify({ accountId: "orbit:account", displayName: "Focus", deviceName: "Laptop" }),
   });
   const client = createFocusSyncClient({
     fetch: async () => jsonResponse({}),
@@ -749,6 +843,8 @@ test("clearAccountId disconnects the current account without clearing the device
   assert.equal(client.peekAccountId(), "");
   assert.equal(storage.getItem("focus-sync-device-id"), "device-1");
   assert.equal(storage.getItem("focus-sync-revision"), "0");
+  assert.equal(storage.getItem("focus-sync-pending-collection-pushes"), null);
+  assert.equal(storage.getItem("focus-sync-pending-account-profile"), null);
 });
 
 test("disconnectCurrentDevice removes the remote current device without clearing local sync state", async () => {

@@ -1183,3 +1183,56 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Failed sync account profile saves are now queued and retried on app startup and online recovery.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-25. No deployment or git push.
+
+## TASK-023
+
+- title: Retry pending collection pushes before remote pulls
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work after TASK-022; offline background pushes had no explicit pending marker before online recovery
+- spec_reference: `docs/specs/sync-pending-collection-push-retry.md`
+- spec_status: approved_for_task_023
+- goal: preserve failed local collection pushes and retry them before pulling newer remote snapshots during recovery sync.
+- out_of_scope:
+  - multi-device merge/conflict UI
+  - per-item CRDT or server-side merge model
+  - backend API changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - offline background push writes a pending collection marker
+  - online recovery sync retries the pending local snapshot before reading newer remote data
+  - successful retry clears the pending marker and updates the local revision
+  - existing non-pending pull behavior stays unchanged
+  - local sync disconnect clears stale pending collection markers
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one medium product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 22
+- stop_conditions:
+  - implementation requires backend conflict-resolution or data-model redesign
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/sync.js`
+  - `public/service-worker.js`
+  - sync client and install contract tests
+- dependencies:
+  - TASK-008 guarded background sync pushes
+  - TASK-012 online recovery sync coalescing
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Failed background collection pushes are marked pending and retried before remote pulls on the next recovery sync.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-25. No deployment or git push.

@@ -85,3 +85,8 @@ Keep entries short and factual.
 | 2026-07-25 | TASK-022 | Completed targeted pending profile update checks. | Syntax checks passed and targeted tests passed 61/61. | DONE | Run `npm.cmd run test`; deploy remains separate. |
 | 2026-07-25 | TASK-022 | Completed pending profile update full checks. | `npm.cmd run test` passed 107/107. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-25 | TASK-022 | Committed pending profile update retry locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-25 | TASK-023 | Started pending collection push retry. | Offline background pushes had no explicit pending marker before recovery sync. | IN_PROGRESS | Add pending markers, retry-before-pull behavior, and checks. |
+| 2026-07-25 | TASK-023 | Implemented pending collection push retry locally. | Sync client tracks pending collection pushes, retries them before remote pulls, clears stale markers on disconnect, and bumps service worker cache to `focus-pwa-v61`. | DONE | Run checks and commit locally. |
+| 2026-07-25 | TASK-023 | Completed targeted pending collection push checks. | Syntax checks passed and targeted tests passed 63/63. | DONE | Run `npm.cmd run test`; deploy remains separate. |
+| 2026-07-25 | TASK-023 | Completed pending collection push full checks. | `npm.cmd run test` passed 109/109. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-25 | TASK-023 | Committed pending collection push retry locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
