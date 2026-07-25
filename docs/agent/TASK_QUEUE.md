@@ -1011,3 +1011,62 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Sync and push routes now reject unknown account ids, Orbit Auth creates its account explicitly, and Settings validates typed codes before saving them locally.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-23. No deployment or git push.
+
+## TASK-020
+
+- title: Remove current sync device on server disconnect
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work on 2026-07-25 after TASK-019; TASK-017 local disconnect left server-side device sessions and push subscriptions behind
+- spec_reference: `docs/specs/sync-current-device-server-disconnect.md`
+- spec_status: approved_for_task_020
+- goal: remove the current device session and its push subscriptions from the sync backend when a code-based device disconnects.
+- out_of_scope:
+  - account deletion
+  - removing other devices
+  - Orbit Auth logout changes
+  - browser PushManager unsubscribe
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - backend exposes `DELETE /api/sync/devices/current`
+  - endpoint rejects missing or unknown account ids using existing sync account validation
+  - endpoint removes only the current device session
+  - endpoint removes push subscriptions for the current device
+  - Settings attempts server cleanup before local account clearing
+  - local disconnect still completes if server cleanup fails
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/sync.js`
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-client.test.mjs tests/focus-sync-server.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one medium product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 19
+- stop_conditions:
+  - implementation requires account deletion, cross-device removal, or auth redesign
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/sync.js`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - sync server/client contract tests
+- dependencies:
+  - TASK-017 local disconnect action
+  - TASK-019 strict account validation
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Code-based disconnect now removes the current server-side device session and current-device push subscriptions before clearing local sync state.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-25. No deployment or git push.

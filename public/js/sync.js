@@ -235,6 +235,37 @@ export function createFocusSyncClient({
       setRevision(0, DIARY_REVISION_KEY);
     },
 
+    async disconnectCurrentDevice() {
+      const accountId = getStored(ACCOUNT_KEY);
+      if (!accountId) {
+        return { status: "idle", removedDeviceSessions: 0, removedPushSubscriptions: 0 };
+      }
+
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/devices/current"), {
+          method: "DELETE",
+          headers: withAccountHeaders(accountId),
+        });
+
+        if (response.status === 404) {
+          return { status: "not-found", removedDeviceSessions: 0, removedPushSubscriptions: 0 };
+        }
+
+        if (!response.ok) {
+          throw new Error("Focus current device disconnect failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "removed",
+          removedDeviceSessions: result.removedDeviceSessions || 0,
+          removedPushSubscriptions: result.removedPushSubscriptions || 0,
+        };
+      } catch {
+        return { status: "offline", removedDeviceSessions: 0, removedPushSubscriptions: 0 };
+      }
+    },
+
     getAccountId,
     getDeviceId,
     getDeviceName,

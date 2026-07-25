@@ -110,6 +110,18 @@ class JsonSyncDatabase {
     return this.state.deviceSessions[sessionKey];
   }
 
+  removeDeviceSession({ accountId, deviceId }) {
+    const sessionKey = `${accountId}:${deviceId}`;
+    const existed = Boolean(this.state.deviceSessions[sessionKey]);
+
+    if (existed) {
+      delete this.state.deviceSessions[sessionKey];
+      this.persist();
+    }
+
+    return existed ? 1 : 0;
+  }
+
   getScheduleSnapshot(accountId) {
     return this.state.scheduleSnapshots[accountId] || null;
   }
@@ -239,6 +251,19 @@ class JsonSyncDatabase {
     this.state.pushSubscriptions[accountId] = subscriptions;
     this.persist();
     return subscriptions.length;
+  }
+
+  removePushSubscriptionsForDevice({ accountId, deviceId }) {
+    const current = this.getPushSubscriptions(accountId);
+    const subscriptions = current.filter(item => item.deviceId !== deviceId);
+    const removed = current.length - subscriptions.length;
+
+    if (removed > 0) {
+      this.state.pushSubscriptions[accountId] = subscriptions;
+      this.persist();
+    }
+
+    return removed;
   }
 
   listPushEvents(accountId, limit = 8) {
@@ -691,6 +716,34 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     return;
   }
 
+  if (url.pathname === "/api/sync/devices/current") {
+    const accountContext = getExistingAccountContext({ request, response, db, now, touch: false });
+    if (!accountContext) return;
+
+    if (request.method !== "DELETE") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    const removedDeviceSessions = db.removeDeviceSession({
+      accountId: accountContext.accountId,
+      deviceId: accountContext.deviceId,
+    });
+    const removedPushSubscriptions = db.removePushSubscriptionsForDevice({
+      accountId: accountContext.accountId,
+      deviceId: accountContext.deviceId,
+    });
+
+    sendJson(response, 200, {
+      disconnected: true,
+      accountId: accountContext.accountId,
+      deviceId: accountContext.deviceId,
+      removedDeviceSessions,
+      removedPushSubscriptions,
+    });
+    return;
+  }
+
   if (url.pathname === "/api/sync/schedules") {
     const accountContext = getExistingAccountContext({ request, response, db, now });
     if (!accountContext) return;
@@ -1103,7 +1156,7 @@ function getDeviceName(request) {
   }
 }
 
-function getExistingAccountContext({ request, response, db, now }) {
+function getExistingAccountContext({ request, response, db, now, touch = true }) {
   const accountId = getAccountId(request);
   if (!accountId) {
     sendJson(response, 401, { error: "account_required" });
@@ -1117,12 +1170,15 @@ function getExistingAccountContext({ request, response, db, now }) {
 
   const deviceId = getDeviceId(request);
   const checkedAt = now();
-  touchAccount(db, {
-    accountId,
-    deviceId,
-    deviceName: getDeviceName(request),
-    now: checkedAt,
-  });
+
+  if (touch) {
+    touchAccount(db, {
+      accountId,
+      deviceId,
+      deviceName: getDeviceName(request),
+      now: checkedAt,
+    });
+  }
 
   return {
     accountId,

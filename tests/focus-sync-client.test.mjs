@@ -692,6 +692,37 @@ test("clearAccountId disconnects the current account without clearing the device
   assert.equal(storage.getItem("focus-sync-revision"), "0");
 });
 
+test("disconnectCurrentDevice removes the remote current device without clearing local sync state", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "shared-account-123",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        disconnected: true,
+        removedDeviceSessions: 1,
+        removedPushSubscriptions: 1,
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-2",
+  });
+
+  assert.deepEqual(await client.disconnectCurrentDevice(), {
+    status: "removed",
+    removedDeviceSessions: 1,
+    removedPushSubscriptions: 1,
+  });
+  assert.equal(client.peekAccountId(), "shared-account-123");
+  assert.equal(calls[0].url, "/api/sync/devices/current");
+  assert.equal(calls[0].options.method, "DELETE");
+  assert.equal(calls[0].options.headers["x-focus-account"], "shared-account-123");
+  assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
+});
+
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,

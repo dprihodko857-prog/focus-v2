@@ -324,6 +324,74 @@ test("sync account profile tracks account and device metadata", async () => {
   }
 });
 
+test("sync API disconnects the current device and removes its push subscriptions", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+  const accountId = "account-device-disconnect";
+  createTestAccount(db, accountId);
+
+  try {
+    await fetch(`${baseUrl}/api/sync/account`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+        "x-focus-device-name": encodeURIComponent("Ноутбук"),
+      },
+    });
+    await fetch(`${baseUrl}/api/sync/account`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+        "x-focus-device-name": encodeURIComponent("iPhone"),
+      },
+    });
+    db.savePushSubscription({
+      accountId,
+      deviceId: "desktop",
+      subscription: createPushSubscription("https://push.example/send/desktop"),
+      updatedAt: "2026-07-10T10:00:00.000Z",
+    });
+    db.savePushSubscription({
+      accountId,
+      deviceId: "phone",
+      subscription: createPushSubscription("https://push.example/send/phone"),
+      updatedAt: "2026-07-10T10:00:00.000Z",
+    });
+
+    const response = await fetch(`${baseUrl}/api/sync/devices/current`, {
+      method: "DELETE",
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+      },
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      disconnected: true,
+      accountId,
+      deviceId: "phone",
+      removedDeviceSessions: 1,
+      removedPushSubscriptions: 1,
+    });
+    assert.equal(db.getPushSubscriptions(accountId).length, 1);
+    assert.equal(db.getPushSubscriptions(accountId)[0].deviceId, "desktop");
+
+    const profileResponse = await fetch(`${baseUrl}/api/sync/account`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    const profile = await profileResponse.json();
+    assert.deepEqual(profile.devices.map(device => device.deviceId), ["desktop"]);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("sync database persists schedule snapshots across server restarts", async () => {
   const tempDir = mkdtempSync(join(tmpdir(), "focus-sync-"));
   const dbPath = join(tempDir, "sync.json");

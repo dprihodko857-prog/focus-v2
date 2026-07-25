@@ -4320,7 +4320,7 @@ async function saveSyncAccountProfile() {
   }
 }
 
-function disconnectSyncAccount() {
+async function disconnectSyncAccount() {
   const accountId = scheduleSync.peekAccountId();
 
   if (!accountId) {
@@ -4337,11 +4337,23 @@ function disconnectSyncAccount() {
   const confirmed = window.confirm("Отключить это устройство от синхронизации? Локальные данные останутся на устройстве.");
   if (!confirmed) return;
 
+  const result = await scheduleSync.disconnectCurrentDevice();
   scheduleSync.clearAccountId();
   syncAccountProfile = null;
   resetSyncCollectionStates();
   renderSyncState();
-  setSyncStatus("Это устройство отключено от синхронизации. Локальные данные остались на устройстве.");
+
+  if (result.status === "removed") {
+    setSyncStatus("Это устройство отключено от синхронизации и удалено из списка устройств. Локальные данные остались на устройстве.");
+    return;
+  }
+
+  if (result.status === "not-found") {
+    setSyncStatus("Аккаунт уже не найден на сервере. Это устройство отключено локально.");
+    return;
+  }
+
+  setSyncStatus("Это устройство отключено локально. Сервер очистится при следующем подключении.");
 }
 
 function getInstallDiagnosticItems() {

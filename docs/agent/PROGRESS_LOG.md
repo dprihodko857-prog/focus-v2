@@ -70,3 +70,8 @@ Keep entries short and factual.
 | 2026-07-23 | TASK-019 | Implemented sync account code validation locally. | Sync/push routes reject unknown accounts, Orbit Auth creates its account, and Settings checks typed codes before saving them. | DONE | Run checks and commit locally. |
 | 2026-07-23 | TASK-019 | Completed sync account code validation checks. | Syntax checks passed, targeted tests passed 65/65, and `npm.cmd run test` passed 103/103. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-23 | TASK-019 | Committed sync account code validation locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-25 | TASK-020 | Started current-device server disconnect. | Local disconnect left server device sessions and current-device push subscriptions behind. | IN_PROGRESS | Add server route, client helper, and focused tests. |
+| 2026-07-25 | TASK-020 | Implemented current-device server disconnect locally. | `DELETE /api/sync/devices/current`, client helper, Settings flow, and contract tests added. | DONE | Run full checks and commit locally. |
+| 2026-07-25 | TASK-020 | Completed targeted current-device disconnect checks. | Syntax checks passed and targeted tests passed 81/81. | DONE | Run `npm.cmd run test`; deploy remains separate. |
+| 2026-07-25 | TASK-020 | Completed current-device disconnect full checks. | `npm.cmd run test` passed 105/105. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-25 | TASK-020 | Committed current-device server disconnect locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
