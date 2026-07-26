@@ -115,3 +115,8 @@ Keep entries short and factual.
 | 2026-07-26 | TASK-028 | Completed targeted Orbit Auth account switch cleanup checks. | Syntax checks passed and targeted tests passed 35/35. | DONE | Run `npm.cmd run test`; deploy remains separate. |
 | 2026-07-26 | TASK-028 | Completed Orbit Auth account switch cleanup full checks. | `npm.cmd run test` passed 116/116. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-26 | TASK-028 | Committed Orbit Auth account switch cleanup locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-26 | TASK-029 | Started account-switch diagnostics reset. | Per-collection sync diagnostics could show old account statuses after switching to another account. | IN_PROGRESS | Reset diagnostics only after a real account change and run checks. |
+| 2026-07-26 | TASK-029 | Implemented account-switch diagnostics reset locally. | The account-switch cleanup helper now reports real changes; manual sync-code and Orbit Auth switches reset collection diagnostics after storing the new account id. | DONE | Run checks and commit locally; deploy remains separate. |
+| 2026-07-26 | TASK-029 | Completed targeted account-switch diagnostics reset checks. | Syntax checks passed and targeted tests passed 36/36. | DONE | Run `npm.cmd run test`; deploy remains separate. |
+| 2026-07-26 | TASK-029 | Completed account-switch diagnostics reset full checks. | `npm.cmd run test` passed 117/117. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-26 | TASK-029 | Committed account-switch diagnostics reset locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

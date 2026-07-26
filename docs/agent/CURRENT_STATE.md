@@ -39,6 +39,7 @@ Status: DRAFT
 - TASK-026 is implemented locally: Orbit logout attempts current-device cleanup and local push unsubscribe before clearing local sync state; service worker cache is `focus-pwa-v64`.
 - TASK-027 is implemented locally: switching to another sync account attempts previous-account current-device cleanup and local push unsubscribe before storing the new account; service worker cache is `focus-pwa-v65`.
 - TASK-028 is implemented locally: Orbit Auth account switching uses the same previous-account current-device cleanup and local push unsubscribe helper; service worker cache is `focus-pwa-v66`.
+- TASK-029 is implemented locally: manual sync-code and Orbit Auth account switching reset per-collection sync diagnostics after a real account change; service worker cache is `focus-pwa-v67`.
 
 ## In Progress
 
@@ -59,7 +60,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-028 checks passed locally; `npm.cmd run test` passed 116/116.
+- Current result: local Git repository exists; TASK-029 checks passed locally; `npm.cmd run test` passed 117/117.
 
 ## Open Questions
 

@@ -1509,3 +1509,57 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Orbit Auth account switching now shares the previous-account current-device cleanup and local push unsubscribe helper with manual sync-code switching.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-26. No deployment or git push.
+
+## TASK-029
+
+- title: Reset sync diagnostics on account switch
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work after TASK-028; sync diagnostics could briefly show old account statuses after switching accounts
+- spec_reference: `docs/specs/sync-account-switch-diagnostics-reset.md`
+- spec_status: approved_for_task_029
+- goal: reset per-collection sync diagnostics after a real switch to another sync account.
+- out_of_scope:
+  - backend changes
+  - sync conflict policy changes
+  - push provider changes
+  - visual redesign
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - account-switch helper reports whether a real previous-account switch happened
+  - manual sync-code switching resets collection diagnostics after storing the new account when account ids differ
+  - Orbit Auth account switching resets collection diagnostics after storing the new account when account ids differ
+  - same-account refresh does not reset diagnostics
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 28
+- stop_conditions:
+  - implementation requires backend changes
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - sync/install contract tests
+- dependencies:
+  - TASK-016 sync data status diagnostics
+  - TASK-027 previous-account cleanup during manual sync-code switching
+  - TASK-028 previous-account cleanup during Orbit Auth switching
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Real sync account switches now reset stale per-collection diagnostics before the new account sync status is shown.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-26. No deployment or git push.

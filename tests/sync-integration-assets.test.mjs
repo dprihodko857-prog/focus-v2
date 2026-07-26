@@ -22,7 +22,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v66/);
+  assert.match(serviceWorker, /focus-pwa-v67/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
@@ -78,15 +78,22 @@ test("sync account switch cleans up previous device before saving the next accou
   assert.match(appJs, /async function cleanupCurrentSyncDeviceBeforeAccountChange\(nextAccountId\)/);
   assert.match(appJs, /const nextAccountId = accountCheck\.accountId \|\| accountId/);
   assert.match(appJs, /const previousAccountId = scheduleSync\.peekAccountId\(\)/);
-  assert.match(appJs, /if \(!previousAccountId \|\| previousAccountId === nextAccountId\) \{[\s\S]*?return;[\s\S]*?\}/);
+  assert.match(appJs, /if \(!previousAccountId \|\| previousAccountId === nextAccountId\) \{[\s\S]*?return false;[\s\S]*?\}/);
   assert.match(appJs, /await scheduleSync\.disconnectCurrentDevice\(\);[\s\S]*?await focusNotifications\.unsubscribePush\?\.\(\);/);
-  assert.match(appJs, /await cleanupCurrentSyncDeviceBeforeAccountChange\(nextAccountId\);[\s\S]*?scheduleSync\.setAccountId\(nextAccountId\)/);
+  assert.match(appJs, /return true;/);
+  assert.match(appJs, /const accountChanged = await cleanupCurrentSyncDeviceBeforeAccountChange\(nextAccountId\);[\s\S]*?scheduleSync\.setAccountId\(nextAccountId\)/);
 });
 
 test("orbit auth session switch cleans up previous device before saving the orbit account", () => {
   assert.match(appJs, /async function refreshAuthSession/);
   assert.match(appJs, /authSession\.authenticated && authSession\.accountId && scheduleSync\.peekAccountId\(\) !== authSession\.accountId/);
-  assert.match(appJs, /await cleanupCurrentSyncDeviceBeforeAccountChange\(authSession\.accountId\);[\s\S]*?scheduleSync\.setAccountId\(authSession\.accountId\)/);
+  assert.match(appJs, /const accountChanged = await cleanupCurrentSyncDeviceBeforeAccountChange\(authSession\.accountId\);[\s\S]*?scheduleSync\.setAccountId\(authSession\.accountId\)/);
+});
+
+test("sync account switching clears stale collection diagnostics", () => {
+  assert.match(appJs, /if \(accountChanged\) \{[\s\S]*?resetSyncCollectionStates\(\);[\s\S]*?\}/);
+  assert.match(appJs, /const accountChanged = await cleanupCurrentSyncDeviceBeforeAccountChange\(authSession\.accountId\);[\s\S]*?if \(accountChanged\) \{[\s\S]*?resetSyncCollectionStates\(\);[\s\S]*?\}/);
+  assert.match(appJs, /const accountChanged = await cleanupCurrentSyncDeviceBeforeAccountChange\(nextAccountId\);[\s\S]*?if \(accountChanged\) \{[\s\S]*?resetSyncCollectionStates\(\);[\s\S]*?\}/);
 });
 
 test("settings can copy the sync account code", () => {

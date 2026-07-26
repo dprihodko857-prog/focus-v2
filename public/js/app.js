@@ -4179,20 +4179,24 @@ async function cleanupCurrentSyncDeviceBeforeAccountChange(nextAccountId) {
   const previousAccountId = scheduleSync.peekAccountId();
 
   if (!previousAccountId || previousAccountId === nextAccountId) {
-    return;
+    return false;
   }
 
   await scheduleSync.disconnectCurrentDevice();
   await focusNotifications.unsubscribePush?.();
+  return true;
 }
 
 async function refreshAuthSession() {
   authSession = await focusAuth.getSession();
 
   if (authSession.authenticated && authSession.accountId && scheduleSync.peekAccountId() !== authSession.accountId) {
-    await cleanupCurrentSyncDeviceBeforeAccountChange(authSession.accountId);
+    const accountChanged = await cleanupCurrentSyncDeviceBeforeAccountChange(authSession.accountId);
     scheduleSync.setAccountId(authSession.accountId);
     syncAccountProfile = null;
+    if (accountChanged) {
+      resetSyncCollectionStates();
+    }
   }
 
   renderAuthState(authSession);
@@ -4737,8 +4741,11 @@ async function connectSyncAccount() {
     }
 
     const nextAccountId = accountCheck.accountId || accountId;
-    await cleanupCurrentSyncDeviceBeforeAccountChange(nextAccountId);
+    const accountChanged = await cleanupCurrentSyncDeviceBeforeAccountChange(nextAccountId);
     scheduleSync.setAccountId(nextAccountId);
+    if (accountChanged) {
+      resetSyncCollectionStates();
+    }
     setSyncStatus("Подключаем аккаунт...");
     const result = await syncSavedSchedules();
     await syncSavedTasks();
