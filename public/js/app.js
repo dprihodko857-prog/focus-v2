@@ -4724,7 +4724,15 @@ async function connectSyncAccount() {
       return;
     }
 
-    scheduleSync.setAccountId(accountCheck.accountId || accountId);
+    const nextAccountId = accountCheck.accountId || accountId;
+    const previousAccountId = scheduleSync.peekAccountId();
+
+    if (previousAccountId && previousAccountId !== nextAccountId) {
+      await scheduleSync.disconnectCurrentDevice();
+      await focusNotifications.unsubscribePush?.();
+    }
+
+    scheduleSync.setAccountId(nextAccountId);
     setSyncStatus("Подключаем аккаунт...");
     const result = await syncSavedSchedules();
     await syncSavedTasks();

@@ -22,7 +22,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v64/);
+  assert.match(serviceWorker, /focus-pwa-v65/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
@@ -71,6 +71,14 @@ test("orbit logout cleans up current sync device and local push subscription", (
   assert.match(appJs, /await focusNotifications\.unsubscribePush\?\.\(\)/);
   assert.match(appJs, /scheduleSync\.clearAccountId\(\)/);
   assert.match(appJs, /resetSyncCollectionStates\(\)/);
+});
+
+test("sync account switch cleans up previous device before saving the next account", () => {
+  assert.match(appJs, /async function connectSyncAccount/);
+  assert.match(appJs, /const nextAccountId = accountCheck\.accountId \|\| accountId/);
+  assert.match(appJs, /const previousAccountId = scheduleSync\.peekAccountId\(\)/);
+  assert.match(appJs, /if \(previousAccountId && previousAccountId !== nextAccountId\) \{[\s\S]*?await scheduleSync\.disconnectCurrentDevice\(\);[\s\S]*?await focusNotifications\.unsubscribePush\?\.\(\);[\s\S]*?\}/);
+  assert.match(appJs, /scheduleSync\.setAccountId\(nextAccountId\)/);
 });
 
 test("settings can copy the sync account code", () => {

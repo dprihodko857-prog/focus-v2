@@ -105,3 +105,8 @@ Keep entries short and factual.
 | 2026-07-26 | TASK-026 | Completed targeted Orbit logout cleanup checks. | Syntax checks passed and targeted tests passed 33/33. | DONE | Run `npm.cmd run test`; deploy remains separate. |
 | 2026-07-26 | TASK-026 | Completed Orbit logout cleanup full checks. | `npm.cmd run test` passed 114/114. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-26 | TASK-026 | Committed Orbit logout cleanup locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-26 | TASK-027 | Started sync account switch device cleanup. | Directly switching to another sync code could leave the previous account with the current device session and local push subscription. | IN_PROGRESS | Add cleanup before storing the next account and run checks. |
+| 2026-07-26 | TASK-027 | Implemented sync account switch device cleanup locally. | `connectSyncAccount` now cleans up the previous account/device when the validated target account differs, then registers push for the new account. | DONE | Run checks and commit locally; deploy remains separate. |
+| 2026-07-26 | TASK-027 | Completed targeted sync account switch cleanup checks. | Syntax checks passed and targeted tests passed 34/34. | DONE | Run `npm.cmd run test`; deploy remains separate. |
+| 2026-07-26 | TASK-027 | Completed sync account switch cleanup full checks. | `npm.cmd run test` passed 115/115. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-26 | TASK-027 | Committed sync account switch cleanup locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

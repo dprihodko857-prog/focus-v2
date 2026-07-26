@@ -32,4 +32,5 @@ Status: DRAFT
 | SYNC-ACCOUNT-SWITCH-PENDING-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-account-switch-pending-cleanup.md` | TASK-024 clears stale account-scoped pending queues when switching sync accounts while preserving old device cleanup retries. |
 | PUSH-UNSUBSCRIBE-ON-SYNC-DISCONNECT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-unsubscribe-on-sync-disconnect.md` | TASK-025 unsubscribes the local browser PushManager subscription during code-based sync disconnect. |
 | ORBIT-LOGOUT-DEVICE-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/orbit-logout-device-cleanup.md` | TASK-026 runs current-device cleanup and local push unsubscribe on Orbit logout before clearing local sync state. |
+| SYNC-ACCOUNT-SWITCH-DEVICE-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-account-switch-device-cleanup.md` | TASK-027 runs previous-account current-device cleanup and local push unsubscribe before switching to another sync account. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

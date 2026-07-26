@@ -1399,3 +1399,58 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Orbit logout now attempts current-device cleanup and local push unsubscribe before clearing local sync state.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-26. No deployment or git push.
+
+## TASK-027
+
+- title: Clean up previous sync device on account switch
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work after TASK-026; direct account switching could leave previous device and push state attached to the old account
+- spec_reference: `docs/specs/sync-account-switch-device-cleanup.md`
+- spec_status: approved_for_task_027
+- goal: run previous-account current-device cleanup and local push unsubscribe before storing a different sync account id.
+- out_of_scope:
+  - account deletion
+  - Orbit Auth server changes
+  - browser notification permission reset
+  - push provider changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - target sync account is validated before local account switching
+  - previous-account current-device cleanup runs before `scheduleSync.setAccountId(nextAccountId)` when account ids differ
+  - local browser push unsubscribe runs before new-account push registration when account ids differ
+  - same-account reconnect behavior remains unchanged
+  - pending device disconnect retry behavior is preserved for offline cleanup
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 26
+- stop_conditions:
+  - implementation requires backend changes or browser permission reset
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - sync/install contract tests
+- dependencies:
+  - TASK-020 current-device server disconnect endpoint
+  - TASK-021 pending device disconnect retry
+  - TASK-025 local push unsubscribe helper
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Switching to another sync account now attempts previous-account current-device cleanup and local push unsubscribe before storing the new account.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-26. No deployment or git push.
