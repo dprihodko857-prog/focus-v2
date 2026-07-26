@@ -1290,3 +1290,58 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Switching sync accounts clears stale pending profile and collection queues while preserving old device disconnect cleanup.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-26. No deployment or git push.
+
+## TASK-025
+
+- title: Unsubscribe local push on sync disconnect
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work after TASK-024; code-based disconnect removed server subscriptions but did not clear the local PushManager subscription
+- spec_reference: `docs/specs/push-unsubscribe-on-sync-disconnect.md`
+- spec_status: approved_for_task_025
+- goal: remove the local browser/PWA push subscription when the current device is disconnected from a code-based sync account.
+- out_of_scope:
+  - browser notification permission reset
+  - backend API changes
+  - account deletion
+  - push provider changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - existing local PushManager subscription is unsubscribed during code-based sync disconnect
+  - missing local subscription does not block disconnect
+  - local unsubscribe failure does not throw or block disconnect
+  - server-side device cleanup and local account clearing remain unchanged
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/notifications.js`
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-notifications.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 24
+- stop_conditions:
+  - implementation requires backend changes or browser permission reset
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/notifications.js`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - notification and sync contract tests
+- dependencies:
+  - TASK-020 current-device server disconnect endpoint
+  - existing PushManager subscription helper
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Code-based sync disconnect now also attempts to unsubscribe the local browser push subscription without blocking disconnect.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-26. No deployment or git push.

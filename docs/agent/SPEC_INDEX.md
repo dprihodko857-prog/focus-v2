@@ -30,4 +30,5 @@ Status: DRAFT
 | SYNC-PENDING-PROFILE-UPDATE-RETRY-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-pending-profile-update-retry.md` | TASK-022 queues failed sync account profile saves and retries them on startup and online recovery. |
 | SYNC-PENDING-COLLECTION-PUSH-RETRY-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-pending-collection-push-retry.md` | TASK-023 marks failed background collection pushes pending and retries them before remote pulls on recovery sync. |
 | SYNC-ACCOUNT-SWITCH-PENDING-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-account-switch-pending-cleanup.md` | TASK-024 clears stale account-scoped pending queues when switching sync accounts while preserving old device cleanup retries. |
+| PUSH-UNSUBSCRIBE-ON-SYNC-DISCONNECT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-unsubscribe-on-sync-disconnect.md` | TASK-025 unsubscribes the local browser PushManager subscription during code-based sync disconnect. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

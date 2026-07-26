@@ -150,6 +150,30 @@ export function createFocusNotifications({
     }
   };
 
+  const unsubscribePush = async () => {
+    try {
+      const registration = await navigatorApi?.serviceWorker?.ready;
+      const subscription = await registration?.pushManager?.getSubscription?.();
+
+      if (!subscription) {
+        return { status: "empty" };
+      }
+
+      if (!subscription.unsubscribe) {
+        return { status: "unsupported" };
+      }
+
+      const unsubscribed = await subscription.unsubscribe();
+      return { status: unsubscribed ? "unsubscribed" : "failed" };
+    } catch (error) {
+      return {
+        status: "failed",
+        errorName: error?.name || "",
+        errorMessage: error?.message || "",
+      };
+    }
+  };
+
   const clearReminder = reminderId => {
     const timer = timers.get(reminderId);
 
@@ -235,6 +259,7 @@ export function createFocusNotifications({
     getPermission,
     requestPermission,
     subscribePush,
+    unsubscribePush,
     showReminder,
     schedule,
     scheduleMany(reminders, onDelivered) {

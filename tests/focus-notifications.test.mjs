@@ -173,6 +173,73 @@ test("push subscription requires notification permission before subscribing", as
   assert.equal(result.status, "permission-required");
 });
 
+test("push subscription can be unsubscribed from the local browser", async () => {
+  let unsubscribed = false;
+  const notifications = createFocusNotifications({
+    notificationApi: { permission: "granted" },
+    navigatorApi: {
+      serviceWorker: {
+        ready: Promise.resolve({
+          pushManager: {
+            async getSubscription() {
+              return {
+                async unsubscribe() {
+                  unsubscribed = true;
+                  return true;
+                },
+              };
+            },
+          },
+        }),
+      },
+    },
+  });
+
+  assert.deepEqual(await notifications.unsubscribePush(), { status: "unsubscribed" });
+  assert.equal(unsubscribed, true);
+});
+
+test("push unsubscribe is safe when the browser has no local subscription", async () => {
+  const notifications = createFocusNotifications({
+    notificationApi: { permission: "granted" },
+    navigatorApi: {
+      serviceWorker: {
+        ready: Promise.resolve({
+          pushManager: {
+            async getSubscription() {
+              return null;
+            },
+          },
+        }),
+      },
+    },
+  });
+
+  assert.deepEqual(await notifications.unsubscribePush(), { status: "empty" });
+});
+
+test("push unsubscribe reports local browser failures without throwing", async () => {
+  const notifications = createFocusNotifications({
+    notificationApi: { permission: "granted" },
+    navigatorApi: {
+      serviceWorker: {
+        ready: Promise.resolve({
+          pushManager: {
+            async getSubscription() {
+              throw new DOMException("Push store unavailable", "InvalidStateError");
+            },
+          },
+        }),
+      },
+    },
+  });
+
+  const result = await notifications.unsubscribePush();
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.errorName, "InvalidStateError");
+});
+
 test("notification scheduler reschedules reminders beyond the maximum timer delay", async () => {
   const timers = [];
   const delivered = [];

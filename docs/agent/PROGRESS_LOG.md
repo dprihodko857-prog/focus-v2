@@ -95,3 +95,8 @@ Keep entries short and factual.
 | 2026-07-26 | TASK-024 | Completed targeted account switch pending cleanup checks. | Syntax checks passed and targeted tests passed 64/64. | DONE | Run `npm.cmd run test`; deploy remains separate. |
 | 2026-07-26 | TASK-024 | Completed account switch pending cleanup full checks. | `npm.cmd run test` passed 110/110. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-26 | TASK-024 | Committed account switch pending cleanup locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-26 | TASK-025 | Started local push unsubscribe on sync disconnect. | Code-based disconnect removed server push subscriptions but left local PushManager subscription active. | IN_PROGRESS | Add local unsubscribe helper, call it on disconnect, run checks. |
+| 2026-07-26 | TASK-025 | Implemented local push unsubscribe on sync disconnect locally. | Notification client now has `unsubscribePush`; Settings disconnect calls it best-effort after server cleanup and before local account clearing. | DONE | Run checks and commit locally. |
+| 2026-07-26 | TASK-025 | Completed targeted local push unsubscribe checks. | Syntax checks passed and targeted tests passed 43/43. | DONE | Run `npm.cmd run test`; deploy remains separate. |
+| 2026-07-26 | TASK-025 | Completed local push unsubscribe full checks. | `npm.cmd run test` passed 113/113. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-26 | TASK-025 | Committed local push unsubscribe locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

@@ -4338,6 +4338,7 @@ async function disconnectSyncAccount() {
   if (!confirmed) return;
 
   const result = await scheduleSync.disconnectCurrentDevice();
+  await focusNotifications.unsubscribePush?.();
   scheduleSync.clearAccountId();
   syncAccountProfile = null;
   resetSyncCollectionStates();

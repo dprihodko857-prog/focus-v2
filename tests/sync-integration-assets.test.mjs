@@ -22,7 +22,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v62/);
+  assert.match(serviceWorker, /focus-pwa-v63/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
@@ -84,6 +84,7 @@ test("settings can disconnect code-based sync without clearing local data", () =
   assert.match(appJs, /async function disconnectSyncAccount/);
   assert.match(appJs, /window\.confirm\("Отключить это устройство от синхронизации\? Локальные данные останутся на устройстве\."\)/);
   assert.match(appJs, /scheduleSync\.disconnectCurrentDevice\(\)/);
+  assert.match(appJs, /focusNotifications\.unsubscribePush\?\.\(\)/);
   assert.match(appJs, /scheduleSync\.clearAccountId\(\)/);
   assert.match(appJs, /syncAccountProfile = null/);
   assert.match(appJs, /resetSyncCollectionStates\(\)/);
