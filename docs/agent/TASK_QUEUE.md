@@ -1236,3 +1236,57 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Failed background collection pushes are marked pending and retried before remote pulls on the next recovery sync.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-25. No deployment or git push.
+
+## TASK-024
+
+- title: Clear stale pending sync queues on account switch
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work after TASK-023; account-scoped pending queues could survive switching to another sync code
+- spec_reference: `docs/specs/sync-account-switch-pending-cleanup.md`
+- spec_status: approved_for_task_024
+- goal: prevent stale pending profile/collection work from the previous sync account being applied to a newly connected account.
+- out_of_scope:
+  - account deletion
+  - backend API changes
+  - multi-account queue storage
+  - conflict-resolution UI
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - switching from one account id to another clears stale profile pending state
+  - switching from one account id to another clears stale collection pending state
+  - pending device disconnect cleanup survives account switching
+  - existing revision reset behavior remains unchanged
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 23
+- stop_conditions:
+  - implementation requires backend changes or conflict-resolution redesign
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/sync.js`
+  - `public/service-worker.js`
+  - sync client and install contract tests
+- dependencies:
+  - TASK-021 pending device disconnect retry
+  - TASK-022 pending profile update retry
+  - TASK-023 pending collection push retry
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Switching sync accounts clears stale pending profile and collection queues while preserving old device disconnect cleanup.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-26. No deployment or git push.

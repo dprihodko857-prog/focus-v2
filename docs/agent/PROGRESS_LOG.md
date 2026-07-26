@@ -90,3 +90,8 @@ Keep entries short and factual.
 | 2026-07-25 | TASK-023 | Completed targeted pending collection push checks. | Syntax checks passed and targeted tests passed 63/63. | DONE | Run `npm.cmd run test`; deploy remains separate. |
 | 2026-07-25 | TASK-023 | Completed pending collection push full checks. | `npm.cmd run test` passed 109/109. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-25 | TASK-023 | Committed pending collection push retry locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-26 | TASK-024 | Started account switch pending cleanup. | Switching to another sync code could leave stale account-scoped pending queues from the previous account. | IN_PROGRESS | Clear stale queues, preserve disconnect cleanup, run checks. |
+| 2026-07-26 | TASK-024 | Implemented account switch pending cleanup locally. | `setAccountId` clears stale profile/collection pending queues only when the account id changes and keeps pending device disconnects intact. | DONE | Run checks and commit locally. |
+| 2026-07-26 | TASK-024 | Completed targeted account switch pending cleanup checks. | Syntax checks passed and targeted tests passed 64/64. | DONE | Run `npm.cmd run test`; deploy remains separate. |
+| 2026-07-26 | TASK-024 | Completed account switch pending cleanup full checks. | `npm.cmd run test` passed 110/110. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-26 | TASK-024 | Committed account switch pending cleanup locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

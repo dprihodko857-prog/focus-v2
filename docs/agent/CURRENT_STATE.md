@@ -34,6 +34,7 @@ Status: DRAFT
 - TASK-021 is implemented locally: failed current-device server cleanup is queued and retried on app startup and online recovery even after local sync account clearing; service worker cache is `focus-pwa-v59`.
 - TASK-022 is implemented locally: failed sync account profile saves are queued and retried on app startup and online recovery; service worker cache is `focus-pwa-v60`.
 - TASK-023 is implemented locally: failed background collection pushes are marked pending and retried before remote pulls during startup/online recovery; service worker cache is `focus-pwa-v61`.
+- TASK-024 is implemented locally: switching sync accounts clears stale pending profile/collection queues while preserving old device cleanup retries; service worker cache is `focus-pwa-v62`.
 
 ## In Progress
 
@@ -54,7 +55,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-023 checks passed locally; `npm.cmd run test` passed 109/109.
+- Current result: local Git repository exists; TASK-024 checks passed locally; `npm.cmd run test` passed 110/110.
 
 ## Open Questions
 

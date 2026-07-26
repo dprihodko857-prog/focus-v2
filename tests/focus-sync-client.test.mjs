@@ -824,6 +824,29 @@ test("setAccountId stores a shared account key and resets local revision", () =>
   assert.equal(storage.getItem("focus-sync-diary-revision"), "0");
 });
 
+test("setAccountId clears stale pending account-scoped queues when switching accounts", () => {
+  const pendingDisconnects = JSON.stringify([{ accountId: "old-account", deviceId: "device-1" }]);
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "old-account",
+    "focus-sync-device-id": "device-1",
+    "focus-sync-pending-account-profile": JSON.stringify({ accountId: "old-account", displayName: "Old", deviceName: "Laptop" }),
+    "focus-sync-pending-collection-pushes": JSON.stringify(["schedules", "tasks"]),
+    "focus-sync-pending-device-disconnects": pendingDisconnects,
+  });
+  const client = createFocusSyncClient({
+    fetch: async () => jsonResponse({}),
+    localStorage: storage,
+    randomUUID: () => "device-2",
+  });
+
+  assert.equal(client.setAccountId("new-account-123"), "new-account-123");
+
+  assert.equal(storage.getItem("focus-sync-account-id"), "new-account-123");
+  assert.equal(storage.getItem("focus-sync-pending-account-profile"), null);
+  assert.equal(storage.getItem("focus-sync-pending-collection-pushes"), null);
+  assert.equal(storage.getItem("focus-sync-pending-device-disconnects"), pendingDisconnects);
+});
+
 test("clearAccountId disconnects the current account without clearing the device id", () => {
   const storage = createMemoryLocalStorage({
     "focus-sync-account-id": "orbit:account",

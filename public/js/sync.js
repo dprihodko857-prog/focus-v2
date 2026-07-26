@@ -385,6 +385,12 @@ export function createFocusSyncClient({
         throw new Error("Focus sync account key is invalid.");
       }
 
+      const previousAccountId = getStored(ACCOUNT_KEY);
+      if (previousAccountId !== normalizedAccountId) {
+        removeStored(PENDING_ACCOUNT_PROFILE_KEY);
+        removeStored(PENDING_COLLECTION_PUSHES_KEY);
+      }
+
       setStored(ACCOUNT_KEY, normalizedAccountId);
       setRevision(0);
       setRevision(0, REMINDERS_REVISION_KEY);
