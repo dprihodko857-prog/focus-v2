@@ -100,3 +100,8 @@ Keep entries short and factual.
 | 2026-07-26 | TASK-025 | Completed targeted local push unsubscribe checks. | Syntax checks passed and targeted tests passed 43/43. | DONE | Run `npm.cmd run test`; deploy remains separate. |
 | 2026-07-26 | TASK-025 | Completed local push unsubscribe full checks. | `npm.cmd run test` passed 113/113. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-26 | TASK-025 | Committed local push unsubscribe locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-26 | TASK-026 | Started Orbit logout device cleanup. | Orbit logout cleared local sync state without server current-device cleanup or local push unsubscribe. | IN_PROGRESS | Add cleanup calls and checks. |
+| 2026-07-26 | TASK-026 | Implemented Orbit logout device cleanup locally. | Orbit logout now attempts `disconnectCurrentDevice`, local `unsubscribePush`, local account clearing, and sync diagnostics reset. | DONE | Run checks and commit locally. |
+| 2026-07-26 | TASK-026 | Completed targeted Orbit logout cleanup checks. | Syntax checks passed and targeted tests passed 33/33. | DONE | Run `npm.cmd run test`; deploy remains separate. |
+| 2026-07-26 | TASK-026 | Completed Orbit logout cleanup full checks. | `npm.cmd run test` passed 114/114. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-26 | TASK-026 | Committed Orbit logout cleanup locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

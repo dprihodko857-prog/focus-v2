@@ -4192,8 +4192,11 @@ async function logoutAuthSession() {
   const result = await focusAuth.logout();
   authSession = { ...authSession, ...result, authenticated: false, user: null, accountId: null };
   if (scheduleSync.peekAccountId().startsWith("orbit:")) {
+    await scheduleSync.disconnectCurrentDevice();
+    await focusNotifications.unsubscribePush?.();
     scheduleSync.clearAccountId();
     syncAccountProfile = null;
+    resetSyncCollectionStates();
   }
   renderAuthState(authSession);
   renderSyncState();

@@ -31,4 +31,5 @@ Status: DRAFT
 | SYNC-PENDING-COLLECTION-PUSH-RETRY-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-pending-collection-push-retry.md` | TASK-023 marks failed background collection pushes pending and retries them before remote pulls on recovery sync. |
 | SYNC-ACCOUNT-SWITCH-PENDING-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-account-switch-pending-cleanup.md` | TASK-024 clears stale account-scoped pending queues when switching sync accounts while preserving old device cleanup retries. |
 | PUSH-UNSUBSCRIBE-ON-SYNC-DISCONNECT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-unsubscribe-on-sync-disconnect.md` | TASK-025 unsubscribes the local browser PushManager subscription during code-based sync disconnect. |
+| ORBIT-LOGOUT-DEVICE-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/orbit-logout-device-cleanup.md` | TASK-026 runs current-device cleanup and local push unsubscribe on Orbit logout before clearing local sync state. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

@@ -1345,3 +1345,57 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Code-based sync disconnect now also attempts to unsubscribe the local browser push subscription without blocking disconnect.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-26. No deployment or git push.
+
+## TASK-026
+
+- title: Clean up sync device on Orbit logout
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work after TASK-025; Orbit logout cleared local sync state without using current-device cleanup
+- spec_reference: `docs/specs/orbit-logout-device-cleanup.md`
+- spec_status: approved_for_task_026
+- goal: run current-device server cleanup and local push unsubscribe when logging out from an Orbit-backed sync account.
+- out_of_scope:
+  - Orbit Auth server changes
+  - account deletion
+  - browser notification permission reset
+  - push provider changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - Orbit logout attempts current-device server cleanup before local account clearing
+  - Orbit logout attempts local browser push unsubscribe
+  - offline cleanup still uses the existing pending device disconnect retry queue
+  - local sync state and diagnostics are cleared after logout
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 25
+- stop_conditions:
+  - implementation requires Orbit Auth server changes or browser permission reset
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - sync/install contract tests
+- dependencies:
+  - TASK-020 current-device server disconnect endpoint
+  - TASK-021 pending device disconnect retry
+  - TASK-025 local push unsubscribe helper
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Orbit logout now attempts current-device cleanup and local push unsubscribe before clearing local sync state.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-26. No deployment or git push.
