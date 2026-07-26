@@ -1454,3 +1454,58 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Switching to another sync account now attempts previous-account current-device cleanup and local push unsubscribe before storing the new account.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-26. No deployment or git push.
+
+## TASK-028
+
+- title: Clean up previous sync device on Orbit Auth account switch
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work after TASK-027; Orbit Auth session refresh could switch local account state without previous-account cleanup
+- spec_reference: `docs/specs/orbit-auth-account-switch-device-cleanup.md`
+- spec_status: approved_for_task_028
+- goal: share previous-account cleanup between manual sync-code switching and Orbit Auth account switching.
+- out_of_scope:
+  - Orbit Auth server changes
+  - account deletion
+  - browser notification permission reset
+  - push provider changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - Orbit Auth account switch runs cleanup before `scheduleSync.setAccountId(authSession.accountId)`
+  - manual sync-code account switch continues to run the same cleanup before `scheduleSync.setAccountId(nextAccountId)`
+  - same-account session refresh remains a no-op for cleanup
+  - pending device disconnect retry behavior is preserved for offline cleanup
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 27
+- stop_conditions:
+  - implementation requires backend changes or browser permission reset
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - sync/install contract tests
+- dependencies:
+  - TASK-020 current-device server disconnect endpoint
+  - TASK-021 pending device disconnect retry
+  - TASK-025 local push unsubscribe helper
+  - TASK-027 previous-account cleanup during manual sync-code switching
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Orbit Auth account switching now shares the previous-account current-device cleanup and local push unsubscribe helper with manual sync-code switching.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-26. No deployment or git push.

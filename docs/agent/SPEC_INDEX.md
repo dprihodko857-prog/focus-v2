@@ -33,4 +33,5 @@ Status: DRAFT
 | PUSH-UNSUBSCRIBE-ON-SYNC-DISCONNECT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-unsubscribe-on-sync-disconnect.md` | TASK-025 unsubscribes the local browser PushManager subscription during code-based sync disconnect. |
 | ORBIT-LOGOUT-DEVICE-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/orbit-logout-device-cleanup.md` | TASK-026 runs current-device cleanup and local push unsubscribe on Orbit logout before clearing local sync state. |
 | SYNC-ACCOUNT-SWITCH-DEVICE-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-account-switch-device-cleanup.md` | TASK-027 runs previous-account current-device cleanup and local push unsubscribe before switching to another sync account. |
+| ORBIT-AUTH-ACCOUNT-SWITCH-DEVICE-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/orbit-auth-account-switch-device-cleanup.md` | TASK-028 runs previous-account current-device cleanup and local push unsubscribe before saving a different Orbit Auth sync account. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

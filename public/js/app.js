@@ -4175,10 +4175,22 @@ function renderAuthState(session = authSession) {
   logoutButton.hidden = true;
 }
 
+async function cleanupCurrentSyncDeviceBeforeAccountChange(nextAccountId) {
+  const previousAccountId = scheduleSync.peekAccountId();
+
+  if (!previousAccountId || previousAccountId === nextAccountId) {
+    return;
+  }
+
+  await scheduleSync.disconnectCurrentDevice();
+  await focusNotifications.unsubscribePush?.();
+}
+
 async function refreshAuthSession() {
   authSession = await focusAuth.getSession();
 
   if (authSession.authenticated && authSession.accountId && scheduleSync.peekAccountId() !== authSession.accountId) {
+    await cleanupCurrentSyncDeviceBeforeAccountChange(authSession.accountId);
     scheduleSync.setAccountId(authSession.accountId);
     syncAccountProfile = null;
   }
@@ -4725,13 +4737,7 @@ async function connectSyncAccount() {
     }
 
     const nextAccountId = accountCheck.accountId || accountId;
-    const previousAccountId = scheduleSync.peekAccountId();
-
-    if (previousAccountId && previousAccountId !== nextAccountId) {
-      await scheduleSync.disconnectCurrentDevice();
-      await focusNotifications.unsubscribePush?.();
-    }
-
+    await cleanupCurrentSyncDeviceBeforeAccountChange(nextAccountId);
     scheduleSync.setAccountId(nextAccountId);
     setSyncStatus("Подключаем аккаунт...");
     const result = await syncSavedSchedules();

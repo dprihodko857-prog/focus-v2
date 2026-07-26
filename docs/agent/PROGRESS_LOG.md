@@ -110,3 +110,8 @@ Keep entries short and factual.
 | 2026-07-26 | TASK-027 | Completed targeted sync account switch cleanup checks. | Syntax checks passed and targeted tests passed 34/34. | DONE | Run `npm.cmd run test`; deploy remains separate. |
 | 2026-07-26 | TASK-027 | Completed sync account switch cleanup full checks. | `npm.cmd run test` passed 115/115. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-26 | TASK-027 | Committed sync account switch cleanup locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-26 | TASK-028 | Started Orbit Auth account switch cleanup. | Orbit session refresh could replace a code-based sync account without cleaning up the previous current device and local push subscription. | IN_PROGRESS | Share the account-switch cleanup helper and run checks. |
+| 2026-07-26 | TASK-028 | Implemented Orbit Auth account switch cleanup locally. | `refreshAuthSession` and manual sync-code switching now use the same previous-account cleanup helper before storing a different account id. | DONE | Run checks and commit locally; deploy remains separate. |
+| 2026-07-26 | TASK-028 | Completed targeted Orbit Auth account switch cleanup checks. | Syntax checks passed and targeted tests passed 35/35. | DONE | Run `npm.cmd run test`; deploy remains separate. |
+| 2026-07-26 | TASK-028 | Completed Orbit Auth account switch cleanup full checks. | `npm.cmd run test` passed 116/116. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-26 | TASK-028 | Committed Orbit Auth account switch cleanup locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
