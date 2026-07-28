@@ -19,6 +19,7 @@ const AUTH_TRANSIENT_MAX_AGE_SECONDS = 10 * 60;
 const AUTH_SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 const DEFAULT_AUTH_ISSUER = "https://auth.dmnao83.ru";
 const DEFAULT_AUTH_SCOPE = "openid email profile offline_access";
+const MAX_DEVICE_SESSIONS_PER_ACCOUNT = 12;
 const MAX_PUSH_ENDPOINT_LENGTH = 4096;
 const MAX_PUSH_KEY_LENGTH = 512;
 
@@ -86,6 +87,7 @@ class JsonSyncDatabase {
       firstSeenAt: currentSession?.firstSeenAt || currentSession?.lastSeenAt || now,
       lastSeenAt: now,
     };
+    this.pruneDeviceSessions(accountId, deviceId);
     this.persist();
   }
 
@@ -108,6 +110,7 @@ class JsonSyncDatabase {
       deviceName: sanitizeStoredName(deviceName),
       lastSeenAt: updatedAt,
     };
+    this.pruneDeviceSessions(accountId, deviceId);
     this.persist();
     return this.state.deviceSessions[sessionKey];
   }
@@ -421,6 +424,27 @@ class JsonSyncDatabase {
     pruneAccountStateByKeys(this.state.pushFailures, accountId, activeDeliveryKeys);
   }
 
+  pruneDeviceSessions(accountId, protectedDeviceId = "") {
+    const protectedSessionKey = protectedDeviceId ? `${accountId}:${protectedDeviceId}` : "";
+    const sessions = Object.entries(this.state.deviceSessions)
+      .filter(([, session]) => isPlainObject(session) && session.accountId === accountId)
+      .sort((first, second) => compareDeviceSessionsForRetention(first, second, protectedSessionKey));
+
+    if (sessions.length <= MAX_DEVICE_SESSIONS_PER_ACCOUNT) {
+      return;
+    }
+
+    const retainedKeys = new Set(sessions
+      .slice(0, MAX_DEVICE_SESSIONS_PER_ACCOUNT)
+      .map(([key]) => key));
+
+    sessions.forEach(([key]) => {
+      if (!retainedKeys.has(key)) {
+        delete this.state.deviceSessions[key];
+      }
+    });
+  }
+
   close() {}
 
   persist() {
@@ -514,6 +538,20 @@ function pruneAccountStateByKeys(stateByAccount, accountId, activeKeys) {
   if (Object.keys(accountState).length === 0) {
     delete stateByAccount[accountId];
   }
+}
+
+function compareDeviceSessionsForRetention(firstEntry, secondEntry, protectedSessionKey) {
+  const [firstKey, firstSession] = firstEntry;
+  const [secondKey, secondSession] = secondEntry;
+
+  if (protectedSessionKey) {
+    if (firstKey === protectedSessionKey) return -1;
+    if (secondKey === protectedSessionKey) return 1;
+  }
+
+  return String(secondSession.lastSeenAt || "").localeCompare(String(firstSession.lastSeenAt || "")) ||
+    String(secondSession.firstSeenAt || "").localeCompare(String(firstSession.firstSeenAt || "")) ||
+    firstKey.localeCompare(secondKey);
 }
 
 function normalizePushSubscription(subscription) {

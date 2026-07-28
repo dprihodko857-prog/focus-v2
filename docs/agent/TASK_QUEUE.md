@@ -1864,3 +1864,53 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Backend push subscription saves now normalize stored subscriptions to expected Push API fields and reject oversized subscription values.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-28. No deployment or git push.
+
+## TASK-036
+
+- title: Limit stored sync device session history
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: backend_hardening
+- priority: medium
+- source: roadmap sync/backend hardening after owner asked to continue project work on 2026-07-28
+- spec_reference: `docs/specs/sync-device-session-retention.md`
+- spec_status: approved_for_task_036
+- goal: keep only a bounded recent history of device sessions per account.
+- out_of_scope:
+  - device management UI changes
+  - push subscription deletion policy changes
+  - account deletion
+  - database engine migration
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - device session count is limited to the configured retention cap
+  - oldest sessions are pruned first
+  - currently touched or updated session remains visible
+  - account profile response shape remains unchanged
+  - existing tests pass
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small backend_hardening task
+- file_limit: up to 7 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 35
+- stop_conditions:
+  - implementation requires UI changes or push subscription deletion policy changes
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - existing account device session tracking in `server/sync-server.mjs`
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend account profiles now retain the 12 most recent device sessions per account and keep the current device visible while leaving push subscriptions untouched.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-28. No deployment or git push.

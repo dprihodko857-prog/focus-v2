@@ -46,6 +46,7 @@ Status: DRAFT
 - TASK-033 is implemented locally: saving a reminder snapshot prunes stale push delivery/retry/failure state for removed or rescheduled reminder keys while keeping push event history.
 - TASK-034 is implemented locally: malformed or oversized JSON request bodies now return explicit `400 invalid_json` or `413 request_body_too_large` responses instead of generic server errors.
 - TASK-035 is implemented locally: backend push subscription saves now store only expected Push API fields and reject oversized subscription strings.
+- TASK-036 is implemented locally: sync account device session history is capped to the 12 most recent sessions while keeping the current device visible.
 
 ## In Progress
 
@@ -66,7 +67,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-035 checks passed locally; `npm.cmd run test` passed 124/124.
+- Current result: local Git repository exists; TASK-036 checks passed locally; `npm.cmd run test` passed 125/125.
 
 ## Open Questions
 

@@ -378,6 +378,58 @@ test("sync account profile tracks account and device metadata", async () => {
   }
 });
 
+test("sync account profile keeps only recent device sessions", async () => {
+  const db = createSyncDatabase(":memory:");
+  const ticks = Array.from({ length: 14 }, (_, index) => `2026-07-12T08:${String(index).padStart(2, "0")}:00.000Z`);
+  let tickIndex = 0;
+  const server = createFocusSyncServer({
+    db,
+    now: () => ticks[Math.min(tickIndex++, ticks.length - 1)],
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-device-retention";
+  createTestAccount(db, accountId, ticks[0]);
+
+  try {
+    let profile = null;
+
+    for (let index = 1; index <= 14; index += 1) {
+      const deviceId = `device-${String(index).padStart(2, "0")}`;
+      const response = await fetch(`${baseUrl}/api/sync/account`, {
+        headers: {
+          "x-focus-account": accountId,
+          "x-focus-device": deviceId,
+          "x-focus-device-name": encodeURIComponent(`Device ${index}`),
+        },
+      });
+
+      assert.equal(response.status, 200);
+      profile = await response.json();
+
+      if (index === 1) {
+        db.savePushSubscription({
+          accountId,
+          deviceId,
+          subscription: createPushSubscription("https://push.example/send/device-01"),
+          updatedAt: ticks[0],
+        });
+      }
+    }
+
+    const deviceIds = profile.devices.map(device => device.deviceId);
+    const expectedDeviceIds = Array.from({ length: 12 }, (_, index) => `device-${String(14 - index).padStart(2, "0")}`);
+
+    assert.deepEqual(deviceIds, expectedDeviceIds);
+    assert.equal(profile.currentDeviceId, "device-14");
+    assert.equal(profile.devices[0].isCurrent, true);
+    assert.equal(db.listDeviceSessions(accountId).length, 12);
+    assert.equal(db.getPushSubscriptions(accountId).some(subscription => subscription.deviceId === "device-01"), true);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("sync API disconnects the current device and removes its push subscriptions", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({ db });

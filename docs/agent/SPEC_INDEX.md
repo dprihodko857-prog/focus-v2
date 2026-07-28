@@ -41,4 +41,5 @@ Status: DRAFT
 | PUSH-STATE-PRUNE-ON-REMINDER-SAVE-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-state-prune-on-reminder-save.md` | TASK-033 prunes stale reminder push delivery/retry/failure state when reminders are deleted or rescheduled. |
 | SYNC-JSON-BODY-ERROR-HANDLING-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-json-body-error-handling.md` | TASK-034 returns explicit client-error responses for malformed or oversized JSON request bodies. |
 | PUSH-SUBSCRIPTION-SANITIZATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-subscription-sanitization.md` | TASK-035 stores only expected Push API subscription fields and rejects oversized subscription strings. |
+| SYNC-DEVICE-SESSION-RETENTION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-device-session-retention.md` | TASK-036 bounds per-account device session history to the most recent active devices. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |
