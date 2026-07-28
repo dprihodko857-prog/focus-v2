@@ -165,6 +165,37 @@ test("sync API reports oversized JSON request bodies as client errors", async ()
   }
 });
 
+test("sync API enforces oversized JSON limits by byte size", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+  const accountId = "account-large-unicode-json";
+  const body = JSON.stringify({ schedules: [{ id: "large-unicode", title: "Ж".repeat(600 * 1024) }] });
+  createTestAccount(db, accountId);
+
+  assert.ok(body.length < 1024 * 1024);
+  assert.ok(Buffer.byteLength(body) > 1024 * 1024);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/schedules`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body,
+    });
+
+    assert.equal(response.status, 413);
+    assert.equal((await response.json()).error, "request_body_too_large");
+    assert.equal(db.getScheduleSnapshot(accountId), null);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("auth API reports Orbit Auth configuration state", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({

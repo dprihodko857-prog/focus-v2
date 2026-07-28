@@ -2158,6 +2158,7 @@ function createTestPushPayload() {
 function readJsonBody(request, { optional = false } = {}) {
   return new Promise((resolve, reject) => {
     let body = "";
+    let bodyBytes = 0;
     let bodyTooLarge = false;
 
     request.on("data", chunk => {
@@ -2165,8 +2166,9 @@ function readJsonBody(request, { optional = false } = {}) {
         return;
       }
 
+      bodyBytes += typeof chunk === "string" ? Buffer.byteLength(chunk) : chunk.length;
       body += chunk;
-      if (body.length > MAX_BODY_BYTES) {
+      if (bodyBytes > MAX_BODY_BYTES) {
         bodyTooLarge = true;
         reject(new HttpRequestError(413, "request_body_too_large", "Request body is too large."));
         request.resume();

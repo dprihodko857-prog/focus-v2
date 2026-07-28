@@ -44,4 +44,5 @@ Status: DRAFT
 | SYNC-DEVICE-SESSION-RETENTION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-device-session-retention.md` | TASK-036 bounds per-account device session history to the most recent active devices. |
 | PUSH-SUBSCRIPTION-EMPTY-BUCKET-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-subscription-empty-bucket-cleanup.md` | TASK-037 removes empty push subscription account buckets after existing unsubscribe/removal paths. |
 | SYNC-DEVICE-DISCONNECT-CORS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-device-disconnect-cors.md` | TASK-038 aligns CORS preflight methods with the implemented current-device disconnect route. |
+| SYNC-JSON-BODY-BYTE-LIMIT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-json-body-byte-limit.md` | TASK-039 enforces JSON request body limits by incoming byte size, including multibyte payloads. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

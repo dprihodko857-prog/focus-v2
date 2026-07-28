@@ -2010,3 +2010,50 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Shared CORS responses now include `DELETE`, and a preflight test covers current-device disconnect.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-28. No deployment or git push.
+
+## TASK-039
+
+- title: Enforce JSON body limit by byte size
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: backend_hardening
+- priority: medium
+- source: roadmap sync/backend hardening after owner asked to continue project work on 2026-07-28
+- spec_reference: `docs/specs/sync-json-body-byte-limit.md`
+- spec_status: approved_for_task_039
+- goal: enforce the backend JSON request body limit using incoming byte size instead of JavaScript string length.
+- out_of_scope:
+  - changing the configured body size limit
+  - changing collection validation rules
+  - streaming JSON parsing
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - ASCII oversized payloads still return `413 request_body_too_large`
+  - multibyte Unicode payloads that exceed the byte limit also return `413 request_body_too_large`
+  - existing tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small backend_hardening task
+- file_limit: up to 7 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 38
+- stop_conditions:
+  - implementation requires changing the public request limit
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - existing JSON request body error handling in `server/sync-server.mjs`
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend request parsing now tracks incoming byte size and rejects oversized multibyte JSON payloads with the existing `413 request_body_too_large` response.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-28. No deployment or git push.
