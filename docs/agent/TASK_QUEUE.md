@@ -1616,3 +1616,53 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Manual sync-code switching now clears stale account profile and device UI state before loading the new profile.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-28. No deployment or git push.
+
+## TASK-031
+
+- title: Refresh seasonal month background assets
+- status: DONE
+- owner_gate: owner_requested_asset_replacement
+- task_type: product_visual_assets
+- priority: medium
+- source: owner provided `D:\Папа\Нейроспецназ\Проект Планировщик задач\Дизайн система\Картинки месяцы` and asked to replace low-quality monthly backgrounds
+- spec_reference: `docs/specs/seasonal-month-background-refresh.md`
+- spec_status: approved_for_task_031
+- goal: replace the 12 monthly background assets with higher-resolution owner-provided images while preserving existing app paths.
+- out_of_scope:
+  - layout redesign
+  - month image selection logic changes
+  - backend changes
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - all 12 monthly WebP assets are regenerated from the owner-provided source images
+  - generated month backgrounds are `1672x941`
+  - app keeps using `/assets/months/large/{month}.webp`
+  - service worker cache is bumped for the changed PWA shell/assets
+  - existing tests pass
+- required_checks:
+  - `node --check public/service-worker.js`
+  - `node --test tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs tests/sync-integration-assets.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_visual_assets task
+- file_limit: up to 18 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 30
+- stop_conditions:
+  - source folder does not contain all 12 months
+  - conversion cannot preserve acceptable image quality
+  - production deploy or git push is needed
+- areas:
+  - `public/assets/months/large/*.webp`
+  - `public/service-worker.js`
+  - install/PWA contract tests
+- dependencies:
+  - existing seasonal background path contract in `public/js/app.js`
+  - owner-provided monthly image folder
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. All monthly backgrounds were replaced with higher-resolution WebP assets generated from the owner-provided PNG images.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-28. No deployment or git push.

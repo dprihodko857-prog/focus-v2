@@ -126,3 +126,7 @@ Keep entries short and factual.
 | 2026-07-28 | TASK-030 | Completed targeted manual account-switch profile reset checks. | Syntax checks passed and targeted tests passed 37/37. | DONE | Run `npm.cmd run test`; deploy remains separate. |
 | 2026-07-28 | TASK-030 | Completed manual account-switch profile reset full checks. | `npm.cmd run test` passed 118/118. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-28 | TASK-030 | Committed manual account-switch profile reset locally. | Local Git commit created after checks. | DONE | Deployment remains postponed by owner. |
+| 2026-07-28 | TASK-031 | Started seasonal month background refresh. | Owner provided a folder with higher-resolution monthly images because current backgrounds looked too low quality. | IN_PROGRESS | Convert the images to WebP, preserve existing paths, and run checks. |
+| 2026-07-28 | TASK-031 | Implemented seasonal month background refresh locally. | Replaced all 12 monthly WebP assets with `1672x941` WebP files generated from owner-provided PNG sources and bumped the service worker cache. | DONE | Run checks and commit locally; deploy remains postponed. |
+| 2026-07-28 | TASK-031 | Completed seasonal month background refresh checks. | `node --check public/service-worker.js`, targeted asset/PWA tests passed 38/38, and `npm.cmd run test` passed 119/119. | DONE | Commit locally; deploy remains postponed. |
+| 2026-07-28 | TASK-031 | Committed seasonal month background refresh locally. | Local Git commit created after checks. | DONE | Deployment remains postponed by owner. |

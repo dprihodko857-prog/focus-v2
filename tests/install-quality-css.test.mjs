@@ -57,6 +57,27 @@ test("focus brand assets use the current target mark", () => {
   assert.deepEqual(readPngSize("public/assets/icons/favicon-v2-32.png"), { width: 32, height: 32 });
 });
 
+test("seasonal month backgrounds use high resolution webp assets", () => {
+  [
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+  ].forEach(month => {
+    const path = `public/assets/months/large/${month}.webp`;
+    assert.deepEqual(readWebpSize(path), { width: 1672, height: 941 });
+    assert.match(serviceWorker, new RegExp(`"/assets/months/large/${month}\\.webp"`));
+  });
+});
+
 test("desktop app switches to mobile chrome in compact windows", () => {
   assert.match(appJs, /const COMPACT_WINDOW_WIDTH = 1720;/);
   assert.match(appJs, /const RESTORED_WINDOW_TOLERANCE = 24;/);
@@ -147,7 +168,7 @@ test("settings include install quality diagnostics and PWA update controls", () 
   assert.match(appJs, /focus-pwa-state-change/);
   assert.match(pwaJs, /focusPwaCheckForUpdate/);
   assert.match(pwaJs, /focusPwaApplyUpdate/);
-  assert.match(serviceWorker, /focus-pwa-v68/);
+  assert.match(serviceWorker, /focus-pwa-v69/);
   assert.match(serviceWorker, /SKIP_WAITING/);
 });
 
@@ -223,4 +244,46 @@ function readPngSize(path) {
     width: buffer.readUInt32BE(16),
     height: buffer.readUInt32BE(20),
   };
+}
+
+function readWebpSize(path) {
+  const buffer = readFileSync(path);
+  assert.equal(buffer.toString("ascii", 0, 4), "RIFF");
+  assert.equal(buffer.toString("ascii", 8, 12), "WEBP");
+
+  let offset = 12;
+  while (offset + 8 <= buffer.length) {
+    const chunkType = buffer.toString("ascii", offset, offset + 4);
+    const chunkSize = buffer.readUInt32LE(offset + 4);
+    const chunkOffset = offset + 8;
+
+    if (chunkType === "VP8X") {
+      return {
+        width: buffer.readUIntLE(chunkOffset + 4, 3) + 1,
+        height: buffer.readUIntLE(chunkOffset + 7, 3) + 1,
+      };
+    }
+
+    if (chunkType === "VP8L") {
+      const b1 = buffer[chunkOffset + 1];
+      const b2 = buffer[chunkOffset + 2];
+      const b3 = buffer[chunkOffset + 3];
+      const b4 = buffer[chunkOffset + 4];
+      return {
+        width: 1 + b1 + ((b2 & 0x3f) << 8),
+        height: 1 + (b2 >> 6) + (b3 << 2) + ((b4 & 0x0f) << 10),
+      };
+    }
+
+    if (chunkType === "VP8 ") {
+      return {
+        width: buffer.readUInt16LE(chunkOffset + 6) & 0x3fff,
+        height: buffer.readUInt16LE(chunkOffset + 8) & 0x3fff,
+      };
+    }
+
+    offset += 8 + chunkSize + (chunkSize % 2);
+  }
+
+  throw new Error(`Cannot read WebP size for ${path}`);
 }
