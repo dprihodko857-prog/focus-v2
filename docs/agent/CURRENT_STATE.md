@@ -43,6 +43,7 @@ Status: DRAFT
 - TASK-030 is implemented locally: manual sync-code account switching clears stale account profile/device UI state before loading the new profile; service worker cache is `focus-pwa-v68`.
 - TASK-031 is implemented locally: all monthly background WebP assets were regenerated from owner-provided `1672x941` seasonal PNG images; service worker cache is `focus-pwa-v69`.
 - TASK-032 is implemented locally: an unreadable sync JSON database file is preserved as a unique `.corrupt-*` sibling before the backend starts with a fresh state.
+- TASK-033 is implemented locally: saving a reminder snapshot prunes stale push delivery/retry/failure state for removed or rescheduled reminder keys while keeping push event history.
 
 ## In Progress
 
@@ -63,7 +64,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-032 checks passed locally; `npm.cmd run test` passed 120/120.
+- Current result: local Git repository exists; TASK-033 checks passed locally; `npm.cmd run test` passed 121/121.
 
 ## Open Questions
 

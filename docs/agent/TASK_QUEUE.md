@@ -1715,3 +1715,55 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. All monthly backgrounds were replaced with higher-resolution WebP assets generated from the owner-provided PNG images.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-28. No deployment or git push.
+
+## TASK-033
+
+- title: Prune stale reminder push state
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: backend_hardening
+- priority: medium
+- source: roadmap notification/sync hardening after owner asked to continue project work on 2026-07-28
+- spec_reference: `docs/specs/push-state-prune-on-reminder-save.md`
+- spec_status: approved_for_task_033
+- goal: keep push delivery/retry/failure state aligned with the current reminder snapshot.
+- out_of_scope:
+  - push event history retention changes
+  - notification retry policy changes
+  - reminder model redesign
+  - UI changes
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - saving a reminder snapshot prunes delivery state for removed reminder delivery keys
+  - saving a reminder snapshot prunes retry state for removed reminder delivery keys
+  - saving a reminder snapshot prunes failure state for removed reminder delivery keys
+  - active reminder push state remains available
+  - push event history remains unchanged
+  - existing stale-client delivered reminder preservation remains unchanged
+  - existing tests pass
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small backend_hardening task
+- file_limit: up to 7 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 32
+- stop_conditions:
+  - implementation requires a reminder model redesign or push event retention policy change
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - existing reminder push delivery/retry/failure state in `server/sync-server.mjs`
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Saving reminder snapshots now prunes stale push delivery/retry/failure entries for removed or rescheduled reminder keys while preserving push event history.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-28. No deployment or git push.

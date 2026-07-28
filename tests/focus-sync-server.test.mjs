@@ -1197,6 +1197,115 @@ test("sync API preserves delivered reminder state from stale client pushes", asy
   }
 });
 
+test("sync API prunes push state for removed reminders", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+  const now = () => "2026-07-28T10:00:00.000Z";
+  const accountId = "account-prune-reminder-state";
+  createTestAccount(db, accountId);
+  const reminders = [
+    { id: "keep-delivery", title: "Keep delivered", scheduledAt: "2026-07-28T09:00:00.000Z" },
+    { id: "keep-retry", title: "Keep retry", scheduledAt: "2026-07-28T09:05:00.000Z" },
+    { id: "keep-failure", title: "Keep failure", scheduledAt: "2026-07-28T09:10:00.000Z" },
+    { id: "remove-delivery", title: "Remove delivered", scheduledAt: "2026-07-28T09:15:00.000Z" },
+    { id: "remove-retry", title: "Remove retry", scheduledAt: "2026-07-28T09:20:00.000Z" },
+    { id: "remove-failure", title: "Remove failure", scheduledAt: "2026-07-28T09:25:00.000Z" },
+  ];
+  const deliveryKey = reminder => `${reminder.id}:${reminder.scheduledAt}`;
+
+  try {
+    db.saveReminderSnapshot({ accountId, reminders, updatedAt: now() });
+    db.savePushDelivery({
+      accountId,
+      deliveryKey: deliveryKey(reminders[0]),
+      reminderId: reminders[0].id,
+      scheduledAt: reminders[0].scheduledAt,
+      sentAt: now(),
+      deliveryCount: 1,
+    });
+    db.savePushRetry({
+      accountId,
+      deliveryKey: deliveryKey(reminders[1]),
+      reminderId: reminders[1].id,
+      scheduledAt: reminders[1].scheduledAt,
+      attempts: 1,
+      maxAttempts: 3,
+      lastAttemptAt: now(),
+      nextRetryAt: "2026-07-28T10:05:00.000Z",
+      failed: 1,
+      removed: 0,
+      subscriptions: 1,
+    });
+    db.savePushFailure({
+      accountId,
+      deliveryKey: deliveryKey(reminders[2]),
+      reminderId: reminders[2].id,
+      scheduledAt: reminders[2].scheduledAt,
+      attempts: 3,
+      maxAttempts: 3,
+      failedAt: now(),
+      failed: 3,
+      removed: 0,
+      subscriptions: 1,
+    });
+    db.savePushDelivery({
+      accountId,
+      deliveryKey: deliveryKey(reminders[3]),
+      reminderId: reminders[3].id,
+      scheduledAt: reminders[3].scheduledAt,
+      sentAt: now(),
+      deliveryCount: 1,
+    });
+    db.savePushRetry({
+      accountId,
+      deliveryKey: deliveryKey(reminders[4]),
+      reminderId: reminders[4].id,
+      scheduledAt: reminders[4].scheduledAt,
+      attempts: 1,
+      maxAttempts: 3,
+      lastAttemptAt: now(),
+      nextRetryAt: "2026-07-28T10:05:00.000Z",
+      failed: 1,
+      removed: 0,
+      subscriptions: 1,
+    });
+    db.savePushFailure({
+      accountId,
+      deliveryKey: deliveryKey(reminders[5]),
+      reminderId: reminders[5].id,
+      scheduledAt: reminders[5].scheduledAt,
+      attempts: 3,
+      maxAttempts: 3,
+      failedAt: now(),
+      failed: 3,
+      removed: 0,
+      subscriptions: 1,
+    });
+
+    const saveResponse = await fetch(`${baseUrl}/api/sync/reminders`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ reminders: reminders.slice(0, 3) }),
+    });
+
+    assert.equal(saveResponse.status, 200);
+    assert.equal(db.hasPushDelivery(accountId, deliveryKey(reminders[0])), true);
+    assert.ok(db.getPushRetry(accountId, deliveryKey(reminders[1])));
+    assert.ok(db.getPushFailure(accountId, deliveryKey(reminders[2])));
+    assert.equal(db.hasPushDelivery(accountId, deliveryKey(reminders[3])), false);
+    assert.equal(db.getPushRetry(accountId, deliveryKey(reminders[4])), null);
+    assert.equal(db.getPushFailure(accountId, deliveryKey(reminders[5])), null);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("push dispatcher reports skipped reminder delivery reasons", async () => {
   const db = createSyncDatabase(":memory:");
   const now = () => "2026-07-10T10:00:00.000Z";

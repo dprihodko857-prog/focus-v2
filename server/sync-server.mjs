@@ -152,6 +152,7 @@ class JsonSyncDatabase {
       updatedAt,
     };
     this.state.reminderSnapshots[accountId] = snapshot;
+    this.pruneReminderPushState({ accountId, reminders });
     this.persist();
     return snapshot;
   }
@@ -406,6 +407,18 @@ class JsonSyncDatabase {
     return failure;
   }
 
+  pruneReminderPushState({ accountId, reminders }) {
+    const activeDeliveryKeys = new Set(
+      (Array.isArray(reminders) ? reminders : [])
+        .map(reminder => getReminderDeliveryKey(reminder))
+        .filter(Boolean),
+    );
+
+    pruneAccountStateByKeys(this.state.pushDeliveries, accountId, activeDeliveryKeys);
+    pruneAccountStateByKeys(this.state.pushRetries, accountId, activeDeliveryKeys);
+    pruneAccountStateByKeys(this.state.pushFailures, accountId, activeDeliveryKeys);
+  }
+
   close() {}
 
   persist() {
@@ -482,6 +495,23 @@ function createEmptyState() {
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function pruneAccountStateByKeys(stateByAccount, accountId, activeKeys) {
+  const accountState = stateByAccount[accountId];
+  if (!isPlainObject(accountState)) {
+    return;
+  }
+
+  Object.keys(accountState).forEach(key => {
+    if (!activeKeys.has(key)) {
+      delete accountState[key];
+    }
+  });
+
+  if (Object.keys(accountState).length === 0) {
+    delete stateByAccount[accountId];
+  }
 }
 
 function isPushSubscription(subscription) {
