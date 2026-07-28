@@ -35,4 +35,5 @@ Status: DRAFT
 | SYNC-ACCOUNT-SWITCH-DEVICE-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-account-switch-device-cleanup.md` | TASK-027 runs previous-account current-device cleanup and local push unsubscribe before switching to another sync account. |
 | ORBIT-AUTH-ACCOUNT-SWITCH-DEVICE-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/orbit-auth-account-switch-device-cleanup.md` | TASK-028 runs previous-account current-device cleanup and local push unsubscribe before saving a different Orbit Auth sync account. |
 | SYNC-ACCOUNT-SWITCH-DIAGNOSTICS-RESET-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-account-switch-diagnostics-reset.md` | TASK-029 resets per-collection sync diagnostics when switching to a different sync account. |
+| SYNC-ACCOUNT-SWITCH-PROFILE-RESET-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-account-switch-profile-reset.md` | TASK-030 clears stale account profile/device UI state when manually switching to another sync account. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

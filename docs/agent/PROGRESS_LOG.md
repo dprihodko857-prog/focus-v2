@@ -120,3 +120,9 @@ Keep entries short and factual.
 | 2026-07-26 | TASK-029 | Completed targeted account-switch diagnostics reset checks. | Syntax checks passed and targeted tests passed 36/36. | DONE | Run `npm.cmd run test`; deploy remains separate. |
 | 2026-07-26 | TASK-029 | Completed account-switch diagnostics reset full checks. | `npm.cmd run test` passed 117/117. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-26 | TASK-029 | Committed account-switch diagnostics reset locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-28 | DEPLOY | Owner postponed deployment. | SSH remained unavailable on prior attempts; owner asked to keep moving locally without deployment. | DONE | Continue bounded local project work. |
+| 2026-07-28 | TASK-030 | Started manual account-switch profile reset. | Manual sync-code switching could briefly show the previous account profile/device list after storing another account id. | IN_PROGRESS | Clear stale profile state and run checks. |
+| 2026-07-28 | TASK-030 | Implemented manual account-switch profile reset locally. | Manual sync-code switching now clears `syncAccountProfile` and re-renders the profile panel after a real account switch before requesting the new profile. | DONE | Run checks and commit locally; deploy remains separate. |
+| 2026-07-28 | TASK-030 | Completed targeted manual account-switch profile reset checks. | Syntax checks passed and targeted tests passed 37/37. | DONE | Run `npm.cmd run test`; deploy remains separate. |
+| 2026-07-28 | TASK-030 | Completed manual account-switch profile reset full checks. | `npm.cmd run test` passed 118/118. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-28 | TASK-030 | Committed manual account-switch profile reset locally. | Local Git commit created after checks. | DONE | Deployment remains postponed by owner. |

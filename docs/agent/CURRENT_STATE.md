@@ -40,6 +40,7 @@ Status: DRAFT
 - TASK-027 is implemented locally: switching to another sync account attempts previous-account current-device cleanup and local push unsubscribe before storing the new account; service worker cache is `focus-pwa-v65`.
 - TASK-028 is implemented locally: Orbit Auth account switching uses the same previous-account current-device cleanup and local push unsubscribe helper; service worker cache is `focus-pwa-v66`.
 - TASK-029 is implemented locally: manual sync-code and Orbit Auth account switching reset per-collection sync diagnostics after a real account change; service worker cache is `focus-pwa-v67`.
+- TASK-030 is implemented locally: manual sync-code account switching clears stale account profile/device UI state before loading the new profile; service worker cache is `focus-pwa-v68`.
 
 ## In Progress
 
@@ -60,9 +61,9 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-029 checks passed locally; `npm.cmd run test` passed 117/117.
+- Current result: local Git repository exists; TASK-030 checks passed locally; `npm.cmd run test` passed 118/118.
 
 ## Open Questions
 
 - Which next product/runtime task should be promoted to `READY`.
-- Future backend/deployment changes still require a separate owner deployment approval.
+- Future backend/deployment changes still require a separate owner deployment approval. Owner asked to postpone deployment on 2026-07-28.

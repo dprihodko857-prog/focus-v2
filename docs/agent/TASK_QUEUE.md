@@ -1563,3 +1563,56 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Real sync account switches now reset stale per-collection diagnostics before the new account sync status is shown.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-26. No deployment or git push.
+
+## TASK-030
+
+- title: Reset stale profile UI on manual account switch
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: product_runtime
+- priority: medium
+- source: owner asked to continue project work locally after postponing deployment; manual sync-code switching could briefly show old account profile/device UI state
+- spec_reference: `docs/specs/sync-account-switch-profile-reset.md`
+- spec_status: approved_for_task_030
+- goal: clear stale account profile state immediately when manually switching to a different sync account.
+- out_of_scope:
+  - backend changes
+  - account deletion
+  - sync conflict policy changes
+  - visual redesign
+  - deployment, push, tags, or release work
+- acceptance_criteria:
+  - manual sync-code switching clears `syncAccountProfile` after storing the new account when account ids differ
+  - manual sync-code switching re-renders the profile panel before `refreshSyncAccountProfile`
+  - same-account reconnect behavior remains unchanged
+  - service worker cache is bumped for the changed PWA shell
+  - existing tests pass
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small product_runtime task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 29
+- stop_conditions:
+  - implementation requires backend changes
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - sync/install contract tests
+- dependencies:
+  - TASK-016 sync account profile UI
+  - TASK-027 previous-account cleanup during manual sync-code switching
+  - TASK-029 account-switch diagnostics reset
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Manual sync-code switching now clears stale account profile and device UI state before loading the new profile.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-28. No deployment or git push.

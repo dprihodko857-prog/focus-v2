@@ -4744,7 +4744,9 @@ async function connectSyncAccount() {
     const accountChanged = await cleanupCurrentSyncDeviceBeforeAccountChange(nextAccountId);
     scheduleSync.setAccountId(nextAccountId);
     if (accountChanged) {
+      syncAccountProfile = null;
       resetSyncCollectionStates();
+      renderSyncAccountProfile();
     }
     setSyncStatus("Подключаем аккаунт...");
     const result = await syncSavedSchedules();

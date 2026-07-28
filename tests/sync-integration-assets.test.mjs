@@ -22,7 +22,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v67/);
+  assert.match(serviceWorker, /focus-pwa-v68/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
@@ -94,6 +94,11 @@ test("sync account switching clears stale collection diagnostics", () => {
   assert.match(appJs, /if \(accountChanged\) \{[\s\S]*?resetSyncCollectionStates\(\);[\s\S]*?\}/);
   assert.match(appJs, /const accountChanged = await cleanupCurrentSyncDeviceBeforeAccountChange\(authSession\.accountId\);[\s\S]*?if \(accountChanged\) \{[\s\S]*?resetSyncCollectionStates\(\);[\s\S]*?\}/);
   assert.match(appJs, /const accountChanged = await cleanupCurrentSyncDeviceBeforeAccountChange\(nextAccountId\);[\s\S]*?if \(accountChanged\) \{[\s\S]*?resetSyncCollectionStates\(\);[\s\S]*?\}/);
+});
+
+test("manual sync account switch clears stale account profile before refreshing the new one", () => {
+  assert.match(appJs, /const accountChanged = await cleanupCurrentSyncDeviceBeforeAccountChange\(nextAccountId\);[\s\S]*?scheduleSync\.setAccountId\(nextAccountId\);[\s\S]*?if \(accountChanged\) \{[\s\S]*?syncAccountProfile = null;[\s\S]*?resetSyncCollectionStates\(\);[\s\S]*?renderSyncAccountProfile\(\);[\s\S]*?\}/);
+  assert.match(appJs, /renderSyncState\(\);[\s\S]*?await refreshSyncAccountProfile\(\);/);
 });
 
 test("settings can copy the sync account code", () => {
