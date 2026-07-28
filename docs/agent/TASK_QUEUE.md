@@ -1767,3 +1767,52 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Saving reminder snapshots now prunes stale push delivery/retry/failure entries for removed or rescheduled reminder keys while preserving push event history.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-28. No deployment or git push.
+
+## TASK-034
+
+- title: Return client errors for invalid JSON request bodies
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: backend_hardening
+- priority: medium
+- source: roadmap sync/backend hardening after owner asked to continue project work on 2026-07-28
+- spec_reference: `docs/specs/sync-json-body-error-handling.md`
+- spec_status: approved_for_task_034
+- goal: return clear HTTP client-error responses for malformed or oversized JSON request bodies.
+- out_of_scope:
+  - request body size limit changes
+  - API payload schema changes
+  - client UI changes
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - malformed JSON on a sync route returns `400 invalid_json`
+  - oversized JSON on a sync route returns `413 request_body_too_large`
+  - valid JSON requests continue to work
+  - unexpected backend errors remain `500 sync_server_error`
+  - existing tests pass
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small backend_hardening task
+- file_limit: up to 7 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 33
+- stop_conditions:
+  - implementation requires API schema changes or client UI changes
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - existing `readJsonBody` helper in `server/sync-server.mjs`
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend JSON parsing now returns explicit client-error responses for malformed and oversized request bodies while preserving generic `500` responses for unexpected server failures.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-28. No deployment or git push.

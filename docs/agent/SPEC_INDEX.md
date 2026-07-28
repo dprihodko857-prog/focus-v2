@@ -39,4 +39,5 @@ Status: DRAFT
 | SEASONAL-MONTH-BACKGROUND-REFRESH-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/seasonal-month-background-refresh.md` | TASK-031 replaces all monthly background WebP assets with owner-provided high-resolution seasonal images. |
 | SYNC-JSON-DB-CORRUPT-PRESERVATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-json-database-corrupt-preservation.md` | TASK-032 preserves an unreadable JSON sync database instead of silently overwriting it with empty state. |
 | PUSH-STATE-PRUNE-ON-REMINDER-SAVE-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-state-prune-on-reminder-save.md` | TASK-033 prunes stale reminder push delivery/retry/failure state when reminders are deleted or rescheduled. |
+| SYNC-JSON-BODY-ERROR-HANDLING-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-json-body-error-handling.md` | TASK-034 returns explicit client-error responses for malformed or oversized JSON request bodies. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

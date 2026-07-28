@@ -90,6 +90,60 @@ test("sync API rejects unknown account keys without creating accounts", async ()
   }
 });
 
+test("sync API reports malformed JSON request bodies as client errors", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+  const accountId = "account-invalid-json";
+  createTestAccount(db, accountId);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/schedules`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: "{ not valid json",
+    });
+
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error, "invalid_json");
+    assert.equal(db.getScheduleSnapshot(accountId), null);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync API reports oversized JSON request bodies as client errors", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+  const accountId = "account-large-json";
+  createTestAccount(db, accountId);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/schedules`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ schedules: [{ id: "large", title: "x".repeat(1024 * 1024) }] }),
+    });
+
+    assert.equal(response.status, 413);
+    assert.equal((await response.json()).error, "request_body_too_large");
+    assert.equal(db.getScheduleSnapshot(accountId), null);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("auth API reports Orbit Auth configuration state", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({

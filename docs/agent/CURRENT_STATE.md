@@ -44,6 +44,7 @@ Status: DRAFT
 - TASK-031 is implemented locally: all monthly background WebP assets were regenerated from owner-provided `1672x941` seasonal PNG images; service worker cache is `focus-pwa-v69`.
 - TASK-032 is implemented locally: an unreadable sync JSON database file is preserved as a unique `.corrupt-*` sibling before the backend starts with a fresh state.
 - TASK-033 is implemented locally: saving a reminder snapshot prunes stale push delivery/retry/failure state for removed or rescheduled reminder keys while keeping push event history.
+- TASK-034 is implemented locally: malformed or oversized JSON request bodies now return explicit `400 invalid_json` or `413 request_body_too_large` responses instead of generic server errors.
 
 ## In Progress
 
@@ -64,7 +65,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-033 checks passed locally; `npm.cmd run test` passed 121/121.
+- Current result: local Git repository exists; TASK-034 checks passed locally; `npm.cmd run test` passed 123/123.
 
 ## Open Questions
 

@@ -569,6 +569,14 @@ export function createFocusSyncServer({
     try {
       await routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl });
     } catch (error) {
+      if (isHttpRequestError(error)) {
+        sendJson(response, error.status, {
+          error: error.code,
+          message: error.message,
+        });
+        return;
+      }
+
       sendJson(response, 500, {
         error: "sync_server_error",
         message: error instanceof Error ? error.message : "Unknown sync error.",
@@ -2059,16 +2067,26 @@ function createTestPushPayload() {
 function readJsonBody(request, { optional = false } = {}) {
   return new Promise((resolve, reject) => {
     let body = "";
+    let bodyTooLarge = false;
 
     request.on("data", chunk => {
+      if (bodyTooLarge) {
+        return;
+      }
+
       body += chunk;
       if (body.length > MAX_BODY_BYTES) {
-        reject(new Error("Request body is too large."));
-        request.destroy();
+        bodyTooLarge = true;
+        reject(new HttpRequestError(413, "request_body_too_large", "Request body is too large."));
+        request.resume();
       }
     });
 
     request.on("end", () => {
+      if (bodyTooLarge) {
+        return;
+      }
+
       if (!body.trim()) {
         resolve(optional ? null : {});
         return;
@@ -2077,12 +2095,30 @@ function readJsonBody(request, { optional = false } = {}) {
       try {
         resolve(JSON.parse(body));
       } catch {
-        reject(new Error("Request body must be valid JSON."));
+        reject(new HttpRequestError(400, "invalid_json", "Request body must be valid JSON."));
       }
     });
 
     request.on("error", reject);
   });
+}
+
+class HttpRequestError extends Error {
+  constructor(status, code, message) {
+    super(message);
+    this.name = "HttpRequestError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+function isHttpRequestError(error) {
+  return error instanceof HttpRequestError &&
+    Number.isInteger(error.status) &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    typeof error.code === "string" &&
+    Boolean(error.code);
 }
 
 function sendJson(response, status, payload, extraHeaders = {}) {
