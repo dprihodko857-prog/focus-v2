@@ -443,8 +443,23 @@ function readState(dbPath) {
       deviceSessions: isPlainObject(parsed.deviceSessions) ? parsed.deviceSessions : {},
     };
   } catch {
+    preserveUnreadableStateFile(dbPath);
     return createEmptyState();
   }
+}
+
+function preserveUnreadableStateFile(dbPath) {
+  if (!existsSync(dbPath)) {
+    return;
+  }
+
+  const backupPath = createCorruptStateBackupPath(dbPath);
+  renameSync(dbPath, backupPath);
+}
+
+function createCorruptStateBackupPath(dbPath) {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `${dbPath}.corrupt-${timestamp}-${randomUUID()}`;
 }
 
 function createEmptyState() {

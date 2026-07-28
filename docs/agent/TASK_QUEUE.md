@@ -1617,6 +1617,55 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-28. No deployment or git push.
 
+## TASK-032
+
+- title: Preserve corrupted sync JSON database files
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: backend_hardening
+- priority: medium
+- source: roadmap sync hardening after owner asked to continue project work on 2026-07-28
+- spec_reference: `docs/specs/sync-json-database-corrupt-preservation.md`
+- spec_status: approved_for_task_032
+- goal: avoid silently overwriting an unreadable existing sync JSON database with empty state.
+- out_of_scope:
+  - database engine migration
+  - automatic JSON repair
+  - UI changes
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - valid JSON database loading remains unchanged
+  - invalid existing JSON database is preserved under a unique `.corrupt-*` sibling filename
+  - backend can create a fresh database file after preserving the invalid file
+  - startup fails instead of silently overwriting the invalid database if preservation fails
+  - existing tests pass
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small backend_hardening task
+- file_limit: up to 7 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 31
+- stop_conditions:
+  - implementation requires a database engine migration or data repair logic
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - existing JSON database persistence in `server/sync-server.mjs`
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Unreadable existing JSON database files are preserved under a unique `.corrupt-*` sibling path before the backend starts with a fresh state.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-28. No deployment or git push.
+
 ## TASK-031
 
 - title: Refresh seasonal month background assets

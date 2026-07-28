@@ -37,4 +37,5 @@ Status: DRAFT
 | SYNC-ACCOUNT-SWITCH-DIAGNOSTICS-RESET-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-account-switch-diagnostics-reset.md` | TASK-029 resets per-collection sync diagnostics when switching to a different sync account. |
 | SYNC-ACCOUNT-SWITCH-PROFILE-RESET-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-account-switch-profile-reset.md` | TASK-030 clears stale account profile/device UI state when manually switching to another sync account. |
 | SEASONAL-MONTH-BACKGROUND-REFRESH-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/seasonal-month-background-refresh.md` | TASK-031 replaces all monthly background WebP assets with owner-provided high-resolution seasonal images. |
+| SYNC-JSON-DB-CORRUPT-PRESERVATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-json-database-corrupt-preservation.md` | TASK-032 preserves an unreadable JSON sync database instead of silently overwriting it with empty state. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

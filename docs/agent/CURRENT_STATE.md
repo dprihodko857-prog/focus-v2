@@ -42,6 +42,7 @@ Status: DRAFT
 - TASK-029 is implemented locally: manual sync-code and Orbit Auth account switching reset per-collection sync diagnostics after a real account change; service worker cache is `focus-pwa-v67`.
 - TASK-030 is implemented locally: manual sync-code account switching clears stale account profile/device UI state before loading the new profile; service worker cache is `focus-pwa-v68`.
 - TASK-031 is implemented locally: all monthly background WebP assets were regenerated from owner-provided `1672x941` seasonal PNG images; service worker cache is `focus-pwa-v69`.
+- TASK-032 is implemented locally: an unreadable sync JSON database file is preserved as a unique `.corrupt-*` sibling before the backend starts with a fresh state.
 
 ## In Progress
 
@@ -62,7 +63,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-031 checks passed locally; `npm.cmd run test` passed 119/119.
+- Current result: local Git repository exists; TASK-032 checks passed locally; `npm.cmd run test` passed 120/120.
 
 ## Open Questions
 

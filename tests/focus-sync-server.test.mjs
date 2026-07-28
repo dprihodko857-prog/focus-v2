@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -436,6 +436,34 @@ test("sync database persists schedule snapshots across server restarts", async (
 
     await close(secondServer);
     secondDb.close();
+  } finally {
+    rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test("sync database preserves corrupt JSON before starting fresh", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "focus-sync-corrupt-"));
+  const dbPath = join(tempDir, "sync.json");
+  const corruptJson = "{ not valid json";
+
+  try {
+    writeFileSync(dbPath, corruptJson, "utf8");
+
+    const db = createSyncDatabase(dbPath);
+    db.createAccount({
+      accountId: "account-recovered",
+      displayName: "Recovered account",
+      createdAt: "2026-07-28T10:00:00.000Z",
+    });
+    db.close();
+
+    const files = readdirSync(tempDir);
+    const corruptFiles = files.filter(fileName => fileName.startsWith("sync.json.corrupt-"));
+    assert.equal(corruptFiles.length, 1);
+    assert.equal(readFileSync(join(tempDir, corruptFiles[0]), "utf8"), corruptJson);
+
+    const freshState = JSON.parse(readFileSync(dbPath, "utf8"));
+    assert.equal(freshState.accounts["account-recovered"].displayName, "Recovered account");
   } finally {
     rmSync(tempDir, { force: true, recursive: true });
   }
