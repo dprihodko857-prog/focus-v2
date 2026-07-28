@@ -1914,3 +1914,52 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Backend account profiles now retain the 12 most recent device sessions per account and keep the current device visible while leaving push subscriptions untouched.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-28. No deployment or git push.
+
+## TASK-037
+
+- title: Clean empty push subscription buckets
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: backend_hardening
+- priority: medium
+- source: roadmap notification/backend hardening after owner asked to continue project work on 2026-07-28
+- spec_reference: `docs/specs/push-subscription-empty-bucket-cleanup.md`
+- spec_status: approved_for_task_037
+- goal: remove empty push subscription account buckets after the existing subscription removal paths run.
+- out_of_scope:
+  - time-based deletion of active subscriptions
+  - device session retention changes
+  - push provider changes
+  - client UI changes
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - removing the last current-device subscription deletes the empty account bucket
+  - removing an expired endpoint during dispatch deletes the empty account bucket
+  - removing one subscription while another remains keeps the account bucket with the remaining subscription
+  - existing tests pass
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small backend_hardening task
+- file_limit: up to 7 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 36
+- stop_conditions:
+  - implementation requires deleting active subscriptions by age
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - existing push subscription removal paths in `server/sync-server.mjs`
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend push subscription cleanup now deletes empty account buckets after the last subscription is removed by current-device disconnect or expired-endpoint cleanup.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-28. No deployment or git push.

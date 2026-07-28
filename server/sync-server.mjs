@@ -236,6 +236,15 @@ class JsonSyncDatabase {
       : [];
   }
 
+  setPushSubscriptions(accountId, subscriptions) {
+    if (subscriptions.length > 0) {
+      this.state.pushSubscriptions[accountId] = subscriptions;
+      return;
+    }
+
+    delete this.state.pushSubscriptions[accountId];
+  }
+
   savePushSubscription({ accountId, deviceId, subscription, updatedAt }) {
     const subscriptions = this.getPushSubscriptions(accountId)
       .filter(item => item.deviceId !== deviceId && item.endpoint !== subscription.endpoint);
@@ -247,16 +256,22 @@ class JsonSyncDatabase {
     };
 
     subscriptions.push(savedSubscription);
-    this.state.pushSubscriptions[accountId] = subscriptions;
+    this.setPushSubscriptions(accountId, subscriptions);
     this.persist();
     return savedSubscription;
   }
 
   removePushSubscription({ accountId, endpoint }) {
-    const subscriptions = this.getPushSubscriptions(accountId).filter(item => item.endpoint !== endpoint);
-    this.state.pushSubscriptions[accountId] = subscriptions;
-    this.persist();
-    return subscriptions.length;
+    const current = this.getPushSubscriptions(accountId);
+    const subscriptions = current.filter(item => item.endpoint !== endpoint);
+    const removed = current.length - subscriptions.length;
+
+    if (removed > 0) {
+      this.setPushSubscriptions(accountId, subscriptions);
+      this.persist();
+    }
+
+    return removed;
   }
 
   removePushSubscriptionsForDevice({ accountId, deviceId }) {
@@ -265,7 +280,7 @@ class JsonSyncDatabase {
     const removed = current.length - subscriptions.length;
 
     if (removed > 0) {
-      this.state.pushSubscriptions[accountId] = subscriptions;
+      this.setPushSubscriptions(accountId, subscriptions);
       this.persist();
     }
 

@@ -498,6 +498,45 @@ test("sync API disconnects the current device and removes its push subscriptions
   }
 });
 
+test("sync API removes empty push subscription buckets after current device disconnect", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+  const accountId = "account-device-disconnect-empty-push";
+  createTestAccount(db, accountId);
+
+  try {
+    await fetch(`${baseUrl}/api/sync/account`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+      },
+    });
+    db.savePushSubscription({
+      accountId,
+      deviceId: "phone",
+      subscription: createPushSubscription("https://push.example/send/only-phone"),
+      updatedAt: "2026-07-10T10:00:00.000Z",
+    });
+
+    const response = await fetch(`${baseUrl}/api/sync/devices/current`, {
+      method: "DELETE",
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+      },
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).removedPushSubscriptions, 1);
+    assert.equal(db.getPushSubscriptions(accountId).length, 0);
+    assert.equal(db.state.pushSubscriptions[accountId], undefined);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("sync database persists schedule snapshots across server restarts", async () => {
   const tempDir = mkdtempSync(join(tmpdir(), "focus-sync-"));
   const dbPath = join(tempDir, "sync.json");
@@ -1539,6 +1578,7 @@ test("push dispatcher removes expired subscriptions", async () => {
   assert.equal(result.failed, 1);
   assert.equal(result.removed, 1);
   assert.equal(db.getPushSubscriptions(accountId).length, 0);
+  assert.equal(db.state.pushSubscriptions[accountId], undefined);
   assert.equal(db.getPushRetry(accountId, "reminder-expired-subscription:2026-07-10T09:59:00.000Z"), null);
   const snapshot = db.getReminderSnapshot(accountId);
   assert.equal(snapshot.revision, 1);
