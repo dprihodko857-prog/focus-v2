@@ -1963,3 +1963,50 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Backend push subscription cleanup now deletes empty account buckets after the last subscription is removed by current-device disconnect or expired-endpoint cleanup.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-28. No deployment or git push.
+
+## TASK-038
+
+- title: Align CORS methods with current-device disconnect
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: backend_hardening
+- priority: medium
+- source: roadmap sync/backend hardening after owner asked to continue project work on 2026-07-28
+- spec_reference: `docs/specs/sync-device-disconnect-cors.md`
+- spec_status: approved_for_task_038
+- goal: include `DELETE` in shared CORS preflight methods because current-device disconnect uses `DELETE /api/sync/devices/current`.
+- out_of_scope:
+  - changing CORS origin policy
+  - adding credentials-based CORS
+  - changing auth, sync, push, or client UI behavior
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - `OPTIONS` responses include `DELETE` in `access-control-allow-methods`
+  - existing sync device disconnect tests continue to pass
+  - existing tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small backend_hardening task
+- file_limit: up to 7 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 37
+- stop_conditions:
+  - implementation requires CORS origin policy changes
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - existing current-device disconnect route in `server/sync-server.mjs`
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Shared CORS responses now include `DELETE`, and a preflight test covers current-device disconnect.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-28. No deployment or git push.

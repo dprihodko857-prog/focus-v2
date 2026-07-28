@@ -67,6 +67,27 @@ test("sync API rejects schedule reads without an account key", async () => {
   }
 });
 
+test("sync API CORS preflight allows current device disconnect", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/devices/current`, {
+      method: "OPTIONS",
+      headers: {
+        "access-control-request-method": "DELETE",
+      },
+    });
+
+    assert.equal(response.status, 204);
+    assert.match(response.headers.get("access-control-allow-methods") || "", /\bDELETE\b/);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("sync API rejects unknown account keys without creating accounts", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({ db });

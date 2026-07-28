@@ -2215,7 +2215,7 @@ function isHttpRequestError(error) {
 function sendJson(response, status, payload, extraHeaders = {}) {
   response.writeHead(status, {
     "access-control-allow-headers": "content-type, x-focus-account, x-focus-device, x-focus-device-name",
-    "access-control-allow-methods": "GET, POST, PUT, PATCH, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "access-control-allow-origin": "*",
     "cache-control": "no-store",
     "content-type": "application/json; charset=utf-8",
