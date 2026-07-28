@@ -724,9 +724,12 @@ test("push API stores a device subscription for an account", async () => {
   const baseUrl = await listen(server);
   const subscription = {
     endpoint: "https://push.example/send/1",
+    expirationTime: 12345,
+    extraField: "should-not-be-saved",
     keys: {
       p256dh: "p256dh-key",
       auth: "auth-key",
+      ignored: "should-not-be-saved",
     },
   };
   createTestAccount(db, "account-push");
@@ -748,7 +751,17 @@ test("push API stores a device subscription for an account", async () => {
 
     assert.equal(saveResponse.status, 200);
     assert.deepEqual(await saveResponse.json(), { saved: true, subscriptions: 1 });
-    assert.equal(db.getPushSubscriptions("account-push")[0].endpoint, subscription.endpoint);
+    assert.deepEqual(db.getPushSubscriptions("account-push")[0], {
+      accountId: "account-push",
+      deviceId: "desktop",
+      endpoint: subscription.endpoint,
+      expirationTime: 12345,
+      keys: {
+        p256dh: "p256dh-key",
+        auth: "auth-key",
+      },
+      updatedAt: db.getPushSubscriptions("account-push")[0].updatedAt,
+    });
 
     const renewedSubscription = createPushSubscription("https://push.example/send/renewed");
     const renewResponse = await fetch(`${baseUrl}/api/push/subscriptions`, {
@@ -783,6 +796,35 @@ test("push API stores a device subscription for an account", async () => {
       deviceRegistered: true,
       updatedAt: db.getPushSubscriptions("account-push")[0].updatedAt,
     });
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("push API rejects oversized subscriptions", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db, pushPublicKey: "public-key" });
+  const baseUrl = await listen(server);
+  const accountId = "account-push-oversized";
+  createTestAccount(db, accountId);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/push/subscriptions`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({
+        subscription: createPushSubscription(`https://push.example/send/${"x".repeat(4096)}`),
+      }),
+    });
+
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error, "invalid_push_subscription");
+    assert.equal(db.getPushSubscriptions(accountId).length, 0);
   } finally {
     await close(server);
     db.close();

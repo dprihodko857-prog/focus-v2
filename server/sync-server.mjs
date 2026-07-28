@@ -19,6 +19,8 @@ const AUTH_TRANSIENT_MAX_AGE_SECONDS = 10 * 60;
 const AUTH_SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 const DEFAULT_AUTH_ISSUER = "https://auth.dmnao83.ru";
 const DEFAULT_AUTH_SCOPE = "openid email profile offline_access";
+const MAX_PUSH_ENDPOINT_LENGTH = 4096;
+const MAX_PUSH_KEY_LENGTH = 512;
 
 export function createSyncDatabase(dbPath = DEFAULT_DB_PATH) {
   return new JsonSyncDatabase(dbPath);
@@ -514,13 +516,48 @@ function pruneAccountStateByKeys(stateByAccount, accountId, activeKeys) {
   }
 }
 
-function isPushSubscription(subscription) {
-  return isPlainObject(subscription) &&
-    typeof subscription.endpoint === "string" &&
-    subscription.endpoint.startsWith("https://") &&
-    isPlainObject(subscription.keys) &&
-    typeof subscription.keys.p256dh === "string" &&
-    typeof subscription.keys.auth === "string";
+function normalizePushSubscription(subscription) {
+  if (!isPlainObject(subscription) || !isPlainObject(subscription.keys)) {
+    return null;
+  }
+
+  const endpoint = String(subscription.endpoint || "").trim();
+  const p256dh = String(subscription.keys.p256dh || "").trim();
+  const auth = String(subscription.keys.auth || "").trim();
+
+  if (!isHttpsUrl(endpoint) || endpoint.length > MAX_PUSH_ENDPOINT_LENGTH) {
+    return null;
+  }
+
+  if (!p256dh || !auth || p256dh.length > MAX_PUSH_KEY_LENGTH || auth.length > MAX_PUSH_KEY_LENGTH) {
+    return null;
+  }
+
+  return {
+    endpoint,
+    expirationTime: normalizePushExpirationTime(subscription.expirationTime),
+    keys: {
+      p256dh,
+      auth,
+    },
+  };
+}
+
+function normalizePushExpirationTime(expirationTime) {
+  if (expirationTime === null || expirationTime === undefined) {
+    return null;
+  }
+
+  const parsed = Number(expirationTime);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function isHttpsUrl(value) {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function sanitizePushEventType(type) {
@@ -981,7 +1018,8 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     }
 
     const body = await readJsonBody(request);
-    if (!isPushSubscription(body?.subscription)) {
+    const subscription = normalizePushSubscription(body?.subscription);
+    if (!subscription) {
       sendJson(response, 400, { error: "invalid_push_subscription" });
       return;
     }
@@ -989,7 +1027,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     db.savePushSubscription({
       accountId: accountContext.accountId,
       deviceId: accountContext.deviceId,
-      subscription: body.subscription,
+      subscription,
       updatedAt: now(),
     });
     sendJson(response, 200, {

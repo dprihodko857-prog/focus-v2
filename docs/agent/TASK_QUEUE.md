@@ -1816,3 +1816,51 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Backend JSON parsing now returns explicit client-error responses for malformed and oversized request bodies while preserving generic `500` responses for unexpected server failures.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-28. No deployment or git push.
+
+## TASK-035
+
+- title: Sanitize stored push subscriptions
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: backend_hardening
+- priority: medium
+- source: roadmap notification/backend hardening after owner asked to continue project work on 2026-07-28
+- spec_reference: `docs/specs/push-subscription-sanitization.md`
+- spec_status: approved_for_task_035
+- goal: store only expected Push API subscription fields and reject oversized subscription strings.
+- out_of_scope:
+  - push provider changes
+  - VAPID changes
+  - client UI changes
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - valid subscription with extra fields is stored without those extra fields
+  - valid subscription renewal still replaces the previous current-device subscription
+  - non-HTTPS or oversized subscription values are rejected with `400 invalid_push_subscription`
+  - existing tests pass
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small backend_hardening task
+- file_limit: up to 7 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 34
+- stop_conditions:
+  - implementation requires push provider or client UI changes
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - existing push subscription route in `server/sync-server.mjs`
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend push subscription saves now normalize stored subscriptions to expected Push API fields and reject oversized subscription values.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-28. No deployment or git push.

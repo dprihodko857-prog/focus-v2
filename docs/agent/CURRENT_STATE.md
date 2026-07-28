@@ -45,6 +45,7 @@ Status: DRAFT
 - TASK-032 is implemented locally: an unreadable sync JSON database file is preserved as a unique `.corrupt-*` sibling before the backend starts with a fresh state.
 - TASK-033 is implemented locally: saving a reminder snapshot prunes stale push delivery/retry/failure state for removed or rescheduled reminder keys while keeping push event history.
 - TASK-034 is implemented locally: malformed or oversized JSON request bodies now return explicit `400 invalid_json` or `413 request_body_too_large` responses instead of generic server errors.
+- TASK-035 is implemented locally: backend push subscription saves now store only expected Push API fields and reject oversized subscription strings.
 
 ## In Progress
 
@@ -65,7 +66,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-034 checks passed locally; `npm.cmd run test` passed 123/123.
+- Current result: local Git repository exists; TASK-035 checks passed locally; `npm.cmd run test` passed 124/124.
 
 ## Open Questions
 
