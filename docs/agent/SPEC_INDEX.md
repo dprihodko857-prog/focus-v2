@@ -49,4 +49,5 @@ Status: DRAFT
 | PUSH-STATE-EMPTY-BUCKET-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-state-empty-bucket-cleanup.md` | TASK-041 removes empty push delivery/retry/failure account buckets after direct state transitions. |
 | INDEXEDDB-REMINDERS-LEGACY-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/indexeddb-reminders-legacy-cleanup.md` | TASK-042 migrates legacy reminders into IndexedDB and removes stale reminder localStorage data. |
 | INDEXEDDB-SAVE-LEGACY-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/indexeddb-save-legacy-cleanup.md` | TASK-043 removes stale fallback localStorage keys after successful IndexedDB saves. |
+| LOCALSTORAGE-FALLBACK-READ-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/localstorage-fallback-read-guard.md` | TASK-044 guards legacy fallback reads so unavailable localStorage cannot break hydration. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

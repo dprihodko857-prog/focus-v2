@@ -180,3 +180,7 @@ Keep entries short and factual.
 | 2026-07-29 | TASK-043 | Implemented IndexedDB save-time legacy cleanup locally. | Save paths for important data now clear matching fallback keys after successful IndexedDB writes; service worker cache is `focus-pwa-v71`. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-29 | TASK-043 | Completed IndexedDB save-time legacy cleanup checks. | Syntax checks passed, targeted tests passed 55/55, and `npm.cmd run test` passed 134/134. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-29 | TASK-043 | Committed IndexedDB save-time legacy cleanup locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-29 | TASK-044 | Started legacy fallback read guard. | Reminder fallback hydration still read `localStorage` directly after IndexedDB failure. | IN_PROGRESS | Add guarded helper, route fallback reads through it, bump cache, and run checks. |
+| 2026-07-29 | TASK-044 | Implemented legacy fallback read guard locally. | Legacy list reads and diary PIN fallback parsing now use guarded `localStorage` access; service worker cache is `focus-pwa-v72`. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-29 | TASK-044 | Completed legacy fallback read guard checks. | Syntax checks passed, targeted tests passed 39/39, and `npm.cmd run test` passed 135/135. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-29 | TASK-044 | Committed legacy fallback read guard locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

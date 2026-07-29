@@ -22,7 +22,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v71/);
+  assert.match(serviceWorker, /focus-pwa-v72/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
@@ -148,6 +148,14 @@ test("settings expose per-collection sync status diagnostics", () => {
   assert.match(appJs, /runBackgroundSync\(syncAction, collectionKey = ""\)/);
   assert.match(appJs, /scheduleSync\.pushSchedules\(schedulesSnapshot\), "schedules"\)/);
   assert.match(appJs, /scheduleSync\.pushReminders\(remindersSnapshot\), "reminders"\)/);
+});
+
+test("app guards legacy localStorage fallback reads", () => {
+  assert.match(appJs, /function readLocalStorageItem\(key\)/);
+  assert.match(appJs, /function readLegacyScheduleList\(key\)/);
+  assert.match(appJs, /JSON\.parse\(readLocalStorageItem\(DIARY_PIN_KEY\) \|\| "null"\)/);
+  assert.match(appJs, /localReminders = readLegacyScheduleList\(REMINDERS_KEY\)/);
+  assert.doesNotMatch(appJs, /parseScheduleList\(localStorage\.getItem/);
 });
 
 test("sidebar exposes the useful services hub", () => {

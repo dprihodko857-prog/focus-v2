@@ -2257,3 +2257,53 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Successful IndexedDB saves now remove stale fallback keys for important local data while preserving fallback behavior when IndexedDB is unavailable.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-29. No deployment or git push.
+
+## TASK-044
+
+- title: Guard legacy localStorage fallback reads
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: storage_hardening
+- priority: medium
+- source: roadmap IndexedDB storage hardening after owner asked to continue project work on 2026-07-29
+- spec_reference: `docs/specs/localstorage-fallback-read-guard.md`
+- spec_status: implemented_local_committed
+- goal: make legacy fallback reads safe when `localStorage` itself is unavailable or throws.
+- out_of_scope:
+  - changing data shapes
+  - changing IndexedDB, sync, notification, or diary PIN behavior
+  - removing fallback writes when IndexedDB is unavailable
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - legacy fallback list reads do not throw when `localStorage` access fails
+  - reminder hydration uses the guarded fallback list helper
+  - diary PIN fallback parsing uses guarded `localStorage` access
+  - existing tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small storage_hardening task
+- file_limit: up to 9 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 43
+- stop_conditions:
+  - implementation requires changing app data shapes or user-facing behavior
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/sync-integration-assets.test.mjs`
+  - service worker cache id contract tests
+- dependencies:
+  - existing fallback read paths in `public/js/app.js`
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Legacy fallback reads now route through guarded helpers, including reminder hydration and diary PIN fallback parsing.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-29. No deployment or git push.

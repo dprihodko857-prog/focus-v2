@@ -103,6 +103,18 @@ function clearInitialLaunchTarget() {
   }
 }
 
+function readLocalStorageItem(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function readLegacyScheduleList(key) {
+  return parseScheduleList(readLocalStorageItem(key));
+}
+
 function lockViewportScale() {
   const preventScale = event => event.preventDefault();
   ["gesturestart", "gesturechange", "gestureend"].forEach(type => {
@@ -1634,7 +1646,7 @@ function normalizeDiaryPinSettings(settings) {
 
 function getDiaryPinFromLocalStorage() {
   try {
-    return normalizeDiaryPinSettings(JSON.parse(localStorage.getItem(DIARY_PIN_KEY) || "null"));
+    return normalizeDiaryPinSettings(JSON.parse(readLocalStorageItem(DIARY_PIN_KEY) || "null"));
   } catch {
     return null;
   }
@@ -2620,11 +2632,7 @@ function runBackgroundSync(syncAction, collectionKey = "") {
 }
 
 function loadLegacySavedSchedules() {
-  try {
-    return parseScheduleList(localStorage.getItem(LEGACY_SCHEDULES_KEY));
-  } catch {
-    return [];
-  }
+  return readLegacyScheduleList(LEGACY_SCHEDULES_KEY);
 }
 
 function saveSchedulesLocally(schedules) {
@@ -2644,11 +2652,7 @@ function persistSavedSchedules() {
 }
 
 function loadLegacySavedTasks() {
-  try {
-    return parseScheduleList(localStorage.getItem(LEGACY_TASKS_KEY));
-  } catch {
-    return [];
-  }
+  return readLegacyScheduleList(LEGACY_TASKS_KEY);
 }
 
 function saveTasksLocally(tasksList) {
@@ -2670,11 +2674,7 @@ function persistSavedTasks() {
 }
 
 function loadLegacySavedNotes() {
-  try {
-    return parseScheduleList(localStorage.getItem(LEGACY_NOTES_KEY));
-  } catch {
-    return [];
-  }
+  return readLegacyScheduleList(LEGACY_NOTES_KEY);
 }
 
 function saveNotesLocally(notesList) {
@@ -2696,11 +2696,7 @@ function persistSavedNotes() {
 }
 
 function loadLegacySavedBirthdays() {
-  try {
-    return parseScheduleList(localStorage.getItem(LEGACY_BIRTHDAYS_KEY));
-  } catch {
-    return [];
-  }
+  return readLegacyScheduleList(LEGACY_BIRTHDAYS_KEY);
 }
 
 function saveBirthdaysLocally(birthdaysList) {
@@ -2722,11 +2718,7 @@ function persistSavedBirthdays() {
 }
 
 function loadLegacySavedDiaryEntries() {
-  try {
-    return parseScheduleList(localStorage.getItem(LEGACY_DIARY_KEY));
-  } catch {
-    return [];
-  }
+  return readLegacyScheduleList(LEGACY_DIARY_KEY);
 }
 
 function saveDiaryEntriesLocally(entriesList) {
@@ -3519,7 +3511,7 @@ async function hydrateLocalReminders() {
   try {
     localReminders = await scheduleStorage.migrateRemindersFromLocalStorage();
   } catch {
-    localReminders = parseScheduleList(localStorage.getItem(REMINDERS_KEY));
+    localReminders = readLegacyScheduleList(REMINDERS_KEY);
   }
 
   await syncSavedReminders({ render: false });
