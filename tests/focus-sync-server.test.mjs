@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
 
-import { createFocusSyncServer, createSyncDatabase, dispatchDueReminders } from "../server/sync-server.mjs";
+import { createFocusSyncServer, createSyncDatabase, dispatchDueReminders, runBackgroundReminderDispatch } from "../server/sync-server.mjs";
 
 test("sync API creates an account and shares schedules across devices", async () => {
   const db = createSyncDatabase(":memory:");
@@ -1635,6 +1635,62 @@ test("push dispatcher removes expired subscriptions", async () => {
   const snapshot = db.getReminderSnapshot(accountId);
   assert.equal(snapshot.revision, 1);
   assert.equal(snapshot.reminders[0].deliveredAt, null);
+});
+
+test("background push dispatcher logs unexpected failures", async () => {
+  const db = createSyncDatabase(":memory:");
+  const failure = new Error("snapshot storage failed");
+  const loggerCalls = [];
+  db.listReminderSnapshots = () => {
+    throw failure;
+  };
+
+  try {
+    const result = await runBackgroundReminderDispatch({
+      db,
+      now: () => "2026-07-10T10:00:00.000Z",
+      pushSender: async () => ({ ok: true }),
+      logger: {
+        error: (...args) => loggerCalls.push(args),
+      },
+    });
+
+    assert.equal(loggerCalls.length, 1);
+    assert.equal(loggerCalls[0][0], "Focus reminder dispatch failed.");
+    assert.equal(loggerCalls[0][1], failure);
+    assert.equal(result.scanned, 0);
+    assert.equal(result.failed, 0);
+  } finally {
+    db.close();
+  }
+});
+
+test("background push dispatcher ignores logger failures", async () => {
+  const db = createSyncDatabase(":memory:");
+  let loggerCalls = 0;
+  db.listReminderSnapshots = () => {
+    throw new Error("snapshot storage failed");
+  };
+
+  try {
+    const result = await runBackgroundReminderDispatch({
+      db,
+      now: () => "2026-07-10T10:00:00.000Z",
+      pushSender: async () => ({ ok: true }),
+      logger: {
+        error: () => {
+          loggerCalls += 1;
+          throw new Error("logger failed");
+        },
+      },
+    });
+
+    assert.equal(loggerCalls, 1);
+    assert.equal(result.scanned, 0);
+    assert.equal(result.failed, 0);
+  } finally {
+    db.close();
+  }
 });
 
 function listen(server) {

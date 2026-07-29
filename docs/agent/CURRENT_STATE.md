@@ -50,6 +50,7 @@ Status: DRAFT
 - TASK-037 is implemented locally: empty push subscription account buckets are deleted after the final subscription is removed by existing unsubscribe/removal paths.
 - TASK-038 is implemented locally: shared CORS preflight methods now include `DELETE` for the current-device disconnect route.
 - TASK-039 is implemented locally: backend JSON body limits are enforced by incoming byte size, including multibyte Unicode payloads.
+- TASK-040 is implemented locally: unexpected background reminder dispatch failures are logged safely without creating unhandled promise rejections.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
 
 ## In Progress
@@ -71,7 +72,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-039 checks passed locally; `npm.cmd run test` passed 128/128. Deployment retry on 2026-07-29 succeeded after restoring public static file permissions on the server.
+- Current result: local Git repository exists; TASK-040 checks passed locally; `npm.cmd run test` passed 130/130. Deployment retry on 2026-07-29 succeeded after restoring public static file permissions on the server.
 
 ## Open Questions
 

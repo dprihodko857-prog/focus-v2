@@ -2057,3 +2057,51 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Backend request parsing now tracks incoming byte size and rejects oversized multibyte JSON payloads with the existing `413 request_body_too_large` response.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-28. No deployment or git push.
+
+## TASK-040
+
+- title: Log background reminder dispatch failures
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: backend_hardening
+- priority: medium
+- source: roadmap notification/backend hardening after owner asked to continue project work on 2026-07-29
+- spec_reference: `docs/specs/push-dispatch-background-error-logging.md`
+- spec_status: approved_for_task_040
+- goal: log unexpected background reminder dispatch failures without changing public API behavior.
+- out_of_scope:
+  - changing retry policy
+  - changing push payloads or provider behavior
+  - adding external logging infrastructure
+  - client UI changes
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - unexpected dispatcher failures are passed to `logger.error`
+  - a throwing logger does not rethrow from the background dispatch wrapper
+  - existing tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small backend_hardening task
+- file_limit: up to 7 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 39
+- stop_conditions:
+  - implementation requires external logging infrastructure
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - existing background reminder dispatch interval in `server/sync-server.mjs`
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Background reminder dispatch now runs through a safe wrapper that logs unexpected dispatcher failures and prevents logger failures from crashing the backend.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-29. No deployment or git push.

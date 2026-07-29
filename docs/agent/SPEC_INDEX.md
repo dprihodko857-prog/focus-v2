@@ -45,4 +45,5 @@ Status: DRAFT
 | PUSH-SUBSCRIPTION-EMPTY-BUCKET-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-subscription-empty-bucket-cleanup.md` | TASK-037 removes empty push subscription account buckets after existing unsubscribe/removal paths. |
 | SYNC-DEVICE-DISCONNECT-CORS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-device-disconnect-cors.md` | TASK-038 aligns CORS preflight methods with the implemented current-device disconnect route. |
 | SYNC-JSON-BODY-BYTE-LIMIT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-json-body-byte-limit.md` | TASK-039 enforces JSON request body limits by incoming byte size, including multibyte payloads. |
+| PUSH-DISPATCH-BACKGROUND-ERROR-LOGGING-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-dispatch-background-error-logging.md` | TASK-040 logs unexpected background reminder dispatch failures without changing delivery behavior. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

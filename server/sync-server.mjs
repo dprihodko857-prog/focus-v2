@@ -654,6 +654,7 @@ export function createFocusSyncServer({
   authConfig = createOrbitAuthConfig(),
   authSessions = new Map(),
   fetchImpl = globalThis.fetch,
+  logger = console,
 } = {}) {
   const server = http.createServer(async (request, response) => {
     try {
@@ -676,7 +677,7 @@ export function createFocusSyncServer({
 
   if (pushSender && pushCheckIntervalMs > 0) {
     const timer = setInterval(() => {
-      dispatchDueReminders({ db, now, pushSender }).catch(() => {});
+      runBackgroundReminderDispatch({ db, now, pushSender, logger });
     }, pushCheckIntervalMs);
     timer.unref?.();
     server.on("close", () => clearInterval(timer));
@@ -1837,6 +1838,18 @@ export function createWebPushSender({ publicKey, privateKey, subject }) {
   };
 }
 
+export async function runBackgroundReminderDispatch({
+  logger = console,
+  ...dispatchOptions
+} = {}) {
+  try {
+    return await dispatchDueReminders(dispatchOptions);
+  } catch (error) {
+    logServerError(logger, "Focus reminder dispatch failed.", error);
+    return createReminderDispatchStats();
+  }
+}
+
 export async function dispatchDueReminders({
   db,
   now = () => new Date().toISOString(),
@@ -2042,6 +2055,18 @@ export async function dispatchDueReminders({
   }
 
   return stats;
+}
+
+function logServerError(logger, message, error) {
+  if (!logger || typeof logger.error !== "function") {
+    return;
+  }
+
+  try {
+    logger.error(message, error);
+  } catch {
+    // Логирование не должно ронять sync backend.
+  }
 }
 
 function createReminderDispatchStats() {
