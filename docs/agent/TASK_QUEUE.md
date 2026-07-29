@@ -2364,3 +2364,60 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Backend and sync client now expose account entitlements for future paid feature gating, with `voiceTranscription` disabled by default and safe offline client behavior.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-29. No deployment or git push.
+
+## TASK-046
+
+- title: Add paid feature UI shell for voice transcription
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_ui
+- priority: high
+- source: owner asked to continue according to the plan after adding the account entitlements foundation
+- spec_reference: `docs/specs/paid-feature-ui-shell.md`
+- spec_status: implemented_local_committed
+- goal: expose future subscription-gated voice transcription in Settings and Useful using the existing account entitlement contract.
+- out_of_scope:
+  - payment provider integration
+  - subscription checkout redirect
+  - payment webhook implementation
+  - microphone capture, speech upload, transcription provider integration, or text insertion into forms
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - Settings shows paid feature status and a manual refresh action
+  - Useful shows the upcoming voice transcription feature with the same account access state
+  - UI reads `voiceTranscription` through `scheduleSync.getAccountEntitlements()`
+  - no sync account and offline states keep voice transcription disabled
+  - existing tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_ui task
+- file_limit: up to 10 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 45
+- stop_conditions:
+  - implementation requires payment provider secrets or production checkout setup
+  - implementation requires actual speech transcription provider integration
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/index.html`
+  - `public/css/app.css`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - existing `scheduleSync.getAccountEntitlements()` client API
+  - existing Useful and Settings modal surfaces
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. Settings and Useful now show subscription-gated `voiceTranscription` status from account entitlements, with no-account/offline/locked/active states.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-29. No deployment or git push.

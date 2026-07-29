@@ -56,6 +56,7 @@ Status: DRAFT
 - TASK-043 is implemented locally: successful IndexedDB saves now remove stale fallback `localStorage` keys for schedules, reminders, tasks, notes, birthdays, diary entries, and diary PIN settings; service worker cache is `focus-pwa-v71`.
 - TASK-044 is implemented locally: legacy fallback reads now use guarded helpers so unavailable `localStorage` cannot break reminder, list, or diary PIN hydration; service worker cache is `focus-pwa-v72`.
 - TASK-045 is implemented locally: backend/client account entitlements now support future paid features, starting with disabled-by-default `voiceTranscription`; service worker cache is `focus-pwa-v73`.
+- TASK-046 is implemented locally: Settings and Useful now show subscription-gated `voiceTranscription` status from account entitlements, including no-account, offline, locked, and active UI states; service worker cache is `focus-pwa-v74`.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
 
 ## In Progress
@@ -77,9 +78,9 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-045 checks passed locally; targeted tests passed 110/110 and `npm.cmd run test` passed 140/140. Deployment retry on 2026-07-29 succeeded after restoring public static file permissions on the server.
+- Current result: local Git repository exists; TASK-046 checks passed locally; targeted tests passed 41/41 and `npm.cmd run test` passed 141/141. Deployment retry on 2026-07-29 succeeded after restoring public static file permissions on the server.
 
 ## Open Questions
 
-- The next product/runtime task is the Useful/Settings UI surface for paid features and voice transcription activation.
+- The next product/runtime task is the subscription checkout/activation path or the first local voice-input prototype gated by `voiceTranscription`.
 - Future backend/deployment changes still require a separate owner deployment approval.

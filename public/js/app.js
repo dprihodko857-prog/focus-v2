@@ -77,6 +77,32 @@ const syncCollectionStates = Object.fromEntries(syncCollectionItems.map(item => 
   { status: "idle", updatedAt: "", revision: 0 },
 ]));
 
+const paidFeatureItems = [
+  {
+    key: "voiceTranscription",
+    title: "Голосовой ввод",
+    shortTitle: "Диктовка",
+    description: "Надиктовывайте расписания, дела, заметки и записи дневника вместо ручного ввода.",
+  },
+];
+
+let accountEntitlementsState = {
+  status: "idle",
+  accountId: "",
+  checkedAt: "",
+  entitlements: createDefaultAccountEntitlements(),
+};
+
+function createDefaultAccountEntitlements() {
+  return {
+    voiceTranscription: {
+      enabled: false,
+      source: "none",
+      updatedAt: null,
+    },
+  };
+}
+
 const installShortcutTargets = new Set([
   "reminder",
   "schedules",
@@ -4085,6 +4111,260 @@ function renderSyncDataStatus() {
   }).join("");
 }
 
+function mergeAccountEntitlements(entitlements = {}) {
+  const defaults = createDefaultAccountEntitlements();
+  return Object.fromEntries(Object.entries(defaults).map(([key, fallback]) => {
+    const entitlement = entitlements?.[key];
+    return [
+      key,
+      entitlement && typeof entitlement === "object"
+        ? { ...fallback, ...entitlement, enabled: entitlement.enabled === true }
+        : fallback,
+    ];
+  }));
+}
+
+function resetAccountEntitlementsState(status = "idle") {
+  accountEntitlementsState = {
+    status,
+    accountId: scheduleSync.peekAccountId(),
+    checkedAt: "",
+    entitlements: createDefaultAccountEntitlements(),
+  };
+  renderPaidFeatureSurfaces();
+}
+
+function getPaidFeatureEntitlement(featureKey) {
+  return mergeAccountEntitlements(accountEntitlementsState.entitlements)[featureKey] ||
+    createDefaultAccountEntitlements()[featureKey];
+}
+
+function getPaidFeatureStatus(feature) {
+  const accountId = scheduleSync.peekAccountId();
+  const entitlement = getPaidFeatureEntitlement(feature.key);
+
+  if (!accountId) {
+    return {
+      tone: "warn",
+      label: "Нужен аккаунт",
+      detail: "Подключите аккаунт, чтобы активировать подписку на нескольких устройствах.",
+      actionLabel: "Настроить",
+      disabled: false,
+    };
+  }
+
+  if (accountEntitlementsState.status === "loading") {
+    return {
+      tone: "warn",
+      label: "Проверяем",
+      detail: "Сверяем доступ с сервером подписок.",
+      actionLabel: "Проверяем",
+      disabled: true,
+    };
+  }
+
+  if (accountEntitlementsState.status === "offline") {
+    return {
+      tone: "bad",
+      label: "Нет связи",
+      detail: "Последнюю версию доступа не удалось получить. Повторите проверку после подключения.",
+      actionLabel: "Проверить",
+      disabled: false,
+    };
+  }
+
+  if (entitlement?.enabled) {
+    return {
+      tone: "ok",
+      label: "Активно",
+      detail: "Функция доступна этому аккаунту и будет включаться в местах ввода текста.",
+      actionLabel: "Включено",
+      disabled: true,
+    };
+  }
+
+  return {
+    tone: "warn",
+    label: "По подписке",
+    detail: "Функция готовится к запуску. Оплата и активация подписки будут подключены следующим шагом.",
+    actionLabel: "Оформить",
+    disabled: false,
+  };
+}
+
+function getPaidFeatureSourceLabel(source) {
+  if (source === "subscription") return "подписка";
+  if (source === "manual") return "ручная активация";
+  if (source === "trial") return "пробный доступ";
+  return "не активировано";
+}
+
+function getPaidFeaturesSummary() {
+  const accountId = scheduleSync.peekAccountId();
+  const activeCount = paidFeatureItems.filter(feature => getPaidFeatureEntitlement(feature.key)?.enabled).length;
+
+  if (!accountId) {
+    return "Подключите аккаунт, чтобы будущая подписка работала на компьютере и мобильных устройствах.";
+  }
+
+  if (accountEntitlementsState.status === "loading") {
+    return "Проверяем доступные функции этого аккаунта.";
+  }
+
+  if (accountEntitlementsState.status === "offline") {
+    return "Сервер подписки временно недоступен. Локальные данные остаются на устройстве.";
+  }
+
+  if (activeCount) {
+    return `Активных функций: ${activeCount}. Доступ будет синхронизироваться между устройствами аккаунта.`;
+  }
+
+  return "Платные функции пока закрыты. Каркас готов для подключения оплаты и активации.";
+}
+
+function renderPaidFeaturesPanel() {
+  const summary = document.querySelector("#paidFeaturesSummary");
+  const list = document.querySelector("#paidFeaturesList");
+  const refreshButton = document.querySelector("#paidFeaturesRefreshButton");
+
+  if (summary) {
+    summary.textContent = getPaidFeaturesSummary();
+  }
+
+  if (refreshButton) {
+    refreshButton.disabled = accountEntitlementsState.status === "loading";
+    refreshButton.textContent = accountEntitlementsState.status === "loading" ? "Проверяем..." : "Обновить";
+  }
+
+  if (!list) return;
+
+  list.innerHTML = paidFeatureItems.map(feature => {
+    const status = getPaidFeatureStatus(feature);
+    const entitlement = getPaidFeatureEntitlement(feature.key);
+    const updatedText = entitlement?.updatedAt
+      ? `Обновлено: ${formatSyncTimestamp(entitlement.updatedAt)}.`
+      : `Источник: ${getPaidFeatureSourceLabel(entitlement?.source)}.`;
+
+    return `
+      <article class="paid-feature-card paid-feature-card--${escapeHtml(status.tone)}" data-paid-feature-card="${escapeHtml(feature.key)}">
+        <div class="paid-feature-card__main">
+          <strong><i aria-hidden="true"></i>${escapeHtml(feature.title)}</strong>
+          <span>${escapeHtml(feature.description)}</span>
+          <small>${escapeHtml(status.detail)} ${escapeHtml(updatedText)}</small>
+        </div>
+        <div class="paid-feature-card__side">
+          <span class="paid-feature-status paid-feature-status--${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
+          <button class="secondary-button secondary-button--compact" type="button" data-paid-feature-action="${escapeHtml(feature.key)}"${status.disabled ? " disabled" : ""}>${escapeHtml(status.actionLabel)}</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderUsefulSubscriptionPanel() {
+  const panel = document.querySelector("#usefulSubscriptionPanel");
+  if (!panel) return;
+
+  const feature = paidFeatureItems.find(item => item.key === "voiceTranscription");
+  if (!feature) {
+    panel.hidden = true;
+    return;
+  }
+
+  const status = getPaidFeatureStatus(feature);
+  panel.hidden = false;
+  panel.className = `useful-subscription-panel useful-subscription-panel--${status.tone}`;
+  panel.innerHTML = `
+    <div>
+      <span class="modal-kicker">Подписка</span>
+      <h3>${escapeHtml(feature.title)}</h3>
+      <p>${escapeHtml(feature.description)}</p>
+      <small>${escapeHtml(status.detail)}</small>
+    </div>
+    <button class="secondary-button" type="button" data-paid-feature-action="${escapeHtml(feature.key)}"${status.disabled ? " disabled" : ""}>${escapeHtml(status.actionLabel)}</button>
+  `;
+}
+
+function renderPaidFeatureSurfaces() {
+  renderPaidFeaturesPanel();
+  renderUsefulSubscriptionPanel();
+}
+
+async function refreshAccountEntitlements({ silent = false } = {}) {
+  const accountId = scheduleSync.peekAccountId();
+
+  if (!accountId) {
+    resetAccountEntitlementsState("local");
+    if (!silent) {
+      setSyncStatus("Сначала подключите аккаунт. После этого подписка будет проверяться на сервере.");
+    }
+    return accountEntitlementsState;
+  }
+
+  accountEntitlementsState = {
+    ...accountEntitlementsState,
+    status: "loading",
+    accountId,
+  };
+  renderPaidFeatureSurfaces();
+
+  try {
+    const result = await scheduleSync.getAccountEntitlements();
+    accountEntitlementsState = {
+      status: result.status || "ok",
+      accountId: result.accountId || accountId,
+      checkedAt: result.checkedAt || new Date().toISOString(),
+      entitlements: mergeAccountEntitlements(result.entitlements),
+    };
+
+    if (!silent) {
+      setSyncStatus(accountEntitlementsState.status === "offline"
+        ? "Не удалось проверить подписку. Повторите после подключения к сети."
+        : "Доступ к платным функциям обновлён.");
+    }
+  } catch {
+    accountEntitlementsState = {
+      status: "offline",
+      accountId,
+      checkedAt: "",
+      entitlements: createDefaultAccountEntitlements(),
+    };
+    if (!silent) {
+      setSyncStatus("Не удалось проверить подписку. Повторите после подключения к сети.");
+    }
+  }
+
+  renderPaidFeatureSurfaces();
+  return accountEntitlementsState;
+}
+
+function handlePaidFeatureAction(featureKey, openModal) {
+  const feature = paidFeatureItems.find(item => item.key === featureKey);
+  if (!feature) return;
+
+  const accountId = scheduleSync.peekAccountId();
+  const entitlement = getPaidFeatureEntitlement(featureKey);
+
+  if (!accountId) {
+    openModal?.("sync");
+    setSyncStatus("Сначала подключите аккаунт. После этого можно будет оформить подписку на голосовой ввод.");
+    return;
+  }
+
+  if (accountEntitlementsState.status === "offline") {
+    refreshAccountEntitlements();
+    return;
+  }
+
+  if (entitlement?.enabled) {
+    setSyncStatus(`${feature.title} уже активен для этого аккаунта.`);
+    return;
+  }
+
+  openModal?.("sync");
+  setSyncStatus("Оплата подписки будет подключена следующим шагом. Сейчас функция закрыта, но готова к активации через аккаунт.");
+}
+
 function renderSyncState() {
   const accountCode = document.querySelector("#syncAccountCode");
   const copyButton = document.querySelector("#syncCodeCopyButton");
@@ -4103,6 +4383,7 @@ function renderSyncState() {
     : "Нажмите «Показать код», чтобы создать код синхронизации.");
   renderSyncAccountProfile();
   renderSyncDataStatus();
+  renderPaidFeatureSurfaces();
 }
 
 async function copySyncAccountCode() {
@@ -4188,11 +4469,19 @@ async function refreshAuthSession() {
     syncAccountProfile = null;
     if (accountChanged) {
       resetSyncCollectionStates();
+      resetAccountEntitlementsState();
     }
   }
 
   renderAuthState(authSession);
   renderSyncState();
+  if (scheduleSync.peekAccountId()) {
+    refreshAccountEntitlements({ silent: true }).catch(() => {
+      renderPaidFeatureSurfaces();
+    });
+  } else {
+    resetAccountEntitlementsState("local");
+  }
   return authSession;
 }
 
@@ -4205,6 +4494,7 @@ async function logoutAuthSession() {
     scheduleSync.clearAccountId();
     syncAccountProfile = null;
     resetSyncCollectionStates();
+    resetAccountEntitlementsState("local");
   }
   renderAuthState(authSession);
   renderSyncState();
@@ -4353,6 +4643,7 @@ async function disconnectSyncAccount() {
   scheduleSync.clearAccountId();
   syncAccountProfile = null;
   resetSyncCollectionStates();
+  resetAccountEntitlementsState("local");
   renderSyncState();
 
   if (result.status === "removed") {
@@ -4695,6 +4986,7 @@ async function ensureSyncAccountReady() {
   await scheduleSync.getAccountId();
   renderSyncState();
   await refreshSyncAccountProfile();
+  await refreshAccountEntitlements({ silent: true });
   await syncSavedSchedules();
   await syncSavedTasks();
   await syncSavedNotes();
@@ -4753,6 +5045,7 @@ async function connectSyncAccount() {
     }
     renderSyncState();
     await refreshSyncAccountProfile();
+    await refreshAccountEntitlements({ silent: true });
     if (result.status === "pulled") {
       setSyncStatus("Готово. Данные с другого устройства загружены.");
     } else {
@@ -5434,8 +5727,12 @@ function bindControls() {
       renderSyncState();
       renderAuthState();
       renderSyncAccountProfile();
+      renderPaidFeatureSurfaces();
       renderInstallDiagnostics();
       renderDeviceCheck();
+      refreshAccountEntitlements({ silent: true }).catch(() => {
+        renderPaidFeatureSurfaces();
+      });
       refreshReminderPushDiagnostics().catch(() => {
         renderDeviceCheck();
       });
@@ -5450,6 +5747,12 @@ function bindControls() {
             setSyncStatus("Синхронизация временно недоступна. Локальные данные сохранены.");
           });
         });
+    }
+    if (name === "useful") {
+      renderPaidFeatureSurfaces();
+      refreshAccountEntitlements({ silent: true }).catch(() => {
+        renderPaidFeatureSurfaces();
+      });
     }
     if (name === "reminder") {
       if (!reminderEditId) {
@@ -5913,6 +6216,10 @@ function bindControls() {
     refreshSyncDataStatus();
   });
 
+  document.querySelector("#paidFeaturesRefreshButton")?.addEventListener("click", () => {
+    refreshAccountEntitlements();
+  });
+
   document.querySelector("#syncConnectButton")?.addEventListener("click", () => {
     connectSyncAccount();
   });
@@ -6042,6 +6349,12 @@ function bindControls() {
   });
 
   modalLayer.addEventListener("click", event => {
+    const paidFeatureButton = event.target.closest("[data-paid-feature-action]");
+    if (paidFeatureButton) {
+      handlePaidFeatureAction(paidFeatureButton.dataset.paidFeatureAction, openModal);
+      return;
+    }
+
     const backToSchedulesButton = event.target.closest("[data-back-to-schedules]");
     if (backToSchedulesButton) {
       renderSavedSchedules();
@@ -6146,7 +6459,11 @@ renderTasks();
 renderLabels();
 renderScheduleTypes();
 renderSyncDataStatus();
+renderPaidFeatureSurfaces();
 const controls = bindControls();
+refreshAccountEntitlements({ silent: true }).catch(() => {
+  renderPaidFeatureSurfaces();
+});
 loadDiaryPinSettings().catch(() => {
   renderDiaryPinSummary();
 });
@@ -6185,6 +6502,7 @@ function runOnlineRecoverySync() {
     syncSavedReminders(),
     registerServerPushSubscription(),
     refreshReminderPushStatus(),
+    refreshAccountEntitlements({ silent: true }),
   ]).finally(() => {
     pendingOnlineRecoverySync = null;
   });

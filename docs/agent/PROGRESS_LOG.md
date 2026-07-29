@@ -188,3 +188,7 @@ Keep entries short and factual.
 | 2026-07-29 | TASK-045 | Implemented account entitlements foundation locally. | Backend now stores account entitlements and exposes `GET /api/sync/entitlements`; sync client can load them; service worker cache is `focus-pwa-v73`. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-29 | TASK-045 | Completed account entitlements foundation checks. | Syntax checks passed, targeted tests passed 110/110, and `npm.cmd run test` passed 140/140. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-29 | TASK-045 | Committed account entitlements foundation locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-29 | TASK-046 | Started paid feature UI shell. | Owner approved continuing with the subscription/transcription roadmap after TASK-045. | IN_PROGRESS | Add Settings and Useful surfaces, run checks, and commit locally. |
+| 2026-07-29 | TASK-046 | Implemented paid feature UI shell locally. | Settings and Useful now render `voiceTranscription` access from account entitlements; service worker cache is `focus-pwa-v74`. | DONE | Run checks and commit locally; deploy remains separate. |
+| 2026-07-29 | TASK-046 | Completed paid feature UI shell checks. | Syntax checks passed, targeted tests passed 41/41, and `npm.cmd run test` passed 141/141. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-29 | TASK-046 | Committed paid feature UI shell locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

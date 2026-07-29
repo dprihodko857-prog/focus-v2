@@ -608,6 +608,18 @@
             <div class="sync-device-list" id="syncDeviceList" aria-live="polite"></div>
           </div>
 
+          <div class="paid-features-panel">
+            <div class="paid-features-panel__head">
+              <div>
+                <span class="modal-kicker">Подписка</span>
+                <h3>Платные функции</h3>
+                <p id="paidFeaturesSummary">Проверяем доступные функции аккаунта.</p>
+              </div>
+              <button class="secondary-button" type="button" id="paidFeaturesRefreshButton">Обновить</button>
+            </div>
+            <div class="paid-feature-list" id="paidFeaturesList" aria-live="polite"></div>
+          </div>
+
           <div class="sync-data-panel">
             <div class="sync-data-panel__head">
               <div>
@@ -680,6 +692,8 @@
             <strong>Будущий центр дополнительных функций</strong>
             <p>Здесь будут появляться вспомогательные сервисы проекта: быстрые инструменты, подборки, шаблоны и расширения для планирования.</p>
           </div>
+
+          <div class="useful-subscription-panel" id="usefulSubscriptionPanel" aria-live="polite" hidden></div>
 
           <div class="useful-grid" aria-label="Будущие сервисы">
             <article class="useful-card">
