@@ -47,4 +47,5 @@ Status: DRAFT
 | SYNC-JSON-BODY-BYTE-LIMIT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/sync-json-body-byte-limit.md` | TASK-039 enforces JSON request body limits by incoming byte size, including multibyte payloads. |
 | PUSH-DISPATCH-BACKGROUND-ERROR-LOGGING-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-dispatch-background-error-logging.md` | TASK-040 logs unexpected background reminder dispatch failures without changing delivery behavior. |
 | PUSH-STATE-EMPTY-BUCKET-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/push-state-empty-bucket-cleanup.md` | TASK-041 removes empty push delivery/retry/failure account buckets after direct state transitions. |
+| INDEXEDDB-REMINDERS-LEGACY-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/indexeddb-reminders-legacy-cleanup.md` | TASK-042 migrates legacy reminders into IndexedDB and removes stale reminder localStorage data. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

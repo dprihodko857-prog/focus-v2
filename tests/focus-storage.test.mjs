@@ -72,6 +72,37 @@ test("saveReminders persists and replaces the IndexedDB reminder list", async ()
   assert.deepEqual(await storage.loadReminders(), [{ id: "second", title: "Workout" }]);
 });
 
+test("migrateRemindersFromLocalStorage copies legacy reminders into IndexedDB", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const legacyReminders = [
+    { id: "reminder-1", title: "Call", scheduledAt: "2026-07-11T10:00:00.000Z" },
+  ];
+  const localStorage = createMemoryLocalStorage({
+    [REMINDERS_KEY]: JSON.stringify(legacyReminders),
+  });
+  const storage = createFocusStorage({ indexedDB, localStorage });
+
+  assert.deepEqual(await storage.migrateRemindersFromLocalStorage(), legacyReminders);
+  assert.deepEqual(await storage.loadReminders(), legacyReminders);
+  assert.equal(localStorage.getItem(REMINDERS_KEY), null);
+});
+
+test("migrateRemindersFromLocalStorage removes stale legacy reminders when IndexedDB already has data", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const indexedReminders = [
+    { id: "indexed-reminder", title: "Indexed", scheduledAt: "2026-07-11T10:00:00.000Z" },
+  ];
+  const localStorage = createMemoryLocalStorage({
+    [REMINDERS_KEY]: JSON.stringify([{ id: "legacy-reminder", title: "Legacy" }]),
+  });
+  const storage = createFocusStorage({ indexedDB, localStorage });
+
+  await storage.saveReminders(indexedReminders);
+
+  assert.deepEqual(await storage.migrateRemindersFromLocalStorage(), indexedReminders);
+  assert.equal(localStorage.getItem(REMINDERS_KEY), null);
+});
+
 test("migrateTasksFromLocalStorage copies legacy tasks into IndexedDB", async () => {
   const indexedDB = createFakeIndexedDB();
   const legacyTasks = [

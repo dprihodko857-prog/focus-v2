@@ -3517,7 +3517,7 @@ async function markReminderDelivered(reminder) {
 
 async function hydrateLocalReminders() {
   try {
-    localReminders = await scheduleStorage.loadReminders();
+    localReminders = await scheduleStorage.migrateRemindersFromLocalStorage();
   } catch {
     localReminders = parseScheduleList(localStorage.getItem(REMINDERS_KEY));
   }

@@ -88,6 +88,23 @@ export function createFocusStorage({
       return normalizedReminders;
     },
 
+    async migrateRemindersFromLocalStorage() {
+      const indexedReminders = await this.loadReminders();
+      if (indexedReminders.length) {
+        removeLegacyValue(REMINDERS_KEY);
+        return indexedReminders;
+      }
+
+      const legacyReminders = parseScheduleList(localStorage?.getItem(REMINDERS_KEY));
+      if (!legacyReminders.length) {
+        return [];
+      }
+
+      await this.saveReminders(legacyReminders);
+      removeLegacyValue(REMINDERS_KEY);
+      return legacyReminders;
+    },
+
     async loadTasks() {
       const tasks = await getValue(TASKS_KEY);
       return Array.isArray(tasks) ? tasks : [];

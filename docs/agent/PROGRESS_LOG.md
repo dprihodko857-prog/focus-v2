@@ -172,3 +172,7 @@ Keep entries short and factual.
 | 2026-07-29 | TASK-041 | Implemented push state empty-bucket cleanup locally. | Direct retry, delivery, and failure transitions now remove empty account buckets from push retry/failure maps. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-29 | TASK-041 | Completed push state empty-bucket cleanup checks. | `node --check server/sync-server.mjs`, server tests passed 34/34, and `npm.cmd run test` passed 131/131. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-29 | TASK-041 | Committed push state empty-bucket cleanup locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-29 | TASK-042 | Started reminders IndexedDB legacy cleanup. | Reminder hydration used IndexedDB directly and could leave stale `localReminders` in legacy `localStorage`. | IN_PROGRESS | Add migration helper, update hydration, bump cache, and run checks. |
+| 2026-07-29 | TASK-042 | Implemented reminders IndexedDB legacy cleanup locally. | App startup reminder hydration now migrates/removes legacy `localReminders`; service worker cache is `focus-pwa-v70`. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-29 | TASK-042 | Completed reminders IndexedDB legacy cleanup checks. | Syntax checks passed, targeted tests passed 54/54, and `npm.cmd run test` passed 133/133. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-29 | TASK-042 | Committed reminders IndexedDB legacy cleanup locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

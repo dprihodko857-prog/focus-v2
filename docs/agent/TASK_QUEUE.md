@@ -2154,3 +2154,55 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Direct retry, delivery, and failure transitions now remove empty account buckets from push retry/failure maps while preserving delivery behavior.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-29. No deployment or git push.
+
+## TASK-042
+
+- title: Clean legacy reminder localStorage after IndexedDB migration
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: storage_hardening
+- priority: medium
+- source: roadmap IndexedDB storage hardening after owner asked to continue project work on 2026-07-29
+- spec_reference: `docs/specs/indexeddb-reminders-legacy-cleanup.md`
+- spec_status: implemented_local_committed
+- goal: migrate legacy reminder data into IndexedDB and remove stale reminder legacy storage after successful IndexedDB access.
+- out_of_scope:
+  - changing reminder data shape
+  - changing reminder scheduling or push delivery behavior
+  - removing the fallback write path when IndexedDB is unavailable
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - legacy reminder data migrates into IndexedDB
+  - stale legacy reminder data is removed when IndexedDB already has reminder data
+  - reminder hydration uses the migration helper
+  - existing tests pass locally
+- required_checks:
+  - `node --check public/js/storage.js`
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-storage.test.mjs tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small storage_hardening task
+- file_limit: up to 10 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 41
+- stop_conditions:
+  - implementation requires changing reminder data shape or notification delivery behavior
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/storage.js`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/focus-storage.test.mjs`
+  - service worker cache id contract tests
+- dependencies:
+  - existing IndexedDB storage helpers in `public/js/storage.js`
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Reminder hydration now uses the IndexedDB migration helper, legacy `localReminders` data is copied or removed after successful IndexedDB access, and fallback behavior remains available when IndexedDB fails.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-29. No deployment or git push.
