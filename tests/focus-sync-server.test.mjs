@@ -1637,6 +1637,71 @@ test("push dispatcher removes expired subscriptions", async () => {
   assert.equal(snapshot.reminders[0].deliveredAt, null);
 });
 
+test("push state cleanup removes empty retry and failure buckets", () => {
+  const db = createSyncDatabase(":memory:");
+  const accountId = "account-push-state-cleanup";
+  const deliveryKey = "reminder-cleanup:2026-07-10T09:59:00.000Z";
+
+  try {
+    db.savePushRetry({
+      accountId,
+      deliveryKey,
+      reminderId: "reminder-cleanup",
+      scheduledAt: "2026-07-10T09:59:00.000Z",
+      attempts: 1,
+      maxAttempts: 3,
+      lastAttemptAt: "2026-07-10T10:00:00.000Z",
+      nextRetryAt: "2026-07-10T10:05:00.000Z",
+      failed: 1,
+      removed: 0,
+      subscriptions: 1,
+    });
+    db.clearPushRetry({ accountId, deliveryKey });
+    assert.equal(db.state.pushRetries[accountId], undefined);
+
+    db.savePushRetry({
+      accountId,
+      deliveryKey,
+      reminderId: "reminder-cleanup",
+      scheduledAt: "2026-07-10T09:59:00.000Z",
+      attempts: 1,
+      maxAttempts: 3,
+      lastAttemptAt: "2026-07-10T10:00:00.000Z",
+      nextRetryAt: "2026-07-10T10:05:00.000Z",
+      failed: 1,
+      removed: 0,
+      subscriptions: 1,
+    });
+    db.savePushFailure({
+      accountId,
+      deliveryKey,
+      reminderId: "reminder-cleanup",
+      scheduledAt: "2026-07-10T09:59:00.000Z",
+      attempts: 3,
+      maxAttempts: 3,
+      failedAt: "2026-07-10T10:10:00.000Z",
+      failed: 1,
+      removed: 0,
+      subscriptions: 1,
+    });
+    assert.equal(db.state.pushRetries[accountId], undefined);
+    assert.ok(db.state.pushFailures[accountId]?.[deliveryKey]);
+
+    db.savePushDelivery({
+      accountId,
+      deliveryKey,
+      reminderId: "reminder-cleanup",
+      scheduledAt: "2026-07-10T09:59:00.000Z",
+      sentAt: "2026-07-10T10:15:00.000Z",
+      deliveryCount: 1,
+    });
+    assert.equal(db.state.pushFailures[accountId], undefined);
+    assert.ok(db.state.pushDeliveries[accountId]?.[deliveryKey]);
+  } finally {
+    db.close();
+  }
+});
+
 test("background push dispatcher logs unexpected failures", async () => {
   const db = createSyncDatabase(":memory:");
   const failure = new Error("snapshot storage failed");

@@ -353,12 +353,8 @@ class JsonSyncDatabase {
       sentAt,
       deliveryCount,
     };
-    if (this.state.pushRetries[accountId]) {
-      delete this.state.pushRetries[accountId][deliveryKey];
-    }
-    if (this.state.pushFailures[accountId]) {
-      delete this.state.pushFailures[accountId][deliveryKey];
-    }
+    deleteAccountStateKey(this.state.pushRetries, accountId, deliveryKey);
+    deleteAccountStateKey(this.state.pushFailures, accountId, deliveryKey);
     this.persist();
   }
 
@@ -382,9 +378,7 @@ class JsonSyncDatabase {
       subscriptions: Number(subscriptions) || 0,
     };
     this.state.pushRetries[accountId][deliveryKey] = retry;
-    if (this.state.pushFailures[accountId]) {
-      delete this.state.pushFailures[accountId][deliveryKey];
-    }
+    deleteAccountStateKey(this.state.pushFailures, accountId, deliveryKey);
     this.persist();
     return retry;
   }
@@ -393,7 +387,7 @@ class JsonSyncDatabase {
     if (!this.state.pushRetries[accountId]?.[deliveryKey]) {
       return;
     }
-    delete this.state.pushRetries[accountId][deliveryKey];
+    deleteAccountStateKey(this.state.pushRetries, accountId, deliveryKey);
     this.persist();
   }
 
@@ -420,9 +414,7 @@ class JsonSyncDatabase {
       subscriptions: Number(subscriptions) || 0,
     };
     this.state.pushFailures[accountId][deliveryKey] = failure;
-    if (this.state.pushRetries[accountId]) {
-      delete this.state.pushRetries[accountId][deliveryKey];
-    }
+    deleteAccountStateKey(this.state.pushRetries, accountId, deliveryKey);
     this.persist();
     return failure;
   }
@@ -553,6 +545,20 @@ function pruneAccountStateByKeys(stateByAccount, accountId, activeKeys) {
   if (Object.keys(accountState).length === 0) {
     delete stateByAccount[accountId];
   }
+}
+
+function deleteAccountStateKey(stateByAccount, accountId, key) {
+  const accountState = stateByAccount[accountId];
+  if (!isPlainObject(accountState) || !Object.hasOwn(accountState, key)) {
+    return false;
+  }
+
+  delete accountState[key];
+  if (Object.keys(accountState).length === 0) {
+    delete stateByAccount[accountId];
+  }
+
+  return true;
 }
 
 function compareDeviceSessionsForRetention(firstEntry, secondEntry, protectedSessionKey) {

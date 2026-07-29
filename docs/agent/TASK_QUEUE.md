@@ -2105,3 +2105,52 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Background reminder dispatch now runs through a safe wrapper that logs unexpected dispatcher failures and prevents logger failures from crashing the backend.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-29. No deployment or git push.
+
+## TASK-041
+
+- title: Clean empty push state buckets
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: backend_hardening
+- priority: medium
+- source: roadmap notification/backend hardening after owner asked to continue project work on 2026-07-29
+- spec_reference: `docs/specs/push-state-empty-bucket-cleanup.md`
+- spec_status: approved_for_task_041
+- goal: delete empty push state account buckets after direct per-delivery state cleanup.
+- out_of_scope:
+  - changing push retry policy
+  - changing delivery/failure event history
+  - changing reminder snapshot pruning
+  - client UI changes
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - direct retry cleanup removes the empty account retry bucket
+  - successful delivery cleanup removes empty retry and failure buckets for that account
+  - terminal failure cleanup removes the empty retry bucket for that account
+  - existing tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small backend_hardening task
+- file_limit: up to 7 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 40
+- stop_conditions:
+  - implementation requires push retry policy changes
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - existing push retry, delivery, and failure state methods in `server/sync-server.mjs`
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Direct retry, delivery, and failure transitions now remove empty account buckets from push retry/failure maps while preserving delivery behavior.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-29. No deployment or git push.
