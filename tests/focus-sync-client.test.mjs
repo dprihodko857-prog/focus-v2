@@ -755,6 +755,69 @@ test("account profile update queues offline changes and flushes them later", asy
   });
 });
 
+test("account entitlements load paid feature access", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        accountId: "account-1",
+        checkedAt: "2026-07-12T09:00:00.000Z",
+        entitlements: {
+          voiceTranscription: {
+            enabled: true,
+            source: "subscription",
+            updatedAt: "2026-07-12T08:55:00.000Z",
+          },
+        },
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.getAccountEntitlements();
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.accountId, "account-1");
+  assert.equal(result.checkedAt, "2026-07-12T09:00:00.000Z");
+  assert.equal(result.entitlements.voiceTranscription.enabled, true);
+  assert.equal(result.entitlements.voiceTranscription.source, "subscription");
+  assert.equal(calls[0].url, "/api/sync/entitlements");
+  assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
+  assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
+});
+
+test("account entitlements default to disabled when offline", async () => {
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async () => {
+      throw new Error("offline");
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.getAccountEntitlements();
+
+  assert.equal(result.status, "offline");
+  assert.equal(result.accountId, "account-1");
+  assert.deepEqual(result.entitlements, {
+    voiceTranscription: {
+      enabled: false,
+      source: "none",
+      updatedAt: null,
+    },
+  });
+});
+
 test("checkAccountId validates a shared account without storing it locally", async () => {
   const calls = [];
   const storage = createMemoryLocalStorage();

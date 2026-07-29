@@ -50,4 +50,5 @@ Status: DRAFT
 | INDEXEDDB-REMINDERS-LEGACY-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/indexeddb-reminders-legacy-cleanup.md` | TASK-042 migrates legacy reminders into IndexedDB and removes stale reminder localStorage data. |
 | INDEXEDDB-SAVE-LEGACY-CLEANUP-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/indexeddb-save-legacy-cleanup.md` | TASK-043 removes stale fallback localStorage keys after successful IndexedDB saves. |
 | LOCALSTORAGE-FALLBACK-READ-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/localstorage-fallback-read-guard.md` | TASK-044 guards legacy fallback reads so unavailable localStorage cannot break hydration. |
+| ACCOUNT-ENTITLEMENTS-FOUNDATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/account-entitlements-foundation.md` | TASK-045 adds backend/client account entitlements for future paid features, starting with voice transcription. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

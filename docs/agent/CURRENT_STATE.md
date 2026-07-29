@@ -55,6 +55,7 @@ Status: DRAFT
 - TASK-042 is implemented locally: legacy reminder data now migrates into IndexedDB and stale `localReminders` legacy storage is removed after successful IndexedDB access; service worker cache is `focus-pwa-v70`.
 - TASK-043 is implemented locally: successful IndexedDB saves now remove stale fallback `localStorage` keys for schedules, reminders, tasks, notes, birthdays, diary entries, and diary PIN settings; service worker cache is `focus-pwa-v71`.
 - TASK-044 is implemented locally: legacy fallback reads now use guarded helpers so unavailable `localStorage` cannot break reminder, list, or diary PIN hydration; service worker cache is `focus-pwa-v72`.
+- TASK-045 is implemented locally: backend/client account entitlements now support future paid features, starting with disabled-by-default `voiceTranscription`; service worker cache is `focus-pwa-v73`.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
 
 ## In Progress
@@ -76,9 +77,9 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-044 checks passed locally; targeted tests passed 39/39 and `npm.cmd run test` passed 135/135. Deployment retry on 2026-07-29 succeeded after restoring public static file permissions on the server.
+- Current result: local Git repository exists; TASK-045 checks passed locally; targeted tests passed 110/110 and `npm.cmd run test` passed 140/140. Deployment retry on 2026-07-29 succeeded after restoring public static file permissions on the server.
 
 ## Open Questions
 
-- Which next product/runtime task should be promoted to `READY`.
+- The next product/runtime task is the Useful/Settings UI surface for paid features and voice transcription activation.
 - Future backend/deployment changes still require a separate owner deployment approval.

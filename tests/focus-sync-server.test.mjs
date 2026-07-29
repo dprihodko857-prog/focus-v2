@@ -430,6 +430,83 @@ test("sync account profile tracks account and device metadata", async () => {
   }
 });
 
+test("sync account entitlements default paid features to disabled", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:00:00.000Z",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-entitlements-default";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/entitlements`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      accountId,
+      checkedAt: "2026-07-12T09:00:00.000Z",
+      entitlements: {
+        voiceTranscription: {
+          enabled: false,
+          source: "none",
+          updatedAt: null,
+        },
+      },
+    });
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync account entitlements expose enabled paid features", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-entitlements-enabled";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  db.setAccountEntitlements({
+    accountId,
+    updatedAt: "2026-07-12T09:01:00.000Z",
+    entitlements: {
+      voiceTranscription: {
+        enabled: true,
+        source: "subscription",
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/entitlements`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.accountId, accountId);
+    assert.equal(result.entitlements.voiceTranscription.enabled, true);
+    assert.equal(result.entitlements.voiceTranscription.source, "subscription");
+    assert.equal(result.entitlements.voiceTranscription.updatedAt, "2026-07-12T09:01:00.000Z");
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("sync account profile keeps only recent device sessions", async () => {
   const db = createSyncDatabase(":memory:");
   const ticks = Array.from({ length: 14 }, (_, index) => `2026-07-12T08:${String(index).padStart(2, "0")}:00.000Z`);

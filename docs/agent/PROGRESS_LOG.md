@@ -184,3 +184,7 @@ Keep entries short and factual.
 | 2026-07-29 | TASK-044 | Implemented legacy fallback read guard locally. | Legacy list reads and diary PIN fallback parsing now use guarded `localStorage` access; service worker cache is `focus-pwa-v72`. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-29 | TASK-044 | Completed legacy fallback read guard checks. | Syntax checks passed, targeted tests passed 39/39, and `npm.cmd run test` passed 135/135. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-29 | TASK-044 | Committed legacy fallback read guard locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-29 | TASK-045 | Started account entitlements foundation. | Owner plans voice transcription as a subscription-gated feature in Useful/Settings. | IN_PROGRESS | Add backend/client entitlement contract, default disabled access, and checks. |
+| 2026-07-29 | TASK-045 | Implemented account entitlements foundation locally. | Backend now stores account entitlements and exposes `GET /api/sync/entitlements`; sync client can load them; service worker cache is `focus-pwa-v73`. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-29 | TASK-045 | Completed account entitlements foundation checks. | Syntax checks passed, targeted tests passed 110/110, and `npm.cmd run test` passed 140/140. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-29 | TASK-045 | Committed account entitlements foundation locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

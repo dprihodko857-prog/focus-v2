@@ -13,6 +13,7 @@ const PENDING_COLLECTION_PUSHES_KEY = "focus-sync-pending-collection-pushes";
 const ACCOUNT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
 const DEVICE_ID_PATTERN = /^[a-zA-Z0-9_.:-]{4,160}$/;
 const COLLECTION_KEYS = new Set(["schedules", "reminders", "tasks", "notes", "birthdays", "diary"]);
+const ENTITLEMENT_SOURCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
 
 export function createFocusSyncClient({
   apiBaseUrl = "/api",
@@ -547,6 +548,33 @@ export function createFocusSyncClient({
       }
     },
 
+    async getAccountEntitlements() {
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/entitlements"), {
+          headers: await withHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Focus sync entitlements load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          checkedAt: result.checkedAt || null,
+          entitlements: normalizeAccountEntitlements(result.entitlements),
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          checkedAt: null,
+          entitlements: createDefaultAccountEntitlements(),
+        };
+      }
+    },
+
     async updateAccountProfile({ displayName, deviceName } = {}) {
       let accountId = getStored(ACCOUNT_KEY);
       const body = {};
@@ -921,6 +949,50 @@ function encodeHeaderValue(value) {
 function normalizeStoredName(value) {
   if (typeof value !== "string") return "";
   return value.replace(/\s+/g, " ").trim().slice(0, 120);
+}
+
+function createDefaultAccountEntitlements() {
+  return {
+    voiceTranscription: {
+      enabled: false,
+      source: "none",
+      updatedAt: null,
+    },
+  };
+}
+
+function normalizeAccountEntitlements(entitlements) {
+  const source = entitlements && typeof entitlements === "object" && !Array.isArray(entitlements)
+    ? entitlements
+    : {};
+  return {
+    voiceTranscription: normalizeFeatureEntitlement(source.voiceTranscription ?? source.voice_transcription),
+  };
+}
+
+function normalizeFeatureEntitlement(entitlement) {
+  if (entitlement === true) {
+    return {
+      enabled: true,
+      source: "manual",
+      updatedAt: null,
+    };
+  }
+
+  if (!entitlement || typeof entitlement !== "object" || Array.isArray(entitlement) || entitlement.enabled !== true) {
+    return {
+      enabled: false,
+      source: "none",
+      updatedAt: null,
+    };
+  }
+
+  const source = String(entitlement.source || "").trim();
+  return {
+    enabled: true,
+    source: ENTITLEMENT_SOURCE_PATTERN.test(source) ? source : "manual",
+    updatedAt: typeof entitlement.updatedAt === "string" ? entitlement.updatedAt : null,
+  };
 }
 
 function createDefaultDeviceName(navigatorRef) {

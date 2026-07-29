@@ -22,6 +22,7 @@ const DEFAULT_AUTH_SCOPE = "openid email profile offline_access";
 const MAX_DEVICE_SESSIONS_PER_ACCOUNT = 12;
 const MAX_PUSH_ENDPOINT_LENGTH = 4096;
 const MAX_PUSH_KEY_LENGTH = 512;
+const ENTITLEMENT_SOURCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
 
 export function createSyncDatabase(dbPath = DEFAULT_DB_PATH) {
   return new JsonSyncDatabase(dbPath);
@@ -38,6 +39,7 @@ class JsonSyncDatabase {
     this.state.accounts[accountId] = {
       accountId,
       displayName: sanitizeStoredName(displayName),
+      entitlements: createDefaultAccountEntitlements(),
       createdAt,
       updatedAt: createdAt,
     };
@@ -52,6 +54,7 @@ class JsonSyncDatabase {
     const current = this.getAccount(accountId) || {
       accountId,
       displayName: null,
+      entitlements: createDefaultAccountEntitlements(),
       createdAt: updatedAt,
       updatedAt,
     };
@@ -59,10 +62,30 @@ class JsonSyncDatabase {
     this.state.accounts[accountId] = {
       ...current,
       displayName: sanitizeStoredName(displayName),
+      entitlements: normalizeAccountEntitlements(current.entitlements),
       updatedAt,
     };
     this.persist();
     return this.state.accounts[accountId];
+  }
+
+  getAccountEntitlements(accountId) {
+    return normalizeAccountEntitlements(this.getAccount(accountId)?.entitlements);
+  }
+
+  setAccountEntitlements({ accountId, entitlements, updatedAt }) {
+    const current = this.getAccount(accountId);
+    if (!current) {
+      return null;
+    }
+
+    this.state.accounts[accountId] = {
+      ...current,
+      entitlements: normalizeAccountEntitlements(entitlements, updatedAt),
+      updatedAt,
+    };
+    this.persist();
+    return this.getAccountEntitlements(accountId);
   }
 
   touchAccount({ accountId, deviceId, deviceName, now }) {
@@ -70,11 +93,15 @@ class JsonSyncDatabase {
       this.state.accounts[accountId] = {
         accountId,
         displayName: null,
+        entitlements: createDefaultAccountEntitlements(),
         createdAt: now,
         updatedAt: now,
       };
     } else if (!this.state.accounts[accountId].updatedAt) {
       this.state.accounts[accountId].updatedAt = this.state.accounts[accountId].createdAt || now;
+      this.state.accounts[accountId].entitlements = normalizeAccountEntitlements(this.state.accounts[accountId].entitlements);
+    } else {
+      this.state.accounts[accountId].entitlements = normalizeAccountEntitlements(this.state.accounts[accountId].entitlements);
     }
 
     const sessionKey = `${accountId}:${deviceId}`;
@@ -530,6 +557,57 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function createDefaultAccountEntitlements() {
+  return {
+    voiceTranscription: {
+      enabled: false,
+      source: "none",
+      updatedAt: null,
+    },
+  };
+}
+
+function normalizeAccountEntitlements(entitlements, updatedAt = null) {
+  const source = isPlainObject(entitlements) ? entitlements : {};
+  return {
+    voiceTranscription: normalizeFeatureEntitlement(
+      source.voiceTranscription ?? source.voice_transcription,
+      updatedAt,
+    ),
+  };
+}
+
+function normalizeFeatureEntitlement(entitlement, updatedAt = null) {
+  if (entitlement === true) {
+    return {
+      enabled: true,
+      source: "manual",
+      updatedAt: typeof updatedAt === "string" ? updatedAt : null,
+    };
+  }
+
+  if (!isPlainObject(entitlement) || entitlement.enabled !== true) {
+    return {
+      enabled: false,
+      source: "none",
+      updatedAt: null,
+    };
+  }
+
+  return {
+    enabled: true,
+    source: sanitizeEntitlementSource(entitlement.source) || "manual",
+    updatedAt: typeof entitlement.updatedAt === "string"
+      ? entitlement.updatedAt
+      : typeof updatedAt === "string" ? updatedAt : null,
+  };
+}
+
+function sanitizeEntitlementSource(value) {
+  const source = String(value || "").trim();
+  return ENTITLEMENT_SOURCE_PATTERN.test(source) ? source : "";
+}
+
 function pruneAccountStateByKeys(stateByAccount, accountId, activeKeys) {
   const accountState = stateByAccount[accountId];
   if (!isPlainObject(accountState)) {
@@ -863,6 +941,22 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     }
 
     sendJson(response, 405, { error: "method_not_allowed" });
+    return;
+  }
+
+  if (url.pathname === "/api/sync/entitlements") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    sendJson(response, 200, getAccountEntitlements(db, {
+      accountId: accountContext.accountId,
+      checkedAt: accountContext.checkedAt,
+    }));
     return;
   }
 
@@ -1476,6 +1570,14 @@ function getAccountProfile(db, { accountId, deviceId }) {
       lastSeenAt: session.lastSeenAt || null,
       isCurrent: session.deviceId === deviceId,
     })),
+  };
+}
+
+function getAccountEntitlements(db, { accountId, checkedAt }) {
+  return {
+    accountId,
+    checkedAt,
+    entitlements: db.getAccountEntitlements(accountId),
   };
 }
 

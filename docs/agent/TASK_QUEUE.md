@@ -2307,3 +2307,60 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Legacy fallback reads now route through guarded helpers, including reminder hydration and diary PIN fallback parsing.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-29. No deployment or git push.
+
+## TASK-045
+
+- title: Add account entitlements foundation for paid features
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_foundation
+- priority: high
+- source: owner asked to continue according to the plan and requested future voice transcription as a subscription-gated Useful/Settings feature on 2026-07-29
+- spec_reference: `docs/specs/account-entitlements-foundation.md`
+- spec_status: implemented_local_committed
+- goal: add a backend/client account entitlement contract for future paid features, starting with voice transcription.
+- out_of_scope:
+  - payment provider integration
+  - subscription checkout UI
+  - payment webhook implementation
+  - speech recording, transcription upload, or speech-to-text parsing
+  - Useful section UI changes
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - new accounts expose disabled `voiceTranscription`
+  - enabled `voiceTranscription` can be stored and returned by the backend
+  - the sync client can load entitlements through the sync API
+  - offline client entitlement checks default to disabled
+  - existing tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_foundation task
+- file_limit: up to 12 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 44
+- stop_conditions:
+  - implementation requires payment provider secrets or production checkout setup
+  - implementation requires actual speech transcription provider integration
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/sync.js`
+  - `public/service-worker.js`
+  - sync server/client tests
+  - Project Maestro memory
+- dependencies:
+  - existing sync account API
+  - owner subscription/transcription roadmap direction
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend and sync client now expose account entitlements for future paid feature gating, with `voiceTranscription` disabled by default and safe offline client behavior.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-29. No deployment or git push.
