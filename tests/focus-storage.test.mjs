@@ -8,6 +8,7 @@ import {
   LEGACY_NOTES_KEY,
   LEGACY_SCHEDULES_KEY,
   LEGACY_TASKS_KEY,
+  DIARY_PIN_KEY,
   parseScheduleList,
   REMINDERS_KEY,
 } from "../public/js/storage.js";
@@ -218,6 +219,41 @@ test("saveDiaryPinSettings persists and clears diary PIN settings", async () => 
 
   await storage.saveDiaryPinSettings(null);
   assert.equal(await storage.loadDiaryPinSettings(), null);
+});
+
+test("successful IndexedDB saves remove stale legacy fallback keys", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const localStorage = createMemoryLocalStorage({
+    [LEGACY_SCHEDULES_KEY]: JSON.stringify([{ id: "legacy-schedule" }]),
+    [REMINDERS_KEY]: JSON.stringify([{ id: "legacy-reminder" }]),
+    [LEGACY_TASKS_KEY]: JSON.stringify([{ id: "legacy-task" }]),
+    [LEGACY_NOTES_KEY]: JSON.stringify([{ id: "legacy-note" }]),
+    [LEGACY_BIRTHDAYS_KEY]: JSON.stringify([{ id: "legacy-birthday" }]),
+    [LEGACY_DIARY_KEY]: JSON.stringify([{ id: "legacy-diary" }]),
+    [DIARY_PIN_KEY]: JSON.stringify({ salt: "old", hash: "old", iterations: 1 }),
+  });
+  const storage = createFocusStorage({ indexedDB, localStorage });
+
+  await storage.saveSchedules([{ id: "schedule" }]);
+  await storage.saveReminders([{ id: "reminder" }]);
+  await storage.saveTasks([{ id: "task" }]);
+  await storage.saveNotes([{ id: "note" }]);
+  await storage.saveBirthdays([{ id: "birthday" }]);
+  await storage.saveDiaryEntries([{ id: "diary" }]);
+  await storage.saveDiaryPinSettings({
+    salt: "001122",
+    hash: "aabbcc",
+    iterations: 120000,
+    updatedAt: "2026-07-11T00:00:00.000Z",
+  });
+
+  assert.equal(localStorage.getItem(LEGACY_SCHEDULES_KEY), null);
+  assert.equal(localStorage.getItem(REMINDERS_KEY), null);
+  assert.equal(localStorage.getItem(LEGACY_TASKS_KEY), null);
+  assert.equal(localStorage.getItem(LEGACY_NOTES_KEY), null);
+  assert.equal(localStorage.getItem(LEGACY_BIRTHDAYS_KEY), null);
+  assert.equal(localStorage.getItem(LEGACY_DIARY_KEY), null);
+  assert.equal(localStorage.getItem(DIARY_PIN_KEY), null);
 });
 
 function createMemoryLocalStorage(initialValues = {}) {

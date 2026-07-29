@@ -2206,3 +2206,54 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Reminder hydration now uses the IndexedDB migration helper, legacy `localReminders` data is copied or removed after successful IndexedDB access, and fallback behavior remains available when IndexedDB fails.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-29. No deployment or git push.
+
+## TASK-043
+
+- title: Clean fallback localStorage after successful IndexedDB saves
+- status: DONE
+- owner_gate: autonomously_selected_after_owner_continue
+- task_type: storage_hardening
+- priority: medium
+- source: roadmap IndexedDB storage hardening after owner asked to continue project work on 2026-07-29
+- spec_reference: `docs/specs/indexeddb-save-legacy-cleanup.md`
+- spec_status: implemented_local_committed
+- goal: remove stale fallback `localStorage` keys after successful IndexedDB saves for important app data.
+- out_of_scope:
+  - changing data shapes
+  - changing sync, reminders, push delivery, or diary PIN behavior
+  - removing fallback writes when IndexedDB is unavailable
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - successful IndexedDB saves remove stale fallback keys for schedules
+  - successful IndexedDB saves remove stale fallback keys for reminders
+  - successful IndexedDB saves remove stale fallback keys for tasks, notes, birthdays, diary entries, and diary PIN settings
+  - fallback behavior remains available when IndexedDB fails
+  - existing tests pass locally
+- required_checks:
+  - `node --check public/js/storage.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-storage.test.mjs tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small storage_hardening task
+- file_limit: up to 10 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 42
+- stop_conditions:
+  - implementation requires changing app data shapes or user-facing behavior
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/js/storage.js`
+  - `public/service-worker.js`
+  - `tests/focus-storage.test.mjs`
+  - service worker cache id contract tests
+- dependencies:
+  - existing IndexedDB save methods in `public/js/storage.js`
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Successful IndexedDB saves now remove stale fallback keys for important local data while preserving fallback behavior when IndexedDB is unavailable.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-29. No deployment or git push.

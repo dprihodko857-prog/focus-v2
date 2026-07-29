@@ -74,6 +74,7 @@ export function createFocusStorage({
     async saveSchedules(schedules) {
       const normalizedSchedules = Array.isArray(schedules) ? schedules : [];
       await putValue(SCHEDULES_KEY, normalizedSchedules);
+      removeLegacyValue(LEGACY_SCHEDULES_KEY);
       return normalizedSchedules;
     },
 
@@ -85,6 +86,7 @@ export function createFocusStorage({
     async saveReminders(reminders) {
       const normalizedReminders = Array.isArray(reminders) ? reminders : [];
       await putValue(REMINDERS_KEY, normalizedReminders);
+      removeLegacyValue(REMINDERS_KEY);
       return normalizedReminders;
     },
 
@@ -113,6 +115,7 @@ export function createFocusStorage({
     async saveTasks(tasks) {
       const normalizedTasks = Array.isArray(tasks) ? tasks : [];
       await putValue(TASKS_KEY, normalizedTasks);
+      removeLegacyValue(LEGACY_TASKS_KEY);
       return normalizedTasks;
     },
 
@@ -124,6 +127,7 @@ export function createFocusStorage({
     async saveNotes(notes) {
       const normalizedNotes = Array.isArray(notes) ? notes : [];
       await putValue(NOTES_KEY, normalizedNotes);
+      removeLegacyValue(LEGACY_NOTES_KEY);
       return normalizedNotes;
     },
 
@@ -135,6 +139,7 @@ export function createFocusStorage({
     async saveBirthdays(birthdays) {
       const normalizedBirthdays = Array.isArray(birthdays) ? birthdays : [];
       await putValue(BIRTHDAYS_KEY, normalizedBirthdays);
+      removeLegacyValue(LEGACY_BIRTHDAYS_KEY);
       return normalizedBirthdays;
     },
 
@@ -146,6 +151,7 @@ export function createFocusStorage({
     async saveDiaryEntries(entries) {
       const normalizedEntries = Array.isArray(entries) ? entries : [];
       await putValue(DIARY_KEY, normalizedEntries);
+      removeLegacyValue(LEGACY_DIARY_KEY);
       return normalizedEntries;
     },
 
@@ -159,6 +165,7 @@ export function createFocusStorage({
         ? settings
         : null;
       await putValue(DIARY_PIN_KEY, normalizedSettings);
+      removeLegacyValue(DIARY_PIN_KEY);
       return normalizedSettings;
     },
 
