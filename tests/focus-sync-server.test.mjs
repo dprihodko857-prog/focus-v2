@@ -507,6 +507,115 @@ test("sync account entitlements expose enabled paid features", async () => {
   }
 });
 
+test("subscription checkout reports missing payment provider without activating access", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:10:00.000Z",
+    subscriptionCheckoutUrl: "",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-checkout-missing-provider";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/checkout`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ featureKey: "voiceTranscription" }),
+    });
+
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      error: "provider_not_configured",
+      status: "provider_not_configured",
+      accountId,
+      featureKey: "voiceTranscription",
+      checkoutUrl: null,
+      checkedAt: "2026-07-12T09:10:00.000Z",
+    });
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("subscription checkout returns configured provider URL for paid features", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:11:00.000Z",
+    subscriptionCheckoutUrl: "https://pay.example/checkout?plan=focus-plus",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-checkout-ready";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/checkout`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ featureKey: "voice_transcription" }),
+    });
+
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.status, "ready");
+    assert.equal(result.accountId, accountId);
+    assert.equal(result.featureKey, "voiceTranscription");
+    assert.equal(result.checkedAt, "2026-07-12T09:11:00.000Z");
+
+    const checkoutUrl = new URL(result.checkoutUrl);
+    assert.equal(checkoutUrl.origin, "https://pay.example");
+    assert.equal(checkoutUrl.pathname, "/checkout");
+    assert.equal(checkoutUrl.searchParams.get("plan"), "focus-plus");
+    assert.equal(checkoutUrl.searchParams.get("account"), accountId);
+    assert.equal(checkoutUrl.searchParams.get("feature"), "voiceTranscription");
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("subscription checkout rejects unknown paid features", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    subscriptionCheckoutUrl: "https://pay.example/checkout",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-checkout-invalid";
+  createTestAccount(db, accountId);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/checkout`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ featureKey: "unknownFeature" }),
+    });
+
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error, "invalid_paid_feature");
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("sync account profile keeps only recent device sessions", async () => {
   const db = createSyncDatabase(":memory:");
   const ticks = Array.from({ length: 14 }, (_, index) => `2026-07-12T08:${String(index).padStart(2, "0")}:00.000Z`);

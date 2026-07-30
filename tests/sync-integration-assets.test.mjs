@@ -22,7 +22,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v74/);
+  assert.match(serviceWorker, /focus-pwa-v75/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
@@ -66,8 +66,11 @@ test("settings expose the sync account connection modal", () => {
 
 test("sync client exposes paid feature entitlements", () => {
   assert.match(syncJs, /async getAccountEntitlements\(\)/);
+  assert.match(syncJs, /async createSubscriptionCheckout\(\{ featureKey \} = \{\}\)/);
   assert.match(syncJs, /\/sync\/entitlements/);
+  assert.match(syncJs, /\/sync\/checkout/);
   assert.match(syncJs, /voiceTranscription/);
+  assert.match(syncJs, /provider-not-configured/);
 });
 
 test("settings and useful hub expose paid feature access status", () => {
@@ -83,7 +86,10 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /key:\s*"voiceTranscription"/);
   assert.match(appJs, /function renderPaidFeatureSurfaces/);
   assert.match(appJs, /async function refreshAccountEntitlements/);
+  assert.match(appJs, /async function startPaidFeatureCheckout/);
   assert.match(appJs, /scheduleSync\.getAccountEntitlements\(\)/);
+  assert.match(appJs, /scheduleSync\.createSubscriptionCheckout\(\{ featureKey: feature\.key \}\)/);
+  assert.match(appJs, /window\.location\.assign\(result\.checkoutUrl\)/);
   assert.match(appJs, /data-paid-feature-action="\$\{escapeHtml\(feature\.key\)\}"/);
   assert.match(appJs, /document\.querySelector\("#paidFeaturesRefreshButton"\)\?\.addEventListener\("click"/);
 });

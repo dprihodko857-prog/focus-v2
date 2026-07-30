@@ -818,6 +818,77 @@ test("account entitlements default to disabled when offline", async () => {
   });
 });
 
+test("subscription checkout loads a configured provider URL", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        status: "ready",
+        accountId: "account-1",
+        featureKey: "voiceTranscription",
+        checkoutUrl: "https://pay.example/checkout?account=account-1&feature=voiceTranscription",
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.createSubscriptionCheckout({ featureKey: "voice_transcription" });
+
+  assert.equal(result.status, "ready");
+  assert.equal(result.accountId, "account-1");
+  assert.equal(result.featureKey, "voiceTranscription");
+  assert.equal(result.checkoutUrl, "https://pay.example/checkout?account=account-1&feature=voiceTranscription");
+  assert.equal(calls[0].url, "/api/sync/checkout");
+  assert.equal(calls[0].options.method, "POST");
+  assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
+  assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
+  assert.deepEqual(JSON.parse(calls[0].options.body), { featureKey: "voiceTranscription" });
+});
+
+test("subscription checkout reports missing provider and offline states", async () => {
+  const providerStorage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const providerClient = createFocusSyncClient({
+    fetch: async () => jsonResponse({
+      error: "provider_not_configured",
+      status: "provider_not_configured",
+      accountId: "account-1",
+      featureKey: "voiceTranscription",
+      checkoutUrl: null,
+    }, 503),
+    localStorage: providerStorage,
+    randomUUID: () => "device-1",
+  });
+
+  const providerResult = await providerClient.createSubscriptionCheckout({ featureKey: "voiceTranscription" });
+
+  assert.equal(providerResult.status, "provider-not-configured");
+  assert.equal(providerResult.accountId, "account-1");
+  assert.equal(providerResult.featureKey, "voiceTranscription");
+  assert.equal(providerResult.checkoutUrl, null);
+
+  const offlineClient = createFocusSyncClient({
+    fetch: async () => {
+      throw new Error("offline");
+    },
+    localStorage: providerStorage,
+    randomUUID: () => "device-1",
+  });
+
+  const offlineResult = await offlineClient.createSubscriptionCheckout({ featureKey: "voiceTranscription" });
+  assert.equal(offlineResult.status, "offline");
+  assert.equal(offlineResult.accountId, "account-1");
+  assert.equal(offlineResult.checkoutUrl, null);
+});
+
 test("checkAccountId validates a shared account without storing it locally", async () => {
   const calls = [];
   const storage = createMemoryLocalStorage();

@@ -92,6 +92,10 @@ let accountEntitlementsState = {
   checkedAt: "",
   entitlements: createDefaultAccountEntitlements(),
 };
+let paidFeatureCheckoutState = {
+  status: "idle",
+  featureKey: "",
+};
 
 function createDefaultAccountEntitlements() {
   return {
@@ -4131,6 +4135,10 @@ function resetAccountEntitlementsState(status = "idle") {
     checkedAt: "",
     entitlements: createDefaultAccountEntitlements(),
   };
+  paidFeatureCheckoutState = {
+    status: "idle",
+    featureKey: "",
+  };
   renderPaidFeatureSurfaces();
 }
 
@@ -4183,10 +4191,52 @@ function getPaidFeatureStatus(feature) {
     };
   }
 
+  if (paidFeatureCheckoutState.featureKey === feature.key) {
+    if (paidFeatureCheckoutState.status === "loading") {
+      return {
+        tone: "warn",
+        label: "Оформляем",
+        detail: "Готовим безопасный переход к оплате подписки.",
+        actionLabel: "Оформляем",
+        disabled: true,
+      };
+    }
+
+    if (paidFeatureCheckoutState.status === "provider-not-configured") {
+      return {
+        tone: "warn",
+        label: "Провайдер не настроен",
+        detail: "Backend-контракт готов, но платёжный провайдер ещё не подключён.",
+        actionLabel: "Оформить",
+        disabled: false,
+      };
+    }
+
+    if (paidFeatureCheckoutState.status === "offline") {
+      return {
+        tone: "bad",
+        label: "Нет связи",
+        detail: "Не удалось создать переход к оплате. Повторите после подключения к сети.",
+        actionLabel: "Повторить",
+        disabled: false,
+      };
+    }
+
+    if (paidFeatureCheckoutState.status === "failed") {
+      return {
+        tone: "bad",
+        label: "Ошибка",
+        detail: "Переход к оплате не был создан. Повторите попытку позже.",
+        actionLabel: "Повторить",
+        disabled: false,
+      };
+    }
+  }
+
   return {
     tone: "warn",
     label: "По подписке",
-    detail: "Функция готовится к запуску. Оплата и активация подписки будут подключены следующим шагом.",
+    detail: "Функция готовится к запуску. Нажмите «Оформить», чтобы проверить готовность перехода к оплате.",
     actionLabel: "Оформить",
     disabled: false,
   };
@@ -4338,7 +4388,45 @@ async function refreshAccountEntitlements({ silent = false } = {}) {
   return accountEntitlementsState;
 }
 
-function handlePaidFeatureAction(featureKey, openModal) {
+function setPaidFeatureCheckoutState(patch) {
+  paidFeatureCheckoutState = {
+    ...paidFeatureCheckoutState,
+    ...patch,
+  };
+  renderPaidFeatureSurfaces();
+}
+
+async function startPaidFeatureCheckout(feature, openModal) {
+  openModal?.("sync");
+  setPaidFeatureCheckoutState({ status: "loading", featureKey: feature.key });
+  setSyncStatus("Готовим переход к оплате подписки...");
+
+  const result = await scheduleSync.createSubscriptionCheckout({ featureKey: feature.key });
+
+  if (result.status === "ready" && result.checkoutUrl) {
+    setPaidFeatureCheckoutState({ status: "ready", featureKey: feature.key });
+    setSyncStatus("Открываем страницу оплаты подписки.");
+    window.location.assign(result.checkoutUrl);
+    return;
+  }
+
+  if (result.status === "provider-not-configured") {
+    setPaidFeatureCheckoutState({ status: "provider-not-configured", featureKey: feature.key });
+    setSyncStatus("Платёжный провайдер ещё не настроен. Контракт checkout уже готов, следующий шаг — подключить провайдера и webhook активации.");
+    return;
+  }
+
+  if (result.status === "offline") {
+    setPaidFeatureCheckoutState({ status: "offline", featureKey: feature.key });
+    setSyncStatus("Не удалось создать переход к оплате. Проверьте подключение и повторите попытку.");
+    return;
+  }
+
+  setPaidFeatureCheckoutState({ status: "failed", featureKey: feature.key });
+  setSyncStatus("Не удалось подготовить оплату подписки. Повторите попытку позже.");
+}
+
+async function handlePaidFeatureAction(featureKey, openModal) {
   const feature = paidFeatureItems.find(item => item.key === featureKey);
   if (!feature) return;
 
@@ -4361,8 +4449,7 @@ function handlePaidFeatureAction(featureKey, openModal) {
     return;
   }
 
-  openModal?.("sync");
-  setSyncStatus("Оплата подписки будет подключена следующим шагом. Сейчас функция закрыта, но готова к активации через аккаунт.");
+  await startPaidFeatureCheckout(feature, openModal);
 }
 
 function renderSyncState() {
@@ -6351,7 +6438,13 @@ function bindControls() {
   modalLayer.addEventListener("click", event => {
     const paidFeatureButton = event.target.closest("[data-paid-feature-action]");
     if (paidFeatureButton) {
-      handlePaidFeatureAction(paidFeatureButton.dataset.paidFeatureAction, openModal);
+      handlePaidFeatureAction(paidFeatureButton.dataset.paidFeatureAction, openModal).catch(() => {
+        setPaidFeatureCheckoutState({
+          status: "failed",
+          featureKey: paidFeatureButton.dataset.paidFeatureAction,
+        });
+        setSyncStatus("Не удалось подготовить оплату подписки. Повторите попытку позже.");
+      });
       return;
     }
 

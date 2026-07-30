@@ -23,6 +23,7 @@ const MAX_DEVICE_SESSIONS_PER_ACCOUNT = 12;
 const MAX_PUSH_ENDPOINT_LENGTH = 4096;
 const MAX_PUSH_KEY_LENGTH = 512;
 const ENTITLEMENT_SOURCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
+const PAID_FEATURE_KEYS = new Set(["voiceTranscription"]);
 
 export function createSyncDatabase(dbPath = DEFAULT_DB_PATH) {
   return new JsonSyncDatabase(dbPath);
@@ -608,6 +609,38 @@ function sanitizeEntitlementSource(value) {
   return ENTITLEMENT_SOURCE_PATTERN.test(source) ? source : "";
 }
 
+function normalizePaidFeatureKey(value) {
+  const featureKey = String(value || "").trim();
+  if (featureKey === "voice_transcription") {
+    return "voiceTranscription";
+  }
+  return PAID_FEATURE_KEYS.has(featureKey) ? featureKey : "";
+}
+
+function createSubscriptionCheckout({ checkoutBaseUrl, accountId, featureKey, checkedAt }) {
+  const response = {
+    status: "provider_not_configured",
+    accountId,
+    featureKey,
+    checkoutUrl: null,
+    checkedAt,
+  };
+
+  if (!checkoutBaseUrl) {
+    return response;
+  }
+
+  const checkoutUrl = new URL(checkoutBaseUrl);
+  checkoutUrl.searchParams.set("account", accountId);
+  checkoutUrl.searchParams.set("feature", featureKey);
+
+  return {
+    ...response,
+    status: "ready",
+    checkoutUrl: checkoutUrl.href,
+  };
+}
+
 function pruneAccountStateByKeys(stateByAccount, accountId, activeKeys) {
   const accountState = stateByAccount[accountId];
   if (!isPlainObject(accountState)) {
@@ -738,11 +771,12 @@ export function createFocusSyncServer({
   authConfig = createOrbitAuthConfig(),
   authSessions = new Map(),
   fetchImpl = globalThis.fetch,
+  subscriptionCheckoutUrl = normalizeUrl(process.env.FOCUS_SUBSCRIPTION_CHECKOUT_URL || ""),
   logger = console,
 } = {}) {
   const server = http.createServer(async (request, response) => {
     try {
-      await routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl });
+      await routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl });
     } catch (error) {
       if (isHttpRequestError(error)) {
         sendJson(response, error.status, {
@@ -770,7 +804,7 @@ export function createFocusSyncServer({
   return server;
 }
 
-async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl }) {
+async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl }) {
   const url = new URL(request.url || "/", "http://127.0.0.1");
 
   if (request.method === "OPTIONS") {
@@ -957,6 +991,46 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       accountId: accountContext.accountId,
       checkedAt: accountContext.checkedAt,
     }));
+    return;
+  }
+
+  if (url.pathname === "/api/sync/checkout") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    const body = await readJsonBody(request, { optional: true });
+    if (body !== null && !isPlainObject(body)) {
+      sendJson(response, 400, { error: "invalid_checkout_request" });
+      return;
+    }
+
+    const featureKey = normalizePaidFeatureKey(body?.featureKey ?? body?.feature);
+    if (!featureKey) {
+      sendJson(response, 400, { error: "invalid_paid_feature" });
+      return;
+    }
+
+    const checkout = createSubscriptionCheckout({
+      checkoutBaseUrl: subscriptionCheckoutUrl,
+      accountId: accountContext.accountId,
+      featureKey,
+      checkedAt: accountContext.checkedAt,
+    });
+
+    if (checkout.status === "provider_not_configured") {
+      sendJson(response, 503, {
+        error: "provider_not_configured",
+        ...checkout,
+      });
+      return;
+    }
+
+    sendJson(response, 200, checkout);
     return;
   }
 

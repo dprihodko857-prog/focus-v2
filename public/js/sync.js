@@ -14,6 +14,7 @@ const ACCOUNT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
 const DEVICE_ID_PATTERN = /^[a-zA-Z0-9_.:-]{4,160}$/;
 const COLLECTION_KEYS = new Set(["schedules", "reminders", "tasks", "notes", "birthdays", "diary"]);
 const ENTITLEMENT_SOURCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
+const PAID_FEATURE_KEYS = new Set(["voiceTranscription"]);
 
 export function createFocusSyncClient({
   apiBaseUrl = "/api",
@@ -575,6 +576,77 @@ export function createFocusSyncClient({
       }
     },
 
+    async createSubscriptionCheckout({ featureKey } = {}) {
+      const normalizedFeatureKey = normalizePaidFeatureKey(featureKey);
+      const accountId = getStored(ACCOUNT_KEY);
+
+      if (!accountId) {
+        return {
+          status: "account-required",
+          accountId: "",
+          featureKey: normalizedFeatureKey,
+          checkoutUrl: null,
+        };
+      }
+
+      if (!normalizedFeatureKey) {
+        return {
+          status: "invalid-feature",
+          accountId,
+          featureKey: "",
+          checkoutUrl: null,
+        };
+      }
+
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/checkout"), {
+          method: "POST",
+          headers: {
+            ...withAccountHeaders(accountId),
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ featureKey: normalizedFeatureKey }),
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (response.status === 503 && result?.error === "provider_not_configured") {
+          return {
+            status: "provider-not-configured",
+            accountId: result.accountId || accountId,
+            featureKey: normalizePaidFeatureKey(result.featureKey) || normalizedFeatureKey,
+            checkoutUrl: null,
+          };
+        }
+
+        if (response.status === 400) {
+          return {
+            status: "invalid-feature",
+            accountId,
+            featureKey: normalizedFeatureKey,
+            checkoutUrl: null,
+          };
+        }
+
+        if (!response.ok) {
+          throw new Error("Focus subscription checkout creation failed.");
+        }
+
+        return {
+          status: result.status === "ready" && result.checkoutUrl ? "ready" : "failed",
+          accountId: result.accountId || accountId,
+          featureKey: normalizePaidFeatureKey(result.featureKey) || normalizedFeatureKey,
+          checkoutUrl: typeof result.checkoutUrl === "string" ? result.checkoutUrl : null,
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId,
+          featureKey: normalizedFeatureKey,
+          checkoutUrl: null,
+        };
+      }
+    },
+
     async updateAccountProfile({ displayName, deviceName } = {}) {
       let accountId = getStored(ACCOUNT_KEY);
       const body = {};
@@ -993,6 +1065,14 @@ function normalizeFeatureEntitlement(entitlement) {
     source: ENTITLEMENT_SOURCE_PATTERN.test(source) ? source : "manual",
     updatedAt: typeof entitlement.updatedAt === "string" ? entitlement.updatedAt : null,
   };
+}
+
+function normalizePaidFeatureKey(value) {
+  const featureKey = String(value || "").trim();
+  if (featureKey === "voice_transcription") {
+    return "voiceTranscription";
+  }
+  return PAID_FEATURE_KEYS.has(featureKey) ? featureKey : "";
 }
 
 function createDefaultDeviceName(navigatorRef) {

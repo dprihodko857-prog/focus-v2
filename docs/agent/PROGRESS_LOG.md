@@ -192,3 +192,7 @@ Keep entries short and factual.
 | 2026-07-29 | TASK-046 | Implemented paid feature UI shell locally. | Settings and Useful now render `voiceTranscription` access from account entitlements; service worker cache is `focus-pwa-v74`. | DONE | Run checks and commit locally; deploy remains separate. |
 | 2026-07-29 | TASK-046 | Completed paid feature UI shell checks. | Syntax checks passed, targeted tests passed 41/41, and `npm.cmd run test` passed 141/141. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-29 | TASK-046 | Committed paid feature UI shell locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-30 | TASK-047 | Started subscription checkout foundation. | Owner asked to keep moving after paid feature UI shell. | IN_PROGRESS | Add checkout API/client/UI path, checks, and local commit. |
+| 2026-07-30 | TASK-047 | Implemented subscription checkout foundation locally. | Backend/client/UI now handle provider-ready checkout for `voiceTranscription`; service worker cache is `focus-pwa-v75`. | DONE | Run checks and commit locally; deploy remains separate. |
+| 2026-07-30 | TASK-047 | Completed subscription checkout foundation checks. | Syntax checks passed, targeted tests passed 116/116, and `npm.cmd run test` passed 146/146. | DONE | Commit locally; deploy remains separate. |
+| 2026-07-30 | TASK-047 | Committed subscription checkout foundation locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |

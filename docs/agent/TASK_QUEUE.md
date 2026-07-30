@@ -2421,3 +2421,67 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Settings and Useful now show subscription-gated `voiceTranscription` status from account entitlements, with no-account/offline/locked/active states.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-29. No deployment or git push.
+
+## TASK-047
+
+- title: Add subscription checkout foundation
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_foundation
+- priority: high
+- source: owner asked to continue project work after TASK-046; next planned step is subscription checkout/activation for voice transcription
+- spec_reference: `docs/specs/subscription-checkout-foundation.md`
+- spec_status: implemented_local_committed
+- goal: add a backend/client checkout contract so paid feature activation can later connect to a real payment provider.
+- out_of_scope:
+  - choosing a payment provider
+  - real payment provider integration
+  - payment webhook implementation
+  - activating entitlements after payment
+  - subscription prices, invoices, refunds, taxes, or billing plans
+  - speech recording, transcription upload, or text insertion
+  - production deploy, push, tags, or release work
+- acceptance_criteria:
+  - backend exposes `POST /api/sync/checkout` for existing sync accounts
+  - backend accepts only known paid features, starting with `voiceTranscription`
+  - provider-missing checkout returns explicit `provider_not_configured`
+  - configured checkout returns a URL with account and feature parameters
+  - checkout creation does not enable `voiceTranscription`
+  - app button `Оформить` calls the checkout client and shows ready/provider-missing/offline/failure states
+  - existing tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/sync.js`
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_checkout task
+- file_limit: up to 12 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 46
+- stop_conditions:
+  - implementation requires provider secrets or external payment setup
+  - implementation requires webhook signature verification without provider choice
+  - implementation requires actual speech transcription provider integration
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/sync.js`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - sync server/client/UI contract tests
+  - Project Maestro memory
+- dependencies:
+  - existing account entitlements contract
+  - existing paid feature UI shell
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend, sync client, and app UI now expose a provider-ready checkout path for `voiceTranscription`; missing provider, offline, invalid, failed, and ready states are explicit.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-30. No deployment or git push.

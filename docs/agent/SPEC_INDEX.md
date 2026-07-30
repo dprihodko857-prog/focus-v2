@@ -52,4 +52,5 @@ Status: DRAFT
 | LOCALSTORAGE-FALLBACK-READ-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/localstorage-fallback-read-guard.md` | TASK-044 guards legacy fallback reads so unavailable localStorage cannot break hydration. |
 | ACCOUNT-ENTITLEMENTS-FOUNDATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/account-entitlements-foundation.md` | TASK-045 adds backend/client account entitlements for future paid features, starting with voice transcription. |
 | PAID-FEATURE-UI-SHELL-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/paid-feature-ui-shell.md` | TASK-046 adds Settings and Useful UI shells for subscription-gated voice transcription access. |
+| SUBSCRIPTION-CHECKOUT-FOUNDATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/subscription-checkout-foundation.md` | TASK-047 adds a provider-ready checkout API/client/UI path for paid feature subscription activation. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |
