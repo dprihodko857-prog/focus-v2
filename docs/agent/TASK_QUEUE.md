@@ -2652,3 +2652,63 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Public offer and privacy pages are ready at `/offer.html` and `/privacy.html`, tariff page links to both, and service worker cache is `focus-pwa-v78`.
 - commit_status: committed
 - notes: Focused checks passed on 2026-07-30. No deployment or git push.
+
+## TASK-051
+
+- title: Add voice input foundation
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_feature_foundation
+- priority: high
+- source: owner asked to continue while YooKassa verification is pending; voice transcription is the planned first subscription-gated Useful feature
+- spec_reference: `docs/specs/voice-input-foundation.md`
+- spec_status: implemented_local_committed
+- goal: wire app voice buttons to browser speech recognition behind the `voiceTranscription` entitlement.
+- out_of_scope:
+  - external speech provider integration
+  - audio upload/storage
+  - server-side transcription
+  - entitlement activation without payment
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - reminder, task, note, birthday note, diary, and schedule wizard voice buttons declare text targets
+  - locked voice input routes to existing paid feature action for `voiceTranscription`
+  - active entitled voice input uses browser `SpeechRecognition`/`webkitSpeechRecognition`
+  - recognized text is inserted into the target field and dispatches input/change events
+  - unsupported browsers show a disabled/status state
+  - existing focused tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_feature_foundation task
+- file_limit: up to 10 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 50
+- stop_conditions:
+  - implementation requires provider secrets or paid entitlement activation
+  - implementation requires external speech API credentials
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/index.html`
+  - `public/css/app.css`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - static integration tests
+  - Project Maestro memory
+- dependencies:
+  - account entitlements foundation
+  - paid feature UI shell
+  - checkout foundation
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Existing voice buttons now use browser speech recognition when `voiceTranscription` is enabled and route locked access through the subscription flow; service worker cache is `focus-pwa-v79`.
+- commit_status: committed
+- notes: Focused checks passed on 2026-07-30. No deployment or git push.

@@ -3643,8 +3643,47 @@ h3 {
   box-shadow: 0 12px 32px rgba(0, 0, 0, .08);
 }
 
+.voice-button[disabled] {
+  cursor: not-allowed;
+  opacity: .62;
+  transform: none;
+  box-shadow: none;
+}
+
+.voice-button--active {
+  border-color: rgba(249, 115, 22, .5);
+  background: rgba(249, 115, 22, .16);
+  color: var(--text);
+  box-shadow: 0 12px 32px rgba(249, 115, 22, .16);
+}
+
+.voice-button--schedule {
+  margin-top: 4px;
+}
+
 .voice-button .icon {
   color: var(--terracotta);
+}
+
+.voice-status {
+  max-width: 520px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 740;
+  line-height: 1.35;
+}
+
+.voice-status--ok {
+  color: #38664d;
+}
+
+.voice-status--warn {
+  color: #8a5b18;
+}
+
+.voice-status--bad {
+  color: #9a443a;
 }
 
 .modal-actions {

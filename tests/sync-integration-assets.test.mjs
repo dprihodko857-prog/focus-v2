@@ -22,7 +22,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v78/);
+  assert.match(serviceWorker, /focus-pwa-v79/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -100,6 +100,25 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /window\.location\.assign\(result\.checkoutUrl\)/);
   assert.match(appJs, /data-paid-feature-action="\$\{escapeHtml\(feature\.key\)\}"/);
   assert.match(appJs, /document\.querySelector\("#paidFeaturesRefreshButton"\)\?\.addEventListener\("click"/);
+});
+
+test("voice input buttons are gated by the paid transcription entitlement", () => {
+  assert.match(indexHtml, /data-voice-target="#reminderText"/);
+  assert.match(indexHtml, /data-voice-target="#taskText"/);
+  assert.match(indexHtml, /data-voice-target="#noteText"/);
+  assert.match(indexHtml, /data-voice-target="#birthdayNote"/);
+  assert.match(indexHtml, /data-voice-target="#diaryText"/);
+  assert.match(indexHtml, /data-voice-target="#scheduleModal \.schedule-step:not\(\[hidden\]\) textarea, #scheduleModal \.schedule-step:not\(\[hidden\]\) input\[type='text'\]"/);
+  assert.match(appCss, /\.voice-button--active\s*{/);
+  assert.match(appCss, /\.voice-status\s*{/);
+  assert.match(appCss, /\.voice-button\[disabled\]\s*{/);
+  assert.match(appJs, /function getSpeechRecognitionConstructor\(\)/);
+  assert.match(appJs, /window\.SpeechRecognition \|\| window\.webkitSpeechRecognition/);
+  assert.match(appJs, /function renderVoiceInputControls\(\)/);
+  assert.match(appJs, /function startVoiceInput\(button\)/);
+  assert.match(appJs, /function insertVoiceTranscript\(target, transcript\)/);
+  assert.match(appJs, /handlePaidFeatureAction\("voiceTranscription", openModal\)/);
+  assert.match(appJs, /recognition\.lang = "ru-RU"/);
 });
 
 test("orbit logout cleans up current sync device and local push subscription", () => {

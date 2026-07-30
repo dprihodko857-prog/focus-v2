@@ -98,6 +98,8 @@ let paidFeatureCheckoutState = {
   status: "idle",
   featureKey: "",
 };
+let activeVoiceRecognition = null;
+let activeVoiceButton = null;
 
 function createDefaultAccountEntitlements() {
   return {
@@ -4344,6 +4346,7 @@ function renderUsefulSubscriptionPanel() {
 function renderPaidFeatureSurfaces() {
   renderPaidFeaturesPanel();
   renderUsefulSubscriptionPanel();
+  renderVoiceInputControls();
 }
 
 async function refreshAccountEntitlements({ silent = false } = {}) {
@@ -4456,6 +4459,231 @@ async function handlePaidFeatureAction(featureKey, openModal) {
   }
 
   await startPaidFeatureCheckout(feature, openModal);
+}
+
+function getSpeechRecognitionConstructor() {
+  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+}
+
+function isTextInputControl(element) {
+  return Boolean(element && (
+    element.tagName === "TEXTAREA"
+    || (element.tagName === "INPUT" && ["", "text", "search"].includes(String(element.type || "").toLowerCase()))
+  ) && !element.disabled && !element.readOnly);
+}
+
+function getVoiceInputAccessState() {
+  const entitlement = getPaidFeatureEntitlement("voiceTranscription");
+
+  if (!entitlement?.enabled) {
+    return {
+      status: "locked",
+      label: "Диктовать",
+      detail: scheduleSync.peekAccountId()
+        ? "Голосовой ввод доступен по подписке Focus Plus."
+        : "Подключите аккаунт, чтобы оформить голосовой ввод.",
+    };
+  }
+
+  if (!getSpeechRecognitionConstructor()) {
+    return {
+      status: "unsupported",
+      label: "Недоступно",
+      detail: "Этот браузер не поддерживает локальное распознавание речи.",
+    };
+  }
+
+  return {
+    status: "ready",
+    label: "Диктовать",
+    detail: "Нажмите и продиктуйте текст.",
+  };
+}
+
+function ensureVoiceStatusElement(button) {
+  const nextElement = button.nextElementSibling;
+  if (nextElement?.classList?.contains("voice-status")) {
+    return nextElement;
+  }
+
+  const status = document.createElement("p");
+  status.className = "voice-status";
+  status.setAttribute("aria-live", "polite");
+  status.hidden = true;
+  button.insertAdjacentElement("afterend", status);
+  return status;
+}
+
+function setVoiceButtonLabel(button, label) {
+  const labelElement = button.querySelector("span:not(.icon)");
+  if (labelElement) {
+    labelElement.textContent = label;
+  }
+}
+
+function setVoiceStatus(button, message, tone = "warn") {
+  const status = ensureVoiceStatusElement(button);
+  status.textContent = message;
+  status.hidden = !message;
+  status.className = `voice-status voice-status--${tone}`;
+}
+
+function renderVoiceInputControls() {
+  const access = getVoiceInputAccessState();
+
+  document.querySelectorAll(".voice-button").forEach(button => {
+    const isActive = button === activeVoiceButton;
+    button.classList.toggle("voice-button--active", isActive);
+    button.disabled = access.status === "unsupported" || (activeVoiceButton && !isActive);
+    setVoiceButtonLabel(button, isActive ? "Слушаю..." : access.label);
+    setVoiceStatus(button, isActive ? "Говорите. Текст появится в выбранном поле." : access.detail, isActive ? "ok" : access.status === "unsupported" ? "bad" : "warn");
+  });
+}
+
+function resolveVoiceTarget(button) {
+  const modal = button.closest(".focus-modal");
+  const activeElement = document.activeElement;
+
+  if (modal?.contains(activeElement) && isTextInputControl(activeElement)) {
+    return activeElement;
+  }
+
+  const selector = button.dataset.voiceTarget || "";
+  if (!selector) return null;
+
+  try {
+    const target = document.querySelector(selector);
+    return isTextInputControl(target) ? target : null;
+  } catch {
+    return null;
+  }
+}
+
+function insertVoiceTranscript(target, transcript) {
+  const normalizedTranscript = String(transcript || "").trim();
+  if (!normalizedTranscript || !isTextInputControl(target)) return false;
+
+  const currentValue = target.value || "";
+  const selectionStart = Number.isInteger(target.selectionStart) ? target.selectionStart : currentValue.length;
+  const selectionEnd = Number.isInteger(target.selectionEnd) ? target.selectionEnd : selectionStart;
+  const before = currentValue.slice(0, selectionStart);
+  const after = currentValue.slice(selectionEnd);
+  const separator = before && !/\s$/.test(before) ? " " : "";
+  const tailSeparator = after && !/^\s/.test(after) ? " " : "";
+  const nextValue = `${before}${separator}${normalizedTranscript}${tailSeparator}${after}`;
+
+  target.value = nextValue;
+  const cursorPosition = before.length + separator.length + normalizedTranscript.length;
+  target.focus();
+  target.setSelectionRange?.(cursorPosition, cursorPosition);
+  target.dispatchEvent(new Event("input", { bubbles: true }));
+  target.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
+
+function stopActiveVoiceRecognition() {
+  if (!activeVoiceRecognition) return;
+
+  try {
+    activeVoiceRecognition.stop();
+  } catch {
+    activeVoiceRecognition.abort?.();
+  }
+}
+
+function finishVoiceRecognition(button, message = "", tone = "warn") {
+  activeVoiceRecognition = null;
+  activeVoiceButton = null;
+  renderVoiceInputControls();
+  if (message && button) {
+    setVoiceStatus(button, message, tone);
+  }
+}
+
+function startVoiceInput(button) {
+  const Recognition = getSpeechRecognitionConstructor();
+  const target = resolveVoiceTarget(button);
+
+  if (!Recognition) {
+    setVoiceStatus(button, "Этот браузер не поддерживает локальное распознавание речи.", "bad");
+    renderVoiceInputControls();
+    return;
+  }
+
+  if (!target) {
+    setVoiceStatus(button, "Выберите поле, куда вставить продиктованный текст.", "bad");
+    return;
+  }
+
+  stopActiveVoiceRecognition();
+
+  const recognition = new Recognition();
+  let finalMessage = "";
+  let finalTone = "warn";
+  activeVoiceRecognition = recognition;
+  activeVoiceButton = button;
+
+  recognition.lang = "ru-RU";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    renderVoiceInputControls();
+  };
+
+  recognition.onresult = event => {
+    const transcript = Array.from(event.results || [])
+      .map(result => result?.[0]?.transcript || "")
+      .join(" ")
+      .trim();
+
+    if (insertVoiceTranscript(target, transcript)) {
+      finalMessage = "Текст добавлен.";
+      finalTone = "ok";
+    }
+  };
+
+  recognition.onerror = event => {
+    const error = event?.error || "";
+    finalMessage = error === "not-allowed" || error === "service-not-allowed"
+      ? "Браузер не дал доступ к микрофону."
+      : "Не удалось распознать речь. Повторите попытку.";
+    finalTone = "bad";
+  };
+
+  recognition.onend = () => {
+    finishVoiceRecognition(button, finalMessage, finalTone);
+  };
+
+  try {
+    recognition.start();
+  } catch {
+    finishVoiceRecognition(button, "Не удалось включить микрофон. Повторите попытку.", "bad");
+  }
+}
+
+async function handleVoiceInputAction(button, openModal) {
+  const access = getVoiceInputAccessState();
+
+  if (access.status === "locked") {
+    await handlePaidFeatureAction("voiceTranscription", openModal);
+    renderVoiceInputControls();
+    return;
+  }
+
+  if (access.status === "unsupported") {
+    setVoiceStatus(button, access.detail, "bad");
+    renderVoiceInputControls();
+    return;
+  }
+
+  if (button === activeVoiceButton) {
+    stopActiveVoiceRecognition();
+    return;
+  }
+
+  startVoiceInput(button);
 }
 
 function renderSyncState() {
@@ -6442,6 +6670,14 @@ function bindControls() {
   });
 
   modalLayer.addEventListener("click", event => {
+    const voiceButton = event.target.closest("[data-voice-target]");
+    if (voiceButton) {
+      handleVoiceInputAction(voiceButton, openModal).catch(() => {
+        setVoiceStatus(voiceButton, "Не удалось включить голосовой ввод. Повторите попытку позже.", "bad");
+      });
+      return;
+    }
+
     const paidFeatureButton = event.target.closest("[data-paid-feature-action]");
     if (paidFeatureButton) {
       handlePaidFeatureAction(paidFeatureButton.dataset.paidFeatureAction, openModal).catch(() => {

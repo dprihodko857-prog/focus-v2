@@ -215,7 +215,7 @@
             </label>
           </div>
 
-          <button class="voice-button" type="button">
+          <button class="voice-button" type="button" data-voice-target="#reminderText">
             <span class="icon icon-mic"></span>
             <span>Диктовать</span>
           </button>
@@ -292,7 +292,7 @@
             <input id="taskLabel" type="text" placeholder="Например: работа, дом, личное" />
           </label>
 
-          <button class="voice-button" type="button">
+          <button class="voice-button" type="button" data-voice-target="#taskText">
             <span class="icon icon-mic"></span>
             <span>Диктовать</span>
           </button>
@@ -342,7 +342,7 @@
             <textarea id="noteText" rows="7" placeholder="Например: идея, мысль, план или важная деталь на потом"></textarea>
           </label>
 
-          <button class="voice-button" type="button">
+          <button class="voice-button" type="button" data-voice-target="#noteText">
             <span class="icon icon-mic"></span>
             <span>Диктовать</span>
           </button>
@@ -406,7 +406,7 @@
             <span>Напомнить утром в день рождения</span>
           </label>
 
-          <button class="voice-button" type="button">
+          <button class="voice-button" type="button" data-voice-target="#birthdayNote">
             <span class="icon icon-mic"></span>
             <span>Диктовать</span>
           </button>
@@ -473,7 +473,7 @@
             <textarea id="diaryText" rows="8" placeholder="Коротко опишите день, мысль, итог или наблюдение"></textarea>
           </label>
 
-          <button class="voice-button" type="button">
+          <button class="voice-button" type="button" data-voice-target="#diaryText">
             <span class="icon icon-mic"></span>
             <span>Диктовать</span>
           </button>
@@ -950,6 +950,11 @@
             </div>
             <div class="scenario-form" id="schedulePreviewBody"></div>
           </section>
+
+          <button class="voice-button voice-button--schedule" type="button" data-voice-target="#scheduleModal .schedule-step:not([hidden]) textarea, #scheduleModal .schedule-step:not([hidden]) input[type='text']">
+            <span class="icon icon-mic"></span>
+            <span>Диктовать</span>
+          </button>
         </div>
 
         <footer class="modal-actions modal-actions--schedule" id="scheduleActions" hidden>
