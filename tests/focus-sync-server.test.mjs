@@ -1123,6 +1123,194 @@ test("subscription checkout reports YooKassa network failures without server err
   }
 });
 
+test("subscription checkout status activates access from a paid YooKassa payment", async () => {
+  const db = createSyncDatabase(":memory:");
+  const providerCalls = [];
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:15:00.000Z",
+    yookassaConfig: {
+      shopId: "123456",
+      secretKey: "test_secret_key",
+      returnUrl: "https://focus-v2.dmnao83.ru/subscription.html",
+      paymentsUrl: "https://api.yookassa.test/v3/payments",
+      amountValue: "199.00",
+      currency: "RUB",
+    },
+    fetchImpl: async (url, options) => {
+      providerCalls.push({ url, options });
+      return jsonResponse(200, {
+        id: "payment-status-success-123",
+        status: "succeeded",
+        paid: true,
+        metadata: {
+          accountId: "account-checkout-status-success",
+          featureKey: "voiceTranscription",
+        },
+      });
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-checkout-status-success";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/checkout/status?paymentId=payment-status-success-123`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      provider: "yookassa",
+      accountId,
+      paymentId: "payment-status-success-123",
+      checkedAt: "2026-07-12T09:15:00.000Z",
+      status: "activated",
+      featureKey: "voiceTranscription",
+      paymentStatus: "succeeded",
+      paid: true,
+      entitlements: {
+        voiceTranscription: {
+          enabled: true,
+          source: "yookassa",
+          updatedAt: "2026-07-12T09:15:00.000Z",
+        },
+      },
+    });
+    assert.equal(providerCalls.length, 1);
+    assert.equal(providerCalls[0].url, "https://api.yookassa.test/v3/payments/payment-status-success-123");
+    assert.equal(providerCalls[0].options.method, "GET");
+    assert.equal(providerCalls[0].options.headers.authorization, `Basic ${Buffer.from("123456:test_secret_key").toString("base64")}`);
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, true);
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.source, "yookassa");
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("subscription checkout status reports missing YooKassa config", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:16:00.000Z",
+    yookassaConfig: null,
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-checkout-status-missing";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/checkout/status?paymentId=payment-status-missing-123`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      provider: "yookassa",
+      accountId,
+      paymentId: "payment-status-missing-123",
+      checkedAt: "2026-07-12T09:16:00.000Z",
+      status: "provider_not_configured",
+      error: "provider_not_configured",
+    });
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("subscription checkout status keeps pending and mismatched YooKassa payments inactive", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:17:00.000Z",
+    yookassaConfig: {
+      shopId: "123456",
+      secretKey: "test_secret_key",
+      returnUrl: "https://focus-v2.dmnao83.ru/subscription.html",
+      paymentsUrl: "https://api.yookassa.test/v3/payments",
+      amountValue: "199.00",
+      currency: "RUB",
+    },
+    fetchImpl: async url => {
+      if (String(url).endsWith("/payment-status-pending-123")) {
+        return jsonResponse(200, {
+          id: "payment-status-pending-123",
+          status: "pending",
+          paid: false,
+          metadata: {
+            accountId: "account-checkout-status-guard",
+            featureKey: "voiceTranscription",
+          },
+        });
+      }
+
+      return jsonResponse(200, {
+        id: "payment-status-mismatch-123",
+        status: "succeeded",
+        paid: true,
+        metadata: {
+          accountId: "another-checkout-status-account",
+          featureKey: "voiceTranscription",
+        },
+      });
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-checkout-status-guard";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const pendingResponse = await fetch(`${baseUrl}/api/sync/checkout/status?paymentId=payment-status-pending-123`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(pendingResponse.status, 200);
+    assert.deepEqual(await pendingResponse.json(), {
+      provider: "yookassa",
+      accountId,
+      paymentId: "payment-status-pending-123",
+      checkedAt: "2026-07-12T09:17:00.000Z",
+      status: "pending",
+      featureKey: "voiceTranscription",
+      paymentStatus: "pending",
+      paid: false,
+    });
+
+    const mismatchResponse = await fetch(`${baseUrl}/api/sync/checkout/status?paymentId=payment-status-mismatch-123`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(mismatchResponse.status, 200);
+    assert.deepEqual(await mismatchResponse.json(), {
+      provider: "yookassa",
+      accountId,
+      paymentId: "payment-status-mismatch-123",
+      checkedAt: "2026-07-12T09:17:00.000Z",
+      status: "ignored",
+      reason: "account_mismatch",
+      paymentStatus: "succeeded",
+      paid: true,
+    });
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("subscription checkout rejects unknown paid features", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({

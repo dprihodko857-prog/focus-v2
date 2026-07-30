@@ -25,6 +25,7 @@ const MAX_DEVICE_SESSIONS_PER_ACCOUNT = 12;
 const MAX_PUSH_ENDPOINT_LENGTH = 4096;
 const MAX_PUSH_KEY_LENGTH = 512;
 const ENTITLEMENT_SOURCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
+const YOOKASSA_PAYMENT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
 const PAID_FEATURE_KEYS = new Set(["voiceTranscription"]);
 
 export function createSyncDatabase(dbPath = DEFAULT_DB_PATH) {
@@ -796,6 +797,166 @@ function normalizeYooKassaError(result) {
   return String(result.code || result.type || result.error || "provider_error").slice(0, 120);
 }
 
+function normalizeYooKassaPaymentId(value) {
+  const paymentId = String(value || "").trim();
+  return YOOKASSA_PAYMENT_ID_PATTERN.test(paymentId) ? paymentId : "";
+}
+
+function createYooKassaPaymentStatusUrl(yookassaConfig, paymentId) {
+  return `${yookassaConfig.paymentsUrl}/${encodeURIComponent(paymentId)}`;
+}
+
+async function checkYooKassaPaymentStatus({
+  db,
+  yookassaConfig,
+  accountId,
+  paymentId,
+  checkedAt,
+  fetchImpl,
+}) {
+  const baseBody = {
+    provider: "yookassa",
+    accountId,
+    paymentId,
+    checkedAt,
+  };
+
+  if (!yookassaConfig) {
+    return {
+      statusCode: 503,
+      body: {
+        ...baseBody,
+        status: "provider_not_configured",
+        error: "provider_not_configured",
+      },
+    };
+  }
+
+  if (!fetchImpl) {
+    return {
+      statusCode: 200,
+      body: {
+        ...baseBody,
+        status: "failed",
+        error: "provider_unavailable",
+      },
+    };
+  }
+
+  let response;
+  try {
+    response = await fetchImpl(createYooKassaPaymentStatusUrl(yookassaConfig, paymentId), {
+      method: "GET",
+      headers: {
+        authorization: `Basic ${Buffer.from(`${yookassaConfig.shopId}:${yookassaConfig.secretKey}`).toString("base64")}`,
+      },
+    });
+  } catch {
+    return {
+      statusCode: 200,
+      body: {
+        ...baseBody,
+        status: "failed",
+        error: "provider_unavailable",
+      },
+    };
+  }
+
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return {
+      statusCode: 200,
+      body: {
+        ...baseBody,
+        status: "failed",
+        error: normalizeYooKassaError(result),
+      },
+    };
+  }
+
+  const payment = isPlainObject(result) ? result : {};
+  const paymentStatus = typeof payment.status === "string" ? payment.status : "unknown";
+  const paid = payment.paid === true;
+  const { accountId: paymentAccountId, featureKey } = extractYooKassaPaymentMetadata(payment);
+
+  if (!paymentAccountId) {
+    return {
+      statusCode: 200,
+      body: {
+        ...baseBody,
+        status: "ignored",
+        reason: "account_missing",
+        paymentStatus,
+        paid,
+      },
+    };
+  }
+
+  if (paymentAccountId !== accountId) {
+    return {
+      statusCode: 200,
+      body: {
+        ...baseBody,
+        status: "ignored",
+        reason: "account_mismatch",
+        paymentStatus,
+        paid,
+      },
+    };
+  }
+
+  if (!featureKey) {
+    return {
+      statusCode: 200,
+      body: {
+        ...baseBody,
+        status: "ignored",
+        reason: "feature_missing",
+        paymentStatus,
+        paid,
+      },
+    };
+  }
+
+  if (paymentStatus === "succeeded" && paid) {
+    const entitlements = {
+      ...db.getAccountEntitlements(accountId),
+      [featureKey]: {
+        enabled: true,
+        source: "yookassa",
+      },
+    };
+    const savedEntitlements = db.setAccountEntitlements({
+      accountId,
+      entitlements,
+      updatedAt: checkedAt,
+    });
+
+    return {
+      statusCode: 200,
+      body: {
+        ...baseBody,
+        status: "activated",
+        featureKey,
+        paymentStatus,
+        paid,
+        entitlements: savedEntitlements,
+      },
+    };
+  }
+
+  return {
+    statusCode: 200,
+    body: {
+      ...baseBody,
+      status: paymentStatus === "canceled" ? "canceled" : "pending",
+      featureKey,
+      paymentStatus,
+      paid,
+    },
+  };
+}
+
 function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
   if (!isPlainObject(notification) || notification.type !== "notification" || typeof notification.event !== "string") {
     return {
@@ -1289,6 +1450,34 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     }
 
     sendJson(response, 200, checkout);
+    return;
+  }
+
+  if (url.pathname === "/api/sync/checkout/status") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    const paymentId = normalizeYooKassaPaymentId(url.searchParams.get("paymentId") || url.searchParams.get("payment_id"));
+    if (!paymentId) {
+      sendJson(response, 400, { error: "invalid_payment_id" });
+      return;
+    }
+
+    const result = await checkYooKassaPaymentStatus({
+      db,
+      yookassaConfig,
+      accountId: accountContext.accountId,
+      paymentId,
+      checkedAt: accountContext.checkedAt,
+      fetchImpl,
+    });
+
+    sendJson(response, result.statusCode, result.body);
     return;
   }
 

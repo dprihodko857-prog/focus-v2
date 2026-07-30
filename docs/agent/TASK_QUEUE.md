@@ -2884,3 +2884,76 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. `POST /api/sync/checkout` now creates a YooKassa redirect payment when `FOCUS_YOOKASSA_SHOP_ID`, `FOCUS_YOOKASSA_SECRET_KEY`, and `FOCUS_YOOKASSA_RETURN_URL` are configured; payment metadata includes account and feature keys for webhook activation.
 - commit_status: committed
 - notes: Focused server checks passed 50/50 and `npm.cmd run test` passed 165/165 on 2026-07-30. No deployment or git push.
+
+## TASK-055
+
+- title: Verify YooKassa payment status after return
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_provider_integration
+- priority: high
+- source: owner asked to continue while YooKassa verification is pending; after payment creation the next provider step is return-url payment status verification for installed PWA flows
+- spec_reference: `docs/specs/yookassa-return-payment-status.md`
+- spec_status: implemented_local_committed
+- goal: let the app verify a pending YooKassa payment after the user returns from checkout and activate `voiceTranscription` only after a matched paid succeeded payment.
+- out_of_scope:
+  - production deploy or secret installation
+  - live YooKassa payment calls
+  - YooKassa shop approval
+  - receipts, fiscalization, taxes, refunds, recurring payments, or subscription periods
+  - webhook signature hardening
+  - frontend redesign
+  - git push, tags, or release work
+- acceptance_criteria:
+  - backend exposes account-scoped `GET /api/sync/checkout/status?paymentId=...`
+  - missing YooKassa config returns `provider_not_configured`
+  - invalid payment ids are rejected
+  - YooKassa status GET uses server-side Basic Auth
+  - pending or canceled payments do not activate access
+  - mismatched metadata cannot activate access
+  - paid succeeded payment activates `voiceTranscription` with source `yookassa`
+  - client stores pending YooKassa checkout state after redirect creation
+  - client checks pending payment on startup and online recovery
+  - service worker cache is bumped to `focus-pwa-v80`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/sync.js`
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `node --test tests/focus-sync-client.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs tests/legal-pages.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_provider_integration task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 54
+- stop_conditions:
+  - implementation requires live YooKassa credentials
+  - implementation requires external network calls in tests
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/sync.js`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/focus-sync-server.test.mjs`
+  - `tests/focus-sync-client.test.mjs`
+  - static PWA tests
+  - Project Maestro memory
+- dependencies:
+  - checkout foundation
+  - YooKassa checkout payment creation
+  - YooKassa webhook scaffold
+  - account entitlements foundation
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend now checks YooKassa payment status for the current sync account, and the PWA stores and verifies pending checkout state after return or online recovery.
+- commit_status: committed
+- notes: Focused server/client/PWA checks passed on 2026-07-30. No deployment or git push.

@@ -4435,6 +4435,54 @@ async function startPaidFeatureCheckout(feature, openModal) {
   setSyncStatus("Не удалось подготовить оплату подписки. Повторите попытку позже.");
 }
 
+async function checkPendingSubscriptionCheckout({ silent = true } = {}) {
+  const pendingCheckout = scheduleSync.getPendingSubscriptionCheckout?.();
+  if (!pendingCheckout) {
+    return null;
+  }
+
+  const result = await scheduleSync.getSubscriptionCheckoutStatus({ paymentId: pendingCheckout.paymentId });
+  const featureKey = result.featureKey || pendingCheckout.featureKey;
+  const feature = paidFeatureItems.find(item => item.key === featureKey);
+  const featureTitle = feature?.title || "Платная функция";
+
+  if (result.status === "activated") {
+    if (result.entitlements) {
+      accountEntitlementsState = {
+        status: "ok",
+        accountId: result.accountId || pendingCheckout.accountId,
+        checkedAt: new Date().toISOString(),
+        entitlements: mergeAccountEntitlements(result.entitlements),
+      };
+      renderPaidFeatureSurfaces();
+    }
+
+    await refreshAccountEntitlements({ silent: true });
+
+    if (!silent) {
+      setSyncStatus(`Оплата подтверждена. ${featureTitle} включён для этого аккаунта.`);
+    }
+    return result;
+  }
+
+  if (!silent) {
+    if (result.status === "pending") {
+      setSyncStatus("Оплата ещё не подтверждена. Проверка повторится после возврата или подключения к сети.");
+    } else if (result.status === "canceled") {
+      setSyncStatus("Оплата отменена. Доступ к платной функции не изменён.");
+    } else if (result.status === "provider-not-configured") {
+      setSyncStatus("Платёжный провайдер ещё не настроен, поэтому статус оплаты проверить нельзя.");
+    } else if (result.status === "offline") {
+      setSyncStatus("Не удалось проверить оплату. Проверка повторится после подключения к сети.");
+    } else {
+      setSyncStatus("Не удалось подтвердить оплату. Доступ к платной функции не изменён.");
+    }
+  }
+
+  renderPaidFeatureSurfaces();
+  return result;
+}
+
 async function handlePaidFeatureAction(featureKey, openModal) {
   const feature = paidFeatureItems.find(item => item.key === featureKey);
   if (!feature) return;
@@ -6796,7 +6844,9 @@ renderScheduleTypes();
 renderSyncDataStatus();
 renderPaidFeatureSurfaces();
 const controls = bindControls();
-refreshAccountEntitlements({ silent: true }).catch(() => {
+refreshAccountEntitlements({ silent: true }).then(() => {
+  return checkPendingSubscriptionCheckout({ silent: true });
+}).catch(() => {
   renderPaidFeatureSurfaces();
 });
 loadDiaryPinSettings().catch(() => {
@@ -6837,6 +6887,7 @@ function runOnlineRecoverySync() {
     syncSavedReminders(),
     registerServerPushSubscription(),
     refreshReminderPushStatus(),
+    checkPendingSubscriptionCheckout({ silent: true }),
     refreshAccountEntitlements({ silent: true }),
   ]).finally(() => {
     pendingOnlineRecoverySync = null;

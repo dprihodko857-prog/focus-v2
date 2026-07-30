@@ -889,6 +889,114 @@ test("subscription checkout reports missing provider and offline states", async 
   assert.equal(offlineResult.checkoutUrl, null);
 });
 
+test("subscription checkout stores and verifies a YooKassa payment", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      if (url === "/api/sync/checkout") {
+        return jsonResponse({
+          status: "ready",
+          accountId: "account-1",
+          featureKey: "voiceTranscription",
+          checkoutUrl: "https://yookassa.test/checkout/payments/v2/contract",
+          provider: "yookassa",
+          paymentId: "payment-client-status-123",
+        });
+      }
+
+      return jsonResponse({
+        status: "activated",
+        accountId: "account-1",
+        featureKey: "voiceTranscription",
+        provider: "yookassa",
+        paymentId: "payment-client-status-123",
+        paymentStatus: "succeeded",
+        paid: true,
+        entitlements: {
+          voiceTranscription: {
+            enabled: true,
+            source: "yookassa",
+            updatedAt: "2026-07-12T09:15:00.000Z",
+          },
+        },
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const checkout = await client.createSubscriptionCheckout({ featureKey: "voiceTranscription" });
+  assert.equal(checkout.status, "ready");
+  assert.equal(checkout.provider, "yookassa");
+  assert.equal(checkout.paymentId, "payment-client-status-123");
+  assert.match(storage.getItem("focus-sync-pending-subscription-checkout"), /payment-client-status-123/);
+  assert.deepEqual(client.getPendingSubscriptionCheckout(), {
+    accountId: "account-1",
+    featureKey: "voiceTranscription",
+    provider: "yookassa",
+    paymentId: "payment-client-status-123",
+    checkoutUrl: "https://yookassa.test/checkout/payments/v2/contract",
+    createdAt: client.getPendingSubscriptionCheckout().createdAt,
+  });
+
+  const status = await client.getSubscriptionCheckoutStatus();
+
+  assert.equal(status.status, "activated");
+  assert.equal(status.paymentStatus, "succeeded");
+  assert.equal(status.paid, true);
+  assert.deepEqual(status.entitlements, {
+    voiceTranscription: {
+      enabled: true,
+      source: "yookassa",
+      updatedAt: "2026-07-12T09:15:00.000Z",
+    },
+  });
+  assert.equal(storage.getItem("focus-sync-pending-subscription-checkout"), null);
+  assert.equal(calls[1].url, "/api/sync/checkout/status?paymentId=payment-client-status-123");
+  assert.equal(calls[1].options.headers["x-focus-account"], "account-1");
+  assert.equal(calls[1].options.headers["x-focus-device"], "device-1");
+});
+
+test("subscription checkout status keeps pending YooKassa payments queued", async () => {
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+    "focus-sync-pending-subscription-checkout": JSON.stringify({
+      accountId: "account-1",
+      featureKey: "voiceTranscription",
+      provider: "yookassa",
+      paymentId: "payment-client-pending-123",
+      checkoutUrl: "https://yookassa.test/checkout/payments/v2/contract",
+      createdAt: "2026-07-12T09:15:00.000Z",
+    }),
+  });
+  const client = createFocusSyncClient({
+    fetch: async () => jsonResponse({
+      status: "pending",
+      accountId: "account-1",
+      featureKey: "voiceTranscription",
+      provider: "yookassa",
+      paymentId: "payment-client-pending-123",
+      paymentStatus: "pending",
+      paid: false,
+    }),
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const status = await client.getSubscriptionCheckoutStatus();
+
+  assert.equal(status.status, "pending");
+  assert.equal(status.paymentStatus, "pending");
+  assert.equal(status.paid, false);
+  assert.match(storage.getItem("focus-sync-pending-subscription-checkout"), /payment-client-pending-123/);
+});
+
 test("checkAccountId validates a shared account without storing it locally", async () => {
   const calls = [];
   const storage = createMemoryLocalStorage();
@@ -966,6 +1074,12 @@ test("setAccountId clears stale pending account-scoped queues when switching acc
     "focus-sync-pending-account-profile": JSON.stringify({ accountId: "old-account", displayName: "Old", deviceName: "Laptop" }),
     "focus-sync-pending-collection-pushes": JSON.stringify(["schedules", "tasks"]),
     "focus-sync-pending-device-disconnects": pendingDisconnects,
+    "focus-sync-pending-subscription-checkout": JSON.stringify({
+      accountId: "old-account",
+      featureKey: "voiceTranscription",
+      provider: "yookassa",
+      paymentId: "payment-client-old-123",
+    }),
   });
   const client = createFocusSyncClient({
     fetch: async () => jsonResponse({}),
@@ -978,6 +1092,7 @@ test("setAccountId clears stale pending account-scoped queues when switching acc
   assert.equal(storage.getItem("focus-sync-account-id"), "new-account-123");
   assert.equal(storage.getItem("focus-sync-pending-account-profile"), null);
   assert.equal(storage.getItem("focus-sync-pending-collection-pushes"), null);
+  assert.equal(storage.getItem("focus-sync-pending-subscription-checkout"), null);
   assert.equal(storage.getItem("focus-sync-pending-device-disconnects"), pendingDisconnects);
 });
 
@@ -988,6 +1103,12 @@ test("clearAccountId disconnects the current account without clearing the device
     "focus-sync-revision": "7",
     "focus-sync-pending-collection-pushes": JSON.stringify(["schedules"]),
     "focus-sync-pending-account-profile": JSON.stringify({ accountId: "orbit:account", displayName: "Focus", deviceName: "Laptop" }),
+    "focus-sync-pending-subscription-checkout": JSON.stringify({
+      accountId: "orbit:account",
+      featureKey: "voiceTranscription",
+      provider: "yookassa",
+      paymentId: "payment-client-clear-123",
+    }),
   });
   const client = createFocusSyncClient({
     fetch: async () => jsonResponse({}),
@@ -1002,6 +1123,7 @@ test("clearAccountId disconnects the current account without clearing the device
   assert.equal(storage.getItem("focus-sync-revision"), "0");
   assert.equal(storage.getItem("focus-sync-pending-collection-pushes"), null);
   assert.equal(storage.getItem("focus-sync-pending-account-profile"), null);
+  assert.equal(storage.getItem("focus-sync-pending-subscription-checkout"), null);
 });
 
 test("disconnectCurrentDevice removes the remote current device without clearing local sync state", async () => {

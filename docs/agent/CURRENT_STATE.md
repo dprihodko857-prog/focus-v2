@@ -65,6 +65,7 @@ Status: DRAFT
 - TASK-052 is implemented locally: backend exposes a token-gated `/api/admin/entitlements` endpoint for operator activation or deactivation of `voiceTranscription` on existing sync accounts while provider verification is pending.
 - TASK-053 is implemented locally: backend exposes a token-gated `/api/yookassa/webhook` scaffold for future `payment.succeeded` entitlement activation from YooKassa payment metadata.
 - TASK-054 is implemented locally: checkout can create YooKassa redirect payments when server-side shop id, secret key, and return URL are configured; payment metadata carries account and feature keys for later webhook activation.
+- TASK-055 is implemented locally: the app stores pending YooKassa checkout state, backend checks current-account payment status through `/api/sync/checkout/status`, and paid matched payments can activate `voiceTranscription`; service worker cache is `focus-pwa-v80`.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
 
 ## In Progress
@@ -86,9 +87,9 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-054 focused checks passed locally (`node --check server/sync-server.mjs`, server tests 50/50) and `npm.cmd run test` passed 165/165. Public requisites deploy on 2026-07-30 uploaded `requisites.html` and `service-worker.js`; the page returned 200, app returned 200, backend health returned `{"ok":true,"service":"focus-sync"}`.
+- Current result: local Git repository exists; TASK-055 checks passed locally (syntax checks, server tests 53/53, client tests 38/38, targeted PWA/static tests 49/49, and `npm.cmd run test` 170/170). Public requisites deploy on 2026-07-30 uploaded `requisites.html` and `service-worker.js`; the page returned 200, app returned 200, backend health returned `{"ok":true,"service":"focus-sync"}`.
 
 ## Open Questions
 
-- The next product/runtime task is either deploying tariff/legal/voice/admin/YooKassa checkout/webhook changes for review and testing, adding return-url payment status verification, or continuing a fuller transcription provider design while YooKassa verification is pending.
+- The next product/runtime task is either deploying tariff/legal/voice/admin/YooKassa checkout/webhook/status changes for review and testing, hardening YooKassa webhook authenticity once provider settings are available, or continuing a fuller transcription provider design while YooKassa verification is pending.
 - Future backend/deployment changes still require a separate owner deployment approval.

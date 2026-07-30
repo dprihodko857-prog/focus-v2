@@ -22,7 +22,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v79/);
+  assert.match(serviceWorker, /focus-pwa-v80/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -71,8 +71,12 @@ test("settings expose the sync account connection modal", () => {
 test("sync client exposes paid feature entitlements", () => {
   assert.match(syncJs, /async getAccountEntitlements\(\)/);
   assert.match(syncJs, /async createSubscriptionCheckout\(\{ featureKey \} = \{\}\)/);
+  assert.match(syncJs, /async getSubscriptionCheckoutStatus\(\{ paymentId \} = \{\}\)/);
+  assert.match(syncJs, /getPendingSubscriptionCheckout\(\)/);
+  assert.match(syncJs, /focus-sync-pending-subscription-checkout/);
   assert.match(syncJs, /\/sync\/entitlements/);
   assert.match(syncJs, /\/sync\/checkout/);
+  assert.match(syncJs, /\/sync\/checkout\/status\?paymentId=/);
   assert.match(syncJs, /voiceTranscription/);
   assert.match(syncJs, /provider-not-configured/);
 });
@@ -95,8 +99,11 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /function renderPaidFeatureSurfaces/);
   assert.match(appJs, /async function refreshAccountEntitlements/);
   assert.match(appJs, /async function startPaidFeatureCheckout/);
+  assert.match(appJs, /async function checkPendingSubscriptionCheckout/);
   assert.match(appJs, /scheduleSync\.getAccountEntitlements\(\)/);
   assert.match(appJs, /scheduleSync\.createSubscriptionCheckout\(\{ featureKey: feature\.key \}\)/);
+  assert.match(appJs, /scheduleSync\.getSubscriptionCheckoutStatus\(\{ paymentId: pendingCheckout\.paymentId \}\)/);
+  assert.match(appJs, /checkPendingSubscriptionCheckout\(\{ silent: true \}\)/);
   assert.match(appJs, /window\.location\.assign\(result\.checkoutUrl\)/);
   assert.match(appJs, /data-paid-feature-action="\$\{escapeHtml\(feature\.key\)\}"/);
   assert.match(appJs, /document\.querySelector\("#paidFeaturesRefreshButton"\)\?\.addEventListener\("click"/);

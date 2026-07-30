@@ -10,8 +10,10 @@ const DIARY_REVISION_KEY = "focus-sync-diary-revision";
 const PENDING_DEVICE_DISCONNECTS_KEY = "focus-sync-pending-device-disconnects";
 const PENDING_ACCOUNT_PROFILE_KEY = "focus-sync-pending-account-profile";
 const PENDING_COLLECTION_PUSHES_KEY = "focus-sync-pending-collection-pushes";
+const PENDING_SUBSCRIPTION_CHECKOUT_KEY = "focus-sync-pending-subscription-checkout";
 const ACCOUNT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
 const DEVICE_ID_PATTERN = /^[a-zA-Z0-9_.:-]{4,160}$/;
+const PAYMENT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
 const COLLECTION_KEYS = new Set(["schedules", "reminders", "tasks", "notes", "birthdays", "diary"]);
 const ENTITLEMENT_SOURCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
 const PAID_FEATURE_KEYS = new Set(["voiceTranscription"]);
@@ -130,6 +132,21 @@ export function createFocusSyncClient({
 
   const normalizeAccountId = accountId => String(accountId || "").trim();
   const isValidAccountId = accountId => ACCOUNT_ID_PATTERN.test(accountId);
+  const normalizePaymentId = paymentId => {
+    const normalizedPaymentId = String(paymentId || "").trim();
+    return PAYMENT_ID_PATTERN.test(normalizedPaymentId) ? normalizedPaymentId : "";
+  };
+  const normalizeSubscriptionCheckoutStatus = status => {
+    const normalizedStatus = String(status || "").trim().replace(/_/g, "-");
+    return [
+      "activated",
+      "pending",
+      "canceled",
+      "failed",
+      "ignored",
+      "provider-not-configured",
+    ].includes(normalizedStatus) ? normalizedStatus : "pending";
+  };
   const withAccountHeaders = (accountId, deviceId = getDeviceId()) => ({
     "content-type": "application/json",
     "x-focus-account": accountId,
@@ -232,6 +249,56 @@ export function createFocusSyncClient({
   };
 
   const hasPendingCollectionPush = collectionKey => getPendingCollectionPushes().includes(collectionKey);
+
+  const readPendingSubscriptionCheckout = () => {
+    try {
+      const parsed = JSON.parse(getStored(PENDING_SUBSCRIPTION_CHECKOUT_KEY) || "null");
+      const accountId = getStored(ACCOUNT_KEY);
+      const pendingAccountId = normalizeAccountId(parsed?.accountId);
+      const paymentId = normalizePaymentId(parsed?.paymentId);
+      const featureKey = normalizePaidFeatureKey(parsed?.featureKey);
+      const provider = String(parsed?.provider || "").trim().toLowerCase();
+
+      if (!accountId || pendingAccountId !== accountId || provider !== "yookassa" || !paymentId || !featureKey) {
+        return null;
+      }
+
+      return {
+        accountId: pendingAccountId,
+        featureKey,
+        provider,
+        paymentId,
+        checkoutUrl: typeof parsed.checkoutUrl === "string" ? parsed.checkoutUrl : "",
+        createdAt: typeof parsed.createdAt === "string" ? parsed.createdAt : null,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const storePendingSubscriptionCheckout = checkout => {
+    const accountId = normalizeAccountId(checkout?.accountId);
+    const paymentId = normalizePaymentId(checkout?.paymentId);
+    const featureKey = normalizePaidFeatureKey(checkout?.featureKey);
+    const provider = String(checkout?.provider || "").trim().toLowerCase();
+
+    if (!isValidAccountId(accountId) || provider !== "yookassa" || !paymentId || !featureKey) {
+      return;
+    }
+
+    setStored(PENDING_SUBSCRIPTION_CHECKOUT_KEY, JSON.stringify({
+      accountId,
+      featureKey,
+      provider,
+      paymentId,
+      checkoutUrl: typeof checkout.checkoutUrl === "string" ? checkout.checkoutUrl : "",
+      createdAt: new Date().toISOString(),
+    }));
+  };
+
+  const clearPendingSubscriptionCheckout = () => {
+    removeStored(PENDING_SUBSCRIPTION_CHECKOUT_KEY);
+  };
 
   const getRemoteSnapshot = async path => {
     const response = await fetchImpl(apiUrl(apiBaseUrl, path), {
@@ -381,6 +448,12 @@ export function createFocusSyncClient({
 
     setDeviceName,
 
+    getPendingSubscriptionCheckout() {
+      return readPendingSubscriptionCheckout();
+    },
+
+    clearPendingSubscriptionCheckout,
+
     setAccountId(accountId) {
       const normalizedAccountId = normalizeAccountId(accountId);
       if (!isValidAccountId(normalizedAccountId)) {
@@ -391,6 +464,7 @@ export function createFocusSyncClient({
       if (previousAccountId !== normalizedAccountId) {
         removeStored(PENDING_ACCOUNT_PROFILE_KEY);
         removeStored(PENDING_COLLECTION_PUSHES_KEY);
+        removeStored(PENDING_SUBSCRIPTION_CHECKOUT_KEY);
       }
 
       setStored(ACCOUNT_KEY, normalizedAccountId);
@@ -413,6 +487,7 @@ export function createFocusSyncClient({
       setRevision(0, DIARY_REVISION_KEY);
       removeStored(PENDING_ACCOUNT_PROFILE_KEY);
       removeStored(PENDING_COLLECTION_PUSHES_KEY);
+      removeStored(PENDING_SUBSCRIPTION_CHECKOUT_KEY);
     },
 
     async disconnectCurrentDevice() {
@@ -631,18 +706,125 @@ export function createFocusSyncClient({
           throw new Error("Focus subscription checkout creation failed.");
         }
 
-        return {
+        const checkout = {
           status: result.status === "ready" && result.checkoutUrl ? "ready" : "failed",
           accountId: result.accountId || accountId,
           featureKey: normalizePaidFeatureKey(result.featureKey) || normalizedFeatureKey,
           checkoutUrl: typeof result.checkoutUrl === "string" ? result.checkoutUrl : null,
+          provider: typeof result.provider === "string" ? result.provider : null,
+          paymentId: normalizePaymentId(result.paymentId) || null,
         };
+
+        if (checkout.status === "ready" && checkout.provider === "yookassa" && checkout.paymentId) {
+          storePendingSubscriptionCheckout(checkout);
+        }
+
+        return checkout;
       } catch {
         return {
           status: "offline",
           accountId,
           featureKey: normalizedFeatureKey,
           checkoutUrl: null,
+        };
+      }
+    },
+
+    async getSubscriptionCheckoutStatus({ paymentId } = {}) {
+      const accountId = getStored(ACCOUNT_KEY);
+      const pendingCheckout = readPendingSubscriptionCheckout();
+      const normalizedPaymentId = normalizePaymentId(paymentId) || pendingCheckout?.paymentId || "";
+
+      if (!accountId) {
+        return {
+          status: "account-required",
+          accountId: "",
+          featureKey: pendingCheckout?.featureKey || "",
+          provider: pendingCheckout?.provider || "yookassa",
+          paymentId: normalizedPaymentId || null,
+          paymentStatus: null,
+          paid: false,
+          entitlements: null,
+        };
+      }
+
+      if (!normalizedPaymentId) {
+        clearPendingSubscriptionCheckout();
+        return {
+          status: "invalid-payment",
+          accountId,
+          featureKey: pendingCheckout?.featureKey || "",
+          provider: pendingCheckout?.provider || "yookassa",
+          paymentId: null,
+          paymentStatus: null,
+          paid: false,
+          entitlements: null,
+        };
+      }
+
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, `/sync/checkout/status?paymentId=${encodeURIComponent(normalizedPaymentId)}`), {
+          headers: withAccountHeaders(accountId),
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (response.status === 503 && result?.error === "provider_not_configured") {
+          return {
+            status: "provider-not-configured",
+            accountId: result.accountId || accountId,
+            featureKey: normalizePaidFeatureKey(result.featureKey) || pendingCheckout?.featureKey || "",
+            provider: result.provider || pendingCheckout?.provider || "yookassa",
+            paymentId: normalizePaymentId(result.paymentId) || normalizedPaymentId,
+            paymentStatus: typeof result.paymentStatus === "string" ? result.paymentStatus : null,
+            paid: result.paid === true,
+            entitlements: null,
+          };
+        }
+
+        if (response.status === 400) {
+          clearPendingSubscriptionCheckout();
+          return {
+            status: "invalid-payment",
+            accountId,
+            featureKey: pendingCheckout?.featureKey || "",
+            provider: pendingCheckout?.provider || "yookassa",
+            paymentId: normalizedPaymentId,
+            paymentStatus: null,
+            paid: false,
+            entitlements: null,
+          };
+        }
+
+        if (!response.ok) {
+          throw new Error("Focus subscription checkout status failed.");
+        }
+
+        const checkoutStatus = {
+          status: normalizeSubscriptionCheckoutStatus(result.status),
+          accountId: result.accountId || accountId,
+          featureKey: normalizePaidFeatureKey(result.featureKey) || pendingCheckout?.featureKey || "",
+          provider: result.provider || pendingCheckout?.provider || "yookassa",
+          paymentId: normalizePaymentId(result.paymentId) || normalizedPaymentId,
+          paymentStatus: typeof result.paymentStatus === "string" ? result.paymentStatus : null,
+          paid: result.paid === true,
+          entitlements: result.entitlements ? normalizeAccountEntitlements(result.entitlements) : null,
+        };
+
+        if (["activated", "canceled", "failed", "ignored"].includes(checkoutStatus.status)) {
+          clearPendingSubscriptionCheckout();
+        }
+
+        return checkoutStatus;
+      } catch {
+        return {
+          status: "offline",
+          accountId,
+          featureKey: pendingCheckout?.featureKey || "",
+          provider: pendingCheckout?.provider || "yookassa",
+          paymentId: normalizedPaymentId,
+          paymentStatus: null,
+          paid: false,
+          entitlements: null,
         };
       }
     },
