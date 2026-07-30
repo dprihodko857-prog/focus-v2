@@ -59,4 +59,5 @@ Status: DRAFT
 | VOICE-INPUT-FOUNDATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-input-foundation.md` | TASK-051 wires browser speech recognition controls behind the `voiceTranscription` entitlement. |
 | MANUAL-ENTITLEMENT-ACTIVATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/manual-entitlement-activation.md` | TASK-052 adds a secret-gated backend path for operator activation of paid feature access during testing. |
 | YOOKASSA-WEBHOOK-SCAFFOLD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-webhook-scaffold.md` | TASK-053 adds a token-gated YooKassa payment succeeded webhook scaffold for future automatic entitlement activation. |
+| YOOKASSA-CHECKOUT-PAYMENT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-checkout-payment.md` | TASK-054 creates YooKassa redirect payments from the existing checkout endpoint when provider credentials are configured. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

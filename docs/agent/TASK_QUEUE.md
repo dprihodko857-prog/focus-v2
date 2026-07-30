@@ -2827,3 +2827,60 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Backend now exposes `/api/yookassa/webhook` only when `FOCUS_YOOKASSA_WEBHOOK_TOKEN` is configured; valid paid succeeded notifications can activate `voiceTranscription` from payment metadata.
 - commit_status: committed
 - notes: Focused server checks passed 47/47 and `npm.cmd run test` passed 162/162 on 2026-07-30. No deployment or git push.
+
+## TASK-054
+
+- title: Create YooKassa redirect payments from checkout
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_provider_integration
+- priority: high
+- source: owner asked to continue while YooKassa verification is pending; after webhook scaffold the next provider step is payment creation with metadata
+- spec_reference: `docs/specs/yookassa-checkout-payment.md`
+- spec_status: implemented_local_committed
+- goal: connect the existing checkout endpoint to YooKassa payment creation when server-side provider credentials are configured.
+- out_of_scope:
+  - live deploy or secret installation
+  - YooKassa shop approval
+  - receipts, fiscalization, taxes, refunds, recurring payments, or subscription periods
+  - polling payment status after return URL
+  - frontend redesign
+  - git push, tags, or release work
+- acceptance_criteria:
+  - missing provider configuration still returns `provider_not_configured`
+  - fallback checkout URL behavior remains available
+  - complete YooKassa config creates a redirect payment from backend
+  - YooKassa payment request includes amount, RUB currency, capture, redirect return URL, idempotence key, and metadata
+  - checkout payment creation does not activate `voiceTranscription`
+  - provider API failures return failed checkout state without entitlement activation
+  - provider network failures return failed checkout state without server 500
+  - existing focused tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_provider_integration task
+- file_limit: up to 6 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 53
+- stop_conditions:
+  - implementation requires live YooKassa credentials
+  - implementation requires external network calls in tests
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - checkout foundation
+  - YooKassa webhook scaffold
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. `POST /api/sync/checkout` now creates a YooKassa redirect payment when `FOCUS_YOOKASSA_SHOP_ID`, `FOCUS_YOOKASSA_SECRET_KEY`, and `FOCUS_YOOKASSA_RETURN_URL` are configured; payment metadata includes account and feature keys for webhook activation.
+- commit_status: committed
+- notes: Focused server checks passed 50/50 and `npm.cmd run test` passed 165/165 on 2026-07-30. No deployment or git push.

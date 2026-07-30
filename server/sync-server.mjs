@@ -12,6 +12,8 @@ const DEFAULT_PUSH_TTL_SECONDS = Number(process.env.FOCUS_PUSH_TTL_SECONDS || 86
 const DEFAULT_PUSH_MAX_AGE_MS = Number(process.env.FOCUS_PUSH_MAX_AGE_MS || 7 * 24 * 60 * 60 * 1000);
 const DEFAULT_PUSH_RETRY_DELAY_MS = readNonNegativeNumberEnv("FOCUS_PUSH_RETRY_DELAY_MS", 5 * 60 * 1000);
 const DEFAULT_PUSH_RETRY_MAX_ATTEMPTS = readPositiveIntegerEnv("FOCUS_PUSH_RETRY_MAX_ATTEMPTS", 3);
+const DEFAULT_FOCUS_PLUS_AMOUNT_RUB = normalizeMoneyAmount(process.env.FOCUS_PLUS_AMOUNT_RUB || "199.00");
+const DEFAULT_YOOKASSA_PAYMENTS_URL = normalizeUrl(process.env.FOCUS_YOOKASSA_PAYMENTS_URL || "https://api.yookassa.ru/v3/payments");
 const MAX_BODY_BYTES = 1024 * 1024;
 const AUTH_SESSION_COOKIE = "focus_auth_session";
 const AUTH_TRANSIENT_COOKIE = "focus_auth_pkce";
@@ -617,7 +619,15 @@ function normalizePaidFeatureKey(value) {
   return PAID_FEATURE_KEYS.has(featureKey) ? featureKey : "";
 }
 
-function createSubscriptionCheckout({ checkoutBaseUrl, accountId, featureKey, checkedAt }) {
+async function createSubscriptionCheckout({
+  checkoutBaseUrl,
+  yookassaConfig,
+  accountId,
+  featureKey,
+  checkedAt,
+  createId,
+  fetchImpl,
+}) {
   const response = {
     status: "provider_not_configured",
     accountId,
@@ -625,6 +635,17 @@ function createSubscriptionCheckout({ checkoutBaseUrl, accountId, featureKey, ch
     checkoutUrl: null,
     checkedAt,
   };
+
+  if (yookassaConfig) {
+    return createYooKassaSubscriptionCheckout({
+      yookassaConfig,
+      accountId,
+      featureKey,
+      checkedAt,
+      createId,
+      fetchImpl,
+    });
+  }
 
   if (!checkoutBaseUrl) {
     return response;
@@ -639,6 +660,140 @@ function createSubscriptionCheckout({ checkoutBaseUrl, accountId, featureKey, ch
     status: "ready",
     checkoutUrl: checkoutUrl.href,
   };
+}
+
+function createYooKassaCheckoutConfig({
+  shopId,
+  secretKey,
+  returnUrl,
+  paymentsUrl = DEFAULT_YOOKASSA_PAYMENTS_URL,
+  amountValue = DEFAULT_FOCUS_PLUS_AMOUNT_RUB,
+} = {}) {
+  const normalizedShopId = String(shopId || "").trim();
+  const normalizedSecretKey = String(secretKey || "").trim();
+  const normalizedReturnUrl = normalizeUrl(returnUrl || "");
+  const normalizedPaymentsUrl = normalizeUrl(paymentsUrl || "");
+  const normalizedAmountValue = normalizeMoneyAmount(amountValue);
+
+  if (!normalizedShopId || !normalizedSecretKey || !normalizedReturnUrl || !normalizedPaymentsUrl || !normalizedAmountValue) {
+    return null;
+  }
+
+  return {
+    shopId: normalizedShopId,
+    secretKey: normalizedSecretKey,
+    returnUrl: normalizedReturnUrl,
+    paymentsUrl: normalizedPaymentsUrl,
+    amountValue: normalizedAmountValue,
+    currency: "RUB",
+  };
+}
+
+async function createYooKassaSubscriptionCheckout({
+  yookassaConfig,
+  accountId,
+  featureKey,
+  checkedAt,
+  createId,
+  fetchImpl,
+}) {
+  if (!fetchImpl) {
+    return {
+      status: "failed",
+      accountId,
+      featureKey,
+      checkoutUrl: null,
+      checkedAt,
+      provider: "yookassa",
+      error: "provider_unavailable",
+    };
+  }
+
+  const requestBody = {
+    amount: {
+      value: yookassaConfig.amountValue,
+      currency: yookassaConfig.currency,
+    },
+    capture: true,
+    confirmation: {
+      type: "redirect",
+      return_url: yookassaConfig.returnUrl,
+    },
+    description: createYooKassaPaymentDescription(featureKey),
+    metadata: {
+      accountId,
+      featureKey,
+      focusAccountId: accountId,
+      focusFeatureKey: featureKey,
+    },
+  };
+
+  let response;
+  try {
+    response = await fetchImpl(yookassaConfig.paymentsUrl, {
+      method: "POST",
+      headers: {
+        authorization: `Basic ${Buffer.from(`${yookassaConfig.shopId}:${yookassaConfig.secretKey}`).toString("base64")}`,
+        "content-type": "application/json",
+        "idempotence-key": createId(),
+      },
+      body: JSON.stringify(requestBody),
+    });
+  } catch {
+    return {
+      status: "failed",
+      accountId,
+      featureKey,
+      checkoutUrl: null,
+      checkedAt,
+      provider: "yookassa",
+      error: "provider_unavailable",
+    };
+  }
+
+  const result = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    return {
+      status: "failed",
+      accountId,
+      featureKey,
+      checkoutUrl: null,
+      checkedAt,
+      provider: "yookassa",
+      error: normalizeYooKassaError(result),
+    };
+  }
+
+  const checkoutUrl = typeof result?.confirmation?.confirmation_url === "string"
+    ? result.confirmation.confirmation_url
+    : "";
+
+  return {
+    status: checkoutUrl ? "ready" : "failed",
+    accountId,
+    featureKey,
+    checkoutUrl: checkoutUrl || null,
+    checkedAt,
+    provider: "yookassa",
+    paymentId: typeof result?.id === "string" ? result.id : null,
+  };
+}
+
+function createYooKassaPaymentDescription(featureKey) {
+  if (featureKey === "voiceTranscription") {
+    return "Focus Plus: голосовой ввод";
+  }
+
+  return "Focus Plus";
+}
+
+function normalizeYooKassaError(result) {
+  if (!isPlainObject(result)) {
+    return "provider_error";
+  }
+
+  return String(result.code || result.type || result.error || "provider_error").slice(0, 120);
 }
 
 function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
@@ -863,13 +1018,20 @@ export function createFocusSyncServer({
   authSessions = new Map(),
   fetchImpl = globalThis.fetch,
   subscriptionCheckoutUrl = normalizeUrl(process.env.FOCUS_SUBSCRIPTION_CHECKOUT_URL || ""),
+  yookassaConfig = createYooKassaCheckoutConfig({
+    shopId: process.env.FOCUS_YOOKASSA_SHOP_ID,
+    secretKey: process.env.FOCUS_YOOKASSA_SECRET_KEY,
+    returnUrl: process.env.FOCUS_YOOKASSA_RETURN_URL,
+    paymentsUrl: DEFAULT_YOOKASSA_PAYMENTS_URL,
+    amountValue: DEFAULT_FOCUS_PLUS_AMOUNT_RUB,
+  }),
   adminToken = normalizeSecretToken(process.env.FOCUS_ADMIN_TOKEN || ""),
   yookassaWebhookToken = normalizeSecretToken(process.env.FOCUS_YOOKASSA_WEBHOOK_TOKEN || ""),
   logger = console,
 } = {}) {
   const server = http.createServer(async (request, response) => {
     try {
-      await routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, adminToken, yookassaWebhookToken });
+      await routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, yookassaConfig, adminToken, yookassaWebhookToken });
     } catch (error) {
       if (isHttpRequestError(error)) {
         sendJson(response, error.status, {
@@ -897,7 +1059,7 @@ export function createFocusSyncServer({
   return server;
 }
 
-async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, adminToken, yookassaWebhookToken }) {
+async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, yookassaConfig, adminToken, yookassaWebhookToken }) {
   const url = new URL(request.url || "/", "http://127.0.0.1");
 
   if (request.method === "OPTIONS") {
@@ -1108,11 +1270,14 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       return;
     }
 
-    const checkout = createSubscriptionCheckout({
+    const checkout = await createSubscriptionCheckout({
       checkoutBaseUrl: subscriptionCheckoutUrl,
+      yookassaConfig,
       accountId: accountContext.accountId,
       featureKey,
       checkedAt: accountContext.checkedAt,
+      createId,
+      fetchImpl,
     });
 
     if (checkout.status === "provider_not_configured") {
@@ -1707,6 +1872,20 @@ function normalizeUrl(value) {
   } catch {
     return "";
   }
+}
+
+function normalizeMoneyAmount(value) {
+  const amount = String(value || "").trim().replace(",", ".");
+  if (!/^\d{1,8}(\.\d{1,2})?$/.test(amount)) {
+    return "";
+  }
+
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    return "";
+  }
+
+  return numericAmount.toFixed(2);
 }
 
 function normalizeSecretToken(value) {

@@ -863,6 +863,7 @@ test("subscription checkout reports missing payment provider without activating 
     db,
     now: () => "2026-07-12T09:10:00.000Z",
     subscriptionCheckoutUrl: "",
+    yookassaConfig: null,
   });
   const baseUrl = await listen(server);
   const accountId = "account-checkout-missing-provider";
@@ -901,6 +902,7 @@ test("subscription checkout returns configured provider URL for paid features", 
     db,
     now: () => "2026-07-12T09:11:00.000Z",
     subscriptionCheckoutUrl: "https://pay.example/checkout?plan=focus-plus",
+    yookassaConfig: null,
   });
   const baseUrl = await listen(server);
   const accountId = "account-checkout-ready";
@@ -937,11 +939,196 @@ test("subscription checkout returns configured provider URL for paid features", 
   }
 });
 
+test("subscription checkout creates a YooKassa redirect payment when configured", async () => {
+  const db = createSyncDatabase(":memory:");
+  const providerCalls = [];
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:12:00.000Z",
+    createId: () => "checkout-idempotence-key-1",
+    subscriptionCheckoutUrl: "https://pay.example/fallback",
+    yookassaConfig: {
+      shopId: "123456",
+      secretKey: "test_secret_key",
+      returnUrl: "https://focus-v2.dmnao83.ru/subscription.html",
+      paymentsUrl: "https://api.yookassa.test/v3/payments",
+      amountValue: "199.00",
+      currency: "RUB",
+    },
+    fetchImpl: async (url, options) => {
+      providerCalls.push({ url, options });
+      return jsonResponse(200, {
+        id: "2f295ff7-000f-5000-9000-1baf6b9e6d2b",
+        status: "pending",
+        confirmation: {
+          type: "redirect",
+          confirmation_url: "https://yookassa.test/checkout/payments/v2/contract",
+        },
+      });
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-checkout-yookassa";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/checkout`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ featureKey: "voiceTranscription" }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      status: "ready",
+      accountId,
+      featureKey: "voiceTranscription",
+      checkoutUrl: "https://yookassa.test/checkout/payments/v2/contract",
+      checkedAt: "2026-07-12T09:12:00.000Z",
+      provider: "yookassa",
+      paymentId: "2f295ff7-000f-5000-9000-1baf6b9e6d2b",
+    });
+    assert.equal(providerCalls.length, 1);
+    assert.equal(providerCalls[0].url, "https://api.yookassa.test/v3/payments");
+    assert.equal(providerCalls[0].options.method, "POST");
+    assert.equal(providerCalls[0].options.headers["idempotence-key"], "checkout-idempotence-key-1");
+    assert.equal(providerCalls[0].options.headers.authorization, `Basic ${Buffer.from("123456:test_secret_key").toString("base64")}`);
+    assert.deepEqual(JSON.parse(providerCalls[0].options.body), {
+      amount: {
+        value: "199.00",
+        currency: "RUB",
+      },
+      capture: true,
+      confirmation: {
+        type: "redirect",
+        return_url: "https://focus-v2.dmnao83.ru/subscription.html",
+      },
+      description: "Focus Plus: голосовой ввод",
+      metadata: {
+        accountId,
+        featureKey: "voiceTranscription",
+        focusAccountId: accountId,
+        focusFeatureKey: "voiceTranscription",
+      },
+    });
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("subscription checkout reports YooKassa provider failures without activating access", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:13:00.000Z",
+    createId: () => "checkout-idempotence-key-2",
+    yookassaConfig: {
+      shopId: "123456",
+      secretKey: "test_secret_key",
+      returnUrl: "https://focus-v2.dmnao83.ru/subscription.html",
+      paymentsUrl: "https://api.yookassa.test/v3/payments",
+      amountValue: "199.00",
+      currency: "RUB",
+    },
+    fetchImpl: async () => jsonResponse(401, {
+      type: "error",
+      code: "invalid_credentials",
+    }),
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-checkout-yookassa-failed";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/checkout`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ featureKey: "voiceTranscription" }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      status: "failed",
+      accountId,
+      featureKey: "voiceTranscription",
+      checkoutUrl: null,
+      checkedAt: "2026-07-12T09:13:00.000Z",
+      provider: "yookassa",
+      error: "invalid_credentials",
+    });
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("subscription checkout reports YooKassa network failures without server errors", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:14:00.000Z",
+    createId: () => "checkout-idempotence-key-3",
+    yookassaConfig: {
+      shopId: "123456",
+      secretKey: "test_secret_key",
+      returnUrl: "https://focus-v2.dmnao83.ru/subscription.html",
+      paymentsUrl: "https://api.yookassa.test/v3/payments",
+      amountValue: "199.00",
+      currency: "RUB",
+    },
+    fetchImpl: async () => {
+      throw new Error("network unavailable");
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-checkout-yookassa-network-failed";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/checkout`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ featureKey: "voiceTranscription" }),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      status: "failed",
+      accountId,
+      featureKey: "voiceTranscription",
+      checkoutUrl: null,
+      checkedAt: "2026-07-12T09:14:00.000Z",
+      provider: "yookassa",
+      error: "provider_unavailable",
+    });
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("subscription checkout rejects unknown paid features", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({
     db,
     subscriptionCheckoutUrl: "https://pay.example/checkout",
+    yookassaConfig: null,
   });
   const baseUrl = await listen(server);
   const accountId = "account-checkout-invalid";
@@ -2321,6 +2508,16 @@ function readBody(request) {
 function sendTestJson(response, status, body) {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(body));
+}
+
+function jsonResponse(status, body) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    async json() {
+      return body;
+    },
+  };
 }
 
 function createTestAccount(db, accountId, createdAt = "2026-07-10T00:00:00.000Z") {
