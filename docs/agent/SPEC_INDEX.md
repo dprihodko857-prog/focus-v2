@@ -61,4 +61,5 @@ Status: DRAFT
 | YOOKASSA-WEBHOOK-SCAFFOLD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-webhook-scaffold.md` | TASK-053 adds a token-gated YooKassa payment succeeded webhook scaffold for future automatic entitlement activation. |
 | YOOKASSA-CHECKOUT-PAYMENT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-checkout-payment.md` | TASK-054 creates YooKassa redirect payments from the existing checkout endpoint when provider credentials are configured. |
 | YOOKASSA-RETURN-PAYMENT-STATUS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-return-payment-status.md` | TASK-055 checks pending YooKassa payment status after return and activates paid feature access only for paid matched payments. |
+| FOCUS-PLUS-ENTITLEMENT-PERIODS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/focus-plus-entitlement-periods.md` | TASK-056 adds activation/expiration periods and payment idempotency to paid feature entitlements. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

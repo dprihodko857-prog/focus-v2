@@ -457,6 +457,9 @@ test("sync account entitlements default paid features to disabled", async () => 
           enabled: false,
           source: "none",
           updatedAt: null,
+          activatedAt: null,
+          expiresAt: null,
+          paymentId: null,
         },
       },
     });
@@ -501,6 +504,57 @@ test("sync account entitlements expose enabled paid features", async () => {
     assert.equal(result.entitlements.voiceTranscription.enabled, true);
     assert.equal(result.entitlements.voiceTranscription.source, "subscription");
     assert.equal(result.entitlements.voiceTranscription.updatedAt, "2026-07-12T09:01:00.000Z");
+    assert.equal(result.entitlements.voiceTranscription.activatedAt, "2026-07-12T09:01:00.000Z");
+    assert.equal(result.entitlements.voiceTranscription.expiresAt, null);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync account entitlements report expired paid features as inactive", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-entitlements-expired";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  db.setAccountEntitlements({
+    accountId,
+    updatedAt: "2026-06-01T09:00:00.000Z",
+    entitlements: {
+      voiceTranscription: {
+        enabled: true,
+        source: "yookassa",
+        updatedAt: "2026-06-01T09:00:00.000Z",
+        activatedAt: "2026-06-01T09:00:00.000Z",
+        expiresAt: "2026-07-01T09:00:00.000Z",
+        paymentId: "payment-expired-123",
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/entitlements`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.deepEqual(result.entitlements.voiceTranscription, {
+      enabled: false,
+      source: "expired",
+      updatedAt: "2026-06-01T09:00:00.000Z",
+      activatedAt: "2026-06-01T09:00:00.000Z",
+      expiresAt: "2026-07-01T09:00:00.000Z",
+      paymentId: "payment-expired-123",
+    });
   } finally {
     await close(server);
     db.close();
@@ -611,6 +665,9 @@ test("admin entitlement endpoint can activate and disable paid feature access", 
           enabled: true,
           source: "manual.test",
           updatedAt: "2026-07-12T09:06:00.000Z",
+          activatedAt: "2026-07-12T09:06:00.000Z",
+          expiresAt: null,
+          paymentId: null,
         },
       },
     });
@@ -646,6 +703,9 @@ test("admin entitlement endpoint can activate and disable paid feature access", 
       enabled: false,
       source: "none",
       updatedAt: null,
+      activatedAt: null,
+      expiresAt: null,
+      paymentId: null,
     });
   } finally {
     await close(server);
@@ -789,6 +849,9 @@ test("YooKassa payment succeeded webhook activates voice transcription access", 
           enabled: true,
           source: "yookassa",
           updatedAt: "2026-07-12T09:20:00.000Z",
+          activatedAt: "2026-07-12T09:20:00.000Z",
+          expiresAt: "2026-08-11T09:20:00.000Z",
+          paymentId: "2f295ff7-000f-5000-9000-1baf6b9e6d2b",
         },
       },
     });
@@ -796,6 +859,105 @@ test("YooKassa payment succeeded webhook activates voice transcription access", 
       enabled: true,
       source: "yookassa",
       updatedAt: "2026-07-12T09:20:00.000Z",
+      activatedAt: "2026-07-12T09:20:00.000Z",
+      expiresAt: "2026-08-11T09:20:00.000Z",
+      paymentId: "2f295ff7-000f-5000-9000-1baf6b9e6d2b",
+    });
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("YooKassa duplicate payment webhook keeps the existing subscription period", async () => {
+  const db = createSyncDatabase(":memory:");
+  const ticks = [
+    "2026-07-12T09:20:00.000Z",
+    "2026-07-12T09:25:00.000Z",
+  ];
+  const server = createFocusSyncServer({
+    db,
+    now: () => ticks.shift() || "2026-07-12T09:25:00.000Z",
+    yookassaWebhookToken: "focus-yookassa-token-123",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-yookassa-webhook-duplicate";
+  const paymentId = "payment-duplicate-123";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const request = () => fetch(`${baseUrl}/api/yookassa/webhook?token=focus-yookassa-token-123`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(createYooKassaPaymentNotification({ accountId, paymentId })),
+    });
+
+    const firstResponse = await request();
+    assert.equal(firstResponse.status, 200);
+    assert.equal((await firstResponse.json()).entitlements.voiceTranscription.expiresAt, "2026-08-11T09:20:00.000Z");
+
+    const secondResponse = await request();
+    assert.equal(secondResponse.status, 200);
+    const secondResult = await secondResponse.json();
+    assert.equal(secondResult.checkedAt, "2026-07-12T09:25:00.000Z");
+    assert.deepEqual(secondResult.entitlements.voiceTranscription, {
+      enabled: true,
+      source: "yookassa",
+      updatedAt: "2026-07-12T09:20:00.000Z",
+      activatedAt: "2026-07-12T09:20:00.000Z",
+      expiresAt: "2026-08-11T09:20:00.000Z",
+      paymentId,
+    });
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("YooKassa duplicate payment webhook does not reactivate an expired period", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-12T09:20:00.000Z",
+    yookassaWebhookToken: "focus-yookassa-token-123",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-yookassa-webhook-expired-duplicate";
+  const paymentId = "payment-expired-duplicate-123";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+  db.setAccountEntitlements({
+    accountId,
+    updatedAt: "2026-07-12T09:20:00.000Z",
+    entitlements: {
+      voiceTranscription: {
+        enabled: true,
+        source: "yookassa",
+        updatedAt: "2026-07-12T09:20:00.000Z",
+        activatedAt: "2026-07-12T09:20:00.000Z",
+        expiresAt: "2026-08-11T09:20:00.000Z",
+        paymentId,
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/yookassa/webhook?token=focus-yookassa-token-123`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(createYooKassaPaymentNotification({ accountId, paymentId })),
+    });
+
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.status, "ignored");
+    assert.equal(result.reason, "payment_already_applied");
+    assert.deepEqual(result.entitlements.voiceTranscription, {
+      enabled: false,
+      source: "expired",
+      updatedAt: "2026-07-12T09:20:00.000Z",
+      activatedAt: "2026-07-12T09:20:00.000Z",
+      expiresAt: "2026-08-11T09:20:00.000Z",
+      paymentId,
     });
   } finally {
     await close(server);
@@ -1177,6 +1339,9 @@ test("subscription checkout status activates access from a paid YooKassa payment
           enabled: true,
           source: "yookassa",
           updatedAt: "2026-07-12T09:15:00.000Z",
+          activatedAt: "2026-07-12T09:15:00.000Z",
+          expiresAt: "2026-08-11T09:15:00.000Z",
+          paymentId: "payment-status-success-123",
         },
       },
     });

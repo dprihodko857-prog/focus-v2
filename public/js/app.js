@@ -107,6 +107,9 @@ function createDefaultAccountEntitlements() {
       enabled: false,
       source: "none",
       updatedAt: null,
+      activatedAt: null,
+      expiresAt: null,
+      paymentId: null,
     },
   };
 }
@@ -4186,12 +4189,28 @@ function getPaidFeatureStatus(feature) {
   }
 
   if (entitlement?.enabled) {
+    const expiresText = entitlement.expiresAt
+      ? ` Действует до ${formatSyncTimestamp(entitlement.expiresAt)}.`
+      : "";
+
     return {
       tone: "ok",
       label: "Активно",
-      detail: "Функция доступна этому аккаунту и будет включаться в местах ввода текста.",
+      detail: `Функция доступна этому аккаунту и будет включаться в местах ввода текста.${expiresText}`,
       actionLabel: "Включено",
       disabled: true,
+    };
+  }
+
+  if (entitlement?.source === "expired") {
+    return {
+      tone: "warn",
+      label: "Истёк",
+      detail: entitlement.expiresAt
+        ? `Срок действия закончился ${formatSyncTimestamp(entitlement.expiresAt)}. Можно оформить доступ заново.`
+        : "Срок действия закончился. Можно оформить доступ заново.",
+      actionLabel: "Оформить",
+      disabled: false,
     };
   }
 
@@ -4247,10 +4266,28 @@ function getPaidFeatureStatus(feature) {
 }
 
 function getPaidFeatureSourceLabel(source) {
+  if (source === "yookassa") return "ЮKassa";
   if (source === "subscription") return "подписка";
   if (source === "manual") return "ручная активация";
   if (source === "trial") return "пробный доступ";
+  if (source === "expired") return "срок истёк";
   return "не активировано";
+}
+
+function getPaidFeatureMetaText(entitlement) {
+  if (entitlement?.enabled && entitlement.expiresAt) {
+    return `Действует до: ${formatSyncTimestamp(entitlement.expiresAt)}.`;
+  }
+
+  if (entitlement?.source === "expired" && entitlement.expiresAt) {
+    return `Истёк: ${formatSyncTimestamp(entitlement.expiresAt)}.`;
+  }
+
+  if (entitlement?.updatedAt) {
+    return `Обновлено: ${formatSyncTimestamp(entitlement.updatedAt)}.`;
+  }
+
+  return `Источник: ${getPaidFeatureSourceLabel(entitlement?.source)}.`;
 }
 
 function getPaidFeaturesSummary() {
@@ -4295,9 +4332,7 @@ function renderPaidFeaturesPanel() {
   list.innerHTML = paidFeatureItems.map(feature => {
     const status = getPaidFeatureStatus(feature);
     const entitlement = getPaidFeatureEntitlement(feature.key);
-    const updatedText = entitlement?.updatedAt
-      ? `Обновлено: ${formatSyncTimestamp(entitlement.updatedAt)}.`
-      : `Источник: ${getPaidFeatureSourceLabel(entitlement?.source)}.`;
+    const updatedText = getPaidFeatureMetaText(entitlement);
 
     return `
       <article class="paid-feature-card paid-feature-card--${escapeHtml(status.tone)}" data-paid-feature-card="${escapeHtml(feature.key)}">

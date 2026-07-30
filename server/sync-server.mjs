@@ -13,6 +13,7 @@ const DEFAULT_PUSH_MAX_AGE_MS = Number(process.env.FOCUS_PUSH_MAX_AGE_MS || 7 * 
 const DEFAULT_PUSH_RETRY_DELAY_MS = readNonNegativeNumberEnv("FOCUS_PUSH_RETRY_DELAY_MS", 5 * 60 * 1000);
 const DEFAULT_PUSH_RETRY_MAX_ATTEMPTS = readPositiveIntegerEnv("FOCUS_PUSH_RETRY_MAX_ATTEMPTS", 3);
 const DEFAULT_FOCUS_PLUS_AMOUNT_RUB = normalizeMoneyAmount(process.env.FOCUS_PLUS_AMOUNT_RUB || "199.00");
+const DEFAULT_FOCUS_PLUS_PERIOD_DAYS = readPositiveIntegerEnv("FOCUS_PLUS_PERIOD_DAYS", 30);
 const DEFAULT_YOOKASSA_PAYMENTS_URL = normalizeUrl(process.env.FOCUS_YOOKASSA_PAYMENTS_URL || "https://api.yookassa.ru/v3/payments");
 const MAX_BODY_BYTES = 1024 * 1024;
 const AUTH_SESSION_COOKIE = "focus_auth_session";
@@ -73,8 +74,8 @@ class JsonSyncDatabase {
     return this.state.accounts[accountId];
   }
 
-  getAccountEntitlements(accountId) {
-    return normalizeAccountEntitlements(this.getAccount(accountId)?.entitlements);
+  getAccountEntitlements(accountId, checkedAt = null) {
+    return normalizeAccountEntitlements(this.getAccount(accountId)?.entitlements, null, checkedAt);
   }
 
   setAccountEntitlements({ accountId, entitlements, updatedAt }) {
@@ -567,43 +568,135 @@ function createDefaultAccountEntitlements() {
       enabled: false,
       source: "none",
       updatedAt: null,
+      activatedAt: null,
+      expiresAt: null,
+      paymentId: null,
     },
   };
 }
 
-function normalizeAccountEntitlements(entitlements, updatedAt = null) {
+function normalizeAccountEntitlements(entitlements, updatedAt = null, checkedAt = null) {
   const source = isPlainObject(entitlements) ? entitlements : {};
   return {
     voiceTranscription: normalizeFeatureEntitlement(
       source.voiceTranscription ?? source.voice_transcription,
       updatedAt,
+      checkedAt,
     ),
   };
 }
 
-function normalizeFeatureEntitlement(entitlement, updatedAt = null) {
+function normalizeFeatureEntitlement(entitlement, updatedAt = null, checkedAt = null) {
   if (entitlement === true) {
     return {
       enabled: true,
       source: "manual",
-      updatedAt: typeof updatedAt === "string" ? updatedAt : null,
+      updatedAt: normalizeTimestamp(updatedAt),
+      activatedAt: normalizeTimestamp(updatedAt),
+      expiresAt: null,
+      paymentId: null,
     };
   }
 
-  if (!isPlainObject(entitlement) || entitlement.enabled !== true) {
+  if (!isPlainObject(entitlement)) {
     return {
       enabled: false,
       source: "none",
       updatedAt: null,
+      activatedAt: null,
+      expiresAt: null,
+      paymentId: null,
+    };
+  }
+
+  const normalizedUpdatedAt = normalizeTimestamp(entitlement.updatedAt) ||
+    (entitlement.enabled === true ? normalizeTimestamp(updatedAt) : null);
+  const activatedAt = normalizeTimestamp(entitlement.activatedAt) || normalizedUpdatedAt;
+  const expiresAt = normalizeTimestamp(entitlement.expiresAt);
+  const paymentId = normalizeYooKassaPaymentId(entitlement.paymentId) || null;
+  const source = sanitizeEntitlementSource(entitlement.source);
+
+  if (entitlement.enabled !== true) {
+    return {
+      enabled: false,
+      source: source || "none",
+      updatedAt: normalizedUpdatedAt,
+      activatedAt,
+      expiresAt,
+      paymentId,
+    };
+  }
+
+  if (isExpiredAt(expiresAt, checkedAt)) {
+    return {
+      enabled: false,
+      source: "expired",
+      updatedAt: normalizedUpdatedAt,
+      activatedAt,
+      expiresAt,
+      paymentId,
     };
   }
 
   return {
     enabled: true,
-    source: sanitizeEntitlementSource(entitlement.source) || "manual",
-    updatedAt: typeof entitlement.updatedAt === "string"
-      ? entitlement.updatedAt
-      : typeof updatedAt === "string" ? updatedAt : null,
+    source: source || "manual",
+    updatedAt: normalizedUpdatedAt,
+    activatedAt,
+    expiresAt,
+    paymentId,
+  };
+}
+
+function normalizeTimestamp(value) {
+  const timestamp = String(value || "").trim();
+  if (!timestamp) return null;
+
+  const time = Date.parse(timestamp);
+  return Number.isFinite(time) ? new Date(time).toISOString() : null;
+}
+
+function isExpiredAt(expiresAt, checkedAt) {
+  if (!expiresAt || !checkedAt) return false;
+
+  const expiresTime = Date.parse(expiresAt);
+  const checkedTime = Date.parse(checkedAt);
+  return Number.isFinite(expiresTime) && Number.isFinite(checkedTime) && expiresTime <= checkedTime;
+}
+
+function addDays(timestamp, days) {
+  const time = Date.parse(timestamp);
+  if (!Number.isFinite(time)) return null;
+  return new Date(time + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function createSubscriptionFeatureEntitlement({
+  currentEntitlement,
+  source,
+  checkedAt,
+  paymentId,
+  periodDays = DEFAULT_FOCUS_PLUS_PERIOD_DAYS,
+}) {
+  const current = normalizeFeatureEntitlement(currentEntitlement, null, checkedAt);
+  const normalizedPaymentId = normalizeYooKassaPaymentId(paymentId) || null;
+
+  if (normalizedPaymentId && current.paymentId === normalizedPaymentId) {
+    return current;
+  }
+
+  const checkedTime = Date.parse(checkedAt);
+  const currentExpiryTime = current.enabled && current.expiresAt ? Date.parse(current.expiresAt) : NaN;
+  const startsAt = Number.isFinite(currentExpiryTime) && currentExpiryTime > checkedTime
+    ? new Date(currentExpiryTime).toISOString()
+    : normalizeTimestamp(checkedAt);
+
+  return {
+    enabled: true,
+    source,
+    updatedAt: normalizeTimestamp(checkedAt),
+    activatedAt: normalizeTimestamp(checkedAt),
+    expiresAt: addDays(startsAt, periodDays),
+    paymentId: normalizedPaymentId,
   };
 }
 
@@ -919,12 +1012,32 @@ async function checkYooKassaPaymentStatus({
   }
 
   if (paymentStatus === "succeeded" && paid) {
+    const currentEntitlements = db.getAccountEntitlements(accountId, checkedAt);
+    const subscriptionEntitlement = createSubscriptionFeatureEntitlement({
+      currentEntitlement: currentEntitlements[featureKey],
+      source: "yookassa",
+      checkedAt,
+      paymentId,
+    });
+
+    if (!subscriptionEntitlement.enabled) {
+      return {
+        statusCode: 200,
+        body: {
+          ...baseBody,
+          status: "ignored",
+          reason: "payment_already_applied",
+          featureKey,
+          paymentStatus,
+          paid,
+          entitlements: currentEntitlements,
+        },
+      };
+    }
+
     const entitlements = {
-      ...db.getAccountEntitlements(accountId),
-      [featureKey]: {
-        enabled: true,
-        source: "yookassa",
-      },
+      ...currentEntitlements,
+      [featureKey]: subscriptionEntitlement,
     };
     const savedEntitlements = db.setAccountEntitlements({
       accountId,
@@ -1014,12 +1127,47 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
     };
   }
 
+  const paymentId = normalizeYooKassaPaymentId(payment.id) || null;
+  if (!paymentId) {
+    return {
+      statusCode: 200,
+      body: {
+        status: "ignored",
+        reason: "payment_missing",
+        event: notification.event,
+        accountId,
+        featureKey,
+      },
+    };
+  }
+
+  const currentEntitlements = db.getAccountEntitlements(accountId, checkedAt);
+  const subscriptionEntitlement = createSubscriptionFeatureEntitlement({
+    currentEntitlement: currentEntitlements[featureKey],
+    source: "yookassa",
+    checkedAt,
+    paymentId,
+  });
+
+  if (!subscriptionEntitlement.enabled) {
+    return {
+      statusCode: 200,
+      body: {
+        status: "ignored",
+        reason: "payment_already_applied",
+        event: notification.event,
+        accountId,
+        featureKey,
+        paymentId,
+        checkedAt,
+        entitlements: currentEntitlements,
+      },
+    };
+  }
+
   const entitlements = {
-    ...db.getAccountEntitlements(accountId),
-    [featureKey]: {
-      enabled: true,
-      source: "yookassa",
-    },
+    ...currentEntitlements,
+    [featureKey]: subscriptionEntitlement,
   };
   const savedEntitlements = db.setAccountEntitlements({
     accountId,
@@ -1033,7 +1181,7 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
       status: "activated",
       accountId,
       featureKey,
-      paymentId: typeof payment.id === "string" ? payment.id : null,
+      paymentId,
       checkedAt,
       entitlements: savedEntitlements,
     },
@@ -1528,12 +1676,24 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     const enabled = body.enabled !== false;
     const checkedAt = now();
     const source = enabled ? sanitizeEntitlementSource(body.source) || "manual" : "none";
+    const expiresAt = enabled && body.expiresAt !== undefined ? normalizeTimestamp(body.expiresAt) : null;
+    if (enabled && body.expiresAt !== undefined && !expiresAt) {
+      sendJson(response, 400, { error: "invalid_entitlement_expires_at" });
+      return;
+    }
+
     const entitlements = {
-      ...db.getAccountEntitlements(accountId),
-      [featureKey]: {
-        enabled,
-        source,
-      },
+      ...db.getAccountEntitlements(accountId, checkedAt),
+      [featureKey]: enabled
+        ? {
+          enabled: true,
+          source,
+          updatedAt: checkedAt,
+          activatedAt: checkedAt,
+          expiresAt,
+          paymentId: null,
+        }
+        : createDefaultAccountEntitlements()[featureKey],
     };
     const savedEntitlements = db.setAccountEntitlements({
       accountId,
@@ -2250,7 +2410,7 @@ function getAccountEntitlements(db, { accountId, checkedAt }) {
   return {
     accountId,
     checkedAt,
-    entitlements: db.getAccountEntitlements(accountId),
+    entitlements: db.getAccountEntitlements(accountId, checkedAt),
   };
 }
 

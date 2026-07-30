@@ -1211,6 +1211,9 @@ function createDefaultAccountEntitlements() {
       enabled: false,
       source: "none",
       updatedAt: null,
+      activatedAt: null,
+      expiresAt: null,
+      paymentId: null,
     },
   };
 }
@@ -1230,23 +1233,49 @@ function normalizeFeatureEntitlement(entitlement) {
       enabled: true,
       source: "manual",
       updatedAt: null,
+      activatedAt: null,
+      expiresAt: null,
+      paymentId: null,
     };
   }
 
   if (!entitlement || typeof entitlement !== "object" || Array.isArray(entitlement) || entitlement.enabled !== true) {
     return {
       enabled: false,
-      source: "none",
-      updatedAt: null,
+      source: normalizeEntitlementSource(entitlement?.source) || "none",
+      updatedAt: normalizeTimestamp(entitlement?.updatedAt),
+      activatedAt: normalizeTimestamp(entitlement?.activatedAt),
+      expiresAt: normalizeTimestamp(entitlement?.expiresAt),
+      paymentId: normalizePaymentId(entitlement?.paymentId) || null,
     };
   }
 
-  const source = String(entitlement.source || "").trim();
   return {
     enabled: true,
-    source: ENTITLEMENT_SOURCE_PATTERN.test(source) ? source : "manual",
-    updatedAt: typeof entitlement.updatedAt === "string" ? entitlement.updatedAt : null,
+    source: normalizeEntitlementSource(entitlement.source) || "manual",
+    updatedAt: normalizeTimestamp(entitlement.updatedAt),
+    activatedAt: normalizeTimestamp(entitlement.activatedAt),
+    expiresAt: normalizeTimestamp(entitlement.expiresAt),
+    paymentId: normalizePaymentId(entitlement.paymentId) || null,
   };
+}
+
+function normalizeTimestamp(value) {
+  const timestamp = String(value || "").trim();
+  if (!timestamp) return null;
+
+  const time = Date.parse(timestamp);
+  return Number.isFinite(time) ? new Date(time).toISOString() : null;
+}
+
+function normalizeEntitlementSource(value) {
+  const source = String(value || "").trim();
+  return ENTITLEMENT_SOURCE_PATTERN.test(source) ? source : "";
+}
+
+function normalizePaymentId(value) {
+  const paymentId = String(value || "").trim();
+  return PAYMENT_ID_PATTERN.test(paymentId) ? paymentId : "";
 }
 
 function normalizePaidFeatureKey(value) {

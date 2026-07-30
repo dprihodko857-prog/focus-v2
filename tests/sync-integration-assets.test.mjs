@@ -22,7 +22,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v80/);
+  assert.match(serviceWorker, /focus-pwa-v81/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -74,6 +74,8 @@ test("sync client exposes paid feature entitlements", () => {
   assert.match(syncJs, /async getSubscriptionCheckoutStatus\(\{ paymentId \} = \{\}\)/);
   assert.match(syncJs, /getPendingSubscriptionCheckout\(\)/);
   assert.match(syncJs, /focus-sync-pending-subscription-checkout/);
+  assert.match(syncJs, /expiresAt/);
+  assert.match(syncJs, /paymentId/);
   assert.match(syncJs, /\/sync\/entitlements/);
   assert.match(syncJs, /\/sync\/checkout/);
   assert.match(syncJs, /\/sync\/checkout\/status\?paymentId=/);
@@ -100,6 +102,8 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /async function refreshAccountEntitlements/);
   assert.match(appJs, /async function startPaidFeatureCheckout/);
   assert.match(appJs, /async function checkPendingSubscriptionCheckout/);
+  assert.match(appJs, /Действует до/);
+  assert.match(appJs, /Истёк/);
   assert.match(appJs, /scheduleSync\.getAccountEntitlements\(\)/);
   assert.match(appJs, /scheduleSync\.createSubscriptionCheckout\(\{ featureKey: feature\.key \}\)/);
   assert.match(appJs, /scheduleSync\.getSubscriptionCheckoutStatus\(\{ paymentId: pendingCheckout\.paymentId \}\)/);

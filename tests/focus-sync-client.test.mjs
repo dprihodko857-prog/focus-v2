@@ -814,6 +814,9 @@ test("account entitlements default to disabled when offline", async () => {
       enabled: false,
       source: "none",
       updatedAt: null,
+      activatedAt: null,
+      expiresAt: null,
+      paymentId: null,
     },
   });
 });
@@ -922,6 +925,9 @@ test("subscription checkout stores and verifies a YooKassa payment", async () =>
             enabled: true,
             source: "yookassa",
             updatedAt: "2026-07-12T09:15:00.000Z",
+            activatedAt: "2026-07-12T09:15:00.000Z",
+            expiresAt: "2026-08-11T09:15:00.000Z",
+            paymentId: "payment-client-status-123",
           },
         },
       });
@@ -954,6 +960,9 @@ test("subscription checkout stores and verifies a YooKassa payment", async () =>
       enabled: true,
       source: "yookassa",
       updatedAt: "2026-07-12T09:15:00.000Z",
+      activatedAt: "2026-07-12T09:15:00.000Z",
+      expiresAt: "2026-08-11T09:15:00.000Z",
+      paymentId: "payment-client-status-123",
     },
   });
   assert.equal(storage.getItem("focus-sync-pending-subscription-checkout"), null);

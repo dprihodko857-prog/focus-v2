@@ -2957,3 +2957,75 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Backend now checks YooKassa payment status for the current sync account, and the PWA stores and verifies pending checkout state after return or online recovery.
 - commit_status: committed
 - notes: Focused server/client/PWA checks passed on 2026-07-30. No deployment or git push.
+
+## TASK-056
+
+- title: Add Focus Plus entitlement periods
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_access_model
+- priority: high
+- source: owner asked to continue project work after YooKassa return-status verification; paid feature access should behave like a subscription rather than a permanent boolean flag
+- spec_reference: `docs/specs/focus-plus-entitlement-periods.md`
+- spec_status: implemented_local_committed
+- goal: represent `voiceTranscription` access as a time-bounded entitlement with activation/expiration dates and payment idempotency.
+- out_of_scope:
+  - recurring auto-payments
+  - receipts, fiscalization, taxes, refunds, cancellation flows, or renewal jobs
+  - multiple paid plans
+  - production deploy or secret installation
+  - live YooKassa payment calls
+  - git push, tags, or release work
+- acceptance_criteria:
+  - disabled entitlements include null period fields
+  - YooKassa activations set `activatedAt`, `expiresAt`, and `paymentId`
+  - default Focus Plus period is 30 days and can be overridden by `FOCUS_PLUS_PERIOD_DAYS`
+  - existing active periods can be extended by a new payment
+  - duplicate events for the same `paymentId` do not extend access twice
+  - duplicate events for the same expired `paymentId` do not reactivate access
+  - expired entitlements are returned inactive with `source: "expired"`
+  - admin manual activation remains available and supports optional `expiresAt`
+  - client normalization preserves new fields
+  - UI shows active expiration and expired states
+  - service worker cache is bumped to `focus-pwa-v81`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/sync.js`
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `node --test tests/focus-sync-client.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs tests/legal-pages.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_access_model task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 55
+- stop_conditions:
+  - implementation requires live YooKassa credentials
+  - implementation requires external network calls in tests
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/sync.js`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/focus-sync-server.test.mjs`
+  - `tests/focus-sync-client.test.mjs`
+  - static PWA tests
+  - Project Maestro memory
+- dependencies:
+  - account entitlements foundation
+  - YooKassa webhook scaffold
+  - YooKassa return payment status
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Focus Plus entitlements now include `activatedAt`, `expiresAt`, and `paymentId`; YooKassa activations create a 30-day period by default; duplicate payment events are idempotent; expired access is returned inactive.
+- commit_status: committed
+- notes: Focused server/client/PWA checks passed and `npm.cmd run test` passed 173/173 on 2026-07-30. No deployment or git push.
