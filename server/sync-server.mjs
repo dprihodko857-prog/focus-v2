@@ -327,6 +327,54 @@ class JsonSyncDatabase {
     return events.slice(0, Math.max(0, Number(limit) || 8));
   }
 
+  listEntitlementEvents(accountId, limit = 12) {
+    const events = Array.isArray(this.state.entitlementEvents[accountId])
+      ? this.state.entitlementEvents[accountId]
+      : [];
+
+    return events.slice(0, Math.max(0, Number(limit) || 12));
+  }
+
+  saveEntitlementEvent({
+    accountId,
+    featureKey,
+    origin,
+    status,
+    source,
+    paymentId,
+    paymentStatus,
+    paid,
+    reason,
+    expiresAt,
+    createdAt,
+  }) {
+    if (!accountId) {
+      return null;
+    }
+
+    const currentEvents = Array.isArray(this.state.entitlementEvents[accountId])
+      ? this.state.entitlementEvents[accountId]
+      : [];
+    const event = {
+      id: randomUUID(),
+      accountId,
+      featureKey: normalizePaidFeatureKey(featureKey) || null,
+      origin: sanitizeEntitlementEventOrigin(origin),
+      status: sanitizeEntitlementEventStatus(status),
+      source: sanitizeEntitlementSource(source) || "none",
+      paymentId: normalizeYooKassaPaymentId(paymentId) || null,
+      paymentStatus: sanitizeStoredName(paymentStatus),
+      paid: paid === true,
+      reason: sanitizeStoredName(reason),
+      expiresAt: normalizeTimestamp(expiresAt),
+      createdAt: normalizeTimestamp(createdAt),
+    };
+
+    this.state.entitlementEvents[accountId] = [event, ...currentEvents].slice(0, 50);
+    this.persist();
+    return event;
+  }
+
   savePushEvent({ accountId, deviceId, type, status, title, reminderId, scheduledAt, sent, failed, removed, subscriptions, attempts, maxAttempts, nextRetryAt, createdAt }) {
     const currentEvents = Array.isArray(this.state.pushEvents[accountId])
       ? this.state.pushEvents[accountId]
@@ -518,6 +566,7 @@ function readState(dbPath) {
       pushRetries: isPlainObject(parsed.pushRetries) ? parsed.pushRetries : {},
       pushFailures: isPlainObject(parsed.pushFailures) ? parsed.pushFailures : {},
       pushEvents: isPlainObject(parsed.pushEvents) ? parsed.pushEvents : {},
+      entitlementEvents: isPlainObject(parsed.entitlementEvents) ? parsed.entitlementEvents : {},
       deviceSessions: isPlainObject(parsed.deviceSessions) ? parsed.deviceSessions : {},
     };
   } catch {
@@ -554,6 +603,7 @@ function createEmptyState() {
     pushRetries: {},
     pushFailures: {},
     pushEvents: {},
+    entitlementEvents: {},
     deviceSessions: {},
   };
 }
@@ -698,6 +748,34 @@ function createSubscriptionFeatureEntitlement({
     expiresAt: addDays(startsAt, periodDays),
     paymentId: normalizedPaymentId,
   };
+}
+
+function saveEntitlementAuditEvent(db, {
+  accountId,
+  featureKey,
+  origin,
+  status,
+  source,
+  paymentId,
+  paymentStatus,
+  paid,
+  reason,
+  entitlement,
+  checkedAt,
+}) {
+  return db.saveEntitlementEvent({
+    accountId,
+    featureKey,
+    origin,
+    status,
+    source,
+    paymentId,
+    paymentStatus,
+    paid,
+    reason,
+    expiresAt: entitlement?.expiresAt,
+    createdAt: checkedAt,
+  });
 }
 
 function sanitizeEntitlementSource(value) {
@@ -926,6 +1004,15 @@ async function checkYooKassaPaymentStatus({
   }
 
   if (!fetchImpl) {
+    saveEntitlementAuditEvent(db, {
+      accountId,
+      origin: "yookassa-status",
+      status: "failed",
+      source: "yookassa",
+      paymentId,
+      reason: "provider_unavailable",
+      checkedAt,
+    });
     return {
       statusCode: 200,
       body: {
@@ -945,6 +1032,15 @@ async function checkYooKassaPaymentStatus({
       },
     });
   } catch {
+    saveEntitlementAuditEvent(db, {
+      accountId,
+      origin: "yookassa-status",
+      status: "failed",
+      source: "yookassa",
+      paymentId,
+      reason: "provider_unavailable",
+      checkedAt,
+    });
     return {
       statusCode: 200,
       body: {
@@ -957,12 +1053,22 @@ async function checkYooKassaPaymentStatus({
 
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
+    const error = normalizeYooKassaError(result);
+    saveEntitlementAuditEvent(db, {
+      accountId,
+      origin: "yookassa-status",
+      status: "failed",
+      source: "yookassa",
+      paymentId,
+      reason: error,
+      checkedAt,
+    });
     return {
       statusCode: 200,
       body: {
         ...baseBody,
         status: "failed",
-        error: normalizeYooKassaError(result),
+        error,
       },
     };
   }
@@ -973,6 +1079,17 @@ async function checkYooKassaPaymentStatus({
   const { accountId: paymentAccountId, featureKey } = extractYooKassaPaymentMetadata(payment);
 
   if (!paymentAccountId) {
+    saveEntitlementAuditEvent(db, {
+      accountId,
+      origin: "yookassa-status",
+      status: "ignored",
+      source: "yookassa",
+      paymentId,
+      paymentStatus,
+      paid,
+      reason: "account_missing",
+      checkedAt,
+    });
     return {
       statusCode: 200,
       body: {
@@ -986,6 +1103,18 @@ async function checkYooKassaPaymentStatus({
   }
 
   if (paymentAccountId !== accountId) {
+    saveEntitlementAuditEvent(db, {
+      accountId,
+      featureKey,
+      origin: "yookassa-status",
+      status: "ignored",
+      source: "yookassa",
+      paymentId,
+      paymentStatus,
+      paid,
+      reason: "account_mismatch",
+      checkedAt,
+    });
     return {
       statusCode: 200,
       body: {
@@ -999,6 +1128,17 @@ async function checkYooKassaPaymentStatus({
   }
 
   if (!featureKey) {
+    saveEntitlementAuditEvent(db, {
+      accountId,
+      origin: "yookassa-status",
+      status: "ignored",
+      source: "yookassa",
+      paymentId,
+      paymentStatus,
+      paid,
+      reason: "feature_missing",
+      checkedAt,
+    });
     return {
       statusCode: 200,
       body: {
@@ -1021,6 +1161,19 @@ async function checkYooKassaPaymentStatus({
     });
 
     if (!subscriptionEntitlement.enabled) {
+      saveEntitlementAuditEvent(db, {
+        accountId,
+        featureKey,
+        origin: "yookassa-status",
+        status: "ignored",
+        source: "yookassa",
+        paymentId,
+        paymentStatus,
+        paid,
+        reason: "payment_already_applied",
+        entitlement: currentEntitlements[featureKey],
+        checkedAt,
+      });
       return {
         statusCode: 200,
         body: {
@@ -1044,6 +1197,18 @@ async function checkYooKassaPaymentStatus({
       entitlements,
       updatedAt: checkedAt,
     });
+    saveEntitlementAuditEvent(db, {
+      accountId,
+      featureKey,
+      origin: "yookassa-status",
+      status: "activated",
+      source: "yookassa",
+      paymentId,
+      paymentStatus,
+      paid,
+      entitlement: savedEntitlements[featureKey],
+      checkedAt,
+    });
 
     return {
       statusCode: 200,
@@ -1056,6 +1221,20 @@ async function checkYooKassaPaymentStatus({
         entitlements: savedEntitlements,
       },
     };
+  }
+
+  if (paymentStatus === "canceled") {
+    saveEntitlementAuditEvent(db, {
+      accountId,
+      featureKey,
+      origin: "yookassa-status",
+      status: "canceled",
+      source: "yookassa",
+      paymentId,
+      paymentStatus,
+      paid,
+      checkedAt,
+    });
   }
 
   return {
@@ -1079,7 +1258,27 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
   }
 
   const payment = isPlainObject(notification.object) ? notification.object : {};
+  const paymentId = normalizeYooKassaPaymentId(payment.id) || null;
+  const paymentStatus = typeof payment.status === "string" ? payment.status : "unknown";
+  const paid = payment.paid === true;
+  const { accountId, featureKey } = extractYooKassaPaymentMetadata(payment);
+
   if (notification.event !== "payment.succeeded" || payment.status !== "succeeded" || payment.paid !== true) {
+    if (accountId && db.getAccount(accountId)) {
+      saveEntitlementAuditEvent(db, {
+        accountId,
+        featureKey,
+        origin: "yookassa-webhook",
+        status: paymentStatus === "canceled" ? "canceled" : "ignored",
+        source: "yookassa",
+        paymentId,
+        paymentStatus,
+        paid,
+        reason: "event_not_activating",
+        checkedAt,
+      });
+    }
+
     return {
       statusCode: 200,
       body: {
@@ -1090,7 +1289,6 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
     };
   }
 
-  const { accountId, featureKey } = extractYooKassaPaymentMetadata(payment);
   if (!accountId) {
     return {
       statusCode: 200,
@@ -1103,6 +1301,20 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
   }
 
   if (!featureKey) {
+    if (db.getAccount(accountId)) {
+      saveEntitlementAuditEvent(db, {
+        accountId,
+        origin: "yookassa-webhook",
+        status: "ignored",
+        source: "yookassa",
+        paymentId,
+        paymentStatus,
+        paid,
+        reason: "feature_missing",
+        checkedAt,
+      });
+    }
+
     return {
       statusCode: 200,
       body: {
@@ -1127,8 +1339,19 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
     };
   }
 
-  const paymentId = normalizeYooKassaPaymentId(payment.id) || null;
   if (!paymentId) {
+    saveEntitlementAuditEvent(db, {
+      accountId,
+      featureKey,
+      origin: "yookassa-webhook",
+      status: "ignored",
+      source: "yookassa",
+      paymentStatus,
+      paid,
+      reason: "payment_missing",
+      checkedAt,
+    });
+
     return {
       statusCode: 200,
       body: {
@@ -1150,6 +1373,20 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
   });
 
   if (!subscriptionEntitlement.enabled) {
+    saveEntitlementAuditEvent(db, {
+      accountId,
+      featureKey,
+      origin: "yookassa-webhook",
+      status: "ignored",
+      source: "yookassa",
+      paymentId,
+      paymentStatus,
+      paid,
+      reason: "payment_already_applied",
+      entitlement: currentEntitlements[featureKey],
+      checkedAt,
+    });
+
     return {
       statusCode: 200,
       body: {
@@ -1173,6 +1410,18 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
     accountId,
     entitlements,
     updatedAt: checkedAt,
+  });
+  saveEntitlementAuditEvent(db, {
+    accountId,
+    featureKey,
+    origin: "yookassa-webhook",
+    status: "activated",
+    source: "yookassa",
+    paymentId,
+    paymentStatus,
+    paid,
+    entitlement: savedEntitlements[featureKey],
+    checkedAt,
   });
 
   return {
@@ -1291,6 +1540,14 @@ function sanitizePushEventType(type) {
 
 function sanitizePushEventStatus(status) {
   return ["sent", "failed", "empty", "no-subscriptions", "retry-exhausted"].includes(status) ? status : "failed";
+}
+
+function sanitizeEntitlementEventOrigin(origin) {
+  return ["admin", "yookassa-webhook", "yookassa-status"].includes(origin) ? origin : "admin";
+}
+
+function sanitizeEntitlementEventStatus(status) {
+  return ["activated", "disabled", "ignored", "failed", "canceled"].includes(status) ? status : "ignored";
 }
 
 function createOrbitAuthConfig(env = process.env) {
@@ -1558,6 +1815,22 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     return;
   }
 
+  if (url.pathname === "/api/sync/entitlements/events") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    sendJson(response, 200, {
+      accountId: accountContext.accountId,
+      events: db.listEntitlementEvents(accountContext.accountId, 12),
+    });
+    return;
+  }
+
   if (url.pathname === "/api/sync/checkout") {
     const accountContext = getExistingAccountContext({ request, response, db, now });
     if (!accountContext) return;
@@ -1699,6 +1972,15 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       accountId,
       entitlements,
       updatedAt: checkedAt,
+    });
+    saveEntitlementAuditEvent(db, {
+      accountId,
+      featureKey,
+      origin: "admin",
+      status: enabled ? "activated" : "disabled",
+      source,
+      entitlement: savedEntitlements[featureKey],
+      checkedAt,
     });
 
     sendJson(response, 200, {

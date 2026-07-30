@@ -561,6 +561,114 @@ test("sync account entitlements report expired paid features as inactive", async
   }
 });
 
+test("sync entitlement events endpoint lists access audit entries", async () => {
+  const db = createSyncDatabase(":memory:");
+  const ticks = [
+    "2026-07-12T09:00:00.000Z",
+    "2026-07-12T09:01:00.000Z",
+    "2026-07-12T09:02:00.000Z",
+  ];
+  const server = createFocusSyncServer({
+    db,
+    now: () => ticks.shift() || "2026-07-12T09:02:00.000Z",
+    adminToken: "focus-admin-token-123",
+    yookassaWebhookToken: "focus-yookassa-token-123",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-entitlement-events";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const adminResponse = await fetch(`${baseUrl}/api/admin/entitlements`, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer focus-admin-token-123",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        accountId,
+        featureKey: "voiceTranscription",
+        source: "manual.test",
+      }),
+    });
+    assert.equal(adminResponse.status, 200);
+
+    const webhookResponse = await fetch(`${baseUrl}/api/yookassa/webhook?token=focus-yookassa-token-123`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(createYooKassaPaymentNotification({
+        accountId,
+        paymentId: "payment-entitlement-events-123",
+      })),
+    });
+    assert.equal(webhookResponse.status, 200);
+
+    const eventsResponse = await fetch(`${baseUrl}/api/sync/entitlements/events`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(eventsResponse.status, 200);
+    const result = await eventsResponse.json();
+    assert.equal(result.accountId, accountId);
+    assert.equal(result.events.length, 2);
+    assert.match(result.events[0].id, /^[a-f0-9-]{36}$/);
+    assert.deepEqual({
+      accountId: result.events[0].accountId,
+      featureKey: result.events[0].featureKey,
+      origin: result.events[0].origin,
+      status: result.events[0].status,
+      source: result.events[0].source,
+      paymentId: result.events[0].paymentId,
+      paymentStatus: result.events[0].paymentStatus,
+      paid: result.events[0].paid,
+      reason: result.events[0].reason,
+      expiresAt: result.events[0].expiresAt,
+      createdAt: result.events[0].createdAt,
+    }, {
+      accountId,
+      featureKey: "voiceTranscription",
+      origin: "yookassa-webhook",
+      status: "activated",
+      source: "yookassa",
+      paymentId: "payment-entitlement-events-123",
+      paymentStatus: "succeeded",
+      paid: true,
+      reason: null,
+      expiresAt: "2026-08-11T09:01:00.000Z",
+      createdAt: "2026-07-12T09:01:00.000Z",
+    });
+    assert.deepEqual({
+      featureKey: result.events[1].featureKey,
+      origin: result.events[1].origin,
+      status: result.events[1].status,
+      source: result.events[1].source,
+      paymentId: result.events[1].paymentId,
+      paymentStatus: result.events[1].paymentStatus,
+      paid: result.events[1].paid,
+      reason: result.events[1].reason,
+      expiresAt: result.events[1].expiresAt,
+      createdAt: result.events[1].createdAt,
+    }, {
+      featureKey: "voiceTranscription",
+      origin: "admin",
+      status: "activated",
+      source: "manual.test",
+      paymentId: null,
+      paymentStatus: null,
+      paid: false,
+      reason: null,
+      expiresAt: null,
+      createdAt: "2026-07-12T09:00:00.000Z",
+    });
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("admin entitlement endpoint is disabled without a configured token", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({ db, adminToken: "" });

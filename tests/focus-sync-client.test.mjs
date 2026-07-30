@@ -821,6 +821,45 @@ test("account entitlements default to disabled when offline", async () => {
   });
 });
 
+test("entitlement events load account access audit entries", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        accountId: "account-1",
+        events: [{
+          id: "event-1",
+          featureKey: "voiceTranscription",
+          origin: "yookassa-webhook",
+          status: "activated",
+          source: "yookassa",
+          paymentId: "payment-client-event-123",
+          expiresAt: "2026-08-11T09:00:00.000Z",
+          createdAt: "2026-07-12T09:00:00.000Z",
+        }],
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.getEntitlementEvents();
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.accountId, "account-1");
+  assert.equal(result.events.length, 1);
+  assert.equal(result.events[0].origin, "yookassa-webhook");
+  assert.equal(result.events[0].paymentId, "payment-client-event-123");
+  assert.equal(calls[0].url, "/api/sync/entitlements/events");
+  assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
+  assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
+});
+
 test("subscription checkout loads a configured provider URL", async () => {
   const calls = [];
   const storage = createMemoryLocalStorage({

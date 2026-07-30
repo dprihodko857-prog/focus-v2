@@ -67,6 +67,7 @@ Status: DRAFT
 - TASK-054 is implemented locally: checkout can create YooKassa redirect payments when server-side shop id, secret key, and return URL are configured; payment metadata carries account and feature keys for later webhook activation.
 - TASK-055 is implemented locally: the app stores pending YooKassa checkout state, backend checks current-account payment status through `/api/sync/checkout/status`, and paid matched payments can activate `voiceTranscription`; service worker cache is `focus-pwa-v80`.
 - TASK-056 is implemented locally: Focus Plus entitlements now include `activatedAt`, `expiresAt`, and `paymentId`; YooKassa activations create a 30-day period by default, duplicate payment ids are idempotent, expired access is returned inactive, and UI shows active/expired period text; service worker cache is `focus-pwa-v81`.
+- TASK-057 is implemented locally: backend records bounded entitlement audit events for admin and YooKassa terminal outcomes, exposes `/api/sync/entitlements/events`, and sync client exposes `getEntitlementEvents()`; service worker cache is `focus-pwa-v82`.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
 
 ## In Progress
@@ -88,9 +89,9 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-056 checks passed locally (syntax checks, server tests 56/56, client tests 38/38, targeted PWA/static tests 49/49, and `npm.cmd run test` 173/173). Public requisites deploy on 2026-07-30 uploaded `requisites.html` and `service-worker.js`; the page returned 200, app returned 200, backend health returned `{"ok":true,"service":"focus-sync"}`.
+- Current result: local Git repository exists; TASK-057 checks passed locally (syntax checks, server tests 57/57, client tests 39/39, targeted PWA/static tests 49/49, and `npm.cmd run test` 175/175). Public requisites deploy on 2026-07-30 uploaded `requisites.html` and `service-worker.js`; the page returned 200, app returned 200, backend health returned `{"ok":true,"service":"focus-sync"}`.
 
 ## Open Questions
 
-- The next product/runtime task is either deploying tariff/legal/voice/admin/YooKassa checkout/webhook/status/period changes for review and testing, hardening YooKassa webhook authenticity once provider settings are available, or continuing a fuller transcription provider design while YooKassa verification is pending.
+- The next product/runtime task is either deploying tariff/legal/voice/admin/YooKassa checkout/webhook/status/period/audit changes for review and testing, hardening YooKassa webhook authenticity once provider settings are available, adding a UI surface for entitlement audit diagnostics, or continuing a fuller transcription provider design while YooKassa verification is pending.
 - Future backend/deployment changes still require a separate owner deployment approval.

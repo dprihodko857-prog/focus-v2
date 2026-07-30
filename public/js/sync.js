@@ -651,6 +651,31 @@ export function createFocusSyncClient({
       }
     },
 
+    async getEntitlementEvents() {
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/entitlements/events"), {
+          headers: await withHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Focus sync entitlement events load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          events: Array.isArray(result.events) ? result.events : [],
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          events: [],
+        };
+      }
+    },
+
     async createSubscriptionCheckout({ featureKey } = {}) {
       const normalizedFeatureKey = normalizePaidFeatureKey(featureKey);
       const accountId = getStored(ACCOUNT_KEY);

@@ -3029,3 +3029,71 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Focus Plus entitlements now include `activatedAt`, `expiresAt`, and `paymentId`; YooKassa activations create a 30-day period by default; duplicate payment events are idempotent; expired access is returned inactive.
 - commit_status: committed
 - notes: Focused server/client/PWA checks passed and `npm.cmd run test` passed 173/173 on 2026-07-30. No deployment or git push.
+
+## TASK-057
+
+- title: Add entitlement audit log
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_backend_hardening
+- priority: high
+- source: owner postponed deployment and asked to continue project work locally; after time-bounded entitlements the next backend hardening step is auditability of paid feature access changes
+- spec_reference: `docs/specs/entitlement-audit-log.md`
+- spec_status: implemented_local_committed
+- goal: record recent paid feature access events per sync account and expose them through a private diagnostics endpoint.
+- out_of_scope:
+  - public audit UI
+  - external analytics
+  - admin dashboard
+  - production deploy or secret installation
+  - live YooKassa payment calls
+  - git push, tags, or release work
+- acceptance_criteria:
+  - JSON sync state supports `entitlementEvents` with backward-compatible loading
+  - admin activation and disable actions record audit entries
+  - YooKassa webhook terminal events record activation, ignored, and canceled outcomes
+  - YooKassa return-status terminal events record activation, ignored, canceled, and failed outcomes
+  - repeated pending payment checks are not recorded
+  - event history is bounded to recent entries
+  - `GET /api/sync/entitlements/events` returns current account events
+  - sync client exposes `getEntitlementEvents()`
+  - service worker cache is bumped to `focus-pwa-v82`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `node --test tests/focus-sync-client.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs tests/legal-pages.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_backend_hardening task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 56
+- stop_conditions:
+  - implementation requires live YooKassa credentials
+  - implementation requires external network calls in tests
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/sync.js`
+  - `public/service-worker.js`
+  - `tests/focus-sync-server.test.mjs`
+  - `tests/focus-sync-client.test.mjs`
+  - static PWA tests
+  - Project Maestro memory
+- dependencies:
+  - account entitlements foundation
+  - YooKassa return payment status
+  - Focus Plus entitlement periods
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend records recent entitlement events for admin and YooKassa terminal outcomes, and sync clients can read the current account audit log.
+- commit_status: committed
+- notes: Focused server/client/PWA checks passed and `npm.cmd run test` passed 175/175 on 2026-07-30. No deployment or git push.
