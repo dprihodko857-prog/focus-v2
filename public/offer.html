@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="description" content="Публичная оферта сервиса Focus Plus." />
+  <meta name="theme-color" content="#1f2937" />
+  <meta name="robots" content="index, follow" />
+  <title>Публичная оферта - Focus</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-v2-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon-v2.png" />
+  <style>
+    :root {
+      --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --panel: rgba(255, 252, 244, .88);
+      --panel-soft: rgba(255, 252, 244, .7);
+      --text: #1f1a16;
+      --muted: #4c433a;
+      --accent: #f97316;
+      --border: rgba(255, 255, 255, .64);
+      --shadow: 0 30px 86px rgba(0, 0, 0, .24);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: #111827;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: var(--font-sans);
+      background:
+        linear-gradient(120deg, rgba(17, 24, 39, .84), rgba(249, 115, 22, .2)),
+        url("/assets/months/large/july.webp") center / cover fixed;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: rgba(17, 24, 39, .24);
+      backdrop-filter: blur(14px) saturate(112%);
+      content: "";
+    }
+
+    a {
+      color: inherit;
+      font-weight: 850;
+    }
+
+    .legal-page {
+      width: min(100%, 1060px);
+      margin: 0 auto;
+      padding: clamp(20px, 4vw, 52px);
+    }
+
+    .legal-card {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 32px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(26px) saturate(128%);
+    }
+
+    .legal-head {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 18px;
+      align-items: center;
+      padding: clamp(22px, 4vw, 34px);
+      border-bottom: 1px solid rgba(31, 26, 22, .14);
+      background:
+        radial-gradient(circle at 100% 0, rgba(249, 115, 22, .18), transparent 34%),
+        rgba(255, 252, 244, .36);
+    }
+
+    .brand-mark {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: #10151e url("/assets/focus-logo-v2.png") center / 100% 100% no-repeat;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+    }
+
+    .eyebrow {
+      display: block;
+      color: var(--accent);
+      font-size: .86rem;
+      font-weight: 850;
+      line-height: 1.2;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 0;
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.05;
+    }
+
+    .home-link {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 18px;
+      border: 1px solid rgba(31, 26, 22, .14);
+      border-radius: 999px;
+      background: rgba(255, 252, 244, .58);
+      text-decoration: none;
+    }
+
+    .legal-body {
+      display: grid;
+      gap: 18px;
+      padding: clamp(22px, 4vw, 34px);
+    }
+
+    .notice,
+    .section {
+      border: 1px solid rgba(255, 255, 255, .7);
+      border-radius: 24px;
+      background: var(--panel-soft);
+    }
+
+    .notice {
+      padding: 18px 20px;
+      color: var(--muted);
+      font-weight: 720;
+      line-height: 1.5;
+    }
+
+    .section {
+      padding: 20px;
+    }
+
+    .section h2 {
+      margin-bottom: 12px;
+      font-size: 1.25rem;
+      line-height: 1.2;
+    }
+
+    .section p,
+    .section li {
+      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1.55;
+    }
+
+    .section p:last-child,
+    .section ul:last-child {
+      margin-bottom: 0;
+    }
+
+    .section ul {
+      display: grid;
+      gap: 8px;
+      padding-left: 22px;
+    }
+
+    .legal-foot {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      align-items: center;
+      padding: 0 clamp(22px, 4vw, 34px) clamp(22px, 4vw, 34px);
+      color: var(--muted);
+      font-size: .95rem;
+      font-weight: 680;
+    }
+
+    @media (max-width: 720px) {
+      .legal-page {
+        padding: 12px;
+      }
+
+      .legal-card {
+        border-radius: 24px;
+      }
+
+      .legal-head {
+        grid-template-columns: auto 1fr;
+      }
+
+      .home-link {
+        grid-column: 1 / -1;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="legal-page">
+    <article class="legal-card" aria-labelledby="pageTitle">
+      <header class="legal-head">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <span class="eyebrow">Focus Plus</span>
+          <h1 id="pageTitle">Публичная оферта</h1>
+        </div>
+        <a class="home-link" href="/">Открыть приложение</a>
+      </header>
+
+      <div class="legal-body">
+        <p class="notice">
+          Этот документ описывает условия предоставления платного доступа к дополнительным функциям сервиса Focus. Перед запуском приема платежей текст рекомендуется дополнительно сверить с юристом под фактическую модель работы.
+        </p>
+
+        <section class="section" aria-labelledby="providerTitle">
+          <h2 id="providerTitle">1. Исполнитель</h2>
+          <p>
+            Исполнитель: индивидуальный предприниматель Приходько Дмитрий Геннадьевич. Реквизиты, адрес и контакты опубликованы на странице <a href="/requisites.html">requisites.html</a>.
+          </p>
+        </section>
+
+        <section class="section" aria-labelledby="serviceTitle">
+          <h2 id="serviceTitle">2. Услуга</h2>
+          <p>
+            Исполнитель предоставляет пользователю доступ к тарифу Focus Plus. Первый платный модуль тарифа - голосовой ввод с транскрибацией речи в текст для создания расписаний, дел, заметок и записей личного дневника.
+          </p>
+          <p>
+            Услуга является цифровой. Доставка физического товара не выполняется. Доступ предоставляется внутри веб-приложения Focus для аккаунта пользователя.
+          </p>
+        </section>
+
+        <section class="section" aria-labelledby="priceTitle">
+          <h2 id="priceTitle">3. Стоимость и период доступа</h2>
+          <ul>
+            <li>Тариф: Focus Plus.</li>
+            <li>Стоимость: 199 ₽ в месяц.</li>
+            <li>Период доступа: 1 календарный месяц с момента подтверждения оплаты.</li>
+          </ul>
+        </section>
+
+        <section class="section" aria-labelledby="paymentTitle">
+          <h2 id="paymentTitle">4. Порядок оплаты и активации</h2>
+          <p>
+            Оплата будет приниматься онлайн через подключенного платежного провайдера. После подтверждения оплаты провайдером сервер Focus активирует доступ к платной функции для аккаунта пользователя.
+          </p>
+          <p>
+            Создание ссылки на оплату или переход к платежной странице само по себе не активирует доступ. Доступ включается только после подтвержденного платежа.
+          </p>
+        </section>
+
+        <section class="section" aria-labelledby="refundTitle">
+          <h2 id="refundTitle">5. Возвраты и отмена</h2>
+          <p>
+            Пользователь может обратиться по адресу <a href="mailto:dmprihodko@mail.ru">dmprihodko@mail.ru</a>, если услуга не была предоставлена, доступ не активировался после успешной оплаты или требуется отмена дальнейшего использования тарифа.
+          </p>
+          <p>
+            Возврат рассматривается по фактическим обстоятельствам обращения и выполняется тем способом, который поддерживается платежным провайдером.
+          </p>
+        </section>
+
+        <section class="section" aria-labelledby="acceptTitle">
+          <h2 id="acceptTitle">6. Акцепт оферты</h2>
+          <p>
+            Пользователь принимает условия оферты при оформлении и оплате тарифа Focus Plus. Продолжение использования платных функций после активации доступа означает согласие с условиями настоящей оферты.
+          </p>
+        </section>
+      </div>
+
+      <footer class="legal-foot">
+        <span>Дата публикации: 30 июля 2026 г.</span>
+        <span>·</span>
+        <a href="/subscription.html">Тариф Focus Plus</a>
+        <span>·</span>
+        <a href="/privacy.html">Политика обработки данных</a>
+      </footer>
+    </article>
+  </main>
+</body>
+</html>

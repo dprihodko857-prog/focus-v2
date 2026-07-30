@@ -2596,3 +2596,59 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Public Focus Plus tariff page is ready at `/subscription.html`, and paid feature UI links to its price/terms; service worker cache is `focus-pwa-v77`.
 - commit_status: committed
 - notes: Focused checks passed on 2026-07-30. No deployment or git push.
+
+## TASK-050
+
+- title: Add public offer and privacy pages
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: legal_static_pages
+- priority: high
+- source: owner asked to continue while YooKassa verification is pending
+- spec_reference: `docs/specs/public-legal-documents.md`
+- spec_status: implemented_local_committed
+- goal: add public offer and privacy documents for the Focus Plus subscription path.
+- out_of_scope:
+  - production deploy
+  - legal guarantee that text is sufficient for every business case
+  - real YooKassa checkout, receipts, webhook signatures, or entitlement activation
+  - actual speech recognition or microphone capture
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `public/offer.html` exists and covers service, price, activation, and refund/cancellation basics
+  - `public/privacy.html` exists and covers planning data, sync, push, payment statuses, and future transcription data
+  - `public/subscription.html` links to offer, privacy, and requisites
+  - service worker cache includes `/offer.html` and `/privacy.html`
+  - existing focused tests pass locally
+- required_checks:
+  - `node --check public/service-worker.js`
+  - `node --test tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small legal_static_pages task
+- file_limit: up to 12 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 49
+- stop_conditions:
+  - owner wants different legal wording or price
+  - YooKassa requires different document structure
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/offer.html`
+  - `public/privacy.html`
+  - `public/subscription.html`
+  - `public/service-worker.js`
+  - legal/static page tests
+  - Project Maestro memory
+- dependencies:
+  - public subscription page
+  - public requisites page
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Public offer and privacy pages are ready at `/offer.html` and `/privacy.html`, tariff page links to both, and service worker cache is `focus-pwa-v78`.
+- commit_status: committed
+- notes: Focused checks passed on 2026-07-30. No deployment or git push.

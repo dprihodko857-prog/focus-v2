@@ -55,4 +55,5 @@ Status: DRAFT
 | SUBSCRIPTION-CHECKOUT-FOUNDATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/subscription-checkout-foundation.md` | TASK-047 adds a provider-ready checkout API/client/UI path for paid feature subscription activation. |
 | PUBLIC-REQUISITES-PAGE-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/public-requisites-page.md` | TASK-048 adds a public merchant requisites page for YooKassa onboarding. |
 | PUBLIC-SUBSCRIPTION-PAGE-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/public-subscription-page.md` | TASK-049 adds a public Focus Plus tariff page and links paid feature UI to price/terms. |
+| PUBLIC-LEGAL-DOCUMENTS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/public-legal-documents.md` | TASK-050 adds public offer and privacy pages for the Focus Plus subscription path. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

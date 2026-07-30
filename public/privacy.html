@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="description" content="Политика обработки персональных данных сервиса Focus." />
+  <meta name="theme-color" content="#1f2937" />
+  <meta name="robots" content="index, follow" />
+  <title>Политика обработки данных - Focus</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-v2-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon-v2.png" />
+  <style>
+    :root {
+      --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --panel: rgba(255, 252, 244, .88);
+      --panel-soft: rgba(255, 252, 244, .7);
+      --text: #1f1a16;
+      --muted: #4c433a;
+      --accent: #f97316;
+      --border: rgba(255, 255, 255, .64);
+      --shadow: 0 30px 86px rgba(0, 0, 0, .24);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: #111827;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: var(--font-sans);
+      background:
+        linear-gradient(120deg, rgba(17, 24, 39, .84), rgba(249, 115, 22, .2)),
+        url("/assets/months/large/july.webp") center / cover fixed;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: rgba(17, 24, 39, .24);
+      backdrop-filter: blur(14px) saturate(112%);
+      content: "";
+    }
+
+    a {
+      color: inherit;
+      font-weight: 850;
+    }
+
+    .legal-page {
+      width: min(100%, 1060px);
+      margin: 0 auto;
+      padding: clamp(20px, 4vw, 52px);
+    }
+
+    .legal-card {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 32px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(26px) saturate(128%);
+    }
+
+    .legal-head {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 18px;
+      align-items: center;
+      padding: clamp(22px, 4vw, 34px);
+      border-bottom: 1px solid rgba(31, 26, 22, .14);
+      background:
+        radial-gradient(circle at 100% 0, rgba(249, 115, 22, .18), transparent 34%),
+        rgba(255, 252, 244, .36);
+    }
+
+    .brand-mark {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: #10151e url("/assets/focus-logo-v2.png") center / 100% 100% no-repeat;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+    }
+
+    .eyebrow {
+      display: block;
+      color: var(--accent);
+      font-size: .86rem;
+      font-weight: 850;
+      line-height: 1.2;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 0;
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.05;
+    }
+
+    .home-link {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 18px;
+      border: 1px solid rgba(31, 26, 22, .14);
+      border-radius: 999px;
+      background: rgba(255, 252, 244, .58);
+      text-decoration: none;
+    }
+
+    .legal-body {
+      display: grid;
+      gap: 18px;
+      padding: clamp(22px, 4vw, 34px);
+    }
+
+    .notice,
+    .section {
+      border: 1px solid rgba(255, 255, 255, .7);
+      border-radius: 24px;
+      background: var(--panel-soft);
+    }
+
+    .notice {
+      padding: 18px 20px;
+      color: var(--muted);
+      font-weight: 720;
+      line-height: 1.5;
+    }
+
+    .section {
+      padding: 20px;
+    }
+
+    .section h2 {
+      margin-bottom: 12px;
+      font-size: 1.25rem;
+      line-height: 1.2;
+    }
+
+    .section p,
+    .section li {
+      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1.55;
+    }
+
+    .section p:last-child,
+    .section ul:last-child {
+      margin-bottom: 0;
+    }
+
+    .section ul {
+      display: grid;
+      gap: 8px;
+      padding-left: 22px;
+    }
+
+    .legal-foot {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      align-items: center;
+      padding: 0 clamp(22px, 4vw, 34px) clamp(22px, 4vw, 34px);
+      color: var(--muted);
+      font-size: .95rem;
+      font-weight: 680;
+    }
+
+    @media (max-width: 720px) {
+      .legal-page {
+        padding: 12px;
+      }
+
+      .legal-card {
+        border-radius: 24px;
+      }
+
+      .legal-head {
+        grid-template-columns: auto 1fr;
+      }
+
+      .home-link {
+        grid-column: 1 / -1;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="legal-page">
+    <article class="legal-card" aria-labelledby="pageTitle">
+      <header class="legal-head">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <span class="eyebrow">Focus</span>
+          <h1 id="pageTitle">Политика обработки данных</h1>
+        </div>
+        <a class="home-link" href="/">Открыть приложение</a>
+      </header>
+
+      <div class="legal-body">
+        <p class="notice">
+          Эта политика описывает, какие данные используются сервисом Focus для работы планировщика, синхронизации, уведомлений и будущих платных функций. Перед запуском приема платежей и публичной рекламой сервиса текст рекомендуется дополнительно проверить с юристом.
+        </p>
+
+        <section class="section" aria-labelledby="operatorTitle">
+          <h2 id="operatorTitle">1. Оператор</h2>
+          <p>
+            Оператор данных: индивидуальный предприниматель Приходько Дмитрий Геннадьевич. Контакты и реквизиты опубликованы на странице <a href="/requisites.html">requisites.html</a>. Для обращений используется e-mail <a href="mailto:dmprihodko@mail.ru">dmprihodko@mail.ru</a>.
+          </p>
+        </section>
+
+        <section class="section" aria-labelledby="dataTitle">
+          <h2 id="dataTitle">2. Какие данные может обрабатывать Focus</h2>
+          <ul>
+            <li>Данные планирования: расписания, напоминания, дела, заметки, дни рождения и записи дневника, если пользователь сохраняет их в приложении.</li>
+            <li>Данные аккаунта синхронизации: код аккаунта, название аккаунта, название устройства и технические данные подключенных устройств.</li>
+            <li>Данные уведомлений: push-подписка устройства, статусы доставки и журнал технической диагностики уведомлений.</li>
+            <li>Данные авторизации, если пользователь входит через подключенный сервис авторизации: идентификатор аккаунта, имя или e-mail, если они переданы провайдером.</li>
+            <li>Платежные статусы и идентификаторы операции после подключения платежного провайдера. Полные данные банковской карты Focus не хранит.</li>
+            <li>Текст, полученный из голосового ввода, после запуска функции транскрибации. Аудио будет использоваться только для распознавания речи, если такая обработка будет подключена.</li>
+          </ul>
+        </section>
+
+        <section class="section" aria-labelledby="purposeTitle">
+          <h2 id="purposeTitle">3. Цели обработки</h2>
+          <ul>
+            <li>Работа календаря, расписаний, напоминаний, заметок и личного дневника.</li>
+            <li>Синхронизация данных между устройствами пользователя.</li>
+            <li>Доставка локальных и push-уведомлений.</li>
+            <li>Предоставление доступа к платным функциям после оплаты.</li>
+            <li>Поддержка пользователя и диагностика технических ошибок.</li>
+          </ul>
+        </section>
+
+        <section class="section" aria-labelledby="storageTitle">
+          <h2 id="storageTitle">4. Где хранятся данные</h2>
+          <p>
+            Часть данных хранится локально в браузере или PWA на устройстве пользователя, включая IndexedDB. При включенной синхронизации данные передаются на backend Focus, чтобы пользователь мог работать с несколькими устройствами одного аккаунта.
+          </p>
+          <p>
+            PIN личного дневника используется для ограничения доступа на устройстве. При включенной синхронизации содержимое дневника может передаваться на сервер вместе с другими данными аккаунта.
+          </p>
+        </section>
+
+        <section class="section" aria-labelledby="rightsTitle">
+          <h2 id="rightsTitle">5. Обращения пользователя</h2>
+          <p>
+            Пользователь может обратиться по адресу <a href="mailto:dmprihodko@mail.ru">dmprihodko@mail.ru</a>, чтобы уточнить вопросы обработки данных, запросить удаление данных аккаунта или получить помощь по работе сервиса.
+          </p>
+        </section>
+      </div>
+
+      <footer class="legal-foot">
+        <span>Дата публикации: 30 июля 2026 г.</span>
+        <span>·</span>
+        <a href="/subscription.html">Тариф Focus Plus</a>
+        <span>·</span>
+        <a href="/offer.html">Публичная оферта</a>
+      </footer>
+    </article>
+  </main>
+</body>
+</html>
