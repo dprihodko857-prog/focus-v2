@@ -2712,3 +2712,60 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Existing voice buttons now use browser speech recognition when `voiceTranscription` is enabled and route locked access through the subscription flow; service worker cache is `focus-pwa-v79`.
 - commit_status: committed
 - notes: Focused checks passed on 2026-07-30. No deployment or git push.
+
+## TASK-052
+
+- title: Add manual entitlement activation endpoint
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_admin_foundation
+- priority: high
+- source: owner asked to continue while YooKassa verification is pending; voice input now needs a controlled test activation path
+- spec_reference: `docs/specs/manual-entitlement-activation.md`
+- spec_status: implemented_local_committed
+- goal: add a secret-gated backend path for operator activation or deactivation of `voiceTranscription` on an existing sync account.
+- out_of_scope:
+  - YooKassa API integration
+  - payment webhook activation
+  - public admin UI
+  - exposing admin secrets in frontend code
+  - changing the app shell or service worker cache
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - admin entitlement endpoint is disabled unless `FOCUS_ADMIN_TOKEN` is configured
+  - requests without the configured token are rejected
+  - valid admin requests can enable `voiceTranscription`
+  - valid admin requests can disable `voiceTranscription`
+  - unknown accounts and unknown paid features are not activated
+  - existing public entitlement reads continue to return normalized state
+  - existing focused tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_admin_foundation task
+- file_limit: up to 6 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 51
+- stop_conditions:
+  - implementation requires payment provider secrets
+  - implementation requires exposing admin access in frontend UI
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - account entitlements foundation
+  - voice input foundation
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend now exposes `/api/admin/entitlements` only when `FOCUS_ADMIN_TOKEN` is configured; valid operator requests can enable or disable `voiceTranscription` for existing sync accounts.
+- commit_status: committed
+- notes: Focused server checks passed 43/43 and `npm.cmd run test` passed 158/158 on 2026-07-30. No deployment or git push.

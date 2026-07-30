@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import { dirname, join } from "node:path";
@@ -772,11 +772,12 @@ export function createFocusSyncServer({
   authSessions = new Map(),
   fetchImpl = globalThis.fetch,
   subscriptionCheckoutUrl = normalizeUrl(process.env.FOCUS_SUBSCRIPTION_CHECKOUT_URL || ""),
+  adminToken = normalizeAdminToken(process.env.FOCUS_ADMIN_TOKEN || ""),
   logger = console,
 } = {}) {
   const server = http.createServer(async (request, response) => {
     try {
-      await routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl });
+      await routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, adminToken });
     } catch (error) {
       if (isHttpRequestError(error)) {
         sendJson(response, error.status, {
@@ -804,7 +805,7 @@ export function createFocusSyncServer({
   return server;
 }
 
-async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl }) {
+async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, adminToken }) {
   const url = new URL(request.url || "/", "http://127.0.0.1");
 
   if (request.method === "OPTIONS") {
@@ -1031,6 +1032,75 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     }
 
     sendJson(response, 200, checkout);
+    return;
+  }
+
+  if (url.pathname === "/api/admin/entitlements") {
+    if (!adminToken) {
+      sendJson(response, 404, { error: "not_found" });
+      return;
+    }
+
+    if (!isAuthorizedAdminRequest(request, adminToken)) {
+      sendJson(response, 401, { error: "admin_token_required" });
+      return;
+    }
+
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    const body = await readJsonBody(request, { optional: true });
+    if (!isPlainObject(body)) {
+      sendJson(response, 400, { error: "invalid_admin_entitlement_request" });
+      return;
+    }
+
+    const accountId = String(body.accountId || body.account || "").trim();
+    if (!accountId) {
+      sendJson(response, 400, { error: "account_required" });
+      return;
+    }
+
+    if (!db.getAccount(accountId)) {
+      sendJson(response, 404, { error: "account_not_found" });
+      return;
+    }
+
+    const featureKey = normalizePaidFeatureKey(body.featureKey ?? body.feature);
+    if (!featureKey) {
+      sendJson(response, 400, { error: "invalid_paid_feature" });
+      return;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "enabled") && typeof body.enabled !== "boolean") {
+      sendJson(response, 400, { error: "invalid_entitlement_enabled" });
+      return;
+    }
+
+    const enabled = body.enabled !== false;
+    const checkedAt = now();
+    const source = enabled ? sanitizeEntitlementSource(body.source) || "manual" : "none";
+    const entitlements = {
+      ...db.getAccountEntitlements(accountId),
+      [featureKey]: {
+        enabled,
+        source,
+      },
+    };
+    const savedEntitlements = db.setAccountEntitlements({
+      accountId,
+      entitlements,
+      updatedAt: checkedAt,
+    });
+
+    sendJson(response, 200, {
+      accountId,
+      featureKey,
+      checkedAt,
+      entitlements: savedEntitlements,
+    });
     return;
   }
 
@@ -1519,6 +1589,33 @@ function normalizeUrl(value) {
   } catch {
     return "";
   }
+}
+
+function normalizeAdminToken(value) {
+  const token = String(value || "").trim();
+  return token.length >= 16 ? token : "";
+}
+
+function getAdminTokenFromRequest(request) {
+  const headerToken = String(request.headers["x-focus-admin-token"] || "").trim();
+  if (headerToken) {
+    return headerToken;
+  }
+
+  const authorization = String(request.headers.authorization || "").trim();
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : "";
+}
+
+function isAuthorizedAdminRequest(request, adminToken) {
+  const requestToken = getAdminTokenFromRequest(request);
+  if (!requestToken || !adminToken) {
+    return false;
+  }
+
+  const requestBuffer = Buffer.from(requestToken);
+  const adminBuffer = Buffer.from(adminToken);
+  return requestBuffer.length === adminBuffer.length && timingSafeEqual(requestBuffer, adminBuffer);
 }
 
 function isAuthConfigured(authConfig) {
@@ -2423,7 +2520,7 @@ function isHttpRequestError(error) {
 
 function sendJson(response, status, payload, extraHeaders = {}) {
   response.writeHead(status, {
-    "access-control-allow-headers": "content-type, x-focus-account, x-focus-device, x-focus-device-name",
+    "access-control-allow-headers": "authorization, content-type, x-focus-account, x-focus-admin-token, x-focus-device, x-focus-device-name",
     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "access-control-allow-origin": "*",
     "cache-control": "no-store",

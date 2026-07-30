@@ -507,6 +507,198 @@ test("sync account entitlements expose enabled paid features", async () => {
   }
 });
 
+test("admin entitlement endpoint is disabled without a configured token", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db, adminToken: "" });
+  const baseUrl = await listen(server);
+  const accountId = "account-admin-entitlements-disabled";
+  createTestAccount(db, accountId);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/admin/entitlements`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-admin-token": "configured-token-123",
+      },
+      body: JSON.stringify({ accountId, featureKey: "voiceTranscription" }),
+    });
+
+    assert.equal(response.status, 404);
+    assert.equal((await response.json()).error, "not_found");
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("admin entitlement endpoint requires the configured token", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    adminToken: "focus-admin-token-123",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-admin-entitlements-auth";
+  createTestAccount(db, accountId);
+
+  try {
+    const missingTokenResponse = await fetch(`${baseUrl}/api/admin/entitlements`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ accountId, featureKey: "voiceTranscription" }),
+    });
+    assert.equal(missingTokenResponse.status, 401);
+    assert.equal((await missingTokenResponse.json()).error, "admin_token_required");
+
+    const wrongTokenResponse = await fetch(`${baseUrl}/api/admin/entitlements`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-admin-token": "wrong-admin-token-123",
+      },
+      body: JSON.stringify({ accountId, featureKey: "voiceTranscription" }),
+    });
+    assert.equal(wrongTokenResponse.status, 401);
+    assert.equal((await wrongTokenResponse.json()).error, "admin_token_required");
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("admin entitlement endpoint can activate and disable paid feature access", async () => {
+  const db = createSyncDatabase(":memory:");
+  const ticks = [
+    "2026-07-12T09:06:00.000Z",
+    "2026-07-12T09:07:00.000Z",
+    "2026-07-12T09:08:00.000Z",
+  ];
+  let tickIndex = 0;
+  const server = createFocusSyncServer({
+    db,
+    adminToken: "focus-admin-token-123",
+    now: () => ticks[Math.min(tickIndex++, ticks.length - 1)],
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-admin-entitlements-active";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const activateResponse = await fetch(`${baseUrl}/api/admin/entitlements`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-admin-token": "focus-admin-token-123",
+      },
+      body: JSON.stringify({
+        accountId,
+        featureKey: "voice_transcription",
+        enabled: true,
+        source: "manual.test",
+      }),
+    });
+
+    assert.equal(activateResponse.status, 200);
+    assert.deepEqual(await activateResponse.json(), {
+      accountId,
+      featureKey: "voiceTranscription",
+      checkedAt: "2026-07-12T09:06:00.000Z",
+      entitlements: {
+        voiceTranscription: {
+          enabled: true,
+          source: "manual.test",
+          updatedAt: "2026-07-12T09:06:00.000Z",
+        },
+      },
+    });
+
+    const entitlementResponse = await fetch(`${baseUrl}/api/sync/entitlements`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(entitlementResponse.status, 200);
+    const entitlementResult = await entitlementResponse.json();
+    assert.equal(entitlementResult.entitlements.voiceTranscription.enabled, true);
+    assert.equal(entitlementResult.entitlements.voiceTranscription.source, "manual.test");
+
+    const disableResponse = await fetch(`${baseUrl}/api/admin/entitlements`, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer focus-admin-token-123",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        account: accountId,
+        feature: "voiceTranscription",
+        enabled: false,
+      }),
+    });
+
+    assert.equal(disableResponse.status, 200);
+    const disabledResult = await disableResponse.json();
+    assert.equal(disabledResult.checkedAt, "2026-07-12T09:08:00.000Z");
+    assert.deepEqual(disabledResult.entitlements.voiceTranscription, {
+      enabled: false,
+      source: "none",
+      updatedAt: null,
+    });
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("admin entitlement endpoint rejects unknown accounts and paid features", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    adminToken: "focus-admin-token-123",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-admin-entitlements-invalid";
+  createTestAccount(db, accountId);
+
+  try {
+    const unknownAccountResponse = await fetch(`${baseUrl}/api/admin/entitlements`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-admin-token": "focus-admin-token-123",
+      },
+      body: JSON.stringify({
+        accountId: "missing-admin-entitlements-account",
+        featureKey: "voiceTranscription",
+      }),
+    });
+    assert.equal(unknownAccountResponse.status, 404);
+    assert.equal((await unknownAccountResponse.json()).error, "account_not_found");
+    assert.equal(db.getAccount("missing-admin-entitlements-account"), null);
+
+    const unknownFeatureResponse = await fetch(`${baseUrl}/api/admin/entitlements`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-admin-token": "focus-admin-token-123",
+      },
+      body: JSON.stringify({
+        accountId,
+        featureKey: "unknownFeature",
+      }),
+    });
+    assert.equal(unknownFeatureResponse.status, 400);
+    assert.equal((await unknownFeatureResponse.json()).error, "invalid_paid_feature");
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("subscription checkout reports missing payment provider without activating access", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({
