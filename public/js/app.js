@@ -104,8 +104,14 @@ let paidFeatureCheckoutState = {
   status: "idle",
   featureKey: "",
 };
+const VOICE_RECORDING_MAX_MS = 15000;
 let activeVoiceRecognition = null;
 let activeVoiceButton = null;
+let activeVoiceRecorder = null;
+let activeVoiceRecorderButton = null;
+let activeVoiceRecorderChunks = [];
+let activeVoiceRecorderTimer = null;
+let activeVoiceTranscriptionButton = null;
 
 function createDefaultAccountEntitlements() {
   return {
@@ -4786,6 +4792,31 @@ function getSpeechRecognitionConstructor() {
   return window.SpeechRecognition || window.webkitSpeechRecognition || null;
 }
 
+function getMediaRecorderConstructor() {
+  return window.MediaRecorder || null;
+}
+
+function isServerVoiceRecordingSupported() {
+  return Boolean(
+    typeof navigator !== "undefined"
+    && navigator.mediaDevices?.getUserMedia
+    && getMediaRecorderConstructor()
+  );
+}
+
+function getVoiceRecordingMimeType() {
+  const MediaRecorderConstructor = getMediaRecorderConstructor();
+  if (!MediaRecorderConstructor?.isTypeSupported) {
+    return "";
+  }
+
+  return [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+  ].find(type => MediaRecorderConstructor.isTypeSupported(type)) || "";
+}
+
 function isTextInputControl(element) {
   return Boolean(element && (
     element.tagName === "TEXTAREA"
@@ -4806,11 +4837,19 @@ function getVoiceInputAccessState() {
     };
   }
 
+  if (!getSpeechRecognitionConstructor() && isServerVoiceRecordingSupported()) {
+    return {
+      status: "recording-ready",
+      label: "Записать",
+      detail: "Нажмите, чтобы записать короткий фрагмент для серверной транскрибации.",
+    };
+  }
+
   if (!getSpeechRecognitionConstructor()) {
     return {
       status: "unsupported",
       label: "Недоступно",
-      detail: "Этот браузер не поддерживает локальное распознавание речи.",
+      detail: "Этот браузер не поддерживает голосовой ввод.",
     };
   }
 
@@ -4853,11 +4892,28 @@ function renderVoiceInputControls() {
   const access = getVoiceInputAccessState();
 
   document.querySelectorAll(".voice-button").forEach(button => {
-    const isActive = button === activeVoiceButton;
+    const isRecognizing = button === activeVoiceButton;
+    const isRecording = button === activeVoiceRecorderButton;
+    const isTranscribing = button === activeVoiceTranscriptionButton;
+    const isActive = isRecognizing || isRecording || isTranscribing;
+    const hasOtherActiveControl = (activeVoiceButton && !isRecognizing)
+      || (activeVoiceRecorderButton && !isRecording)
+      || (activeVoiceTranscriptionButton && !isTranscribing);
     button.classList.toggle("voice-button--active", isActive);
-    button.disabled = access.status === "unsupported" || (activeVoiceButton && !isActive);
-    setVoiceButtonLabel(button, isActive ? "Слушаю..." : access.label);
-    setVoiceStatus(button, isActive ? "Говорите. Текст появится в выбранном поле." : access.detail, isActive ? "ok" : access.status === "unsupported" ? "bad" : "warn");
+    button.classList.toggle("voice-button--recording", isRecording);
+    button.disabled = access.status === "unsupported" || hasOtherActiveControl;
+    setVoiceButtonLabel(button, isRecognizing ? "Слушаю..." : isRecording ? "Стоп" : isTranscribing ? "Отправляем..." : access.label);
+    setVoiceStatus(
+      button,
+      isRecognizing
+        ? "Говорите. Текст появится в выбранном поле."
+        : isRecording
+          ? "Идёт запись. Нажмите ещё раз, чтобы отправить."
+          : isTranscribing
+            ? "Отправляем запись на транскрибацию..."
+          : access.detail,
+      isRecognizing || isRecording ? "ok" : access.status === "unsupported" ? "bad" : "warn"
+    );
   });
 }
 
@@ -4919,6 +4975,225 @@ function finishVoiceRecognition(button, message = "", tone = "warn") {
   if (message && button) {
     setVoiceStatus(button, message, tone);
   }
+}
+
+function stopVoiceRecordingStream(stream) {
+  stream?.getTracks?.().forEach(track => {
+    try {
+      track.stop();
+    } catch {
+      // Ignore track cleanup failures; the recording flow has already ended.
+    }
+  });
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    if (!window.FileReader) {
+      reject(new Error("FileReader is unavailable."));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.includes(",") ? result.split(",").pop() : result);
+    };
+    reader.onerror = () => reject(reader.error || new Error("Voice recording read failed."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function clearActiveVoiceRecorder() {
+  if (activeVoiceRecorderTimer) {
+    window.clearTimeout(activeVoiceRecorderTimer);
+    activeVoiceRecorderTimer = null;
+  }
+
+  activeVoiceRecorder = null;
+  activeVoiceRecorderButton = null;
+  activeVoiceRecorderChunks = [];
+}
+
+function stopActiveVoiceRecorder() {
+  if (!activeVoiceRecorder) return;
+
+  if (activeVoiceRecorderTimer) {
+    window.clearTimeout(activeVoiceRecorderTimer);
+    activeVoiceRecorderTimer = null;
+  }
+
+  try {
+    if (activeVoiceRecorder.state !== "inactive") {
+      activeVoiceRecorder.stop();
+    }
+  } catch {
+    clearActiveVoiceRecorder();
+    renderVoiceInputControls();
+  }
+}
+
+function getVoiceTranscriptionFailureMessage(status) {
+  switch (status) {
+    case "provider-not-configured":
+      return {
+        message: "Серверная транскрибация подготовлена, но провайдер пока не подключён.",
+        tone: "warn",
+      };
+    case "locked":
+      refreshAccountEntitlements();
+      return {
+        message: "Голосовой ввод доступен по подписке Focus Plus.",
+        tone: "warn",
+      };
+    case "account-required":
+      return {
+        message: "Подключите аккаунт синхронизации перед серверной транскрибацией.",
+        tone: "warn",
+      };
+    case "invalid-request":
+      return {
+        message: "Запись не подходит для транскрибации. Попробуйте записать ещё раз.",
+        tone: "bad",
+      };
+    case "offline":
+      return {
+        message: "Нет связи с сервером. Запись не отправлена.",
+        tone: "bad",
+      };
+    default:
+      return {
+        message: "Не удалось выполнить транскрибацию. Попробуйте позже.",
+        tone: "bad",
+      };
+  }
+}
+
+function finishVoiceTranscription(button, message, tone = "warn") {
+  if (activeVoiceTranscriptionButton === button) {
+    activeVoiceTranscriptionButton = null;
+  }
+
+  renderVoiceInputControls();
+  setVoiceStatus(button, message, tone);
+}
+
+async function submitVoiceRecording(button, target, chunks, mimeType) {
+  if (!chunks.length) {
+    setVoiceStatus(button, "Запись пустая. Попробуйте ещё раз.", "bad");
+    return;
+  }
+
+  activeVoiceTranscriptionButton = button;
+  renderVoiceInputControls();
+
+  try {
+    const blob = new Blob(chunks, { type: mimeType || chunks[0]?.type || "audio/webm" });
+    const audioBase64 = await blobToBase64(blob);
+    const result = await scheduleSync.transcribeAudio({
+      audioBase64,
+      mimeType: blob.type || mimeType || "audio/webm",
+      language: "ru-RU",
+      prompt: "Focus planner field dictation",
+    });
+
+    if (result.status === "transcribed") {
+      if (insertVoiceTranscript(target, result.text)) {
+        finishVoiceTranscription(button, "Текст добавлен.", "ok");
+      } else {
+        finishVoiceTranscription(button, "Транскрибация завершилась без текста.", "bad");
+      }
+      return;
+    }
+
+    const failure = getVoiceTranscriptionFailureMessage(result.status);
+    finishVoiceTranscription(button, failure.message, failure.tone);
+  } catch {
+    finishVoiceTranscription(button, "Не удалось подготовить запись к отправке.", "bad");
+  }
+}
+
+async function startVoiceRecording(button) {
+  const MediaRecorderConstructor = getMediaRecorderConstructor();
+  const target = resolveVoiceTarget(button);
+
+  if (!isServerVoiceRecordingSupported() || !MediaRecorderConstructor) {
+    setVoiceStatus(button, "Этот браузер не поддерживает запись аудио для транскрибации.", "bad");
+    renderVoiceInputControls();
+    return;
+  }
+
+  if (!target) {
+    setVoiceStatus(button, "Выберите поле, куда вставить расшифрованный текст.", "bad");
+    return;
+  }
+
+  stopActiveVoiceRecognition();
+
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch {
+    setVoiceStatus(button, "Браузер не дал доступ к микрофону.", "bad");
+    return;
+  }
+
+  const mimeType = getVoiceRecordingMimeType();
+  let recorder;
+  let recorderFailed = false;
+
+  try {
+    recorder = new MediaRecorderConstructor(stream, mimeType ? { mimeType } : undefined);
+  } catch {
+    stopVoiceRecordingStream(stream);
+    setVoiceStatus(button, "Не удалось подготовить запись аудио.", "bad");
+    return;
+  }
+
+  activeVoiceRecorder = recorder;
+  activeVoiceRecorderButton = button;
+  activeVoiceRecorderChunks = [];
+
+  recorder.ondataavailable = event => {
+    if (activeVoiceRecorder === recorder && event.data?.size > 0) {
+      activeVoiceRecorderChunks.push(event.data);
+    }
+  };
+
+  recorder.onerror = () => {
+    recorderFailed = true;
+    stopActiveVoiceRecorder();
+  };
+
+  recorder.onstop = () => {
+    const chunks = activeVoiceRecorder === recorder ? [...activeVoiceRecorderChunks] : [];
+    const recordedMimeType = recorder.mimeType || mimeType;
+    clearActiveVoiceRecorder();
+    stopVoiceRecordingStream(stream);
+    renderVoiceInputControls();
+
+    if (recorderFailed) {
+      setVoiceStatus(button, "Не удалось записать аудио. Попробуйте ещё раз.", "bad");
+      return;
+    }
+
+    void submitVoiceRecording(button, target, chunks, recordedMimeType);
+  };
+
+  try {
+    recorder.start();
+  } catch {
+    clearActiveVoiceRecorder();
+    stopVoiceRecordingStream(stream);
+    setVoiceStatus(button, "Не удалось начать запись. Попробуйте ещё раз.", "bad");
+    renderVoiceInputControls();
+    return;
+  }
+
+  activeVoiceRecorderTimer = window.setTimeout(() => {
+    stopActiveVoiceRecorder();
+  }, VOICE_RECORDING_MAX_MS);
+  renderVoiceInputControls();
 }
 
 function startVoiceInput(button) {
@@ -4999,12 +5274,26 @@ async function handleVoiceInputAction(button, openModal) {
     return;
   }
 
+  if (button === activeVoiceRecorderButton) {
+    stopActiveVoiceRecorder();
+    return;
+  }
+
+  if (button === activeVoiceTranscriptionButton) {
+    return;
+  }
+
   if (button === activeVoiceButton) {
     stopActiveVoiceRecognition();
     return;
   }
 
-  startVoiceInput(button);
+  if (getSpeechRecognitionConstructor()) {
+    startVoiceInput(button);
+    return;
+  }
+
+  await startVoiceRecording(button);
 }
 
 function renderSyncState() {
