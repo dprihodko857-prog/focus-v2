@@ -699,6 +699,164 @@ test("admin entitlement endpoint rejects unknown accounts and paid features", as
   }
 });
 
+test("YooKassa webhook endpoint is disabled without a configured token", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({ db, yookassaWebhookToken: "" });
+  const baseUrl = await listen(server);
+  const accountId = "account-yookassa-webhook-disabled";
+  createTestAccount(db, accountId);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/yookassa/webhook?token=focus-yookassa-token-123`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(createYooKassaPaymentNotification({ accountId })),
+    });
+
+    assert.equal(response.status, 404);
+    assert.equal((await response.json()).error, "not_found");
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("YooKassa webhook endpoint requires the configured token", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    yookassaWebhookToken: "focus-yookassa-token-123",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-yookassa-webhook-auth";
+  createTestAccount(db, accountId);
+
+  try {
+    const missingTokenResponse = await fetch(`${baseUrl}/api/yookassa/webhook`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(createYooKassaPaymentNotification({ accountId })),
+    });
+    assert.equal(missingTokenResponse.status, 401);
+    assert.equal((await missingTokenResponse.json()).error, "yookassa_webhook_token_required");
+
+    const wrongTokenResponse = await fetch(`${baseUrl}/api/yookassa/webhook?token=wrong-yookassa-token-123`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(createYooKassaPaymentNotification({ accountId })),
+    });
+    assert.equal(wrongTokenResponse.status, 401);
+    assert.equal((await wrongTokenResponse.json()).error, "yookassa_webhook_token_required");
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("YooKassa payment succeeded webhook activates voice transcription access", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:20:00.000Z",
+    yookassaWebhookToken: "focus-yookassa-token-123",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-yookassa-webhook-success";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/yookassa/webhook?token=focus-yookassa-token-123`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(createYooKassaPaymentNotification({
+        accountId,
+        featureKey: "voice_transcription",
+        paymentId: "2f295ff7-000f-5000-9000-1baf6b9e6d2b",
+      })),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      status: "activated",
+      accountId,
+      featureKey: "voiceTranscription",
+      paymentId: "2f295ff7-000f-5000-9000-1baf6b9e6d2b",
+      checkedAt: "2026-07-12T09:20:00.000Z",
+      entitlements: {
+        voiceTranscription: {
+          enabled: true,
+          source: "yookassa",
+          updatedAt: "2026-07-12T09:20:00.000Z",
+        },
+      },
+    });
+    assert.deepEqual(db.getAccountEntitlements(accountId).voiceTranscription, {
+      enabled: true,
+      source: "yookassa",
+      updatedAt: "2026-07-12T09:20:00.000Z",
+    });
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("YooKassa webhook ignores non-activating or unmatched notifications", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    yookassaWebhookToken: "focus-yookassa-token-123",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-yookassa-webhook-ignored";
+  createTestAccount(db, accountId);
+
+  try {
+    const canceledResponse = await fetch(`${baseUrl}/api/yookassa/webhook`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-yookassa-token": "focus-yookassa-token-123",
+      },
+      body: JSON.stringify(createYooKassaPaymentNotification({
+        accountId,
+        event: "payment.canceled",
+        status: "canceled",
+        paid: false,
+      })),
+    });
+    assert.equal(canceledResponse.status, 200);
+    assert.equal((await canceledResponse.json()).status, "ignored");
+
+    const missingMetadataResponse = await fetch(`${baseUrl}/api/yookassa/webhook?token=focus-yookassa-token-123`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(createYooKassaPaymentNotification({
+        accountId: "",
+      })),
+    });
+    assert.equal(missingMetadataResponse.status, 200);
+    assert.equal((await missingMetadataResponse.json()).reason, "account_missing");
+
+    const unknownAccountResponse = await fetch(`${baseUrl}/api/yookassa/webhook?token=focus-yookassa-token-123`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(createYooKassaPaymentNotification({
+        accountId: "missing-yookassa-webhook-account",
+      })),
+    });
+    assert.equal(unknownAccountResponse.status, 200);
+    assert.equal((await unknownAccountResponse.json()).reason, "account_not_found");
+    assert.equal(db.getAccount("missing-yookassa-webhook-account"), null);
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("subscription checkout reports missing payment provider without activating access", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({
@@ -2168,6 +2326,29 @@ function sendTestJson(response, status, body) {
 function createTestAccount(db, accountId, createdAt = "2026-07-10T00:00:00.000Z") {
   db.createAccount({ accountId, displayName: null, createdAt });
   return accountId;
+}
+
+function createYooKassaPaymentNotification({
+  accountId,
+  featureKey = "voiceTranscription",
+  event = "payment.succeeded",
+  status = "succeeded",
+  paid = true,
+  paymentId = "2f295ff7-000f-5000-9000-000000000001",
+} = {}) {
+  return {
+    type: "notification",
+    event,
+    object: {
+      id: paymentId,
+      status,
+      paid,
+      metadata: {
+        accountId,
+        featureKey,
+      },
+    },
+  };
 }
 
 function createPushSubscription(endpoint) {

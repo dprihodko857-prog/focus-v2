@@ -641,6 +641,97 @@ function createSubscriptionCheckout({ checkoutBaseUrl, accountId, featureKey, ch
   };
 }
 
+function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
+  if (!isPlainObject(notification) || notification.type !== "notification" || typeof notification.event !== "string") {
+    return {
+      statusCode: 400,
+      body: { error: "invalid_yookassa_notification" },
+    };
+  }
+
+  const payment = isPlainObject(notification.object) ? notification.object : {};
+  if (notification.event !== "payment.succeeded" || payment.status !== "succeeded" || payment.paid !== true) {
+    return {
+      statusCode: 200,
+      body: {
+        status: "ignored",
+        reason: "event_not_activating",
+        event: notification.event,
+      },
+    };
+  }
+
+  const { accountId, featureKey } = extractYooKassaPaymentMetadata(payment);
+  if (!accountId) {
+    return {
+      statusCode: 200,
+      body: {
+        status: "ignored",
+        reason: "account_missing",
+        event: notification.event,
+      },
+    };
+  }
+
+  if (!featureKey) {
+    return {
+      statusCode: 200,
+      body: {
+        status: "ignored",
+        reason: "feature_missing",
+        event: notification.event,
+        accountId,
+      },
+    };
+  }
+
+  if (!db.getAccount(accountId)) {
+    return {
+      statusCode: 200,
+      body: {
+        status: "ignored",
+        reason: "account_not_found",
+        event: notification.event,
+        accountId,
+        featureKey,
+      },
+    };
+  }
+
+  const entitlements = {
+    ...db.getAccountEntitlements(accountId),
+    [featureKey]: {
+      enabled: true,
+      source: "yookassa",
+    },
+  };
+  const savedEntitlements = db.setAccountEntitlements({
+    accountId,
+    entitlements,
+    updatedAt: checkedAt,
+  });
+
+  return {
+    statusCode: 200,
+    body: {
+      status: "activated",
+      accountId,
+      featureKey,
+      paymentId: typeof payment.id === "string" ? payment.id : null,
+      checkedAt,
+      entitlements: savedEntitlements,
+    },
+  };
+}
+
+function extractYooKassaPaymentMetadata(payment) {
+  const metadata = isPlainObject(payment?.metadata) ? payment.metadata : {};
+  return {
+    accountId: String(metadata.focusAccountId || metadata.accountId || metadata.account || "").trim(),
+    featureKey: normalizePaidFeatureKey(metadata.focusFeatureKey ?? metadata.featureKey ?? metadata.feature),
+  };
+}
+
 function pruneAccountStateByKeys(stateByAccount, accountId, activeKeys) {
   const accountState = stateByAccount[accountId];
   if (!isPlainObject(accountState)) {
@@ -772,12 +863,13 @@ export function createFocusSyncServer({
   authSessions = new Map(),
   fetchImpl = globalThis.fetch,
   subscriptionCheckoutUrl = normalizeUrl(process.env.FOCUS_SUBSCRIPTION_CHECKOUT_URL || ""),
-  adminToken = normalizeAdminToken(process.env.FOCUS_ADMIN_TOKEN || ""),
+  adminToken = normalizeSecretToken(process.env.FOCUS_ADMIN_TOKEN || ""),
+  yookassaWebhookToken = normalizeSecretToken(process.env.FOCUS_YOOKASSA_WEBHOOK_TOKEN || ""),
   logger = console,
 } = {}) {
   const server = http.createServer(async (request, response) => {
     try {
-      await routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, adminToken });
+      await routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, adminToken, yookassaWebhookToken });
     } catch (error) {
       if (isHttpRequestError(error)) {
         sendJson(response, error.status, {
@@ -805,7 +897,7 @@ export function createFocusSyncServer({
   return server;
 }
 
-async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, adminToken }) {
+async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, adminToken, yookassaWebhookToken }) {
   const url = new URL(request.url || "/", "http://127.0.0.1");
 
   if (request.method === "OPTIONS") {
@@ -1101,6 +1193,32 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       checkedAt,
       entitlements: savedEntitlements,
     });
+    return;
+  }
+
+  if (url.pathname === "/api/yookassa/webhook") {
+    if (!yookassaWebhookToken) {
+      sendJson(response, 404, { error: "not_found" });
+      return;
+    }
+
+    if (!isAuthorizedYooKassaWebhookRequest({ request, url, yookassaWebhookToken })) {
+      sendJson(response, 401, { error: "yookassa_webhook_token_required" });
+      return;
+    }
+
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    const body = await readJsonBody(request);
+    const result = applyYooKassaWebhookNotification({
+      db,
+      notification: body,
+      checkedAt: now(),
+    });
+    sendJson(response, result.statusCode, result.body);
     return;
   }
 
@@ -1591,7 +1709,7 @@ function normalizeUrl(value) {
   }
 }
 
-function normalizeAdminToken(value) {
+function normalizeSecretToken(value) {
   const token = String(value || "").trim();
   return token.length >= 16 ? token : "";
 }
@@ -1608,14 +1726,30 @@ function getAdminTokenFromRequest(request) {
 }
 
 function isAuthorizedAdminRequest(request, adminToken) {
-  const requestToken = getAdminTokenFromRequest(request);
-  if (!requestToken || !adminToken) {
+  return hasMatchingSecretToken(getAdminTokenFromRequest(request), adminToken);
+}
+
+function getYooKassaWebhookTokenFromRequest({ request, url }) {
+  const queryToken = String(url.searchParams.get("token") || url.searchParams.get("webhookToken") || "").trim();
+  if (queryToken) {
+    return queryToken;
+  }
+
+  return String(request.headers["x-focus-yookassa-token"] || "").trim();
+}
+
+function isAuthorizedYooKassaWebhookRequest({ request, url, yookassaWebhookToken }) {
+  return hasMatchingSecretToken(getYooKassaWebhookTokenFromRequest({ request, url }), yookassaWebhookToken);
+}
+
+function hasMatchingSecretToken(requestToken, expectedToken) {
+  if (!requestToken || !expectedToken) {
     return false;
   }
 
   const requestBuffer = Buffer.from(requestToken);
-  const adminBuffer = Buffer.from(adminToken);
-  return requestBuffer.length === adminBuffer.length && timingSafeEqual(requestBuffer, adminBuffer);
+  const expectedBuffer = Buffer.from(expectedToken);
+  return requestBuffer.length === expectedBuffer.length && timingSafeEqual(requestBuffer, expectedBuffer);
 }
 
 function isAuthConfigured(authConfig) {
@@ -2520,7 +2654,7 @@ function isHttpRequestError(error) {
 
 function sendJson(response, status, payload, extraHeaders = {}) {
   response.writeHead(status, {
-    "access-control-allow-headers": "authorization, content-type, x-focus-account, x-focus-admin-token, x-focus-device, x-focus-device-name",
+    "access-control-allow-headers": "authorization, content-type, x-focus-account, x-focus-admin-token, x-focus-device, x-focus-device-name, x-focus-yookassa-token",
     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "access-control-allow-origin": "*",
     "cache-control": "no-store",

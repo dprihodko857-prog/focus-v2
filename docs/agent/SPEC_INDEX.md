@@ -58,4 +58,5 @@ Status: DRAFT
 | PUBLIC-LEGAL-DOCUMENTS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/public-legal-documents.md` | TASK-050 adds public offer and privacy pages for the Focus Plus subscription path. |
 | VOICE-INPUT-FOUNDATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-input-foundation.md` | TASK-051 wires browser speech recognition controls behind the `voiceTranscription` entitlement. |
 | MANUAL-ENTITLEMENT-ACTIVATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/manual-entitlement-activation.md` | TASK-052 adds a secret-gated backend path for operator activation of paid feature access during testing. |
+| YOOKASSA-WEBHOOK-SCAFFOLD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-webhook-scaffold.md` | TASK-053 adds a token-gated YooKassa payment succeeded webhook scaffold for future automatic entitlement activation. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |
