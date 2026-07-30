@@ -22,7 +22,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v82/);
+  assert.match(serviceWorker, /focus-pwa-v83/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -89,9 +89,15 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(indexHtml, /id="paidFeaturesSummary"/);
   assert.match(indexHtml, /id="paidFeaturesList"/);
   assert.match(indexHtml, /id="paidFeaturesRefreshButton"/);
+  assert.match(indexHtml, /id="paidFeatureEventsPanel"/);
+  assert.match(indexHtml, /id="paidFeatureEventsSummary"/);
+  assert.match(indexHtml, /id="paidFeatureEventsList"/);
   assert.match(indexHtml, /id="usefulSubscriptionPanel"/);
   assert.match(appCss, /\.paid-features-panel\s*{/);
   assert.match(appCss, /\.paid-feature-card\s*{/);
+  assert.match(appCss, /\.paid-feature-events\s*{/);
+  assert.match(appCss, /\.paid-feature-event\s*{/);
+  assert.match(appCss, /\.paid-feature-event__status--ok\s*{/);
   assert.match(appCss, /\.secondary-link\s*{/);
   assert.match(appCss, /\.paid-feature-status--ok\s*{/);
   assert.match(appCss, /\.useful-subscription-panel\s*{/);
@@ -102,11 +108,15 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /Условия и цена/);
   assert.match(appJs, /function renderPaidFeatureSurfaces/);
   assert.match(appJs, /async function refreshAccountEntitlements/);
+  assert.match(appJs, /function renderEntitlementEventsPanel/);
+  assert.match(appJs, /async function refreshEntitlementEvents/);
+  assert.match(appJs, /function getEntitlementEventStatus/);
   assert.match(appJs, /async function startPaidFeatureCheckout/);
   assert.match(appJs, /async function checkPendingSubscriptionCheckout/);
   assert.match(appJs, /Действует до/);
   assert.match(appJs, /Истёк/);
   assert.match(appJs, /scheduleSync\.getAccountEntitlements\(\)/);
+  assert.match(appJs, /scheduleSync\.getEntitlementEvents\(\)/);
   assert.match(appJs, /scheduleSync\.createSubscriptionCheckout\(\{ featureKey: feature\.key \}\)/);
   assert.match(appJs, /scheduleSync\.getSubscriptionCheckoutStatus\(\{ paymentId: pendingCheckout\.paymentId \}\)/);
   assert.match(appJs, /checkPendingSubscriptionCheckout\(\{ silent: true \}\)/);

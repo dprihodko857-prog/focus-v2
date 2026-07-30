@@ -94,6 +94,12 @@ let accountEntitlementsState = {
   checkedAt: "",
   entitlements: createDefaultAccountEntitlements(),
 };
+let accountEntitlementEventsState = {
+  status: "idle",
+  accountId: "",
+  checkedAt: "",
+  events: [],
+};
 let paidFeatureCheckoutState = {
   status: "idle",
   featureKey: "",
@@ -111,6 +117,15 @@ function createDefaultAccountEntitlements() {
       expiresAt: null,
       paymentId: null,
     },
+  };
+}
+
+function createEmptyAccountEntitlementEventsState(status = "idle") {
+  return {
+    status,
+    accountId: scheduleSync.peekAccountId(),
+    checkedAt: "",
+    events: [],
   };
 }
 
@@ -4142,6 +4157,7 @@ function resetAccountEntitlementsState(status = "idle") {
     checkedAt: "",
     entitlements: createDefaultAccountEntitlements(),
   };
+  accountEntitlementEventsState = createEmptyAccountEntitlementEventsState(status);
   paidFeatureCheckoutState = {
     status: "idle",
     featureKey: "",
@@ -4290,6 +4306,178 @@ function getPaidFeatureMetaText(entitlement) {
   return `Источник: ${getPaidFeatureSourceLabel(entitlement?.source)}.`;
 }
 
+function normalizeEntitlementEvents(events = []) {
+  if (!Array.isArray(events)) return [];
+
+  return events
+    .filter(event => event && typeof event === "object")
+    .map(event => ({
+      id: String(event.id || ""),
+      featureKey: String(event.featureKey || ""),
+      origin: String(event.origin || ""),
+      status: String(event.status || ""),
+      source: String(event.source || "none"),
+      paymentId: event.paymentId ? String(event.paymentId) : "",
+      paymentStatus: event.paymentStatus ? String(event.paymentStatus) : "",
+      paid: event.paid === true,
+      reason: event.reason ? String(event.reason) : "",
+      expiresAt: event.expiresAt ? String(event.expiresAt) : "",
+      createdAt: event.createdAt ? String(event.createdAt) : "",
+    }));
+}
+
+function getEntitlementEventFeatureTitle(featureKey) {
+  return paidFeatureItems.find(feature => feature.key === featureKey)?.title || "Платная функция";
+}
+
+function getEntitlementEventStatus(event) {
+  if (event.status === "activated") return { label: "Включено", tone: "ok" };
+  if (event.status === "disabled") return { label: "Отключено", tone: "bad" };
+  if (event.status === "failed") return { label: "Ошибка", tone: "bad" };
+  if (event.status === "canceled") return { label: "Отменено", tone: "bad" };
+  if (event.status === "ignored") return { label: "Пропущено", tone: "warn" };
+  return { label: "Событие", tone: "warn" };
+}
+
+function getEntitlementEventOriginLabel(origin) {
+  if (origin === "admin") return "оператор";
+  if (origin === "yookassa-webhook") return "YooKassa webhook";
+  if (origin === "yookassa-status") return "проверка оплаты";
+  return "источник неизвестен";
+}
+
+function getEntitlementEventReasonLabel(reason) {
+  if (reason === "payment_already_applied") return "платёж уже применён";
+  if (reason === "event_not_activating") return "событие не активирует доступ";
+  if (reason === "feature_missing") return "функция не найдена";
+  if (reason === "account_missing") return "аккаунт не найден";
+  if (reason === "account_mismatch") return "аккаунт платежа не совпал";
+  if (reason === "provider_unavailable") return "провайдер недоступен";
+  if (reason === "provider_api_error") return "ошибка провайдера";
+  if (reason === "network_error") return "ошибка сети";
+  return reason;
+}
+
+function getEntitlementEventDetails(event) {
+  const details = [getEntitlementEventOriginLabel(event.origin)];
+
+  if (event.source && event.source !== "none") {
+    details.push(getPaidFeatureSourceLabel(event.source));
+  }
+
+  if (event.paymentStatus) {
+    details.push(`статус оплаты: ${event.paymentStatus}`);
+  }
+
+  if (event.paymentId) {
+    details.push(`платёж: ${event.paymentId.slice(0, 18)}`);
+  }
+
+  if (event.reason) {
+    details.push(getEntitlementEventReasonLabel(event.reason));
+  }
+
+  if (event.expiresAt) {
+    details.push(`до ${formatSyncTimestamp(event.expiresAt)}`);
+  }
+
+  return details.filter(Boolean).join(" · ");
+}
+
+function getEntitlementEventsSummary() {
+  const accountId = scheduleSync.peekAccountId();
+
+  if (!accountId) {
+    return "Подключите аккаунт, чтобы видеть историю доступа к подписочным функциям.";
+  }
+
+  if (accountEntitlementEventsState.status === "loading") {
+    return "Загружаем последние события доступа.";
+  }
+
+  if (accountEntitlementEventsState.status === "offline") {
+    return "Историю доступа сейчас не удалось получить. Повторите после подключения.";
+  }
+
+  if (!accountEntitlementEventsState.events.length) {
+    return "Событий доступа пока нет. Они появятся после активации, отключения или проверки оплаты.";
+  }
+
+  return `Последние события доступа: ${accountEntitlementEventsState.events.length}.`;
+}
+
+function renderEntitlementEventsPanel() {
+  const panel = document.querySelector("#paidFeatureEventsPanel");
+  const summary = document.querySelector("#paidFeatureEventsSummary");
+  const list = document.querySelector("#paidFeatureEventsList");
+
+  if (!panel || !summary || !list) return;
+
+  summary.textContent = getEntitlementEventsSummary();
+
+  if (!scheduleSync.peekAccountId()) {
+    list.innerHTML = `
+      <article class="paid-feature-event paid-feature-event--empty">
+        <div>
+          <strong>Аккаунт не подключён</strong>
+          <small>История доступа хранится на сервере синхронизации для конкретного аккаунта.</small>
+        </div>
+      </article>
+    `;
+    return;
+  }
+
+  if (accountEntitlementEventsState.status === "loading") {
+    list.innerHTML = `
+      <article class="paid-feature-event paid-feature-event--empty">
+        <div>
+          <strong>Загрузка</strong>
+          <small>Проверяем последние изменения доступа.</small>
+        </div>
+      </article>
+    `;
+    return;
+  }
+
+  if (accountEntitlementEventsState.status === "offline") {
+    list.innerHTML = `
+      <article class="paid-feature-event paid-feature-event--empty">
+        <div>
+          <strong>Нет связи</strong>
+          <small>События останутся на сервере и загрузятся после восстановления подключения.</small>
+        </div>
+      </article>
+    `;
+    return;
+  }
+
+  if (!accountEntitlementEventsState.events.length) {
+    list.innerHTML = `
+      <article class="paid-feature-event paid-feature-event--empty">
+        <div>
+          <strong>Журнал пока пуст</strong>
+          <small>После оплаты, webhook, проверки статуса или ручной активации здесь появится запись.</small>
+        </div>
+      </article>
+    `;
+    return;
+  }
+
+  list.innerHTML = accountEntitlementEventsState.events.map(event => {
+    const status = getEntitlementEventStatus(event);
+    const eventTime = event.createdAt ? formatSyncTimestamp(event.createdAt) : "время не указано";
+    return `
+      <article class="paid-feature-event">
+        <div>
+          <strong>${escapeHtml(getEntitlementEventFeatureTitle(event.featureKey))}</strong>
+          <small>${escapeHtml(eventTime)} · ${escapeHtml(getEntitlementEventDetails(event))}</small>
+        </div>
+        <span class="paid-feature-event__status paid-feature-event__status--${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
+      </article>
+    `;
+  }).join("");
+}
+
 function getPaidFeaturesSummary() {
   const accountId = scheduleSync.peekAccountId();
   const activeCount = paidFeatureItems.filter(feature => getPaidFeatureEntitlement(feature.key)?.enabled).length;
@@ -4380,6 +4568,7 @@ function renderUsefulSubscriptionPanel() {
 
 function renderPaidFeatureSurfaces() {
   renderPaidFeaturesPanel();
+  renderEntitlementEventsPanel();
   renderUsefulSubscriptionPanel();
   renderVoiceInputControls();
 }
@@ -4430,6 +4619,49 @@ async function refreshAccountEntitlements({ silent = false } = {}) {
 
   renderPaidFeatureSurfaces();
   return accountEntitlementsState;
+}
+
+async function refreshEntitlementEvents({ silent = false } = {}) {
+  const accountId = scheduleSync.peekAccountId();
+
+  if (!accountId) {
+    accountEntitlementEventsState = createEmptyAccountEntitlementEventsState("local");
+    renderEntitlementEventsPanel();
+    return accountEntitlementEventsState;
+  }
+
+  accountEntitlementEventsState = {
+    ...accountEntitlementEventsState,
+    status: "loading",
+    accountId,
+  };
+  renderEntitlementEventsPanel();
+
+  try {
+    const result = await scheduleSync.getEntitlementEvents();
+    accountEntitlementEventsState = {
+      status: result.status || "ok",
+      accountId: result.accountId || accountId,
+      checkedAt: new Date().toISOString(),
+      events: normalizeEntitlementEvents(result.events),
+    };
+    if (!silent && accountEntitlementEventsState.status !== "offline") {
+      setSyncStatus("История доступа к подписочным функциям обновлена.");
+    }
+  } catch {
+    accountEntitlementEventsState = {
+      status: "offline",
+      accountId,
+      checkedAt: "",
+      events: [],
+    };
+    if (!silent) {
+      setSyncStatus("Не удалось загрузить историю доступа. Повторите после подключения.");
+    }
+  }
+
+  renderEntitlementEventsPanel();
+  return accountEntitlementEventsState;
 }
 
 function setPaidFeatureCheckoutState(patch) {
@@ -4493,6 +4725,7 @@ async function checkPendingSubscriptionCheckout({ silent = true } = {}) {
     }
 
     await refreshAccountEntitlements({ silent: true });
+    await refreshEntitlementEvents({ silent: true });
 
     if (!silent) {
       setSyncStatus(`Оплата подтверждена. ${featureTitle} включён для этого аккаунта.`);
@@ -4515,6 +4748,11 @@ async function checkPendingSubscriptionCheckout({ silent = true } = {}) {
   }
 
   renderPaidFeatureSurfaces();
+  if (result.status && result.status !== "pending") {
+    refreshEntitlementEvents({ silent: true }).catch(() => {
+      renderEntitlementEventsPanel();
+    });
+  }
   return result;
 }
 
@@ -4882,6 +5120,9 @@ async function refreshAuthSession() {
   if (scheduleSync.peekAccountId()) {
     refreshAccountEntitlements({ silent: true }).catch(() => {
       renderPaidFeatureSurfaces();
+    });
+    refreshEntitlementEvents({ silent: true }).catch(() => {
+      renderEntitlementEventsPanel();
     });
   } else {
     resetAccountEntitlementsState("local");
@@ -5391,6 +5632,7 @@ async function ensureSyncAccountReady() {
   renderSyncState();
   await refreshSyncAccountProfile();
   await refreshAccountEntitlements({ silent: true });
+  await refreshEntitlementEvents({ silent: true });
   await syncSavedSchedules();
   await syncSavedTasks();
   await syncSavedNotes();
@@ -5450,6 +5692,7 @@ async function connectSyncAccount() {
     renderSyncState();
     await refreshSyncAccountProfile();
     await refreshAccountEntitlements({ silent: true });
+    await refreshEntitlementEvents({ silent: true });
     if (result.status === "pulled") {
       setSyncStatus("Готово. Данные с другого устройства загружены.");
     } else {
@@ -6137,6 +6380,9 @@ function bindControls() {
       refreshAccountEntitlements({ silent: true }).catch(() => {
         renderPaidFeatureSurfaces();
       });
+      refreshEntitlementEvents({ silent: true }).catch(() => {
+        renderEntitlementEventsPanel();
+      });
       refreshReminderPushDiagnostics().catch(() => {
         renderDeviceCheck();
       });
@@ -6622,6 +6868,7 @@ function bindControls() {
 
   document.querySelector("#paidFeaturesRefreshButton")?.addEventListener("click", () => {
     refreshAccountEntitlements();
+    refreshEntitlementEvents({ silent: true });
   });
 
   document.querySelector("#syncConnectButton")?.addEventListener("click", () => {
@@ -6881,6 +7128,8 @@ renderPaidFeatureSurfaces();
 const controls = bindControls();
 refreshAccountEntitlements({ silent: true }).then(() => {
   return checkPendingSubscriptionCheckout({ silent: true });
+}).then(() => {
+  return refreshEntitlementEvents({ silent: true });
 }).catch(() => {
   renderPaidFeatureSurfaces();
 });
@@ -6924,6 +7173,7 @@ function runOnlineRecoverySync() {
     refreshReminderPushStatus(),
     checkPendingSubscriptionCheckout({ silent: true }),
     refreshAccountEntitlements({ silent: true }),
+    refreshEntitlementEvents({ silent: true }),
   ]).finally(() => {
     pendingOnlineRecoverySync = null;
   });

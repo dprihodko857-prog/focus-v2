@@ -3097,3 +3097,66 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Backend records recent entitlement events for admin and YooKassa terminal outcomes, and sync clients can read the current account audit log.
 - commit_status: committed
 - notes: Focused server/client/PWA checks passed and `npm.cmd run test` passed 175/175 on 2026-07-30. No deployment or git push.
+
+## TASK-058
+
+- title: Show entitlement audit diagnostics in Settings
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_ui_diagnostics
+- priority: high
+- source: owner postponed deployment and asked to continue project work locally; TASK-057 exposed account-scoped entitlement events but no UI consumed them yet
+- spec_reference: `docs/specs/entitlement-audit-ui.md`
+- spec_status: implemented_local_committed
+- goal: show recent paid feature access events in the existing Settings paid features panel.
+- out_of_scope:
+  - backend event storage changes
+  - public audit page
+  - admin dashboard
+  - event export
+  - live YooKassa calls
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - Settings contains a paid feature access event diagnostics block
+  - no-account, loading, offline, empty, and populated states render safely
+  - account disconnect and account switch do not leave stale event history visible
+  - event status, origin, payment status, reason, creation time, and expiration are formatted for humans
+  - Settings refresh and online recovery reload event history
+  - Useful subscription panel behavior remains product-focused and unchanged
+  - service worker cache is bumped to `focus-pwa-v83`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs tests/legal-pages.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_ui_diagnostics task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 57
+- stop_conditions:
+  - implementation requires backend/API changes
+  - implementation requires live provider credentials or external calls
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/index.html`
+  - `public/css/app.css`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - static PWA tests
+  - Project Maestro memory
+- dependencies:
+  - entitlement audit log
+  - paid feature UI shell
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Settings now shows account-scoped paid feature access events from `getEntitlementEvents()` and resets the history state with account lifecycle changes.
+- commit_status: committed
+- notes: Syntax checks passed, targeted PWA/static tests passed 49/49, and `npm.cmd run test` passed 175/175 on 2026-07-30. No deployment or git push.

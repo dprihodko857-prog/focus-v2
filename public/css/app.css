@@ -2685,6 +2685,99 @@ h3 {
   justify-items: end;
 }
 
+.paid-feature-events {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(47, 42, 38, .1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .18);
+}
+
+.paid-feature-events__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.paid-feature-events h3 {
+  margin: 4px 0;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.16;
+}
+
+.paid-feature-events p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.4;
+}
+
+.paid-feature-events__list {
+  display: grid;
+  gap: 8px;
+}
+
+.paid-feature-event {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 54px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, .32);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .18);
+}
+
+.paid-feature-event strong,
+.paid-feature-event small {
+  display: block;
+}
+
+.paid-feature-event strong {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.paid-feature-event small {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.paid-feature-event__status {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(216, 154, 61, .24);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 820;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.paid-feature-event__status--ok {
+  background: rgba(95, 144, 115, .22);
+}
+
+.paid-feature-event__status--bad {
+  background: rgba(217, 107, 95, .22);
+}
+
+.paid-feature-event--empty {
+  grid-template-columns: 1fr;
+}
+
 .secondary-link {
   display: inline-flex;
   min-height: 42px;
@@ -4016,6 +4109,7 @@ h3 {
   .sync-device-card,
   .sync-data-item,
   .paid-feature-card,
+  .paid-feature-event,
   .useful-subscription-panel {
     grid-template-columns: 1fr;
     align-items: stretch;
@@ -4035,6 +4129,7 @@ h3 {
 
   .sync-device-card__badge,
   .paid-feature-card__side,
+  .paid-feature-event__status,
   .paid-feature-status {
     justify-self: start;
   }
