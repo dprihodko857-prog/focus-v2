@@ -2685,6 +2685,28 @@ h3 {
   justify-items: end;
 }
 
+.secondary-link {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border: 1px solid rgba(255, 255, 255, .36);
+  border-radius: 999px;
+  color: var(--text);
+  background: rgba(255, 252, 244, .32);
+  font-size: 14px;
+  font-weight: 820;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.secondary-link--compact {
+  min-height: 34px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
 .paid-feature-status {
   padding: 6px 9px;
   border-radius: 999px;
@@ -2770,6 +2792,11 @@ h3 {
 .useful-subscription-panel small {
   margin-top: 6px;
   color: var(--text-muted);
+}
+
+.useful-subscription-panel__actions {
+  display: grid;
+  gap: 8px;
 }
 
 .useful-grid {

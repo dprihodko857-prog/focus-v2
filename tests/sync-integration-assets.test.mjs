@@ -22,7 +22,8 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v76/);
+  assert.match(serviceWorker, /focus-pwa-v77/);
+  assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/requisites\.html"/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
@@ -81,10 +82,14 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(indexHtml, /id="usefulSubscriptionPanel"/);
   assert.match(appCss, /\.paid-features-panel\s*{/);
   assert.match(appCss, /\.paid-feature-card\s*{/);
+  assert.match(appCss, /\.secondary-link\s*{/);
   assert.match(appCss, /\.paid-feature-status--ok\s*{/);
   assert.match(appCss, /\.useful-subscription-panel\s*{/);
   assert.match(appJs, /const paidFeatureItems = \[/);
   assert.match(appJs, /key:\s*"voiceTranscription"/);
+  assert.match(appJs, /priceLabel:\s*"Focus Plus · 199 ₽\/мес"/);
+  assert.match(appJs, /subscriptionUrl:\s*"\/subscription\.html"/);
+  assert.match(appJs, /Условия и цена/);
   assert.match(appJs, /function renderPaidFeatureSurfaces/);
   assert.match(appJs, /async function refreshAccountEntitlements/);
   assert.match(appJs, /async function startPaidFeatureCheckout/);

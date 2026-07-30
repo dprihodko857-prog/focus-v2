@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const requisitesHtml = readFileSync("public/requisites.html", "utf8");
+const subscriptionHtml = readFileSync("public/subscription.html", "utf8");
 const serviceWorker = readFileSync("public/service-worker.js", "utf8");
 
 test("public requisites page exposes merchant legal details", () => {
@@ -17,6 +18,21 @@ test("public requisites page exposes merchant legal details", () => {
 });
 
 test("service worker caches the public requisites page", () => {
-  assert.match(serviceWorker, /focus-pwa-v76/);
+  assert.match(serviceWorker, /focus-pwa-v77/);
   assert.match(serviceWorker, /"\/requisites\.html"/);
+});
+
+test("public subscription page exposes Focus Plus price and service details", () => {
+  assert.match(subscriptionHtml, /<title>Подписка Focus Plus - Focus<\/title>/);
+  assert.match(subscriptionHtml, /Focus Plus/);
+  assert.match(subscriptionHtml, /199 ₽/);
+  assert.match(subscriptionHtml, /Голосовой ввод/);
+  assert.match(subscriptionHtml, /транскрибации речи в текст/);
+  assert.match(subscriptionHtml, /href="\/requisites\.html"/);
+  assert.match(subscriptionHtml, /href="\/\?open=useful"/);
+  assert.doesNotMatch(subscriptionHtml, /<script/i);
+});
+
+test("service worker caches the public subscription page", () => {
+  assert.match(serviceWorker, /"\/subscription\.html"/);
 });

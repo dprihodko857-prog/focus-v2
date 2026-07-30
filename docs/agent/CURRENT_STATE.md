@@ -59,6 +59,7 @@ Status: DRAFT
 - TASK-046 is implemented locally: Settings and Useful now show subscription-gated `voiceTranscription` status from account entitlements, including no-account, offline, locked, and active UI states; service worker cache is `focus-pwa-v74`.
 - TASK-047 is implemented locally: backend/client/UI now expose a provider-ready subscription checkout path for `voiceTranscription` while leaving entitlement activation to a future provider webhook/admin step; service worker cache is `focus-pwa-v75`.
 - TASK-048 is implemented and deployed: a public requisites page for YooKassa onboarding is available at `https://focus-v2.dmnao83.ru/requisites.html`; service worker cache is `focus-pwa-v76`.
+- TASK-049 is implemented locally: a public Focus Plus tariff page is available at `/subscription.html`, paid feature UI links to price/terms, and service worker cache is `focus-pwa-v77`.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
 
 ## In Progress
@@ -80,9 +81,9 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-048 targeted checks passed locally 43/43 and `npm.cmd run test` passed 148/148. Public requisites deploy on 2026-07-30 uploaded `requisites.html` and `service-worker.js`; the page returned 200, app returned 200, backend health returned `{"ok":true,"service":"focus-sync"}`.
+- Current result: local Git repository exists; TASK-049 focused checks passed locally 45/45 and `npm.cmd run test` passed 150/150. Public requisites deploy on 2026-07-30 uploaded `requisites.html` and `service-worker.js`; the page returned 200, app returned 200, backend health returned `{"ok":true,"service":"focus-sync"}`.
 
 ## Open Questions
 
-- The next product/runtime task is continuing YooKassa/payment-provider setup and webhook activation after the public requisites URL is accepted.
+- The next product/runtime task is either deploying the Focus Plus tariff page for YooKassa review screenshots, or continuing local voice transcription UI/prototype work while YooKassa verification is pending.
 - Future backend/deployment changes still require a separate owner deployment approval.

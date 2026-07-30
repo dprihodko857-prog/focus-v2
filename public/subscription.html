@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="description" content="Тариф Focus Plus: подписка на голосовой ввод и дополнительные функции планировщика Focus." />
+  <meta name="theme-color" content="#1f2937" />
+  <meta name="robots" content="index, follow" />
+  <title>Подписка Focus Plus - Focus</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-v2-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon-v2.png" />
+  <style>
+    :root {
+      --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg: #111827;
+      --panel: rgba(255, 252, 244, .86);
+      --panel-soft: rgba(255, 252, 244, .68);
+      --text: #1f1a16;
+      --muted: #4c433a;
+      --accent: #f97316;
+      --accent-soft: #fb923c;
+      --border: rgba(255, 255, 255, .64);
+      --shadow: 0 30px 86px rgba(0, 0, 0, .24);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: var(--font-sans);
+      background:
+        linear-gradient(120deg, rgba(17, 24, 39, .84), rgba(249, 115, 22, .2)),
+        url("/assets/months/large/july.webp") center / cover fixed;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: rgba(17, 24, 39, .22);
+      backdrop-filter: blur(14px) saturate(112%);
+      content: "";
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .pricing-page {
+      width: min(100%, 1120px);
+      margin: 0 auto;
+      padding: clamp(20px, 4vw, 52px);
+    }
+
+    .pricing-card {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 32px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(26px) saturate(128%);
+    }
+
+    .pricing-head {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 18px;
+      align-items: center;
+      padding: clamp(22px, 4vw, 34px);
+      border-bottom: 1px solid rgba(31, 26, 22, .14);
+      background:
+        radial-gradient(circle at 100% 0, rgba(249, 115, 22, .2), transparent 34%),
+        rgba(255, 252, 244, .36);
+    }
+
+    .brand-mark {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: #10151e url("/assets/focus-logo-v2.png") center / 100% 100% no-repeat;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+    }
+
+    .eyebrow {
+      display: block;
+      color: var(--accent);
+      font-size: .86rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 0;
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.05;
+    }
+
+    .home-link,
+    .primary-link,
+    .secondary-link {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      font-weight: 850;
+      text-decoration: none;
+    }
+
+    .home-link,
+    .secondary-link {
+      padding: 10px 18px;
+      border: 1px solid rgba(31, 26, 22, .14);
+      background: rgba(255, 252, 244, .58);
+    }
+
+    .primary-link {
+      padding: 13px 22px;
+      border: 1px solid rgba(255, 255, 255, .36);
+      color: #fffaf4;
+      background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+      box-shadow: 0 18px 36px rgba(249, 115, 22, .22);
+    }
+
+    .pricing-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(300px, .95fr);
+      gap: 22px;
+      padding: clamp(22px, 4vw, 34px);
+    }
+
+    .offer,
+    .plan,
+    .details-section {
+      border: 1px solid rgba(255, 255, 255, .7);
+      border-radius: 24px;
+      background: var(--panel-soft);
+    }
+
+    .offer,
+    .plan {
+      padding: 24px;
+    }
+
+    .offer h2 {
+      margin-bottom: 12px;
+      font-size: clamp(1.65rem, 3vw, 2.3rem);
+      line-height: 1.08;
+    }
+
+    .offer p {
+      margin-bottom: 18px;
+      color: var(--muted);
+      font-size: 1.05rem;
+      font-weight: 700;
+      line-height: 1.5;
+    }
+
+    .feature-list {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .feature-list li {
+      display: grid;
+      grid-template-columns: 14px 1fr;
+      gap: 10px;
+      align-items: start;
+      color: var(--text);
+      font-weight: 760;
+      line-height: 1.42;
+    }
+
+    .feature-list li::before {
+      width: 9px;
+      height: 9px;
+      margin-top: .45em;
+      border-radius: 50%;
+      background: var(--accent);
+      content: "";
+    }
+
+    .plan {
+      display: grid;
+      gap: 18px;
+      align-content: start;
+      background:
+        radial-gradient(circle at 100% 0, rgba(249, 115, 22, .2), transparent 38%),
+        var(--panel-soft);
+    }
+
+    .plan h2 {
+      margin-bottom: 0;
+      font-size: 1.35rem;
+      line-height: 1.16;
+    }
+
+    .price {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .price strong {
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      line-height: .95;
+    }
+
+    .price span {
+      color: var(--muted);
+      font-size: 1.05rem;
+      font-weight: 800;
+    }
+
+    .plan-note {
+      color: var(--muted);
+      font-size: .98rem;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .plan-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .details-section {
+      grid-column: 1 / -1;
+      padding: 20px;
+    }
+
+    .details-section h2 {
+      margin-bottom: 16px;
+      font-size: 1.24rem;
+      line-height: 1.2;
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .detail-item {
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, .54);
+      border-radius: 18px;
+      background: rgba(255, 252, 244, .42);
+    }
+
+    .detail-item strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 1rem;
+      line-height: 1.2;
+    }
+
+    .detail-item span {
+      display: block;
+      color: var(--muted);
+      font-size: .92rem;
+      font-weight: 700;
+      line-height: 1.38;
+    }
+
+    .pricing-foot {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      align-items: center;
+      padding: 0 clamp(22px, 4vw, 34px) clamp(22px, 4vw, 34px);
+      color: var(--muted);
+      font-size: .95rem;
+      font-weight: 680;
+    }
+
+    .pricing-foot a {
+      font-weight: 850;
+    }
+
+    @media (max-width: 780px) {
+      .pricing-page {
+        padding: 12px;
+      }
+
+      .pricing-card {
+        border-radius: 24px;
+      }
+
+      .pricing-head,
+      .pricing-body {
+        grid-template-columns: 1fr;
+      }
+
+      .pricing-head {
+        gap: 12px;
+      }
+
+      .brand-mark {
+        width: 52px;
+        height: 52px;
+      }
+
+      .home-link,
+      .primary-link,
+      .secondary-link {
+        width: 100%;
+      }
+
+      .details-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .plan-actions {
+        display: grid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="pricing-page">
+    <article class="pricing-card" aria-labelledby="pageTitle">
+      <header class="pricing-head">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <span class="eyebrow">Focus Plus</span>
+          <h1 id="pageTitle">Подписка на дополнительные функции</h1>
+        </div>
+        <a class="home-link" href="/">Открыть приложение</a>
+      </header>
+
+      <div class="pricing-body">
+        <section class="offer" aria-labelledby="offerTitle">
+          <h2 id="offerTitle">Голосовой ввод для планировщика Focus</h2>
+          <p>
+            Подписка открывает функцию транскрибации речи в текст. Пользователь сможет надиктовывать расписания, дела, заметки и записи личного дневника вместо ручного ввода.
+          </p>
+          <ul class="feature-list">
+            <li>Распознавание речи при создании расписаний, дел, заметок и дневниковых записей.</li>
+            <li>Синхронизация доступа между подключенными устройствами одного аккаунта.</li>
+            <li>Будущие дополнительные сервисы раздела «Полезное» будут подключаться в рамках этой подписочной модели.</li>
+          </ul>
+        </section>
+
+        <aside class="plan" aria-label="Тариф Focus Plus">
+          <div>
+            <span class="eyebrow">Тариф</span>
+            <h2>Focus Plus</h2>
+          </div>
+          <div class="price">
+            <strong>199 ₽</strong>
+            <span>в месяц</span>
+          </div>
+          <p class="plan-note">
+            Оплата будет доступна после подключения платежного провайдера. Доступ активируется для аккаунта после подтверждения платежа.
+          </p>
+          <div class="plan-actions">
+            <a class="primary-link" href="/?open=useful">Перейти к функции</a>
+            <a class="secondary-link" href="/requisites.html">Реквизиты</a>
+          </div>
+        </aside>
+
+        <section class="details-section" aria-labelledby="detailsTitle">
+          <h2 id="detailsTitle">Условия тарифа</h2>
+          <div class="details-grid">
+            <div class="detail-item">
+              <strong>Период</strong>
+              <span>1 месяц доступа к платным функциям сервиса Focus.</span>
+            </div>
+            <div class="detail-item">
+              <strong>Доступ</strong>
+              <span>Функция привязывается к аккаунту Focus и доступна на подключенных устройствах.</span>
+            </div>
+            <div class="detail-item">
+              <strong>Активация</strong>
+              <span>Доступ включается только после подтвержденной оплаты и обработки серверного уведомления.</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="pricing-foot">
+        <span>Дата публикации страницы: 30 июля 2026 г.</span>
+        <span>·</span>
+        <a href="/requisites.html">Реквизиты исполнителя</a>
+      </footer>
+    </article>
+  </main>
+</body>
+</html>

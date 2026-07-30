@@ -2538,3 +2538,61 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Public requisites page is ready for deployment at `/requisites.html`; service worker cache is `focus-pwa-v76`.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-30. No deployment or git push.
+
+## TASK-049
+
+- title: Add public Focus Plus subscription page
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: legal_product_static_page
+- priority: high
+- source: owner completed YooKassa registration and asked whether to continue project work while verification is pending
+- spec_reference: `docs/specs/public-subscription-page.md`
+- spec_status: implemented_local_committed
+- goal: expose public product and price information for Focus Plus and link paid feature UI to it.
+- out_of_scope:
+  - production deploy
+  - real YooKassa checkout
+  - webhook activation
+  - formal offer, refund, cancellation, invoice, or tax pages
+  - actual speech recognition or microphone capture
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `public/subscription.html` exists as a standalone public tariff page
+  - page includes Focus Plus, `199 ₽/мес`, voice transcription description, and requisites link
+  - paid feature cards in Settings and Useful include a visible `Условия и цена` link
+  - service worker cache includes `/subscription.html`
+  - existing focused tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small legal_product_static_page task
+- file_limit: up to 12 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 48
+- stop_conditions:
+  - owner rejects the working `199 ₽/мес` price
+  - YooKassa requires a formal offer/refund/cancellation document before acceptance
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/subscription.html`
+  - `public/js/app.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - legal/static page tests
+  - Project Maestro memory
+- dependencies:
+  - existing paid feature UI shell
+  - public requisites page
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Public Focus Plus tariff page is ready at `/subscription.html`, and paid feature UI links to its price/terms; service worker cache is `focus-pwa-v77`.
+- commit_status: committed
+- notes: Focused checks passed on 2026-07-30. No deployment or git push.

@@ -83,6 +83,8 @@ const paidFeatureItems = [
     title: "Голосовой ввод",
     shortTitle: "Диктовка",
     description: "Надиктовывайте расписания, дела, заметки и записи дневника вместо ручного ввода.",
+    priceLabel: "Focus Plus · 199 ₽/мес",
+    subscriptionUrl: "/subscription.html",
   },
 ];
 
@@ -4300,10 +4302,11 @@ function renderPaidFeaturesPanel() {
         <div class="paid-feature-card__main">
           <strong><i aria-hidden="true"></i>${escapeHtml(feature.title)}</strong>
           <span>${escapeHtml(feature.description)}</span>
-          <small>${escapeHtml(status.detail)} ${escapeHtml(updatedText)}</small>
+          <small>${escapeHtml(feature.priceLabel)}. ${escapeHtml(status.detail)} ${escapeHtml(updatedText)}</small>
         </div>
         <div class="paid-feature-card__side">
           <span class="paid-feature-status paid-feature-status--${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
+          <a class="secondary-link secondary-link--compact" href="${escapeHtml(feature.subscriptionUrl)}">Условия и цена</a>
           <button class="secondary-button secondary-button--compact" type="button" data-paid-feature-action="${escapeHtml(feature.key)}"${status.disabled ? " disabled" : ""}>${escapeHtml(status.actionLabel)}</button>
         </div>
       </article>
@@ -4329,9 +4332,12 @@ function renderUsefulSubscriptionPanel() {
       <span class="modal-kicker">Подписка</span>
       <h3>${escapeHtml(feature.title)}</h3>
       <p>${escapeHtml(feature.description)}</p>
-      <small>${escapeHtml(status.detail)}</small>
+      <small>${escapeHtml(feature.priceLabel)}. ${escapeHtml(status.detail)}</small>
     </div>
-    <button class="secondary-button" type="button" data-paid-feature-action="${escapeHtml(feature.key)}"${status.disabled ? " disabled" : ""}>${escapeHtml(status.actionLabel)}</button>
+    <div class="useful-subscription-panel__actions">
+      <a class="secondary-link" href="${escapeHtml(feature.subscriptionUrl)}">Условия и цена</a>
+      <button class="secondary-button" type="button" data-paid-feature-action="${escapeHtml(feature.key)}"${status.disabled ? " disabled" : ""}>${escapeHtml(status.actionLabel)}</button>
+    </div>
   `;
 }
 

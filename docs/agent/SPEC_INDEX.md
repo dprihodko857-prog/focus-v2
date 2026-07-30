@@ -54,4 +54,5 @@ Status: DRAFT
 | PAID-FEATURE-UI-SHELL-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/paid-feature-ui-shell.md` | TASK-046 adds Settings and Useful UI shells for subscription-gated voice transcription access. |
 | SUBSCRIPTION-CHECKOUT-FOUNDATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/subscription-checkout-foundation.md` | TASK-047 adds a provider-ready checkout API/client/UI path for paid feature subscription activation. |
 | PUBLIC-REQUISITES-PAGE-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/public-requisites-page.md` | TASK-048 adds a public merchant requisites page for YooKassa onboarding. |
+| PUBLIC-SUBSCRIPTION-PAGE-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/public-subscription-page.md` | TASK-049 adds a public Focus Plus tariff page and links paid feature UI to price/terms. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |
