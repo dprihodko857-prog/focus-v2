@@ -196,3 +196,7 @@ Keep entries short and factual.
 | 2026-07-30 | TASK-047 | Implemented subscription checkout foundation locally. | Backend/client/UI now handle provider-ready checkout for `voiceTranscription`; service worker cache is `focus-pwa-v75`. | DONE | Run checks and commit locally; deploy remains separate. |
 | 2026-07-30 | TASK-047 | Completed subscription checkout foundation checks. | Syntax checks passed, targeted tests passed 116/116, and `npm.cmd run test` passed 146/146. | DONE | Commit locally; deploy remains separate. |
 | 2026-07-30 | TASK-047 | Committed subscription checkout foundation locally. | Local Git commit created after checks. | DONE | Deployment remains separate. |
+| 2026-07-30 | TASK-048 | Started public requisites page for YooKassa. | YooKassa onboarding requires a public page with INN and OGRNIP. | IN_PROGRESS | Add a standalone static page, cache it, run checks, and commit locally. |
+| 2026-07-30 | TASK-048 | Implemented public requisites page locally. | Added `public/requisites.html`, included owner-provided merchant details, and bumped service worker cache to `focus-pwa-v76`. | DONE | Run full checks and commit locally; deploy remains separate. |
+| 2026-07-30 | TASK-048 | Completed public requisites page checks. | `node --check public/service-worker.js` passed and targeted tests passed 43/43. | DONE | Run full test suite and commit locally. |
+| 2026-07-30 | TASK-048 | Completed full public requisites page regression. | `npm.cmd run test` passed 148/148. | DONE | Commit locally; deploy remains separate. |

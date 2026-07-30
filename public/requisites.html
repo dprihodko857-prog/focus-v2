@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="description" content="Реквизиты индивидуального предпринимателя для сервиса Focus." />
+  <meta name="theme-color" content="#1f2937" />
+  <meta name="robots" content="index, follow" />
+  <title>Реквизиты - Focus</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-v2-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon-v2.png" />
+  <style>
+    :root {
+      --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg: #111827;
+      --panel: rgba(255, 252, 244, .86);
+      --panel-soft: rgba(255, 252, 244, .68);
+      --text: #1f1a16;
+      --muted: #4c433a;
+      --accent: #f97316;
+      --border: rgba(255, 255, 255, .64);
+      --shadow: 0 30px 86px rgba(0, 0, 0, .24);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: var(--font-sans);
+      background:
+        linear-gradient(120deg, rgba(17, 24, 39, .82), rgba(249, 115, 22, .2)),
+        url("/assets/months/large/july.webp") center / cover fixed;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: rgba(17, 24, 39, .24);
+      backdrop-filter: blur(14px) saturate(112%);
+      content: "";
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .legal-page {
+      width: min(100%, 1040px);
+      margin: 0 auto;
+      padding: clamp(20px, 4vw, 52px);
+    }
+
+    .legal-card {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 32px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(26px) saturate(128%);
+    }
+
+    .legal-head {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 18px;
+      align-items: center;
+      padding: clamp(22px, 4vw, 34px);
+      border-bottom: 1px solid rgba(31, 26, 22, .14);
+      background: rgba(255, 252, 244, .36);
+    }
+
+    .brand-mark {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: #10151e url("/assets/focus-logo-v2.png") center / 100% 100% no-repeat;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+    }
+
+    .eyebrow {
+      display: block;
+      color: var(--accent);
+      font-size: .86rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    h1 {
+      margin: 5px 0 0;
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.05;
+    }
+
+    .home-link {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 18px;
+      border: 1px solid rgba(31, 26, 22, .14);
+      border-radius: 999px;
+      background: rgba(255, 252, 244, .58);
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .legal-body {
+      display: grid;
+      gap: 22px;
+      padding: clamp(22px, 4vw, 34px);
+    }
+
+    .notice,
+    .details-section {
+      border: 1px solid rgba(255, 255, 255, .7);
+      border-radius: 24px;
+      background: var(--panel-soft);
+    }
+
+    .notice {
+      padding: 18px 20px;
+      color: var(--muted);
+      font-weight: 680;
+      line-height: 1.45;
+    }
+
+    .details-section {
+      padding: 20px;
+    }
+
+    .details-section h2 {
+      margin: 0 0 16px;
+      font-size: 1.24rem;
+      line-height: 1.2;
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: minmax(160px, 240px) 1fr;
+      gap: 12px 18px;
+      margin: 0;
+    }
+
+    .details-grid dt {
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .details-grid dd {
+      margin: 0;
+      color: var(--text);
+      font-weight: 680;
+      line-height: 1.42;
+      overflow-wrap: anywhere;
+    }
+
+    .legal-foot {
+      padding: 0 clamp(22px, 4vw, 34px) clamp(22px, 4vw, 34px);
+      color: var(--muted);
+      font-size: .95rem;
+      font-weight: 680;
+    }
+
+    @media (max-width: 680px) {
+      .legal-page {
+        padding: 12px;
+      }
+
+      .legal-card {
+        border-radius: 24px;
+      }
+
+      .legal-head {
+        grid-template-columns: auto 1fr;
+      }
+
+      .home-link {
+        grid-column: 1 / -1;
+        width: 100%;
+      }
+
+      .details-grid {
+        grid-template-columns: 1fr;
+        gap: 5px 0;
+      }
+
+      .details-grid dd + dt {
+        margin-top: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="legal-page">
+    <article class="legal-card" aria-labelledby="pageTitle">
+      <header class="legal-head">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <span class="eyebrow">Focus</span>
+          <h1 id="pageTitle">Реквизиты</h1>
+        </div>
+        <a class="home-link" href="/">Открыть приложение</a>
+      </header>
+
+      <div class="legal-body">
+        <p class="notice">
+          На странице указаны реквизиты индивидуального предпринимателя, который предоставляет доступ к дополнительным функциям сервиса Focus.
+        </p>
+
+        <section class="details-section" aria-labelledby="businessTitle">
+          <h2 id="businessTitle">Индивидуальный предприниматель</h2>
+          <dl class="details-grid">
+            <dt>Наименование</dt>
+            <dd>Индивидуальный предприниматель Приходько Дмитрий Геннадьевич</dd>
+
+            <dt>ИНН</dt>
+            <dd>290130112170</dd>
+
+            <dt>ОГРНИП</dt>
+            <dd>325290000016639</dd>
+
+            <dt>Юридический адрес</dt>
+            <dd>166001, Архангельская обл., г. Нарьян-Мар, ул. Рабочая, д. 17, корп. Б, кв. 11</dd>
+
+            <dt>Фактический адрес</dt>
+            <dd>166001, Архангельская обл., г. Нарьян-Мар, ул. Рабочая, д. 17, корп. Б, кв. 11</dd>
+          </dl>
+        </section>
+
+        <section class="details-section" aria-labelledby="bankTitle">
+          <h2 id="bankTitle">Банковские реквизиты</h2>
+          <dl class="details-grid">
+            <dt>Расчетный счет</dt>
+            <dd>40802810104710000937</dd>
+
+            <dt>Банк</dt>
+            <dd>Отделение № 8637 СберБанка РФ, г. Архангельск</dd>
+
+            <dt>БИК</dt>
+            <dd>041117601</dd>
+
+            <dt>Корреспондентский счет</dt>
+            <dd>30101810100000000601</dd>
+          </dl>
+        </section>
+
+        <section class="details-section" aria-labelledby="contactsTitle">
+          <h2 id="contactsTitle">Контакты</h2>
+          <dl class="details-grid">
+            <dt>Адрес</dt>
+            <dd>166001, Архангельская обл., г. Нарьян-Мар, ул. Рабочая, д. 17, корп. Б, кв. 11</dd>
+
+            <dt>E-mail</dt>
+            <dd><a href="mailto:dmprihodko@mail.ru">dmprihodko@mail.ru</a></dd>
+
+            <dt>Телефон</dt>
+            <dd><a href="tel:+79115535566">+7 911 553-55-66</a></dd>
+
+            <dt>Руководитель</dt>
+            <dd>Приходько Дмитрий Геннадьевич</dd>
+          </dl>
+        </section>
+      </div>
+
+      <footer class="legal-foot">
+        Дата публикации страницы: 30 июля 2026 г.
+      </footer>
+    </article>
+  </main>
+</body>
+</html>

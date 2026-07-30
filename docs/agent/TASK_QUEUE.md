@@ -2485,3 +2485,56 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Backend, sync client, and app UI now expose a provider-ready checkout path for `voiceTranscription`; missing provider, offline, invalid, failed, and ready states are explicit.
 - commit_status: committed
 - notes: Required local checks passed on 2026-07-30. No deployment or git push.
+
+## TASK-048
+
+- title: Add public requisites page for YooKassa onboarding
+- status: DONE
+- owner_gate: owner_provided_requisites
+- task_type: legal_static_page
+- priority: high
+- source: owner shared YooKassa requirement for a public requisites page and merchant requisites on 2026-07-30
+- spec_reference: `docs/specs/public-requisites-page.md`
+- spec_status: implemented_local_committed
+- goal: expose a public static page with merchant legal details needed for YooKassa review.
+- out_of_scope:
+  - production deploy
+  - payment provider API integration
+  - offer, privacy policy, refund policy, or subscription terms
+  - changing the main app dashboard layout
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `public/requisites.html` exists as a standalone page
+  - page includes merchant name, INN, OGRNIP, address, bank details, and contacts
+  - page is public and does not require app login, sync account, IndexedDB, or app JavaScript
+  - service worker cache includes `/requisites.html`
+  - existing focused tests pass locally
+- required_checks:
+  - `node --check public/service-worker.js`
+  - `node --test tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small legal_static_page task
+- file_limit: up to 8 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 47
+- stop_conditions:
+  - owner does not approve publishing legal/personal merchant details
+  - YooKassa requires additional legal pages before acceptance
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `public/requisites.html`
+  - `public/service-worker.js`
+  - legal/static page tests
+  - Project Maestro memory
+- dependencies:
+  - owner-provided merchant requisites
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Public requisites page is ready for deployment at `/requisites.html`; service worker cache is `focus-pwa-v76`.
+- commit_status: committed
+- notes: Required local checks passed on 2026-07-30. No deployment or git push.
