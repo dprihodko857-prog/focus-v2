@@ -16,7 +16,19 @@ const DEVICE_ID_PATTERN = /^[a-zA-Z0-9_.:-]{4,160}$/;
 const PAYMENT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
 const COLLECTION_KEYS = new Set(["schedules", "reminders", "tasks", "notes", "birthdays", "diary"]);
 const ENTITLEMENT_SOURCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
-const PAID_FEATURE_KEYS = new Set(["voiceTranscription"]);
+const VOICE_TRANSCRIPTION_FEATURE_KEY = "voiceTranscription";
+const PAID_FEATURE_KEYS = new Set([VOICE_TRANSCRIPTION_FEATURE_KEY]);
+const MAX_TRANSCRIPTION_AUDIO_BASE64_LENGTH = 768 * 1024;
+const TRANSCRIPTION_MIME_TYPES = new Set([
+  "audio/aac",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "audio/webm",
+  "audio/x-m4a",
+  "audio/x-wav",
+]);
 
 export function createFocusSyncClient({
   apiBaseUrl = "/api",
@@ -676,6 +688,87 @@ export function createFocusSyncClient({
       }
     },
 
+    async transcribeAudio({ audioBase64, mimeType, language = "ru-RU", prompt = "" } = {}) {
+      const accountId = getStored(ACCOUNT_KEY);
+      if (!accountId) {
+        return {
+          status: "account-required",
+          accountId: "",
+          featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
+          text: "",
+        };
+      }
+
+      const requestBody = normalizeTranscriptionRequest({ audioBase64, mimeType, language, prompt });
+      if (!requestBody) {
+        return {
+          status: "invalid-request",
+          accountId,
+          featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
+          text: "",
+        };
+      }
+
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/transcription"), {
+          method: "POST",
+          headers: {
+            ...withAccountHeaders(accountId),
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (response.status === 402 && result?.error === "feature_locked") {
+          return {
+            status: "locked",
+            accountId: result.accountId || accountId,
+            featureKey: normalizePaidFeatureKey(result.featureKey) || VOICE_TRANSCRIPTION_FEATURE_KEY,
+            text: "",
+          };
+        }
+
+        if (response.status === 503 && result?.error === "provider_not_configured") {
+          return {
+            status: "provider-not-configured",
+            accountId: result.accountId || accountId,
+            featureKey: normalizePaidFeatureKey(result.featureKey) || VOICE_TRANSCRIPTION_FEATURE_KEY,
+            provider: typeof result.provider === "string" ? result.provider : null,
+            text: "",
+          };
+        }
+
+        if (response.status === 400) {
+          return {
+            status: "invalid-request",
+            accountId,
+            featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
+            text: "",
+          };
+        }
+
+        if (!response.ok) {
+          throw new Error("Focus transcription request failed.");
+        }
+
+        return {
+          status: result.status === "transcribed" ? "transcribed" : "failed",
+          accountId: result.accountId || accountId,
+          featureKey: normalizePaidFeatureKey(result.featureKey) || VOICE_TRANSCRIPTION_FEATURE_KEY,
+          provider: typeof result.provider === "string" ? result.provider : null,
+          text: typeof result.text === "string" ? result.text : "",
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId,
+          featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
+          text: "",
+        };
+      }
+    },
+
     async createSubscriptionCheckout({ featureKey } = {}) {
       const normalizedFeatureKey = normalizePaidFeatureKey(featureKey);
       const accountId = getStored(ACCOUNT_KEY);
@@ -1306,9 +1399,54 @@ function normalizePaymentId(value) {
 function normalizePaidFeatureKey(value) {
   const featureKey = String(value || "").trim();
   if (featureKey === "voice_transcription") {
-    return "voiceTranscription";
+    return VOICE_TRANSCRIPTION_FEATURE_KEY;
   }
   return PAID_FEATURE_KEYS.has(featureKey) ? featureKey : "";
+}
+
+function normalizeTranscriptionRequest({ audioBase64, mimeType, language, prompt } = {}) {
+  const normalizedAudio = normalizeTranscriptionAudioBase64(audioBase64);
+  const normalizedMimeType = normalizeTranscriptionMimeType(mimeType);
+
+  if (!normalizedAudio || !normalizedMimeType) {
+    return null;
+  }
+
+  return {
+    audioBase64: normalizedAudio,
+    mimeType: normalizedMimeType,
+    language: normalizeTranscriptionLanguage(language),
+    prompt: sanitizeTranscriptionPrompt(prompt),
+  };
+}
+
+function normalizeTranscriptionAudioBase64(value) {
+  const rawAudio = String(value || "").trim();
+  const dataUrlMatch = rawAudio.match(/^data:[^;,]+;base64,(.+)$/i);
+  const normalized = String(dataUrlMatch?.[1] || rawAudio).replace(/\s+/g, "");
+
+  if (normalized.length < 16 || normalized.length > MAX_TRANSCRIPTION_AUDIO_BASE64_LENGTH) {
+    return "";
+  }
+
+  return /^[a-zA-Z0-9+/_-]+={0,2}$/.test(normalized) ? normalized : "";
+}
+
+function normalizeTranscriptionMimeType(value) {
+  const normalizedMimeType = String(value || "").split(";")[0].trim().toLowerCase();
+  return TRANSCRIPTION_MIME_TYPES.has(normalizedMimeType) ? normalizedMimeType : "";
+}
+
+function normalizeTranscriptionLanguage(value) {
+  const normalizedLanguage = String(value || "").trim();
+  return /^[a-z]{2,3}(?:-[a-zA-Z0-9]{2,8})?$/.test(normalizedLanguage)
+    ? normalizedLanguage
+    : "ru-RU";
+}
+
+function sanitizeTranscriptionPrompt(value) {
+  if (typeof value !== "string") return "";
+  return value.replace(/\s+/g, " ").trim().slice(0, 500);
 }
 
 function createDefaultDeviceName(navigatorRef) {

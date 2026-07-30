@@ -64,4 +64,5 @@ Status: DRAFT
 | FOCUS-PLUS-ENTITLEMENT-PERIODS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/focus-plus-entitlement-periods.md` | TASK-056 adds activation/expiration periods and payment idempotency to paid feature entitlements. |
 | ENTITLEMENT-AUDIT-LOG-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/entitlement-audit-log.md` | TASK-057 records recent paid feature access events per account and exposes an entitlement diagnostics endpoint. |
 | ENTITLEMENT-AUDIT-UI-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/entitlement-audit-ui.md` | TASK-058 shows recent paid feature access events in the Settings subscription diagnostics panel. |
+| VOICE-TRANSCRIPTION-API-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-api-scaffold.md` | TASK-059 adds an entitlement-gated backend/client transcription API scaffold without live provider calls. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

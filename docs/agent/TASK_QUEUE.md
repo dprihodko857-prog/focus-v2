@@ -3160,3 +3160,71 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Settings now shows account-scoped paid feature access events from `getEntitlementEvents()` and resets the history state with account lifecycle changes.
 - commit_status: committed
 - notes: Syntax checks passed, targeted PWA/static tests passed 49/49, and `npm.cmd run test` passed 175/175 on 2026-07-30. No deployment or git push.
+
+## TASK-059
+
+- title: Add voice transcription API scaffold
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_transcription_backend
+- priority: high
+- source: owner plans speech-to-text as a Focus Plus subscription feature; current implementation is browser SpeechRecognition only
+- spec_reference: `docs/specs/voice-transcription-api-scaffold.md`
+- spec_status: implemented_local_committed
+- goal: add an account-scoped and entitlement-gated backend/client contract for future server transcription.
+- out_of_scope:
+  - browser audio capture UI
+  - live OpenAI, Whisper, Google, Apple, or other provider calls
+  - storing uploaded audio
+  - streaming transcription
+  - usage metering or billing quotas
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `POST /api/sync/transcription` requires an existing sync account
+  - inactive or expired `voiceTranscription` entitlement returns locked state
+  - invalid transcription request bodies are rejected
+  - entitled valid requests return `provider_not_configured` while no STT provider is wired
+  - uploaded audio is not stored or sent to an external service
+  - sync client exposes `transcribeAudio(...)`
+  - client method returns account-required, invalid-request, locked, provider-not-configured, transcribed-placeholder, and offline states
+  - service worker cache is bumped to `focus-pwa-v84`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `node --test tests/focus-sync-client.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs tests/legal-pages.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_transcription_backend task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 58
+- stop_conditions:
+  - implementation requires provider credentials or live external calls
+  - implementation requires capturing microphone audio in UI
+  - checks fail outside the approved scope
+  - production deploy or git push is needed
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/sync.js`
+  - `public/service-worker.js`
+  - `tests/focus-sync-server.test.mjs`
+  - `tests/focus-sync-client.test.mjs`
+  - static PWA tests
+  - Project Maestro memory
+- dependencies:
+  - voice input foundation
+  - account entitlements foundation
+  - Focus Plus entitlement periods
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend and sync client now have a gated transcription API scaffold that validates audio request metadata and returns provider-missing state until a real STT provider is wired.
+- commit_status: committed
+- notes: Syntax checks passed, server tests passed 59/59, client tests passed 40/40, targeted PWA/static tests passed 49/49, and `npm.cmd run test` passed 178/178 on 2026-07-30. No deployment or git push.

@@ -27,7 +27,19 @@ const MAX_PUSH_ENDPOINT_LENGTH = 4096;
 const MAX_PUSH_KEY_LENGTH = 512;
 const ENTITLEMENT_SOURCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
 const YOOKASSA_PAYMENT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
-const PAID_FEATURE_KEYS = new Set(["voiceTranscription"]);
+const VOICE_TRANSCRIPTION_FEATURE_KEY = "voiceTranscription";
+const PAID_FEATURE_KEYS = new Set([VOICE_TRANSCRIPTION_FEATURE_KEY]);
+const MAX_TRANSCRIPTION_AUDIO_BASE64_LENGTH = 768 * 1024;
+const TRANSCRIPTION_MIME_TYPES = new Set([
+  "audio/aac",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "audio/webm",
+  "audio/x-m4a",
+  "audio/x-wav",
+]);
 
 export function createSyncDatabase(dbPath = DEFAULT_DB_PATH) {
   return new JsonSyncDatabase(dbPath);
@@ -786,9 +798,56 @@ function sanitizeEntitlementSource(value) {
 function normalizePaidFeatureKey(value) {
   const featureKey = String(value || "").trim();
   if (featureKey === "voice_transcription") {
-    return "voiceTranscription";
+    return VOICE_TRANSCRIPTION_FEATURE_KEY;
   }
   return PAID_FEATURE_KEYS.has(featureKey) ? featureKey : "";
+}
+
+function normalizeVoiceTranscriptionRequest(body) {
+  if (!isPlainObject(body)) return null;
+
+  const rawAudio = String(body.audioBase64 ?? body.audio ?? "").trim();
+  const dataUrlMatch = rawAudio.match(/^data:([^;,]+);base64,(.+)$/i);
+  const audioBase64 = normalizeTranscriptionAudioBase64(rawAudio);
+  const mimeType = normalizeTranscriptionMimeType(body.mimeType ?? body.type ?? dataUrlMatch?.[1]);
+
+  if (!audioBase64 || !mimeType) {
+    return null;
+  }
+
+  return {
+    audioBase64,
+    mimeType,
+    language: normalizeTranscriptionLanguage(body.language),
+    prompt: sanitizeTranscriptionPrompt(body.prompt),
+  };
+}
+
+function normalizeTranscriptionAudioBase64(value) {
+  const rawAudio = String(value || "").trim();
+  const dataUrlMatch = rawAudio.match(/^data:[^;,]+;base64,(.+)$/i);
+  const normalized = String(dataUrlMatch?.[1] || rawAudio).replace(/\s+/g, "");
+
+  if (normalized.length < 16 || normalized.length > MAX_TRANSCRIPTION_AUDIO_BASE64_LENGTH) {
+    return "";
+  }
+
+  return /^[a-zA-Z0-9+/_-]+={0,2}$/.test(normalized) ? normalized : "";
+}
+
+function normalizeTranscriptionMimeType(value) {
+  const mimeType = String(value || "").split(";")[0].trim().toLowerCase();
+  return TRANSCRIPTION_MIME_TYPES.has(mimeType) ? mimeType : "";
+}
+
+function normalizeTranscriptionLanguage(value) {
+  const language = String(value || "").trim();
+  return /^[a-z]{2,3}(?:-[a-zA-Z0-9]{2,8})?$/.test(language) ? language : "ru-RU";
+}
+
+function sanitizeTranscriptionPrompt(value) {
+  if (typeof value !== "string") return "";
+  return value.replace(/\s+/g, " ").trim().slice(0, 500);
 }
 
 async function createSubscriptionCheckout({
@@ -1827,6 +1886,49 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     sendJson(response, 200, {
       accountId: accountContext.accountId,
       events: db.listEntitlementEvents(accountContext.accountId, 12),
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/sync/transcription") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    const entitlement = db.getAccountEntitlements(
+      accountContext.accountId,
+      accountContext.checkedAt,
+    )[VOICE_TRANSCRIPTION_FEATURE_KEY];
+
+    if (!entitlement?.enabled) {
+      sendJson(response, 402, {
+        error: "feature_locked",
+        status: "locked",
+        accountId: accountContext.accountId,
+        featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
+        checkedAt: accountContext.checkedAt,
+      });
+      return;
+    }
+
+    const body = await readJsonBody(request);
+    const transcriptionRequest = normalizeVoiceTranscriptionRequest(body);
+    if (!transcriptionRequest) {
+      sendJson(response, 400, { error: "invalid_transcription_request" });
+      return;
+    }
+
+    sendJson(response, 503, {
+      error: "provider_not_configured",
+      status: "provider_not_configured",
+      accountId: accountContext.accountId,
+      featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
+      provider: null,
+      checkedAt: accountContext.checkedAt,
     });
     return;
   }

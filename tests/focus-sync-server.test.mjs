@@ -561,6 +561,105 @@ test("sync account entitlements report expired paid features as inactive", async
   }
 });
 
+test("sync transcription endpoint requires active voice entitlement", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-transcription-locked";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/transcription`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createTranscriptionRequest()),
+    });
+
+    assert.equal(response.status, 402);
+    assert.deepEqual(await response.json(), {
+      error: "feature_locked",
+      status: "locked",
+      accountId,
+      featureKey: "voiceTranscription",
+      checkedAt: "2026-07-12T09:05:00.000Z",
+    });
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync transcription endpoint validates entitled requests before provider work", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-transcription-provider";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  db.setAccountEntitlements({
+    accountId,
+    updatedAt: "2026-07-12T09:00:00.000Z",
+    entitlements: {
+      voiceTranscription: {
+        enabled: true,
+        source: "subscription",
+      },
+    },
+  });
+
+  try {
+    const invalidResponse = await fetch(`${baseUrl}/api/sync/transcription`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ audioBase64: "bad", mimeType: "text/plain" }),
+    });
+
+    assert.equal(invalidResponse.status, 400);
+    assert.equal((await invalidResponse.json()).error, "invalid_transcription_request");
+
+    const response = await fetch(`${baseUrl}/api/sync/transcription`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createTranscriptionRequest({
+        audioBase64: "data:audio/webm;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
+        mimeType: "audio/webm;codecs=opus",
+        language: "bad language",
+      })),
+    });
+
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      error: "provider_not_configured",
+      status: "provider_not_configured",
+      accountId,
+      featureKey: "voiceTranscription",
+      provider: null,
+      checkedAt: "2026-07-12T09:05:00.000Z",
+    });
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("sync entitlement events endpoint lists access audit entries", async () => {
   const db = createSyncDatabase(":memory:");
   const ticks = [
@@ -3006,6 +3105,20 @@ function createYooKassaPaymentNotification({
         featureKey,
       },
     },
+  };
+}
+
+function createTranscriptionRequest({
+  audioBase64 = "UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
+  mimeType = "audio/webm",
+  language = "ru-RU",
+  prompt = "focus reminder",
+} = {}) {
+  return {
+    audioBase64,
+    mimeType,
+    language,
+    prompt,
   };
 }
 

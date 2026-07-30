@@ -860,6 +860,104 @@ test("entitlement events load account access audit entries", async () => {
   assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
 });
 
+test("transcription client handles gated provider scaffold states", async () => {
+  const noAccountClient = createFocusSyncClient({
+    fetch: async () => {
+      throw new Error("No request should be sent without an account.");
+    },
+    localStorage: createMemoryLocalStorage(),
+    randomUUID: () => "device-1",
+  });
+
+  assert.deepEqual(await noAccountClient.transcribeAudio({
+    audioBase64: "UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
+    mimeType: "audio/webm",
+  }), {
+    status: "account-required",
+    accountId: "",
+    featureKey: "voiceTranscription",
+    text: "",
+  });
+
+  const lockedCalls = [];
+  const lockedClient = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      lockedCalls.push({ url, options });
+      return jsonResponse({
+        error: "feature_locked",
+        status: "locked",
+        accountId: "account-1",
+        featureKey: "voiceTranscription",
+      }, 402);
+    },
+    localStorage: createMemoryLocalStorage({
+      "focus-sync-account-id": "account-1",
+      "focus-sync-device-id": "device-1",
+    }),
+    randomUUID: () => "device-1",
+  });
+
+  const lockedResult = await lockedClient.transcribeAudio({
+    audioBase64: "data:audio/webm;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
+    mimeType: "audio/webm;codecs=opus",
+    language: "bad language",
+    prompt: "  quick   reminder  ",
+  });
+
+  assert.deepEqual(lockedResult, {
+    status: "locked",
+    accountId: "account-1",
+    featureKey: "voiceTranscription",
+    text: "",
+  });
+  assert.equal(lockedCalls[0].url, "/api/sync/transcription");
+  assert.equal(lockedCalls[0].options.method, "POST");
+  assert.equal(lockedCalls[0].options.headers["x-focus-account"], "account-1");
+  assert.equal(lockedCalls[0].options.headers["x-focus-device"], "device-1");
+  assert.deepEqual(JSON.parse(lockedCalls[0].options.body), {
+    audioBase64: "UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
+    mimeType: "audio/webm",
+    language: "ru-RU",
+    prompt: "quick reminder",
+  });
+
+  const providerClient = createFocusSyncClient({
+    fetch: async () => jsonResponse({
+      error: "provider_not_configured",
+      status: "provider_not_configured",
+      accountId: "account-1",
+      featureKey: "voiceTranscription",
+      provider: null,
+    }, 503),
+    localStorage: createMemoryLocalStorage({
+      "focus-sync-account-id": "account-1",
+      "focus-sync-device-id": "device-1",
+    }),
+    randomUUID: () => "device-1",
+  });
+
+  assert.deepEqual(await providerClient.transcribeAudio({
+    audioBase64: "UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
+    mimeType: "audio/webm",
+  }), {
+    status: "provider-not-configured",
+    accountId: "account-1",
+    featureKey: "voiceTranscription",
+    provider: null,
+    text: "",
+  });
+
+  assert.deepEqual(await providerClient.transcribeAudio({
+    audioBase64: "bad",
+    mimeType: "text/plain",
+  }), {
+    status: "invalid-request",
+    accountId: "account-1",
+    featureKey: "voiceTranscription",
+    text: "",
+  });
+});
+
 test("subscription checkout loads a configured provider URL", async () => {
   const calls = [];
   const storage = createMemoryLocalStorage({

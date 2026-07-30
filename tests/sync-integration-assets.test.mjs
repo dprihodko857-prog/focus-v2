@@ -22,7 +22,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v83/);
+  assert.match(serviceWorker, /focus-pwa-v84/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -71,6 +71,7 @@ test("settings expose the sync account connection modal", () => {
 test("sync client exposes paid feature entitlements", () => {
   assert.match(syncJs, /async getAccountEntitlements\(\)/);
   assert.match(syncJs, /async getEntitlementEvents\(\)/);
+  assert.match(syncJs, /async transcribeAudio\(\{ audioBase64, mimeType, language = "ru-RU", prompt = "" \} = \{\}\)/);
   assert.match(syncJs, /async createSubscriptionCheckout\(\{ featureKey \} = \{\}\)/);
   assert.match(syncJs, /async getSubscriptionCheckoutStatus\(\{ paymentId \} = \{\}\)/);
   assert.match(syncJs, /getPendingSubscriptionCheckout\(\)/);
@@ -79,6 +80,8 @@ test("sync client exposes paid feature entitlements", () => {
   assert.match(syncJs, /paymentId/);
   assert.match(syncJs, /\/sync\/entitlements/);
   assert.match(syncJs, /\/sync\/entitlements\/events/);
+  assert.match(syncJs, /\/sync\/transcription/);
+  assert.match(syncJs, /MAX_TRANSCRIPTION_AUDIO_BASE64_LENGTH/);
   assert.match(syncJs, /\/sync\/checkout/);
   assert.match(syncJs, /\/sync\/checkout\/status\?paymentId=/);
   assert.match(syncJs, /voiceTranscription/);
