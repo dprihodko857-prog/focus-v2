@@ -407,6 +407,58 @@ class JsonSyncDatabase {
     return events.slice(0, Math.max(0, Number(limit) || 12));
   }
 
+  listTranscriptionEvents(accountId, limit = 12) {
+    const events = Array.isArray(this.state.transcriptionEvents[accountId])
+      ? this.state.transcriptionEvents[accountId]
+      : [];
+
+    return events.slice(0, Math.max(0, Number(limit) || 12));
+  }
+
+  saveTranscriptionEvent({
+    accountId,
+    deviceId,
+    status,
+    provider,
+    reason,
+    mimeType,
+    language,
+    textLength,
+    spent,
+    usage,
+    createdAt,
+  }) {
+    if (!accountId) {
+      return null;
+    }
+
+    if (!isPlainObject(this.state.transcriptionEvents)) {
+      this.state.transcriptionEvents = {};
+    }
+
+    const currentEvents = Array.isArray(this.state.transcriptionEvents[accountId])
+      ? this.state.transcriptionEvents[accountId]
+      : [];
+    const event = {
+      id: randomUUID(),
+      accountId,
+      deviceId: sanitizeStoredName(deviceId),
+      status: sanitizeTranscriptionEventStatus(status),
+      provider: sanitizeProviderEventPart(provider) || null,
+      reason: sanitizeStoredName(reason),
+      mimeType: normalizeTranscriptionMimeType(mimeType) || null,
+      language: normalizeTranscriptionLanguage(language),
+      textLength: normalizeTranscriptionTextLength(textLength),
+      spent: spent === true,
+      usage: normalizeTranscriptionEventUsage(usage),
+      createdAt: normalizeTimestamp(createdAt),
+    };
+
+    this.state.transcriptionEvents[accountId] = [event, ...currentEvents].slice(0, 50);
+    this.persist();
+    return event;
+  }
+
   saveEntitlementEvent({
     accountId,
     featureKey,
@@ -718,6 +770,7 @@ function readState(dbPath) {
       pushFailures: isPlainObject(parsed.pushFailures) ? parsed.pushFailures : {},
       pushEvents: isPlainObject(parsed.pushEvents) ? parsed.pushEvents : {},
       entitlementEvents: isPlainObject(parsed.entitlementEvents) ? parsed.entitlementEvents : {},
+      transcriptionEvents: isPlainObject(parsed.transcriptionEvents) ? parsed.transcriptionEvents : {},
       processedProviderEvents: isPlainObject(parsed.processedProviderEvents) ? parsed.processedProviderEvents : {},
       featureUsage: isPlainObject(parsed.featureUsage) ? parsed.featureUsage : {},
       deviceSessions: isPlainObject(parsed.deviceSessions) ? parsed.deviceSessions : {},
@@ -757,6 +810,7 @@ function createEmptyState() {
     pushFailures: {},
     pushEvents: {},
     entitlementEvents: {},
+    transcriptionEvents: {},
     processedProviderEvents: {},
     featureUsage: {},
     deviceSessions: {},
@@ -1183,6 +1237,30 @@ function createFailedTranscriptionProviderResponse({ provider, reason, checkedAt
       checkedAt,
     },
   };
+}
+
+function saveTranscriptionAuditEvent(db, {
+  accountId,
+  deviceId,
+  transcriptionRequest,
+  result,
+  usage,
+  spent,
+  checkedAt,
+}) {
+  return db.saveTranscriptionEvent({
+    accountId,
+    deviceId,
+    status: result?.status,
+    provider: result?.provider,
+    reason: result?.reason || result?.error,
+    mimeType: transcriptionRequest?.mimeType,
+    language: transcriptionRequest?.language,
+    textLength: typeof result?.text === "string" ? result.text.length : 0,
+    spent,
+    usage,
+    createdAt: checkedAt,
+  });
 }
 
 async function createSubscriptionCheckout({
@@ -2023,6 +2101,36 @@ function sanitizeEntitlementEventStatus(status) {
   return ["activated", "disabled", "ignored", "failed", "canceled"].includes(status) ? status : "ignored";
 }
 
+function sanitizeTranscriptionEventStatus(status) {
+  return [
+    "locked",
+    "invalid",
+    "usage_limit_exceeded",
+    "provider_not_configured",
+    "failed",
+    "transcribed",
+  ].includes(status) ? status : "failed";
+}
+
+function normalizeTranscriptionTextLength(value) {
+  const length = Math.floor(Number(value));
+  return Number.isFinite(length) && length > 0 ? Math.min(length, MAX_TRANSCRIPTION_TEXT_LENGTH) : 0;
+}
+
+function normalizeTranscriptionEventUsage(usage) {
+  if (!isPlainObject(usage)) {
+    return null;
+  }
+
+  return {
+    period: sanitizeStoredName(usage.period),
+    used: normalizeUsageCount(usage.used),
+    limit: normalizeMonthlyUsageLimit(usage.limit),
+    remaining: normalizeUsageCount(usage.remaining),
+    resetAt: normalizeTimestamp(usage.resetAt),
+  };
+}
+
 function createOrbitAuthConfig(env = process.env) {
   const issuer = normalizeUrl(env.ORBIT_AUTH_ISSUER || DEFAULT_AUTH_ISSUER);
   const redirectUri = normalizeUrl(
@@ -2324,6 +2432,22 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     return;
   }
 
+  if (url.pathname === "/api/sync/transcription/events") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    sendJson(response, 200, {
+      accountId: accountContext.accountId,
+      events: db.listTranscriptionEvents(accountContext.accountId, 12),
+    });
+    return;
+  }
+
   if (url.pathname === "/api/sync/transcription") {
     const accountContext = getExistingAccountContext({ request, response, db, now });
     if (!accountContext) return;
@@ -2339,6 +2463,15 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     )[VOICE_TRANSCRIPTION_FEATURE_KEY];
 
     if (!entitlement?.enabled) {
+      saveTranscriptionAuditEvent(db, {
+        accountId: accountContext.accountId,
+        deviceId: accountContext.deviceId,
+        result: {
+          status: "locked",
+          reason: "feature_locked",
+        },
+        checkedAt: accountContext.checkedAt,
+      });
       sendJson(response, 402, {
         error: "feature_locked",
         status: "locked",
@@ -2352,6 +2485,15 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     const body = await readJsonBody(request);
     const transcriptionRequest = normalizeVoiceTranscriptionRequest(body);
     if (!transcriptionRequest) {
+      saveTranscriptionAuditEvent(db, {
+        accountId: accountContext.accountId,
+        deviceId: accountContext.deviceId,
+        result: {
+          status: "invalid",
+          reason: "invalid_transcription_request",
+        },
+        checkedAt: accountContext.checkedAt,
+      });
       sendJson(response, 400, { error: "invalid_transcription_request" });
       return;
     }
@@ -2364,6 +2506,17 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     });
 
     if (!usage || usage.remaining <= 0) {
+      saveTranscriptionAuditEvent(db, {
+        accountId: accountContext.accountId,
+        deviceId: accountContext.deviceId,
+        transcriptionRequest,
+        result: {
+          status: "usage_limit_exceeded",
+          reason: "usage_limit_exceeded",
+        },
+        usage,
+        checkedAt: accountContext.checkedAt,
+      });
       sendJson(response, 429, {
         error: "usage_limit_exceeded",
         status: "usage_limit_exceeded",
@@ -2382,6 +2535,14 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     });
 
     if (transcriptionResult.body?.status !== "transcribed") {
+      saveTranscriptionAuditEvent(db, {
+        accountId: accountContext.accountId,
+        deviceId: accountContext.deviceId,
+        transcriptionRequest,
+        result: transcriptionResult.body,
+        usage,
+        checkedAt: accountContext.checkedAt,
+      });
       sendJson(response, transcriptionResult.statusCode, {
         ...transcriptionResult.body,
         accountId: accountContext.accountId,
@@ -2399,6 +2560,16 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       count: 1,
       limit: voiceTranscriptionMonthlyLimit,
     }) || usage;
+
+    saveTranscriptionAuditEvent(db, {
+      accountId: accountContext.accountId,
+      deviceId: accountContext.deviceId,
+      transcriptionRequest,
+      result: transcriptionResult.body,
+      usage: spentUsage,
+      spent: true,
+      checkedAt: accountContext.checkedAt,
+    });
 
     sendJson(response, transcriptionResult.statusCode, {
       ...transcriptionResult.body,

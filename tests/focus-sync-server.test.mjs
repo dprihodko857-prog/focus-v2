@@ -968,6 +968,110 @@ test("sync transcription endpoint reports provider failure without spending mont
   }
 });
 
+test("sync transcription events endpoint lists diagnostics without audio or text payloads", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+    voiceTranscriptionMonthlyLimit: 2,
+    voiceTranscriptionProvider: {
+      provider: "localEcho",
+      text: "Новая задача",
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-transcription-events";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  db.setAccountEntitlements({
+    accountId,
+    updatedAt: "2026-07-12T09:00:00.000Z",
+    entitlements: {
+      voiceTranscription: {
+        enabled: true,
+        source: "subscription",
+      },
+    },
+  });
+
+  try {
+    const invalidResponse = await fetch(`${baseUrl}/api/sync/transcription`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ audioBase64: "bad", mimeType: "text/plain" }),
+    });
+    assert.equal(invalidResponse.status, 400);
+
+    const successResponse = await fetch(`${baseUrl}/api/sync/transcription`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createTranscriptionRequest({
+        audioBase64: "data:audio/webm;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
+        mimeType: "audio/webm;codecs=opus",
+        language: "ru-RU",
+      })),
+    });
+    assert.equal(successResponse.status, 200);
+
+    const eventsResponse = await fetch(`${baseUrl}/api/sync/transcription/events`, {
+      method: "GET",
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(eventsResponse.status, 200);
+    const result = await eventsResponse.json();
+    assert.equal(result.accountId, accountId);
+    assert.equal(result.events.length, 2);
+
+    const [successEvent, invalidEvent] = result.events;
+    assert.equal(typeof successEvent.id, "string");
+    assert.equal(successEvent.accountId, accountId);
+    assert.equal(successEvent.deviceId, "desktop");
+    assert.equal(successEvent.status, "transcribed");
+    assert.equal(successEvent.provider, "localEcho");
+    assert.equal(successEvent.reason, null);
+    assert.equal(successEvent.mimeType, "audio/webm");
+    assert.equal(successEvent.language, "ru-RU");
+    assert.equal(successEvent.textLength, "Новая задача".length);
+    assert.equal(successEvent.spent, true);
+    assert.deepEqual(successEvent.usage, {
+      period: "2026-07",
+      used: 1,
+      limit: 2,
+      remaining: 1,
+      resetAt: "2026-08-01T00:00:00.000Z",
+    });
+    assert.equal(Object.hasOwn(successEvent, "audioBase64"), false);
+    assert.equal(Object.hasOwn(successEvent, "audio"), false);
+    assert.equal(Object.hasOwn(successEvent, "text"), false);
+
+    assert.equal(typeof invalidEvent.id, "string");
+    assert.equal(invalidEvent.status, "invalid");
+    assert.equal(invalidEvent.provider, null);
+    assert.equal(invalidEvent.reason, "invalid_transcription_request");
+    assert.equal(invalidEvent.mimeType, null);
+    assert.equal(invalidEvent.textLength, 0);
+    assert.equal(invalidEvent.spent, false);
+    assert.equal(invalidEvent.usage, null);
+    assert.equal(Object.hasOwn(invalidEvent, "audioBase64"), false);
+    assert.equal(Object.hasOwn(invalidEvent, "audio"), false);
+    assert.equal(Object.hasOwn(invalidEvent, "text"), false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("sync entitlement events endpoint lists access audit entries", async () => {
   const db = createSyncDatabase(":memory:");
   const ticks = [

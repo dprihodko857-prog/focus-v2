@@ -3528,3 +3528,60 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Backend now has a configurable transcription provider adapter and local `localEcho` provider; successful transcriptions spend quota, provider-missing/failure paths do not.
 - commit_status: committed
 - notes: Syntax check passed, focused server test passed 63/63, and `npm.cmd run test` passed 182/182 on 2026-07-31. No deployment or git push.
+
+## TASK-065
+
+- title: Add voice transcription diagnostics log
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_transcription_backend
+- priority: high
+- source: next transcription hardening step after provider adapter
+- spec_reference: `docs/specs/voice-transcription-diagnostics-log.md`
+- spec_status: implemented_local_committed
+- goal: record recent account-scoped transcription attempts without storing audio or recognized text.
+- out_of_scope:
+  - client UI for transcription diagnostics
+  - admin dashboard or cross-account diagnostics
+  - audio payload storage
+  - recognized text storage
+  - live STT provider integration
+  - service worker cache bump
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - JSON sync state supports `transcriptionEvents` with backward-compatible loading
+  - backend exposes `GET /api/sync/transcription/events` for the current account
+  - transcription endpoint records locked, invalid, quota-blocked, provider-missing, failed, and successful outcomes
+  - successful outcomes record `spent: true` and the post-spend usage snapshot
+  - diagnostic events do not store `audioBase64`, raw audio, or recognized text
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_transcription_backend task
+- file_limit: up to 6 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 64
+- stop_conditions:
+  - implementation requires live STT provider credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - voice transcription provider adapter
+  - voice transcription usage quota
+  - account entitlements foundation
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend now records bounded transcription diagnostics for the current account while excluding audio and recognized text payloads.
+- commit_status: committed
+- notes: Syntax check passed, focused server test passed 64/64, and `npm.cmd run test` passed 183/183 on 2026-07-31. No deployment or git push.
