@@ -93,6 +93,7 @@ let accountEntitlementsState = {
   accountId: "",
   checkedAt: "",
   entitlements: createDefaultAccountEntitlements(),
+  usage: createDefaultAccountFeatureUsage(),
 };
 let accountEntitlementEventsState = {
   status: "idle",
@@ -123,6 +124,12 @@ function createDefaultAccountEntitlements() {
       expiresAt: null,
       paymentId: null,
     },
+  };
+}
+
+function createDefaultAccountFeatureUsage() {
+  return {
+    voiceTranscription: null,
   };
 }
 
@@ -4162,6 +4169,7 @@ function resetAccountEntitlementsState(status = "idle") {
     accountId: scheduleSync.peekAccountId(),
     checkedAt: "",
     entitlements: createDefaultAccountEntitlements(),
+    usage: createDefaultAccountFeatureUsage(),
   };
   accountEntitlementEventsState = createEmptyAccountEntitlementEventsState(status);
   paidFeatureCheckoutState = {
@@ -4310,6 +4318,62 @@ function getPaidFeatureMetaText(entitlement) {
   }
 
   return `Источник: ${getPaidFeatureSourceLabel(entitlement?.source)}.`;
+}
+
+function getPaidFeatureUsage(featureKey) {
+  const source = accountEntitlementsState.usage && typeof accountEntitlementsState.usage === "object"
+    ? accountEntitlementsState.usage
+    : {};
+  return source[featureKey] || null;
+}
+
+function getPaidFeatureUsageTone(usage) {
+  if (!usage?.limit) return "warn";
+  if (usage.remaining <= 0) return "bad";
+  if (usage.remaining / usage.limit <= 0.2) return "warn";
+  return "ok";
+}
+
+function getPaidFeatureUsageText(featureKey) {
+  const accountId = scheduleSync.peekAccountId();
+
+  if (!accountId) {
+    return "Лимит транскрибации появится после подключения аккаунта.";
+  }
+
+  if (accountEntitlementsState.status === "loading") {
+    return "Загружаем лимит транскрибации.";
+  }
+
+  if (accountEntitlementsState.status === "offline") {
+    return "Лимит транскрибации сейчас недоступен.";
+  }
+
+  const usage = getPaidFeatureUsage(featureKey);
+  if (!usage?.limit) {
+    return "Лимит транскрибации ещё не проверен.";
+  }
+
+  const resetText = usage.resetAt ? ` Обновится: ${formatSyncTimestamp(usage.resetAt)}.` : "";
+  return `Использовано ${usage.used} из ${usage.limit}. Осталось ${usage.remaining}.${resetText}`;
+}
+
+function renderPaidFeatureUsageDiagnostics(featureKey) {
+  const usage = getPaidFeatureUsage(featureKey);
+  const tone = getPaidFeatureUsageTone(usage);
+  const usedPercent = usage?.limit
+    ? Math.min(100, Math.max(0, Math.round((usage.used / usage.limit) * 100)))
+    : 0;
+
+  return `
+    <div class="paid-feature-usage paid-feature-usage--${escapeHtml(tone)}">
+      <span>Лимит</span>
+      <strong>${escapeHtml(getPaidFeatureUsageText(featureKey))}</strong>
+      <div class="paid-feature-usage__bar" aria-hidden="true">
+        <i style="width: ${usedPercent}%"></i>
+      </div>
+    </div>
+  `;
 }
 
 function normalizeEntitlementEvents(events = []) {
@@ -4534,6 +4598,7 @@ function renderPaidFeaturesPanel() {
           <strong><i aria-hidden="true"></i>${escapeHtml(feature.title)}</strong>
           <span>${escapeHtml(feature.description)}</span>
           <small>${escapeHtml(feature.priceLabel)}. ${escapeHtml(status.detail)} ${escapeHtml(updatedText)}</small>
+          ${renderPaidFeatureUsageDiagnostics(feature.key)}
         </div>
         <div class="paid-feature-card__side">
           <span class="paid-feature-status paid-feature-status--${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
@@ -4564,6 +4629,7 @@ function renderUsefulSubscriptionPanel() {
       <h3>${escapeHtml(feature.title)}</h3>
       <p>${escapeHtml(feature.description)}</p>
       <small>${escapeHtml(feature.priceLabel)}. ${escapeHtml(status.detail)}</small>
+      ${renderPaidFeatureUsageDiagnostics(feature.key)}
     </div>
     <div class="useful-subscription-panel__actions">
       <a class="secondary-link" href="${escapeHtml(feature.subscriptionUrl)}">Условия и цена</a>
@@ -4604,6 +4670,7 @@ async function refreshAccountEntitlements({ silent = false } = {}) {
       accountId: result.accountId || accountId,
       checkedAt: result.checkedAt || new Date().toISOString(),
       entitlements: mergeAccountEntitlements(result.entitlements),
+      usage: result.usage || createDefaultAccountFeatureUsage(),
     };
 
     if (!silent) {
@@ -4617,6 +4684,7 @@ async function refreshAccountEntitlements({ silent = false } = {}) {
       accountId,
       checkedAt: "",
       entitlements: createDefaultAccountEntitlements(),
+      usage: createDefaultAccountFeatureUsage(),
     };
     if (!silent) {
       setSyncStatus("Не удалось проверить подписку. Повторите после подключения к сети.");
@@ -4726,6 +4794,7 @@ async function checkPendingSubscriptionCheckout({ silent = true } = {}) {
         accountId: result.accountId || pendingCheckout.accountId,
         checkedAt: new Date().toISOString(),
         entitlements: mergeAccountEntitlements(result.entitlements),
+        usage: result.usage || createDefaultAccountFeatureUsage(),
       };
       renderPaidFeatureSurfaces();
     }

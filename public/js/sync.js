@@ -652,6 +652,7 @@ export function createFocusSyncClient({
           accountId: result.accountId || getStored(ACCOUNT_KEY),
           checkedAt: result.checkedAt || null,
           entitlements: normalizeAccountEntitlements(result.entitlements),
+          usage: normalizeAccountFeatureUsage(result.usage),
         };
       } catch {
         return {
@@ -659,6 +660,7 @@ export function createFocusSyncClient({
           accountId: getStored(ACCOUNT_KEY),
           checkedAt: null,
           entitlements: createDefaultAccountEntitlements(),
+          usage: createDefaultAccountFeatureUsage(),
         };
       }
     },
@@ -1348,12 +1350,28 @@ function createDefaultAccountEntitlements() {
   };
 }
 
+function createDefaultAccountFeatureUsage() {
+  return {
+    voiceTranscription: null,
+  };
+}
+
 function normalizeAccountEntitlements(entitlements) {
   const source = entitlements && typeof entitlements === "object" && !Array.isArray(entitlements)
     ? entitlements
     : {};
   return {
     voiceTranscription: normalizeFeatureEntitlement(source.voiceTranscription ?? source.voice_transcription),
+  };
+}
+
+function normalizeAccountFeatureUsage(usage) {
+  const source = usage && typeof usage === "object" && !Array.isArray(usage)
+    ? usage
+    : {};
+
+  return {
+    voiceTranscription: normalizeTranscriptionUsage(source.voiceTranscription ?? source.voice_transcription),
   };
 }
 

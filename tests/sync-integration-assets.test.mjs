@@ -23,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v86/);
+  assert.match(serviceWorker, /focus-pwa-v87/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -99,6 +99,8 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(indexHtml, /id="usefulSubscriptionPanel"/);
   assert.match(appCss, /\.paid-features-panel\s*{/);
   assert.match(appCss, /\.paid-feature-card\s*{/);
+  assert.match(appCss, /\.paid-feature-usage\s*{/);
+  assert.match(appCss, /\.paid-feature-usage__bar\s*{/);
   assert.match(appCss, /\.paid-feature-events\s*{/);
   assert.match(appCss, /\.paid-feature-event\s*{/);
   assert.match(appCss, /\.paid-feature-event__status--ok\s*{/);
@@ -111,6 +113,9 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /subscriptionUrl:\s*"\/subscription\.html"/);
   assert.match(appJs, /Условия и цена/);
   assert.match(appJs, /function renderPaidFeatureSurfaces/);
+  assert.match(appJs, /function renderPaidFeatureUsageDiagnostics/);
+  assert.match(appJs, /getPaidFeatureUsageText\(featureKey\)/);
+  assert.match(appJs, /Использовано \$\{usage\.used\} из \$\{usage\.limit\}/);
   assert.match(appJs, /async function refreshAccountEntitlements/);
   assert.match(appJs, /function renderEntitlementEventsPanel/);
   assert.match(appJs, /async function refreshEntitlementEvents/);
@@ -120,6 +125,7 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /Действует до/);
   assert.match(appJs, /Истёк/);
   assert.match(appJs, /scheduleSync\.getAccountEntitlements\(\)/);
+  assert.match(appJs, /usage: result\.usage \|\| createDefaultAccountFeatureUsage\(\)/);
   assert.match(appJs, /scheduleSync\.getEntitlementEvents\(\)/);
   assert.match(appJs, /scheduleSync\.createSubscriptionCheckout\(\{ featureKey: feature\.key \}\)/);
   assert.match(appJs, /scheduleSync\.getSubscriptionCheckoutStatus\(\{ paymentId: pendingCheckout\.paymentId \}\)/);
@@ -127,6 +133,8 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /window\.location\.assign\(result\.checkoutUrl\)/);
   assert.match(appJs, /data-paid-feature-action="\$\{escapeHtml\(feature\.key\)\}"/);
   assert.match(appJs, /document\.querySelector\("#paidFeaturesRefreshButton"\)\?\.addEventListener\("click"/);
+  assert.match(syncJs, /usage: normalizeAccountFeatureUsage\(result\.usage\)/);
+  assert.match(serverJs, /usage: \{[\s\S]*?voiceTranscription: db\.getFeatureUsage\(\{/);
 });
 
 test("voice input buttons are gated by the paid transcription entitlement", () => {

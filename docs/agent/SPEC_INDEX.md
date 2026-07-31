@@ -67,4 +67,5 @@ Status: DRAFT
 | VOICE-TRANSCRIPTION-API-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-api-scaffold.md` | TASK-059 adds an entitlement-gated backend/client transcription API scaffold without live provider calls. |
 | VOICE-RECORDING-UI-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-recording-ui-scaffold.md` | TASK-060 adds a MediaRecorder fallback UI path that submits short recordings to the transcription API scaffold. |
 | VOICE-TRANSCRIPTION-USAGE-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-usage-quota.md` | TASK-061 adds account-scoped monthly usage diagnostics and quota checks before provider transcription work. |
+| VOICE-TRANSCRIPTION-USAGE-UI-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-usage-diagnostics-ui.md` | TASK-062 shows monthly voice transcription usage diagnostics in Settings and Useful subscription surfaces. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

@@ -774,6 +774,16 @@ test("account entitlements load paid feature access", async () => {
             updatedAt: "2026-07-12T08:55:00.000Z",
           },
         },
+        usage: {
+          voiceTranscription: {
+            period: "2026-07",
+            used: 7,
+            limit: 300,
+            remaining: 293,
+            resetAt: "2026-08-01T00:00:00.000Z",
+            updatedAt: "2026-07-12T08:58:00.000Z",
+          },
+        },
       });
     },
     localStorage: storage,
@@ -787,6 +797,14 @@ test("account entitlements load paid feature access", async () => {
   assert.equal(result.checkedAt, "2026-07-12T09:00:00.000Z");
   assert.equal(result.entitlements.voiceTranscription.enabled, true);
   assert.equal(result.entitlements.voiceTranscription.source, "subscription");
+  assert.deepEqual(result.usage.voiceTranscription, {
+    period: "2026-07",
+    used: 7,
+    limit: 300,
+    remaining: 293,
+    resetAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-07-12T08:58:00.000Z",
+  });
   assert.equal(calls[0].url, "/api/sync/entitlements");
   assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
   assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
@@ -818,6 +836,9 @@ test("account entitlements default to disabled when offline", async () => {
       expiresAt: null,
       paymentId: null,
     },
+  });
+  assert.deepEqual(result.usage, {
+    voiceTranscription: null,
   });
 });
 

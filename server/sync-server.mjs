@@ -2926,6 +2926,13 @@ function getAccountEntitlements(db, { accountId, checkedAt }) {
     accountId,
     checkedAt,
     entitlements: db.getAccountEntitlements(accountId, checkedAt),
+    usage: {
+      voiceTranscription: db.getFeatureUsage({
+        accountId,
+        featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
+        checkedAt,
+      }),
+    },
   };
 }
 

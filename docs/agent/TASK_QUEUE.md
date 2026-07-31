@@ -3353,3 +3353,65 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Transcription requests now have account-scoped monthly usage diagnostics and quota checks before provider work.
 - commit_status: committed
 - notes: Syntax checks passed, focused server/client/static tests passed 150/150, and `npm.cmd run test` passed 180/180 on 2026-07-31. No deployment or git push.
+
+## TASK-062
+
+- title: Show voice transcription usage diagnostics
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_transcription_frontend
+- priority: high
+- source: TASK-061 added quota storage; users need to see usage before live STT provider wiring
+- spec_reference: `docs/specs/voice-transcription-usage-diagnostics-ui.md`
+- spec_status: implemented_local_committed
+- goal: expose monthly `voiceTranscription` usage in the existing subscription UI surfaces.
+- out_of_scope:
+  - live STT provider integration
+  - admin usage reset UI
+  - billing or plan changes
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `/api/sync/entitlements` includes `usage.voiceTranscription`
+  - sync client normalizes `usage.voiceTranscription`
+  - app paid feature state stores usage diagnostics
+  - Settings paid feature card shows used, limit, remaining, reset time, and progress
+  - Useful subscription panel shows the same usage diagnostics
+  - service worker cache is bumped to `focus-pwa-v87`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/sync.js`
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs tests/legal-pages.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_transcription_frontend task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 61
+- stop_conditions:
+  - implementation requires provider credentials or live external STT calls
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/sync.js`
+  - `public/js/app.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - server/client/static tests
+  - Project Maestro memory
+- dependencies:
+  - voice transcription usage quota
+  - paid feature UI shell
+  - account entitlements foundation
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. Settings and Useful now render account-scoped monthly voice transcription usage from the entitlements response.
+- commit_status: committed
+- notes: Syntax checks passed, focused server/client/static tests passed 150/150, and `npm.cmd run test` passed 180/180 on 2026-07-31. No deployment or git push.

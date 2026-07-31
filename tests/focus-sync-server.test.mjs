@@ -462,6 +462,18 @@ test("sync account entitlements default paid features to disabled", async () => 
           paymentId: null,
         },
       },
+      usage: {
+        voiceTranscription: {
+          accountId,
+          featureKey: "voiceTranscription",
+          period: "2026-07",
+          used: 0,
+          limit: 300,
+          remaining: 300,
+          resetAt: "2026-08-01T00:00:00.000Z",
+          updatedAt: null,
+        },
+      },
     });
   } finally {
     await close(server);
@@ -489,6 +501,12 @@ test("sync account entitlements expose enabled paid features", async () => {
       },
     },
   });
+  db.recordFeatureUsage({
+    accountId,
+    featureKey: "voiceTranscription",
+    checkedAt: "2026-07-12T09:02:00.000Z",
+    count: 7,
+  });
 
   try {
     const response = await fetch(`${baseUrl}/api/sync/entitlements`, {
@@ -506,6 +524,16 @@ test("sync account entitlements expose enabled paid features", async () => {
     assert.equal(result.entitlements.voiceTranscription.updatedAt, "2026-07-12T09:01:00.000Z");
     assert.equal(result.entitlements.voiceTranscription.activatedAt, "2026-07-12T09:01:00.000Z");
     assert.equal(result.entitlements.voiceTranscription.expiresAt, null);
+    assert.deepEqual(result.usage.voiceTranscription, {
+      accountId,
+      featureKey: "voiceTranscription",
+      period: "2026-07",
+      used: 7,
+      limit: 300,
+      remaining: 293,
+      resetAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: "2026-07-12T09:02:00.000Z",
+    });
   } finally {
     await close(server);
     db.close();
