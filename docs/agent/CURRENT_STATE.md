@@ -77,6 +77,7 @@ Status: DRAFT
 - TASK-064 is implemented locally: backend transcription now has a configurable provider adapter and local `localEcho` provider for end-to-end checks; successful transcriptions spend monthly usage and provider-missing/failure paths do not.
 - TASK-065 is implemented locally: backend records bounded account-scoped transcription diagnostics without storing audio or recognized text payloads.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
+- Runtime through local commit `2362d05` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-31; remote backup is `/opt/focus-v2/deploy-backups/backup-20260731-134936-pre-2362d05`; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v87`, and public requisites/subscription/privacy pages returned `200`.
 
 ## In Progress
 
@@ -97,9 +98,9 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-065 checks passed locally (`node --check server/sync-server.mjs`; `node --test tests/focus-sync-server.test.mjs` 64/64; `npm.cmd run test` 183/183). Public requisites deploy on 2026-07-30 uploaded `requisites.html` and `service-worker.js`; the page returned 200, app returned 200, backend health returned `{"ok":true,"service":"focus-sync"}`.
+- Current result: local Git repository exists; TASK-065 checks passed locally (`node --check server/sync-server.mjs`; `node --test tests/focus-sync-server.test.mjs` 64/64; `npm.cmd run test` 183/183). Production deploy on 2026-07-31 uploaded current runtime through commit `2362d05`; app, API health, service worker, requisites, subscription, privacy, and manifest checks passed; backend service is active.
 
 ## Open Questions
 
-- The next product/runtime task is either deploying tariff/legal/voice/admin/YooKassa checkout/webhook/status/period/audit/transcription/recording/quota/usage UI/replay/provider-adapter/diagnostics changes for review and testing, choosing/wiring a real STT provider after credentials are available, or hardening YooKassa webhook authenticity once provider settings are available.
+- The next product/runtime task is choosing/wiring a real STT provider after credentials are available, continuing paid-feature UX, or hardening YooKassa webhook authenticity once provider settings are available.
 - Future backend/deployment changes still require a separate owner deployment approval.

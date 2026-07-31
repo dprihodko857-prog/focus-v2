@@ -11,3 +11,4 @@
 | 2026-07-23 | Continue autonomously after iOS PWA/push verification. | APPROVED | Scope interpreted as local continuation on the next bounded project task. No git push or production deployment without separate confirmation. |
 | 2026-07-23 | Approve deployment of current Focus v2 visual updates. | APPROVED | Scope: deploy current local commit `45ae1c1` to `focus-v2.dmnao83.ru`, restart backend, verify status. No git push. |
 | 2026-07-29 | Approve deployment of current Focus v2 runtime. | APPROVED | Scope: deploy local runtime through commit `c975205` to `focus-v2.dmnao83.ru`, upload app/backend files, restart backend, verify status. No git push. |
+| 2026-07-31 | Approve deployment of current Focus v2 runtime. | APPROVED | Scope: deploy local runtime through commit `2362d05` to `focus-v2.dmnao83.ru`, upload app/backend/package files, restart backend, fix static permissions, verify public app and API status. No git push. |
