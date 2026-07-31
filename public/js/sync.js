@@ -735,6 +735,17 @@ export function createFocusSyncClient({
             accountId: result.accountId || accountId,
             featureKey: normalizePaidFeatureKey(result.featureKey) || VOICE_TRANSCRIPTION_FEATURE_KEY,
             provider: typeof result.provider === "string" ? result.provider : null,
+            usage: normalizeTranscriptionUsage(result.usage),
+            text: "",
+          };
+        }
+
+        if (response.status === 429 && result?.error === "usage_limit_exceeded") {
+          return {
+            status: "usage-limit-exceeded",
+            accountId: result.accountId || accountId,
+            featureKey: normalizePaidFeatureKey(result.featureKey) || VOICE_TRANSCRIPTION_FEATURE_KEY,
+            usage: normalizeTranscriptionUsage(result.usage),
             text: "",
           };
         }
@@ -757,6 +768,7 @@ export function createFocusSyncClient({
           accountId: result.accountId || accountId,
           featureKey: normalizePaidFeatureKey(result.featureKey) || VOICE_TRANSCRIPTION_FEATURE_KEY,
           provider: typeof result.provider === "string" ? result.provider : null,
+          usage: normalizeTranscriptionUsage(result.usage),
           text: typeof result.text === "string" ? result.text : "",
         };
       } catch {
@@ -1418,6 +1430,45 @@ function normalizeTranscriptionRequest({ audioBase64, mimeType, language, prompt
     language: normalizeTranscriptionLanguage(language),
     prompt: sanitizeTranscriptionPrompt(prompt),
   };
+}
+
+function normalizeTranscriptionUsage(usage) {
+  if (!usage || typeof usage !== "object" || Array.isArray(usage)) {
+    return null;
+  }
+
+  const period = String(usage.period || "").trim();
+  const used = normalizeNonNegativeInteger(usage.used);
+  const limit = normalizeNonNegativeInteger(usage.limit);
+  const remaining = normalizeNonNegativeInteger(usage.remaining);
+  const resetAt = normalizeIsoTimestamp(usage.resetAt);
+  const updatedAt = normalizeIsoTimestamp(usage.updatedAt);
+
+  if (!/^\d{4}-\d{2}$/.test(period) || !limit) {
+    return null;
+  }
+
+  return {
+    period,
+    used,
+    limit,
+    remaining,
+    resetAt,
+    updatedAt,
+  };
+}
+
+function normalizeNonNegativeInteger(value) {
+  const parsed = Math.floor(Number(value));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function normalizeIsoTimestamp(value) {
+  const timestamp = String(value || "").trim();
+  if (!timestamp) return null;
+
+  const time = Date.parse(timestamp);
+  return Number.isFinite(time) ? new Date(time).toISOString() : null;
 }
 
 function normalizeTranscriptionAudioBase64(value) {

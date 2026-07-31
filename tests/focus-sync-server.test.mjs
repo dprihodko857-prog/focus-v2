@@ -652,7 +652,151 @@ test("sync transcription endpoint validates entitled requests before provider wo
       accountId,
       featureKey: "voiceTranscription",
       provider: null,
+      usage: {
+        accountId,
+        featureKey: "voiceTranscription",
+        period: "2026-07",
+        used: 0,
+        limit: 300,
+        remaining: 300,
+        resetAt: "2026-08-01T00:00:00.000Z",
+        updatedAt: null,
+      },
       checkedAt: "2026-07-12T09:05:00.000Z",
+    });
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync transcription endpoint enforces monthly usage quota before provider work", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+    voiceTranscriptionMonthlyLimit: 1,
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-transcription-quota";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  db.setAccountEntitlements({
+    accountId,
+    updatedAt: "2026-07-12T09:00:00.000Z",
+    entitlements: {
+      voiceTranscription: {
+        enabled: true,
+        source: "subscription",
+      },
+    },
+  });
+  db.recordFeatureUsage({
+    accountId,
+    featureKey: "voiceTranscription",
+    checkedAt: "2026-07-12T09:00:00.000Z",
+    count: 1,
+    limit: 1,
+  });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/transcription`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createTranscriptionRequest()),
+    });
+
+    assert.equal(response.status, 429);
+    assert.deepEqual(await response.json(), {
+      error: "usage_limit_exceeded",
+      status: "usage_limit_exceeded",
+      accountId,
+      featureKey: "voiceTranscription",
+      usage: {
+        accountId,
+        featureKey: "voiceTranscription",
+        period: "2026-07",
+        used: 1,
+        limit: 1,
+        remaining: 0,
+        resetAt: "2026-08-01T00:00:00.000Z",
+        updatedAt: "2026-07-12T09:00:00.000Z",
+      },
+      checkedAt: "2026-07-12T09:05:00.000Z",
+    });
+    assert.deepEqual(db.getFeatureUsage({
+      accountId,
+      featureKey: "voiceTranscription",
+      checkedAt: "2026-08-01T00:00:00.000Z",
+      limit: 1,
+    }), {
+      accountId,
+      featureKey: "voiceTranscription",
+      period: "2026-08",
+      used: 0,
+      limit: 1,
+      remaining: 1,
+      resetAt: "2026-09-01T00:00:00.000Z",
+      updatedAt: null,
+    });
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync transcription provider scaffold does not spend monthly usage", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+    voiceTranscriptionMonthlyLimit: 1,
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-transcription-no-spend";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  db.setAccountEntitlements({
+    accountId,
+    updatedAt: "2026-07-12T09:00:00.000Z",
+    entitlements: {
+      voiceTranscription: {
+        enabled: true,
+        source: "subscription",
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/transcription`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createTranscriptionRequest()),
+    });
+
+    assert.equal(response.status, 503);
+    assert.deepEqual(db.getFeatureUsage({
+      accountId,
+      featureKey: "voiceTranscription",
+      checkedAt: "2026-07-12T09:06:00.000Z",
+      limit: 1,
+    }), {
+      accountId,
+      featureKey: "voiceTranscription",
+      period: "2026-07",
+      used: 0,
+      limit: 1,
+      remaining: 1,
+      resetAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: null,
     });
   } finally {
     await close(server);

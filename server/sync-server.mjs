@@ -15,6 +15,7 @@ const DEFAULT_PUSH_RETRY_MAX_ATTEMPTS = readPositiveIntegerEnv("FOCUS_PUSH_RETRY
 const DEFAULT_FOCUS_PLUS_AMOUNT_RUB = normalizeMoneyAmount(process.env.FOCUS_PLUS_AMOUNT_RUB || "199.00");
 const DEFAULT_FOCUS_PLUS_PERIOD_DAYS = readPositiveIntegerEnv("FOCUS_PLUS_PERIOD_DAYS", 30);
 const DEFAULT_YOOKASSA_PAYMENTS_URL = normalizeUrl(process.env.FOCUS_YOOKASSA_PAYMENTS_URL || "https://api.yookassa.ru/v3/payments");
+const DEFAULT_VOICE_TRANSCRIPTION_MONTHLY_LIMIT = readPositiveIntegerEnv("FOCUS_VOICE_TRANSCRIPTION_MONTHLY_LIMIT", 300);
 const MAX_BODY_BYTES = 1024 * 1024;
 const AUTH_SESSION_COOKIE = "focus_auth_session";
 const AUTH_TRANSIENT_COOKIE = "focus_auth_pkce";
@@ -88,6 +89,61 @@ class JsonSyncDatabase {
 
   getAccountEntitlements(accountId, checkedAt = null) {
     return normalizeAccountEntitlements(this.getAccount(accountId)?.entitlements, null, checkedAt);
+  }
+
+  getFeatureUsage({ accountId, featureKey, checkedAt, limit = DEFAULT_VOICE_TRANSCRIPTION_MONTHLY_LIMIT }) {
+    const normalizedFeatureKey = normalizePaidFeatureKey(featureKey);
+    if (!this.getAccount(accountId) || !normalizedFeatureKey) {
+      return null;
+    }
+
+    const usageRoot = isPlainObject(this.state.featureUsage) ? this.state.featureUsage : {};
+    const accountUsage = isPlainObject(usageRoot[accountId]) ? usageRoot[accountId] : {};
+    return normalizeFeatureUsageEntry({
+      accountId,
+      featureKey: normalizedFeatureKey,
+      usage: accountUsage[normalizedFeatureKey],
+      checkedAt,
+      limit,
+    });
+  }
+
+  recordFeatureUsage({ accountId, featureKey, checkedAt, count = 1, limit = DEFAULT_VOICE_TRANSCRIPTION_MONTHLY_LIMIT }) {
+    const normalizedFeatureKey = normalizePaidFeatureKey(featureKey);
+    if (!this.getAccount(accountId) || !normalizedFeatureKey) {
+      return null;
+    }
+
+    if (!isPlainObject(this.state.featureUsage)) {
+      this.state.featureUsage = {};
+    }
+
+    if (!isPlainObject(this.state.featureUsage[accountId])) {
+      this.state.featureUsage[accountId] = {};
+    }
+
+    const currentUsage = normalizeFeatureUsageEntry({
+      accountId,
+      featureKey: normalizedFeatureKey,
+      usage: this.state.featureUsage[accountId][normalizedFeatureKey],
+      checkedAt,
+      limit,
+    });
+    const nextUsed = currentUsage.used + normalizeUsageCount(count);
+    this.state.featureUsage[accountId][normalizedFeatureKey] = {
+      period: currentUsage.period,
+      used: nextUsed,
+      updatedAt: checkedAt,
+    };
+    this.persist();
+
+    return normalizeFeatureUsageEntry({
+      accountId,
+      featureKey: normalizedFeatureKey,
+      usage: this.state.featureUsage[accountId][normalizedFeatureKey],
+      checkedAt,
+      limit,
+    });
   }
 
   setAccountEntitlements({ accountId, entitlements, updatedAt }) {
@@ -579,6 +635,7 @@ function readState(dbPath) {
       pushFailures: isPlainObject(parsed.pushFailures) ? parsed.pushFailures : {},
       pushEvents: isPlainObject(parsed.pushEvents) ? parsed.pushEvents : {},
       entitlementEvents: isPlainObject(parsed.entitlementEvents) ? parsed.entitlementEvents : {},
+      featureUsage: isPlainObject(parsed.featureUsage) ? parsed.featureUsage : {},
       deviceSessions: isPlainObject(parsed.deviceSessions) ? parsed.deviceSessions : {},
     };
   } catch {
@@ -616,6 +673,7 @@ function createEmptyState() {
     pushFailures: {},
     pushEvents: {},
     entitlementEvents: {},
+    featureUsage: {},
     deviceSessions: {},
   };
 }
@@ -801,6 +859,58 @@ function normalizePaidFeatureKey(value) {
     return VOICE_TRANSCRIPTION_FEATURE_KEY;
   }
   return PAID_FEATURE_KEYS.has(featureKey) ? featureKey : "";
+}
+
+function normalizeFeatureUsageEntry({
+  accountId,
+  featureKey,
+  usage,
+  checkedAt,
+  limit = DEFAULT_VOICE_TRANSCRIPTION_MONTHLY_LIMIT,
+}) {
+  const period = createMonthlyUsagePeriod(checkedAt);
+  const normalizedUsage = isPlainObject(usage) && usage.period === period ? usage : {};
+  const normalizedLimit = normalizeMonthlyUsageLimit(limit);
+  const used = normalizeUsageCount(normalizedUsage.used);
+
+  return {
+    accountId,
+    featureKey,
+    period,
+    used,
+    limit: normalizedLimit,
+    remaining: Math.max(0, normalizedLimit - used),
+    resetAt: createMonthlyUsageResetAt(period),
+    updatedAt: normalizeTimestamp(normalizedUsage.updatedAt),
+  };
+}
+
+function createMonthlyUsagePeriod(timestamp) {
+  const time = Date.parse(timestamp);
+  const date = Number.isFinite(time) ? new Date(time) : new Date();
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function createMonthlyUsageResetAt(period) {
+  const [yearText, monthText] = String(period || "").split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    return null;
+  }
+
+  return new Date(Date.UTC(year, month, 1, 0, 0, 0, 0)).toISOString();
+}
+
+function normalizeMonthlyUsageLimit(value) {
+  const limit = Math.floor(Number(value));
+  return Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_VOICE_TRANSCRIPTION_MONTHLY_LIMIT;
+}
+
+function normalizeUsageCount(value) {
+  const count = Math.floor(Number(value));
+  return Number.isFinite(count) && count > 0 ? count : 0;
 }
 
 function normalizeVoiceTranscriptionRequest(body) {
@@ -1652,11 +1762,12 @@ export function createFocusSyncServer({
   }),
   adminToken = normalizeSecretToken(process.env.FOCUS_ADMIN_TOKEN || ""),
   yookassaWebhookToken = normalizeSecretToken(process.env.FOCUS_YOOKASSA_WEBHOOK_TOKEN || ""),
+  voiceTranscriptionMonthlyLimit = DEFAULT_VOICE_TRANSCRIPTION_MONTHLY_LIMIT,
   logger = console,
 } = {}) {
   const server = http.createServer(async (request, response) => {
     try {
-      await routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, yookassaConfig, adminToken, yookassaWebhookToken });
+      await routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, yookassaConfig, adminToken, yookassaWebhookToken, voiceTranscriptionMonthlyLimit });
     } catch (error) {
       if (isHttpRequestError(error)) {
         sendJson(response, error.status, {
@@ -1684,7 +1795,7 @@ export function createFocusSyncServer({
   return server;
 }
 
-async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, yookassaConfig, adminToken, yookassaWebhookToken }) {
+async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, yookassaConfig, adminToken, yookassaWebhookToken, voiceTranscriptionMonthlyLimit }) {
   const url = new URL(request.url || "/", "http://127.0.0.1");
 
   if (request.method === "OPTIONS") {
@@ -1922,12 +2033,32 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       return;
     }
 
+    const usage = db.getFeatureUsage({
+      accountId: accountContext.accountId,
+      featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
+      checkedAt: accountContext.checkedAt,
+      limit: voiceTranscriptionMonthlyLimit,
+    });
+
+    if (!usage || usage.remaining <= 0) {
+      sendJson(response, 429, {
+        error: "usage_limit_exceeded",
+        status: "usage_limit_exceeded",
+        accountId: accountContext.accountId,
+        featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
+        usage,
+        checkedAt: accountContext.checkedAt,
+      });
+      return;
+    }
+
     sendJson(response, 503, {
       error: "provider_not_configured",
       status: "provider_not_configured",
       accountId: accountContext.accountId,
       featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
       provider: null,
+      usage,
       checkedAt: accountContext.checkedAt,
     });
     return;

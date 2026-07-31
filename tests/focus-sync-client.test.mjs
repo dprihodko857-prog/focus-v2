@@ -928,6 +928,14 @@ test("transcription client handles gated provider scaffold states", async () => 
       accountId: "account-1",
       featureKey: "voiceTranscription",
       provider: null,
+      usage: {
+        period: "2026-07",
+        used: 0,
+        limit: 300,
+        remaining: 300,
+        resetAt: "2026-08-01T00:00:00.000Z",
+        updatedAt: null,
+      },
     }, 503),
     localStorage: createMemoryLocalStorage({
       "focus-sync-account-id": "account-1",
@@ -944,6 +952,14 @@ test("transcription client handles gated provider scaffold states", async () => 
     accountId: "account-1",
     featureKey: "voiceTranscription",
     provider: null,
+    usage: {
+      period: "2026-07",
+      used: 0,
+      limit: 300,
+      remaining: 300,
+      resetAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: null,
+    },
     text: "",
   });
 
@@ -954,6 +970,46 @@ test("transcription client handles gated provider scaffold states", async () => 
     status: "invalid-request",
     accountId: "account-1",
     featureKey: "voiceTranscription",
+    text: "",
+  });
+
+  const quotaClient = createFocusSyncClient({
+    fetch: async () => jsonResponse({
+      error: "usage_limit_exceeded",
+      status: "usage_limit_exceeded",
+      accountId: "account-1",
+      featureKey: "voiceTranscription",
+      usage: {
+        period: "2026-07",
+        used: 1,
+        limit: 1,
+        remaining: 0,
+        resetAt: "2026-08-01T00:00:00.000Z",
+        updatedAt: "2026-07-12T09:00:00.000Z",
+      },
+    }, 429),
+    localStorage: createMemoryLocalStorage({
+      "focus-sync-account-id": "account-1",
+      "focus-sync-device-id": "device-1",
+    }),
+    randomUUID: () => "device-1",
+  });
+
+  assert.deepEqual(await quotaClient.transcribeAudio({
+    audioBase64: "UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
+    mimeType: "audio/webm",
+  }), {
+    status: "usage-limit-exceeded",
+    accountId: "account-1",
+    featureKey: "voiceTranscription",
+    usage: {
+      period: "2026-07",
+      used: 1,
+      limit: 1,
+      remaining: 0,
+      resetAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: "2026-07-12T09:00:00.000Z",
+    },
     text: "",
   });
 });

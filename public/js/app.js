@@ -5056,6 +5056,11 @@ function getVoiceTranscriptionFailureMessage(status) {
         message: "Запись не подходит для транскрибации. Попробуйте записать ещё раз.",
         tone: "bad",
       };
+    case "usage-limit-exceeded":
+      return {
+        message: "Месячный лимит транскрибации исчерпан. Новый период начнётся автоматически.",
+        tone: "warn",
+      };
     case "offline":
       return {
         message: "Нет связи с сервером. Запись не отправлена.",

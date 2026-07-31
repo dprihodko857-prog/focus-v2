@@ -5,6 +5,7 @@ import { test } from "node:test";
 const appJs = readFileSync("public/js/app.js", "utf8");
 const appCss = readFileSync("public/css/app.css", "utf8");
 const syncJs = readFileSync("public/js/sync.js", "utf8");
+const serverJs = readFileSync("server/sync-server.mjs", "utf8");
 const indexHtml = readFileSync("public/index.html", "utf8");
 const serviceWorker = readFileSync("public/service-worker.js", "utf8");
 
@@ -22,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v85/);
+  assert.match(serviceWorker, /focus-pwa-v86/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -150,9 +151,15 @@ test("voice input buttons are gated by the paid transcription entitlement", () =
   assert.match(appJs, /function blobToBase64\(blob\)/);
   assert.match(appJs, /scheduleSync\.transcribeAudio\(\{/);
   assert.match(appJs, /provider-not-configured/);
+  assert.match(appJs, /usage-limit-exceeded/);
+  assert.match(appJs, /Месячный лимит транскрибации исчерпан/);
   assert.match(appJs, /function insertVoiceTranscript\(target, transcript\)/);
   assert.match(appJs, /handlePaidFeatureAction\("voiceTranscription", openModal\)/);
   assert.match(appJs, /recognition\.lang = "ru-RU"/);
+  assert.match(syncJs, /usage_limit_exceeded/);
+  assert.match(syncJs, /normalizeTranscriptionUsage\(result\.usage\)/);
+  assert.match(serverJs, /FOCUS_VOICE_TRANSCRIPTION_MONTHLY_LIMIT/);
+  assert.match(serverJs, /db\.getFeatureUsage\(\{/);
 });
 
 test("orbit logout cleans up current sync device and local push subscription", () => {

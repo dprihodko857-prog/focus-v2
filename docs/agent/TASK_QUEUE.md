@@ -3289,3 +3289,67 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Voice controls now keep browser SpeechRecognition as the preferred path and add a bounded MediaRecorder fallback that submits short audio recordings to `scheduleSync.transcribeAudio(...)`.
 - commit_status: committed
 - notes: Syntax checks passed, targeted PWA/static tests passed 49/49, and `npm.cmd run test` passed 178/178 on 2026-07-30. No deployment or git push.
+
+## TASK-061
+
+- title: Add voice transcription usage quota
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_transcription_backend
+- priority: high
+- source: next hardening step before wiring a live STT provider
+- spec_reference: `docs/specs/voice-transcription-usage-quota.md`
+- spec_status: implemented_local_committed
+- goal: add account-scoped monthly usage tracking and quota checks for server transcription requests.
+- out_of_scope:
+  - live STT provider integration
+  - audio-duration based billing
+  - payment provider changes
+  - admin usage reset UI
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - backend stores `featureUsage` in the sync JSON state
+  - `voiceTranscription` usage is tracked by account and calendar month
+  - monthly limit can be configured with `FOCUS_VOICE_TRANSCRIPTION_MONTHLY_LIMIT`
+  - exhausted usage returns `429 usage_limit_exceeded`
+  - provider-missing responses include usage diagnostics without spending quota
+  - client maps exhausted quota to `usage-limit-exceeded`
+  - voice UI shows a clear quota-exceeded message
+  - service worker cache is bumped to `focus-pwa-v86`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/sync.js`
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/desktop-layout-css.test.mjs tests/legal-pages.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_transcription_backend task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 60
+- stop_conditions:
+  - implementation requires provider credentials or live external STT calls
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/sync.js`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - server/client/static tests
+  - Project Maestro memory
+- dependencies:
+  - voice transcription API scaffold
+  - voice recording UI scaffold
+  - Focus Plus entitlement periods
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Transcription requests now have account-scoped monthly usage diagnostics and quota checks before provider work.
+- commit_status: committed
+- notes: Syntax checks passed, focused server/client/static tests passed 150/150, and `npm.cmd run test` passed 180/180 on 2026-07-31. No deployment or git push.
