@@ -69,4 +69,5 @@ Status: DRAFT
 | VOICE-TRANSCRIPTION-USAGE-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-usage-quota.md` | TASK-061 adds account-scoped monthly usage diagnostics and quota checks before provider transcription work. |
 | VOICE-TRANSCRIPTION-USAGE-UI-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-usage-diagnostics-ui.md` | TASK-062 shows monthly voice transcription usage diagnostics in Settings and Useful subscription surfaces. |
 | YOOKASSA-WEBHOOK-REPLAY-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-webhook-replay-guard.md` | TASK-063 stores processed YooKassa webhook event keys and ignores exact replay delivery before entitlement processing. |
+| VOICE-TRANSCRIPTION-PROVIDER-ADAPTER-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-provider-adapter.md` | TASK-064 adds a server-side transcription provider boundary with a local end-to-end provider and usage spending on success. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

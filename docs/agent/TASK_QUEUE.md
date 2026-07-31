@@ -3471,3 +3471,60 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Backend now stores bounded processed provider event keys and ignores exact YooKassa webhook replay delivery before entitlement logic runs again.
 - commit_status: committed
 - notes: Syntax check passed, focused server test passed 61/61, and `npm.cmd run test` passed 180/180 on 2026-07-31. No deployment or git push.
+
+## TASK-064
+
+- title: Add voice transcription provider adapter
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_transcription_backend
+- priority: high
+- source: next transcription backend step before choosing and wiring a live STT provider
+- spec_reference: `docs/specs/voice-transcription-provider-adapter.md`
+- spec_status: implemented_local_committed
+- goal: add a server-side provider boundary and local end-to-end provider for the entitlement-gated transcription endpoint.
+- out_of_scope:
+  - OpenAI, Whisper, Google, Apple, or other live STT provider calls
+  - provider credentials or model selection
+  - streaming transcription
+  - audio-duration based quota
+  - client UI changes
+  - service worker cache bump
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - default entitled transcription requests still return `provider_not_configured` without spending usage
+  - server accepts `voiceTranscriptionProvider` configuration
+  - local `localEcho` provider can return `status: "transcribed"` for local/staging checks
+  - successful provider responses spend one monthly usage unit
+  - provider failures return `status: "failed"` without spending monthly usage
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_transcription_backend task
+- file_limit: up to 6 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 63
+- stop_conditions:
+  - implementation requires live STT provider credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - voice transcription API scaffold
+  - voice recording UI scaffold
+  - voice transcription usage quota
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend now has a configurable transcription provider adapter and local `localEcho` provider; successful transcriptions spend quota, provider-missing/failure paths do not.
+- commit_status: committed
+- notes: Syntax check passed, focused server test passed 63/63, and `npm.cmd run test` passed 182/182 on 2026-07-31. No deployment or git push.

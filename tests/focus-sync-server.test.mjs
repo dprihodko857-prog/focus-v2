@@ -832,6 +832,142 @@ test("sync transcription provider scaffold does not spend monthly usage", async 
   }
 });
 
+test("sync transcription endpoint uses configured local provider and spends monthly usage", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+    voiceTranscriptionMonthlyLimit: 2,
+    voiceTranscriptionProvider: {
+      provider: "localEcho",
+      text: "Новая задача: подготовить план",
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-transcription-local-provider";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  db.setAccountEntitlements({
+    accountId,
+    updatedAt: "2026-07-12T09:00:00.000Z",
+    entitlements: {
+      voiceTranscription: {
+        enabled: true,
+        source: "subscription",
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/transcription`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createTranscriptionRequest({
+        language: "ru-RU",
+        prompt: "задача",
+      })),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      status: "transcribed",
+      provider: "localEcho",
+      text: "Новая задача: подготовить план",
+      language: "ru-RU",
+      checkedAt: "2026-07-12T09:05:00.000Z",
+      accountId,
+      featureKey: "voiceTranscription",
+      usage: {
+        accountId,
+        featureKey: "voiceTranscription",
+        period: "2026-07",
+        used: 1,
+        limit: 2,
+        remaining: 1,
+        resetAt: "2026-08-01T00:00:00.000Z",
+        updatedAt: "2026-07-12T09:05:00.000Z",
+      },
+    });
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync transcription endpoint reports provider failure without spending monthly usage", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+    voiceTranscriptionMonthlyLimit: 1,
+    voiceTranscriptionProvider: {
+      provider: "failingProvider",
+      transcribe: async () => ({ text: "" }),
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-transcription-provider-failed";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  db.setAccountEntitlements({
+    accountId,
+    updatedAt: "2026-07-12T09:00:00.000Z",
+    entitlements: {
+      voiceTranscription: {
+        enabled: true,
+        source: "subscription",
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/transcription`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createTranscriptionRequest()),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      error: "provider_failed",
+      status: "failed",
+      provider: "failingProvider",
+      reason: "empty_transcription",
+      text: "",
+      checkedAt: "2026-07-12T09:05:00.000Z",
+      accountId,
+      featureKey: "voiceTranscription",
+      usage: {
+        accountId,
+        featureKey: "voiceTranscription",
+        period: "2026-07",
+        used: 0,
+        limit: 1,
+        remaining: 1,
+        resetAt: "2026-08-01T00:00:00.000Z",
+        updatedAt: null,
+      },
+    });
+    assert.equal(db.getFeatureUsage({
+      accountId,
+      featureKey: "voiceTranscription",
+      checkedAt: "2026-07-12T09:06:00.000Z",
+      limit: 1,
+    }).used, 0);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("sync entitlement events endpoint lists access audit entries", async () => {
   const db = createSyncDatabase(":memory:");
   const ticks = [

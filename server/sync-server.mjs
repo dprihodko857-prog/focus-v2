@@ -34,6 +34,7 @@ const MAX_PROCESSED_PROVIDER_EVENTS = 500;
 const VOICE_TRANSCRIPTION_FEATURE_KEY = "voiceTranscription";
 const PAID_FEATURE_KEYS = new Set([VOICE_TRANSCRIPTION_FEATURE_KEY]);
 const MAX_TRANSCRIPTION_AUDIO_BASE64_LENGTH = 768 * 1024;
+const MAX_TRANSCRIPTION_TEXT_LENGTH = 5000;
 const TRANSCRIPTION_MIME_TYPES = new Set([
   "audio/aac",
   "audio/mp4",
@@ -1044,6 +1045,146 @@ function sanitizeTranscriptionPrompt(value) {
   return value.replace(/\s+/g, " ").trim().slice(0, 500);
 }
 
+function createVoiceTranscriptionProviderConfig(env = process.env) {
+  const provider = normalizeVoiceTranscriptionProviderName(
+    env.FOCUS_VOICE_TRANSCRIPTION_PROVIDER ||
+    env.FOCUS_TRANSCRIPTION_PROVIDER ||
+    "",
+  );
+
+  if (provider !== "localEcho") {
+    return null;
+  }
+
+  return {
+    provider,
+    text: sanitizeTranscriptionText(env.FOCUS_VOICE_TRANSCRIPTION_LOCAL_TEXT) || "Тестовая транскрибация работает.",
+  };
+}
+
+function normalizeVoiceTranscriptionProviderConfig(config) {
+  if (!isPlainObject(config)) {
+    return null;
+  }
+
+  const provider = normalizeVoiceTranscriptionProviderName(config.provider);
+  if (!provider) {
+    return null;
+  }
+
+  if (provider === "localEcho") {
+    return {
+      provider,
+      text: sanitizeTranscriptionText(config.text) || "Тестовая транскрибация работает.",
+    };
+  }
+
+  if (typeof config.transcribe === "function") {
+    return {
+      provider,
+      transcribe: config.transcribe,
+    };
+  }
+
+  return null;
+}
+
+function normalizeVoiceTranscriptionProviderName(value) {
+  const provider = String(value || "").trim();
+  if (["local", "localEcho", "local_echo", "test", "testProvider"].includes(provider)) {
+    return provider === "testProvider" ? "testProvider" : "localEcho";
+  }
+
+  return sanitizeProviderEventPart(provider);
+}
+
+function sanitizeTranscriptionText(value) {
+  if (typeof value !== "string") return "";
+  return value.replace(/\s+/g, " ").trim().slice(0, MAX_TRANSCRIPTION_TEXT_LENGTH);
+}
+
+async function transcribeVoiceAudio({ providerConfig, transcriptionRequest, checkedAt }) {
+  if (!providerConfig) {
+    return {
+      statusCode: 503,
+      body: {
+        error: "provider_not_configured",
+        status: "provider_not_configured",
+        provider: null,
+        checkedAt,
+      },
+    };
+  }
+
+  if (providerConfig.provider === "localEcho") {
+    return {
+      statusCode: 200,
+      body: {
+        status: "transcribed",
+        provider: providerConfig.provider,
+        text: providerConfig.text,
+        language: transcriptionRequest.language,
+        checkedAt,
+      },
+    };
+  }
+
+  if (typeof providerConfig.transcribe !== "function") {
+    return createFailedTranscriptionProviderResponse({
+      provider: providerConfig.provider,
+      reason: "provider_not_supported",
+      checkedAt,
+    });
+  }
+
+  try {
+    const result = await providerConfig.transcribe({
+      ...transcriptionRequest,
+      checkedAt,
+    });
+    const text = sanitizeTranscriptionText(isPlainObject(result) ? result.text : result);
+
+    if (!text) {
+      return createFailedTranscriptionProviderResponse({
+        provider: providerConfig.provider,
+        reason: "empty_transcription",
+        checkedAt,
+      });
+    }
+
+    return {
+      statusCode: 200,
+      body: {
+        status: "transcribed",
+        provider: providerConfig.provider,
+        text,
+        language: normalizeTranscriptionLanguage(result?.language || transcriptionRequest.language),
+        checkedAt,
+      },
+    };
+  } catch {
+    return createFailedTranscriptionProviderResponse({
+      provider: providerConfig.provider,
+      reason: "provider_error",
+      checkedAt,
+    });
+  }
+}
+
+function createFailedTranscriptionProviderResponse({ provider, reason, checkedAt }) {
+  return {
+    statusCode: 200,
+    body: {
+      error: "provider_failed",
+      status: "failed",
+      provider: sanitizeProviderEventPart(provider) || "unknown",
+      reason: sanitizeStoredName(reason) || "provider_error",
+      text: "",
+      checkedAt,
+    },
+  };
+}
+
 async function createSubscriptionCheckout({
   checkoutBaseUrl,
   yookassaConfig,
@@ -1926,11 +2067,30 @@ export function createFocusSyncServer({
   adminToken = normalizeSecretToken(process.env.FOCUS_ADMIN_TOKEN || ""),
   yookassaWebhookToken = normalizeSecretToken(process.env.FOCUS_YOOKASSA_WEBHOOK_TOKEN || ""),
   voiceTranscriptionMonthlyLimit = DEFAULT_VOICE_TRANSCRIPTION_MONTHLY_LIMIT,
+  voiceTranscriptionProvider = createVoiceTranscriptionProviderConfig(),
   logger = console,
 } = {}) {
+  const normalizedVoiceTranscriptionProvider = normalizeVoiceTranscriptionProviderConfig(voiceTranscriptionProvider);
   const server = http.createServer(async (request, response) => {
     try {
-      await routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, yookassaConfig, adminToken, yookassaWebhookToken, voiceTranscriptionMonthlyLimit });
+      await routeRequest({
+        request,
+        response,
+        db,
+        now,
+        createId,
+        pushPublicKey,
+        pushSender,
+        authConfig,
+        authSessions,
+        fetchImpl,
+        subscriptionCheckoutUrl,
+        yookassaConfig,
+        adminToken,
+        yookassaWebhookToken,
+        voiceTranscriptionMonthlyLimit,
+        voiceTranscriptionProvider: normalizedVoiceTranscriptionProvider,
+      });
     } catch (error) {
       if (isHttpRequestError(error)) {
         sendJson(response, error.status, {
@@ -1958,7 +2118,7 @@ export function createFocusSyncServer({
   return server;
 }
 
-async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, yookassaConfig, adminToken, yookassaWebhookToken, voiceTranscriptionMonthlyLimit }) {
+async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, yookassaConfig, adminToken, yookassaWebhookToken, voiceTranscriptionMonthlyLimit, voiceTranscriptionProvider }) {
   const url = new URL(request.url || "/", "http://127.0.0.1");
 
   if (request.method === "OPTIONS") {
@@ -2215,13 +2375,36 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       return;
     }
 
-    sendJson(response, 503, {
-      error: "provider_not_configured",
-      status: "provider_not_configured",
+    const transcriptionResult = await transcribeVoiceAudio({
+      providerConfig: voiceTranscriptionProvider,
+      transcriptionRequest,
+      checkedAt: accountContext.checkedAt,
+    });
+
+    if (transcriptionResult.body?.status !== "transcribed") {
+      sendJson(response, transcriptionResult.statusCode, {
+        ...transcriptionResult.body,
+        accountId: accountContext.accountId,
+        featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
+        usage,
+        checkedAt: accountContext.checkedAt,
+      });
+      return;
+    }
+
+    const spentUsage = db.recordFeatureUsage({
       accountId: accountContext.accountId,
       featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
-      provider: null,
-      usage,
+      checkedAt: accountContext.checkedAt,
+      count: 1,
+      limit: voiceTranscriptionMonthlyLimit,
+    }) || usage;
+
+    sendJson(response, transcriptionResult.statusCode, {
+      ...transcriptionResult.body,
+      accountId: accountContext.accountId,
+      featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
+      usage: spentUsage,
       checkedAt: accountContext.checkedAt,
     });
     return;
