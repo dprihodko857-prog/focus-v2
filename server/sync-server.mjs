@@ -28,6 +28,9 @@ const MAX_PUSH_ENDPOINT_LENGTH = 4096;
 const MAX_PUSH_KEY_LENGTH = 512;
 const ENTITLEMENT_SOURCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
 const YOOKASSA_PAYMENT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
+const PROVIDER_EVENT_PART_PATTERN = /^[a-zA-Z0-9_.:-]{1,120}$/;
+const PROVIDER_EVENT_KEY_PATTERN = /^[a-zA-Z0-9_.:-]{1,420}$/;
+const MAX_PROCESSED_PROVIDER_EVENTS = 500;
 const VOICE_TRANSCRIPTION_FEATURE_KEY = "voiceTranscription";
 const PAID_FEATURE_KEYS = new Set([VOICE_TRANSCRIPTION_FEATURE_KEY]);
 const MAX_TRANSCRIPTION_AUDIO_BASE64_LENGTH = 768 * 1024;
@@ -443,6 +446,85 @@ class JsonSyncDatabase {
     return event;
   }
 
+  getProcessedProviderEvent(eventKey) {
+    const normalizedEventKey = normalizeProviderEventKey(eventKey);
+    if (!normalizedEventKey || !isPlainObject(this.state.processedProviderEvents)) {
+      return null;
+    }
+
+    const event = this.state.processedProviderEvents[normalizedEventKey];
+    return isPlainObject(event) ? { ...event, eventKey: normalizedEventKey } : null;
+  }
+
+  saveProcessedProviderEvent({
+    eventKey,
+    provider,
+    eventName,
+    accountId,
+    featureKey,
+    paymentId,
+    paymentStatus,
+    paid,
+    status,
+    reason,
+    createdAt,
+  }) {
+    const normalizedEventKey = normalizeProviderEventKey(eventKey);
+    if (!normalizedEventKey) {
+      return null;
+    }
+
+    if (!isPlainObject(this.state.processedProviderEvents)) {
+      this.state.processedProviderEvents = {};
+    }
+
+    const existingEvent = this.getProcessedProviderEvent(normalizedEventKey);
+    if (existingEvent) {
+      return existingEvent;
+    }
+
+    const event = {
+      eventKey: normalizedEventKey,
+      provider: sanitizeProviderEventPart(provider) || "unknown",
+      eventName: sanitizeProviderEventPart(eventName) || "unknown",
+      accountId: sanitizeStoredName(accountId),
+      featureKey: normalizePaidFeatureKey(featureKey) || null,
+      paymentId: normalizeYooKassaPaymentId(paymentId) || null,
+      paymentStatus: sanitizeStoredName(paymentStatus),
+      paid: paid === true,
+      status: sanitizeEntitlementEventStatus(status),
+      reason: sanitizeStoredName(reason),
+      createdAt: normalizeTimestamp(createdAt),
+    };
+
+    this.state.processedProviderEvents[normalizedEventKey] = event;
+    this.pruneProcessedProviderEvents();
+    this.persist();
+    return event;
+  }
+
+  pruneProcessedProviderEvents(limit = MAX_PROCESSED_PROVIDER_EVENTS) {
+    if (!isPlainObject(this.state.processedProviderEvents)) {
+      this.state.processedProviderEvents = {};
+      return;
+    }
+
+    const entries = Object.entries(this.state.processedProviderEvents)
+      .filter(([, event]) => isPlainObject(event))
+      .sort((firstEntry, secondEntry) => compareProcessedProviderEventsForRetention(firstEntry, secondEntry));
+
+    if (entries.length <= limit) {
+      return;
+    }
+
+    const retainedKeys = new Set(entries.slice(0, limit).map(([key]) => key));
+    Object.keys(this.state.processedProviderEvents).forEach(key => {
+      if (!retainedKeys.has(key)) {
+        delete this.state.processedProviderEvents[key];
+      }
+    });
+  }
+
   savePushEvent({ accountId, deviceId, type, status, title, reminderId, scheduledAt, sent, failed, removed, subscriptions, attempts, maxAttempts, nextRetryAt, createdAt }) {
     const currentEvents = Array.isArray(this.state.pushEvents[accountId])
       ? this.state.pushEvents[accountId]
@@ -635,6 +717,7 @@ function readState(dbPath) {
       pushFailures: isPlainObject(parsed.pushFailures) ? parsed.pushFailures : {},
       pushEvents: isPlainObject(parsed.pushEvents) ? parsed.pushEvents : {},
       entitlementEvents: isPlainObject(parsed.entitlementEvents) ? parsed.entitlementEvents : {},
+      processedProviderEvents: isPlainObject(parsed.processedProviderEvents) ? parsed.processedProviderEvents : {},
       featureUsage: isPlainObject(parsed.featureUsage) ? parsed.featureUsage : {},
       deviceSessions: isPlainObject(parsed.deviceSessions) ? parsed.deviceSessions : {},
     };
@@ -673,6 +756,7 @@ function createEmptyState() {
     pushFailures: {},
     pushEvents: {},
     entitlementEvents: {},
+    processedProviderEvents: {},
     featureUsage: {},
     deviceSessions: {},
   };
@@ -1142,6 +1226,36 @@ function normalizeYooKassaPaymentId(value) {
   return YOOKASSA_PAYMENT_ID_PATTERN.test(paymentId) ? paymentId : "";
 }
 
+function sanitizeProviderEventPart(value) {
+  const eventPart = String(value || "").trim();
+  return PROVIDER_EVENT_PART_PATTERN.test(eventPart) ? eventPart : "";
+}
+
+function normalizeProviderEventKey(value) {
+  const eventKey = String(value || "").trim();
+  return PROVIDER_EVENT_KEY_PATTERN.test(eventKey) ? eventKey : "";
+}
+
+function createYooKassaWebhookEventKey(notification) {
+  if (!isPlainObject(notification) || typeof notification.event !== "string") {
+    return "";
+  }
+
+  const eventName = sanitizeProviderEventPart(notification.event);
+  const payment = isPlainObject(notification.object) ? notification.object : {};
+  const paymentId = normalizeYooKassaPaymentId(payment.id);
+  if (!eventName || !paymentId) {
+    return "";
+  }
+
+  const paymentStatus = sanitizeProviderEventPart(payment.status) || "unknown";
+  const paidState = payment.paid === true ? "paid" : "unpaid";
+  const { accountId, featureKey } = extractYooKassaPaymentMetadata(payment);
+  const accountPart = sanitizeProviderEventPart(accountId) || "account-missing";
+  const featurePart = sanitizeProviderEventPart(featureKey) || "feature-missing";
+  return normalizeProviderEventKey(`yookassa:${eventName}:${paymentId}:${paymentStatus}:${paidState}:${accountPart}:${featurePart}`);
+}
+
 function createYooKassaPaymentStatusUrl(yookassaConfig, paymentId) {
   return `${yookassaConfig.paymentsUrl}/${encodeURIComponent(paymentId)}`;
 }
@@ -1606,6 +1720,48 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
   };
 }
 
+function createProcessedYooKassaWebhookResponse({ processedEvent, eventKey, notification, checkedAt }) {
+  const payment = isPlainObject(notification.object) ? notification.object : {};
+  const { accountId, featureKey } = extractYooKassaPaymentMetadata(payment);
+  return {
+    statusCode: 200,
+    body: {
+      status: "ignored",
+      reason: "webhook_event_already_processed",
+      provider: "yookassa",
+      event: sanitizeProviderEventPart(notification.event) || processedEvent?.eventName || null,
+      eventKey,
+      accountId: processedEvent?.accountId || accountId || null,
+      featureKey: processedEvent?.featureKey || featureKey || null,
+      paymentId: processedEvent?.paymentId || normalizeYooKassaPaymentId(payment.id) || null,
+      checkedAt,
+      firstProcessedAt: processedEvent?.createdAt || null,
+    },
+  };
+}
+
+function saveProcessedYooKassaWebhookEvent({ db, eventKey, notification, result, checkedAt }) {
+  if (!eventKey || !result || result.statusCode < 200 || result.statusCode >= 300) {
+    return null;
+  }
+
+  const payment = isPlainObject(notification.object) ? notification.object : {};
+  const { accountId, featureKey } = extractYooKassaPaymentMetadata(payment);
+  return db.saveProcessedProviderEvent({
+    eventKey,
+    provider: "yookassa",
+    eventName: notification.event,
+    accountId,
+    featureKey,
+    paymentId: payment.id,
+    paymentStatus: payment.status,
+    paid: payment.paid === true,
+    status: result.body?.status,
+    reason: result.body?.reason || result.body?.error,
+    createdAt: checkedAt,
+  });
+}
+
 function extractYooKassaPaymentMetadata(payment) {
   const metadata = isPlainObject(payment?.metadata) ? payment.metadata : {};
   return {
@@ -1643,6 +1799,13 @@ function deleteAccountStateKey(stateByAccount, accountId, key) {
   }
 
   return true;
+}
+
+function compareProcessedProviderEventsForRetention(firstEntry, secondEntry) {
+  const [firstKey, firstEvent] = firstEntry;
+  const [secondKey, secondEvent] = secondEntry;
+  return String(secondEvent.createdAt || "").localeCompare(String(firstEvent.createdAt || "")) ||
+    secondKey.localeCompare(firstKey);
 }
 
 function compareDeviceSessionsForRetention(firstEntry, secondEntry, protectedSessionKey) {
@@ -2242,10 +2405,31 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     }
 
     const body = await readJsonBody(request);
+    const eventKey = createYooKassaWebhookEventKey(body);
+    const processedEvent = db.getProcessedProviderEvent(eventKey);
+    if (processedEvent) {
+      const replayResult = createProcessedYooKassaWebhookResponse({
+        processedEvent,
+        eventKey,
+        notification: body,
+        checkedAt: now(),
+      });
+      sendJson(response, replayResult.statusCode, replayResult.body);
+      return;
+    }
+
+    const checkedAt = now();
     const result = applyYooKassaWebhookNotification({
       db,
       notification: body,
-      checkedAt: now(),
+      checkedAt,
+    });
+    saveProcessedYooKassaWebhookEvent({
+      db,
+      eventKey,
+      notification: body,
+      result,
+      checkedAt,
     });
     sendJson(response, result.statusCode, result.body);
     return;

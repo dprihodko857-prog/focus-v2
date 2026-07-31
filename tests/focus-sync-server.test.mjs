@@ -1278,8 +1278,14 @@ test("YooKassa duplicate payment webhook keeps the existing subscription period"
     const secondResponse = await request();
     assert.equal(secondResponse.status, 200);
     const secondResult = await secondResponse.json();
+    assert.equal(secondResult.status, "ignored");
+    assert.equal(secondResult.reason, "webhook_event_already_processed");
+    assert.equal(secondResult.provider, "yookassa");
+    assert.equal(secondResult.event, "payment.succeeded");
+    assert.equal(secondResult.paymentId, paymentId);
     assert.equal(secondResult.checkedAt, "2026-07-12T09:25:00.000Z");
-    assert.deepEqual(secondResult.entitlements.voiceTranscription, {
+    assert.equal(secondResult.firstProcessedAt, "2026-07-12T09:20:00.000Z");
+    assert.deepEqual(db.getAccountEntitlements(accountId).voiceTranscription, {
       enabled: true,
       source: "yookassa",
       updatedAt: "2026-07-12T09:20:00.000Z",
@@ -1287,6 +1293,7 @@ test("YooKassa duplicate payment webhook keeps the existing subscription period"
       expiresAt: "2026-08-11T09:20:00.000Z",
       paymentId,
     });
+    assert.equal(db.listEntitlementEvents(accountId).length, 1);
   } finally {
     await close(server);
     db.close();

@@ -3415,3 +3415,59 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Settings and Useful now render account-scoped monthly voice transcription usage from the entitlements response.
 - commit_status: committed
 - notes: Syntax checks passed, focused server/client/static tests passed 150/150, and `npm.cmd run test` passed 180/180 on 2026-07-31. No deployment or git push.
+
+## TASK-063
+
+- title: Guard YooKassa webhook replay delivery
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_payment_backend
+- priority: high
+- source: next YooKassa hardening step while provider verification and live credentials remain pending
+- spec_reference: `docs/specs/yookassa-webhook-replay-guard.md`
+- spec_status: implemented_local_committed
+- goal: ignore exact repeat delivery of an already processed YooKassa webhook before entitlement activation or audit logging runs again.
+- out_of_scope:
+  - YooKassa signature verification
+  - live YooKassa API calls
+  - refunds, receipts, cancellations, or recurring billing
+  - client UI changes
+  - service worker cache bump
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - JSON sync state supports `processedProviderEvents` with backward-compatible loading
+  - YooKassa webhook replay keys are derived from event, payment id, payment status, paid flag, account metadata, and feature metadata
+  - exact replay delivery returns `webhook_event_already_processed`
+  - exact replay delivery does not append duplicate entitlement audit events
+  - existing duplicate payment-id entitlement idempotency remains in place
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_payment_backend task
+- file_limit: up to 6 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 62
+- stop_conditions:
+  - implementation requires live YooKassa credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - YooKassa webhook scaffold
+  - Focus Plus entitlement periods
+  - entitlement audit log
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend now stores bounded processed provider event keys and ignores exact YooKassa webhook replay delivery before entitlement logic runs again.
+- commit_status: committed
+- notes: Syntax check passed, focused server test passed 61/61, and `npm.cmd run test` passed 180/180 on 2026-07-31. No deployment or git push.

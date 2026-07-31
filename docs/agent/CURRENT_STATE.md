@@ -73,6 +73,7 @@ Status: DRAFT
 - TASK-060 is implemented locally: voice controls now prefer browser SpeechRecognition and fall back to a bounded MediaRecorder audio recording path that calls the entitlement-gated transcription API scaffold; service worker cache is `focus-pwa-v85`.
 - TASK-061 is implemented locally: backend/client transcription now includes account-scoped monthly usage diagnostics and quota checks; provider-missing requests do not spend quota; service worker cache is `focus-pwa-v86`.
 - TASK-062 is implemented locally: Settings and Useful now show monthly `voiceTranscription` usage diagnostics from the entitlements response; service worker cache is `focus-pwa-v87`.
+- TASK-063 is implemented locally: backend stores bounded processed provider event keys and ignores exact YooKassa webhook replay delivery before entitlement activation or duplicate audit logging.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
 
 ## In Progress
@@ -94,9 +95,9 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-062 checks passed locally (`node --check` for server, app, sync client, and service worker; focused server/client/static tests 150/150; `npm.cmd run test` 180/180). Public requisites deploy on 2026-07-30 uploaded `requisites.html` and `service-worker.js`; the page returned 200, app returned 200, backend health returned `{"ok":true,"service":"focus-sync"}`.
+- Current result: local Git repository exists; TASK-063 checks passed locally (`node --check server/sync-server.mjs`; `node --test tests/focus-sync-server.test.mjs` 61/61; `npm.cmd run test` 180/180). Public requisites deploy on 2026-07-30 uploaded `requisites.html` and `service-worker.js`; the page returned 200, app returned 200, backend health returned `{"ok":true,"service":"focus-sync"}`.
 
 ## Open Questions
 
-- The next product/runtime task is either deploying tariff/legal/voice/admin/YooKassa checkout/webhook/status/period/audit/transcription/recording/quota/usage UI changes for review and testing, choosing/wiring a real STT provider after credentials are available, or hardening YooKassa webhook authenticity once provider settings are available.
+- The next product/runtime task is either deploying tariff/legal/voice/admin/YooKassa checkout/webhook/status/period/audit/transcription/recording/quota/usage UI/replay changes for review and testing, choosing/wiring a real STT provider after credentials are available, or hardening YooKassa webhook authenticity once provider settings are available.
 - Future backend/deployment changes still require a separate owner deployment approval.
