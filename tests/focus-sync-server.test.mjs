@@ -659,6 +659,21 @@ test("sync transcription endpoint validates entitled requests before provider wo
     assert.equal(invalidResponse.status, 400);
     assert.equal((await invalidResponse.json()).error, "invalid_transcription_request");
 
+    const overlongDurationResponse = await fetch(`${baseUrl}/api/sync/transcription`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createTranscriptionRequest({
+        durationMs: 120000,
+      })),
+    });
+
+    assert.equal(overlongDurationResponse.status, 400);
+    assert.equal((await overlongDurationResponse.json()).error, "invalid_transcription_request");
+
     const response = await fetch(`${baseUrl}/api/sync/transcription`, {
       method: "POST",
       headers: {
@@ -1016,6 +1031,7 @@ test("sync transcription events endpoint lists diagnostics without audio or text
       body: JSON.stringify(createTranscriptionRequest({
         audioBase64: "data:audio/webm;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
         mimeType: "audio/webm;codecs=opus",
+        durationMs: 12345.9,
         language: "ru-RU",
       })),
     });
@@ -1041,6 +1057,7 @@ test("sync transcription events endpoint lists diagnostics without audio or text
     assert.equal(successEvent.provider, "localEcho");
     assert.equal(successEvent.reason, null);
     assert.equal(successEvent.mimeType, "audio/webm");
+    assert.equal(successEvent.durationMs, 12345);
     assert.equal(successEvent.language, "ru-RU");
     assert.equal(successEvent.textLength, "Новая задача".length);
     assert.equal(successEvent.spent, true);
@@ -1060,6 +1077,7 @@ test("sync transcription events endpoint lists diagnostics without audio or text
     assert.equal(invalidEvent.provider, null);
     assert.equal(invalidEvent.reason, "invalid_transcription_request");
     assert.equal(invalidEvent.mimeType, null);
+    assert.equal(invalidEvent.durationMs, 0);
     assert.equal(invalidEvent.textLength, 0);
     assert.equal(invalidEvent.spent, false);
     assert.equal(invalidEvent.usage, null);
@@ -3530,12 +3548,14 @@ function createYooKassaPaymentNotification({
 function createTranscriptionRequest({
   audioBase64 = "UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
   mimeType = "audio/webm",
+  durationMs = 12000,
   language = "ru-RU",
   prompt = "focus reminder",
 } = {}) {
   return {
     audioBase64,
     mimeType,
+    durationMs,
     language,
     prompt,
   };

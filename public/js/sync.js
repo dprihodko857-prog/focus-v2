@@ -19,6 +19,7 @@ const ENTITLEMENT_SOURCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
 const VOICE_TRANSCRIPTION_FEATURE_KEY = "voiceTranscription";
 const PAID_FEATURE_KEYS = new Set([VOICE_TRANSCRIPTION_FEATURE_KEY]);
 const MAX_TRANSCRIPTION_AUDIO_BASE64_LENGTH = 768 * 1024;
+const MAX_TRANSCRIPTION_DURATION_MS = 60 * 1000;
 const TRANSCRIPTION_MIME_TYPES = new Set([
   "audio/aac",
   "audio/mp4",
@@ -715,7 +716,7 @@ export function createFocusSyncClient({
       }
     },
 
-    async transcribeAudio({ audioBase64, mimeType, language = "ru-RU", prompt = "" } = {}) {
+    async transcribeAudio({ audioBase64, mimeType, durationMs = 0, language = "ru-RU", prompt = "" } = {}) {
       const accountId = getStored(ACCOUNT_KEY);
       if (!accountId) {
         return {
@@ -726,7 +727,7 @@ export function createFocusSyncClient({
         };
       }
 
-      const requestBody = normalizeTranscriptionRequest({ audioBase64, mimeType, language, prompt });
+      const requestBody = normalizeTranscriptionRequest({ audioBase64, mimeType, durationMs, language, prompt });
       if (!requestBody) {
         return {
           status: "invalid-request",
@@ -1459,20 +1460,33 @@ function normalizePaidFeatureKey(value) {
   return PAID_FEATURE_KEYS.has(featureKey) ? featureKey : "";
 }
 
-function normalizeTranscriptionRequest({ audioBase64, mimeType, language, prompt } = {}) {
+function normalizeTranscriptionRequest({ audioBase64, mimeType, durationMs, language, prompt } = {}) {
   const normalizedAudio = normalizeTranscriptionAudioBase64(audioBase64);
   const normalizedMimeType = normalizeTranscriptionMimeType(mimeType);
+  const normalizedDurationMs = normalizeTranscriptionDurationMs(durationMs);
 
-  if (!normalizedAudio || !normalizedMimeType) {
+  if (!normalizedAudio || !normalizedMimeType || normalizedDurationMs === null) {
     return null;
   }
 
   return {
     audioBase64: normalizedAudio,
     mimeType: normalizedMimeType,
+    durationMs: normalizedDurationMs,
     language: normalizeTranscriptionLanguage(language),
     prompt: sanitizeTranscriptionPrompt(prompt),
   };
+}
+
+function normalizeTranscriptionDurationMs(value) {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return 0;
+  }
+
+  const durationMs = Math.floor(Number(value));
+  return Number.isFinite(durationMs) && durationMs >= 0 && durationMs <= MAX_TRANSCRIPTION_DURATION_MS
+    ? durationMs
+    : null;
 }
 
 function normalizeTranscriptionUsage(usage) {

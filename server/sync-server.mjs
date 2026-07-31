@@ -16,6 +16,7 @@ const DEFAULT_FOCUS_PLUS_AMOUNT_RUB = normalizeMoneyAmount(process.env.FOCUS_PLU
 const DEFAULT_FOCUS_PLUS_PERIOD_DAYS = readPositiveIntegerEnv("FOCUS_PLUS_PERIOD_DAYS", 30);
 const DEFAULT_YOOKASSA_PAYMENTS_URL = normalizeUrl(process.env.FOCUS_YOOKASSA_PAYMENTS_URL || "https://api.yookassa.ru/v3/payments");
 const DEFAULT_VOICE_TRANSCRIPTION_MONTHLY_LIMIT = readPositiveIntegerEnv("FOCUS_VOICE_TRANSCRIPTION_MONTHLY_LIMIT", 300);
+const MAX_TRANSCRIPTION_DURATION_MS = readPositiveIntegerEnv("FOCUS_VOICE_TRANSCRIPTION_MAX_DURATION_MS", 60 * 1000);
 const MAX_BODY_BYTES = 1024 * 1024;
 const AUTH_SESSION_COOKIE = "focus_auth_session";
 const AUTH_TRANSIENT_COOKIE = "focus_auth_pkce";
@@ -422,6 +423,7 @@ class JsonSyncDatabase {
     provider,
     reason,
     mimeType,
+    durationMs,
     language,
     textLength,
     spent,
@@ -447,6 +449,7 @@ class JsonSyncDatabase {
       provider: sanitizeProviderEventPart(provider) || null,
       reason: sanitizeStoredName(reason),
       mimeType: normalizeTranscriptionMimeType(mimeType) || null,
+      durationMs: normalizeTranscriptionEventDurationMs(durationMs),
       language: normalizeTranscriptionLanguage(language),
       textLength: normalizeTranscriptionTextLength(textLength),
       spent: spent === true,
@@ -1059,17 +1062,30 @@ function normalizeVoiceTranscriptionRequest(body) {
   const dataUrlMatch = rawAudio.match(/^data:([^;,]+);base64,(.+)$/i);
   const audioBase64 = normalizeTranscriptionAudioBase64(rawAudio);
   const mimeType = normalizeTranscriptionMimeType(body.mimeType ?? body.type ?? dataUrlMatch?.[1]);
+  const durationMs = normalizeTranscriptionDurationMs(body.durationMs);
 
-  if (!audioBase64 || !mimeType) {
+  if (!audioBase64 || !mimeType || durationMs === null) {
     return null;
   }
 
   return {
     audioBase64,
     mimeType,
+    durationMs,
     language: normalizeTranscriptionLanguage(body.language),
     prompt: sanitizeTranscriptionPrompt(body.prompt),
   };
+}
+
+function normalizeTranscriptionDurationMs(value) {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return 0;
+  }
+
+  const durationMs = Math.floor(Number(value));
+  return Number.isFinite(durationMs) && durationMs >= 0 && durationMs <= MAX_TRANSCRIPTION_DURATION_MS
+    ? durationMs
+    : null;
 }
 
 function normalizeTranscriptionAudioBase64(value) {
@@ -1255,6 +1271,7 @@ function saveTranscriptionAuditEvent(db, {
     provider: result?.provider,
     reason: result?.reason || result?.error,
     mimeType: transcriptionRequest?.mimeType,
+    durationMs: transcriptionRequest?.durationMs,
     language: transcriptionRequest?.language,
     textLength: typeof result?.text === "string" ? result.text.length : 0,
     spent,
@@ -2115,6 +2132,11 @@ function sanitizeTranscriptionEventStatus(status) {
 function normalizeTranscriptionTextLength(value) {
   const length = Math.floor(Number(value));
   return Number.isFinite(length) && length > 0 ? Math.min(length, MAX_TRANSCRIPTION_TEXT_LENGTH) : 0;
+}
+
+function normalizeTranscriptionEventDurationMs(value) {
+  const durationMs = Math.floor(Number(value));
+  return Number.isFinite(durationMs) && durationMs > 0 ? Math.min(durationMs, MAX_TRANSCRIPTION_DURATION_MS) : 0;
 }
 
 function normalizeTranscriptionEventUsage(usage) {

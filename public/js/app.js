@@ -118,6 +118,7 @@ let activeVoiceRecorder = null;
 let activeVoiceRecorderButton = null;
 let activeVoiceRecorderChunks = [];
 let activeVoiceRecorderTimer = null;
+let activeVoiceRecorderStartedAt = 0;
 let activeVoiceTranscriptionButton = null;
 
 function createDefaultAccountEntitlements() {
@@ -4423,6 +4424,7 @@ function normalizeTranscriptionEvents(events = []) {
       provider: event.provider ? String(event.provider) : "",
       reason: event.reason ? String(event.reason) : "",
       mimeType: event.mimeType ? String(event.mimeType) : "",
+      durationMs: Number.isFinite(Number(event.durationMs)) ? Math.max(0, Number(event.durationMs)) : 0,
       language: event.language ? String(event.language) : "",
       textLength: Number.isFinite(Number(event.textLength)) ? Math.max(0, Number(event.textLength)) : 0,
       spent: event.spent === true,
@@ -4485,6 +4487,13 @@ function getTranscriptionEventReasonLabel(reason) {
   return reason;
 }
 
+function formatTranscriptionDuration(durationMs) {
+  const normalizedDurationMs = Math.max(0, Number(durationMs) || 0);
+  if (!normalizedDurationMs) return "";
+  if (normalizedDurationMs < 1000) return "менее 1 сек";
+  return `${Math.max(1, Math.round(normalizedDurationMs / 1000))} сек`;
+}
+
 function getEntitlementEventDetails(event) {
   const details = [getEntitlementEventOriginLabel(event.origin)];
 
@@ -4524,6 +4533,11 @@ function getTranscriptionEventDetails(event) {
 
   if (event.mimeType) {
     details.push(event.mimeType);
+  }
+
+  const durationText = formatTranscriptionDuration(event.durationMs);
+  if (durationText) {
+    details.push(`длительность: ${durationText}`);
   }
 
   if (event.language) {
@@ -5311,6 +5325,7 @@ function clearActiveVoiceRecorder() {
   activeVoiceRecorder = null;
   activeVoiceRecorderButton = null;
   activeVoiceRecorderChunks = [];
+  activeVoiceRecorderStartedAt = 0;
 }
 
 function stopActiveVoiceRecorder() {
@@ -5381,7 +5396,7 @@ function finishVoiceTranscription(button, message, tone = "warn") {
   setVoiceStatus(button, message, tone);
 }
 
-async function submitVoiceRecording(button, target, chunks, mimeType) {
+async function submitVoiceRecording(button, target, chunks, mimeType, durationMs = 0) {
   if (!chunks.length) {
     setVoiceStatus(button, "Запись пустая. Попробуйте ещё раз.", "bad");
     return;
@@ -5396,6 +5411,7 @@ async function submitVoiceRecording(button, target, chunks, mimeType) {
     const result = await scheduleSync.transcribeAudio({
       audioBase64,
       mimeType: blob.type || mimeType || "audio/webm",
+      durationMs,
       language: "ru-RU",
       prompt: "Focus planner field dictation",
     });
@@ -5459,6 +5475,7 @@ async function startVoiceRecording(button) {
   activeVoiceRecorder = recorder;
   activeVoiceRecorderButton = button;
   activeVoiceRecorderChunks = [];
+  activeVoiceRecorderStartedAt = Date.now();
 
   recorder.ondataavailable = event => {
     if (activeVoiceRecorder === recorder && event.data?.size > 0) {
@@ -5474,6 +5491,9 @@ async function startVoiceRecording(button) {
   recorder.onstop = () => {
     const chunks = activeVoiceRecorder === recorder ? [...activeVoiceRecorderChunks] : [];
     const recordedMimeType = recorder.mimeType || mimeType;
+    const durationMs = activeVoiceRecorder === recorder && activeVoiceRecorderStartedAt
+      ? Math.min(VOICE_RECORDING_MAX_MS, Math.max(0, Date.now() - activeVoiceRecorderStartedAt))
+      : 0;
     clearActiveVoiceRecorder();
     stopVoiceRecordingStream(stream);
     renderVoiceInputControls();
@@ -5483,7 +5503,7 @@ async function startVoiceRecording(button) {
       return;
     }
 
-    void submitVoiceRecording(button, target, chunks, recordedMimeType);
+    void submitVoiceRecording(button, target, chunks, recordedMimeType, durationMs);
   };
 
   try {

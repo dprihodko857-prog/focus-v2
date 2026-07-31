@@ -898,6 +898,7 @@ test("transcription events load account diagnostics entries", async () => {
           provider: "disabled",
           reason: "provider_not_configured",
           mimeType: "audio/webm",
+          durationMs: 12345,
           language: "ru-RU",
           textLength: 0,
           spent: false,
@@ -923,6 +924,7 @@ test("transcription events load account diagnostics entries", async () => {
   assert.equal(result.events.length, 1);
   assert.equal(result.events[0].status, "provider_not_configured");
   assert.equal(result.events[0].reason, "provider_not_configured");
+  assert.equal(result.events[0].durationMs, 12345);
   assert.equal(calls[0].url, "/api/sync/transcription/events");
   assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
   assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
@@ -968,6 +970,7 @@ test("transcription client handles gated provider scaffold states", async () => 
   const lockedResult = await lockedClient.transcribeAudio({
     audioBase64: "data:audio/webm;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
     mimeType: "audio/webm;codecs=opus",
+    durationMs: 12345.9,
     language: "bad language",
     prompt: "  quick   reminder  ",
   });
@@ -985,6 +988,7 @@ test("transcription client handles gated provider scaffold states", async () => 
   assert.deepEqual(JSON.parse(lockedCalls[0].options.body), {
     audioBase64: "UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
     mimeType: "audio/webm",
+    durationMs: 12345,
     language: "ru-RU",
     prompt: "quick reminder",
   });
@@ -1034,6 +1038,17 @@ test("transcription client handles gated provider scaffold states", async () => 
   assert.deepEqual(await providerClient.transcribeAudio({
     audioBase64: "bad",
     mimeType: "text/plain",
+  }), {
+    status: "invalid-request",
+    accountId: "account-1",
+    featureKey: "voiceTranscription",
+    text: "",
+  });
+
+  assert.deepEqual(await providerClient.transcribeAudio({
+    audioBase64: "UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
+    mimeType: "audio/webm",
+    durationMs: 120000,
   }), {
     status: "invalid-request",
     accountId: "account-1",
