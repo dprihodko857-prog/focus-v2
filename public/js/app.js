@@ -101,6 +101,12 @@ let accountEntitlementEventsState = {
   checkedAt: "",
   events: [],
 };
+let accountTranscriptionEventsState = {
+  status: "idle",
+  accountId: "",
+  checkedAt: "",
+  events: [],
+};
 let paidFeatureCheckoutState = {
   status: "idle",
   featureKey: "",
@@ -134,6 +140,15 @@ function createDefaultAccountFeatureUsage() {
 }
 
 function createEmptyAccountEntitlementEventsState(status = "idle") {
+  return {
+    status,
+    accountId: scheduleSync.peekAccountId(),
+    checkedAt: "",
+    events: [],
+  };
+}
+
+function createEmptyAccountTranscriptionEventsState(status = "idle") {
   return {
     status,
     accountId: scheduleSync.peekAccountId(),
@@ -4172,6 +4187,7 @@ function resetAccountEntitlementsState(status = "idle") {
     usage: createDefaultAccountFeatureUsage(),
   };
   accountEntitlementEventsState = createEmptyAccountEntitlementEventsState(status);
+  accountTranscriptionEventsState = createEmptyAccountTranscriptionEventsState(status);
   paidFeatureCheckoutState = {
     status: "idle",
     featureKey: "",
@@ -4396,6 +4412,25 @@ function normalizeEntitlementEvents(events = []) {
     }));
 }
 
+function normalizeTranscriptionEvents(events = []) {
+  if (!Array.isArray(events)) return [];
+
+  return events
+    .filter(event => event && typeof event === "object")
+    .map(event => ({
+      id: String(event.id || ""),
+      status: String(event.status || ""),
+      provider: event.provider ? String(event.provider) : "",
+      reason: event.reason ? String(event.reason) : "",
+      mimeType: event.mimeType ? String(event.mimeType) : "",
+      language: event.language ? String(event.language) : "",
+      textLength: Number.isFinite(Number(event.textLength)) ? Math.max(0, Number(event.textLength)) : 0,
+      spent: event.spent === true,
+      usage: event.usage && typeof event.usage === "object" ? event.usage : null,
+      createdAt: event.createdAt ? String(event.createdAt) : "",
+    }));
+}
+
 function getEntitlementEventFeatureTitle(featureKey) {
   return paidFeatureItems.find(feature => feature.key === featureKey)?.title || "Платная функция";
 }
@@ -4428,6 +4463,28 @@ function getEntitlementEventReasonLabel(reason) {
   return reason;
 }
 
+function getTranscriptionEventStatus(event) {
+  if (event.status === "transcribed") return { label: "Готово", tone: "ok" };
+  if (event.status === "locked") return { label: "Нет доступа", tone: "warn" };
+  if (event.status === "usage_limit_exceeded") return { label: "Лимит", tone: "warn" };
+  if (event.status === "provider_not_configured") return { label: "Провайдер", tone: "warn" };
+  if (event.status === "failed") return { label: "Ошибка", tone: "bad" };
+  if (event.status === "invalid") return { label: "Запрос", tone: "bad" };
+  return { label: "Событие", tone: "warn" };
+}
+
+function getTranscriptionEventReasonLabel(reason) {
+  if (reason === "feature_locked") return "подписка не активна";
+  if (reason === "invalid_transcription_request") return "запись не подходит для отправки";
+  if (reason === "usage_limit_exceeded") return "месячный лимит исчерпан";
+  if (reason === "provider_not_configured") return "STT-провайдер ещё не настроен";
+  if (reason === "provider_error") return "ошибка STT-провайдера";
+  if (reason === "empty_transcription") return "провайдер вернул пустой текст";
+  if (reason === "no_audio") return "аудио не передано";
+  if (reason === "network_error") return "ошибка сети";
+  return reason;
+}
+
 function getEntitlementEventDetails(event) {
   const details = [getEntitlementEventOriginLabel(event.origin)];
 
@@ -4452,6 +4509,40 @@ function getEntitlementEventDetails(event) {
   }
 
   return details.filter(Boolean).join(" · ");
+}
+
+function getTranscriptionEventDetails(event) {
+  const details = [];
+
+  if (event.provider) {
+    details.push(`провайдер: ${event.provider}`);
+  }
+
+  if (event.reason) {
+    details.push(getTranscriptionEventReasonLabel(event.reason));
+  }
+
+  if (event.mimeType) {
+    details.push(event.mimeType);
+  }
+
+  if (event.language) {
+    details.push(event.language);
+  }
+
+  if (event.status === "transcribed") {
+    details.push(`символов: ${event.textLength}`);
+  }
+
+  if (event.spent) {
+    details.push("лимит списан");
+  }
+
+  if (event.usage?.limit) {
+    details.push(`остаток: ${event.usage.remaining}/${event.usage.limit}`);
+  }
+
+  return details.filter(Boolean).join(" · ") || "детали не указаны";
 }
 
 function getEntitlementEventsSummary() {
@@ -4541,6 +4632,100 @@ function renderEntitlementEventsPanel() {
         <div>
           <strong>${escapeHtml(getEntitlementEventFeatureTitle(event.featureKey))}</strong>
           <small>${escapeHtml(eventTime)} · ${escapeHtml(getEntitlementEventDetails(event))}</small>
+        </div>
+        <span class="paid-feature-event__status paid-feature-event__status--${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
+      </article>
+    `;
+  }).join("");
+}
+
+function getTranscriptionEventsSummary() {
+  const accountId = scheduleSync.peekAccountId();
+
+  if (!accountId) {
+    return "Подключите аккаунт, чтобы видеть журнал серверной транскрибации.";
+  }
+
+  if (accountTranscriptionEventsState.status === "loading") {
+    return "Загружаем последние попытки диктовки.";
+  }
+
+  if (accountTranscriptionEventsState.status === "offline") {
+    return "Журнал диктовки сейчас недоступен. Повторите после подключения.";
+  }
+
+  if (!accountTranscriptionEventsState.events.length) {
+    return "Попыток серверной транскрибации пока нет. Они появятся после диктовки через запись аудио.";
+  }
+
+  return `Последние попытки диктовки: ${accountTranscriptionEventsState.events.length}.`;
+}
+
+function renderTranscriptionEventsPanel() {
+  const panel = document.querySelector("#transcriptionEventsPanel");
+  const summary = document.querySelector("#transcriptionEventsSummary");
+  const list = document.querySelector("#transcriptionEventsList");
+
+  if (!panel || !summary || !list) return;
+
+  summary.textContent = getTranscriptionEventsSummary();
+
+  if (!scheduleSync.peekAccountId()) {
+    list.innerHTML = `
+      <article class="paid-feature-event paid-feature-event--empty">
+        <div>
+          <strong>Аккаунт не подключён</strong>
+          <small>Серверный журнал диктовки хранится отдельно для каждого аккаунта синхронизации.</small>
+        </div>
+      </article>
+    `;
+    return;
+  }
+
+  if (accountTranscriptionEventsState.status === "loading") {
+    list.innerHTML = `
+      <article class="paid-feature-event paid-feature-event--empty">
+        <div>
+          <strong>Загрузка</strong>
+          <small>Проверяем последние попытки серверной транскрибации.</small>
+        </div>
+      </article>
+    `;
+    return;
+  }
+
+  if (accountTranscriptionEventsState.status === "offline") {
+    list.innerHTML = `
+      <article class="paid-feature-event paid-feature-event--empty">
+        <div>
+          <strong>Нет связи</strong>
+          <small>Журнал останется на сервере и загрузится после восстановления подключения.</small>
+        </div>
+      </article>
+    `;
+    return;
+  }
+
+  if (!accountTranscriptionEventsState.events.length) {
+    list.innerHTML = `
+      <article class="paid-feature-event paid-feature-event--empty">
+        <div>
+          <strong>Журнал пока пуст</strong>
+          <small>После диктовки через запись аудио здесь появится статус: готово, лимит, провайдер или ошибка.</small>
+        </div>
+      </article>
+    `;
+    return;
+  }
+
+  list.innerHTML = accountTranscriptionEventsState.events.map(event => {
+    const status = getTranscriptionEventStatus(event);
+    const eventTime = event.createdAt ? formatSyncTimestamp(event.createdAt) : "время не указано";
+    return `
+      <article class="paid-feature-event">
+        <div>
+          <strong>Серверная диктовка</strong>
+          <small>${escapeHtml(eventTime)} · ${escapeHtml(getTranscriptionEventDetails(event))}</small>
         </div>
         <span class="paid-feature-event__status paid-feature-event__status--${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
       </article>
@@ -4641,6 +4826,7 @@ function renderUsefulSubscriptionPanel() {
 function renderPaidFeatureSurfaces() {
   renderPaidFeaturesPanel();
   renderEntitlementEventsPanel();
+  renderTranscriptionEventsPanel();
   renderUsefulSubscriptionPanel();
   renderVoiceInputControls();
 }
@@ -4736,6 +4922,49 @@ async function refreshEntitlementEvents({ silent = false } = {}) {
 
   renderEntitlementEventsPanel();
   return accountEntitlementEventsState;
+}
+
+async function refreshTranscriptionEvents({ silent = false } = {}) {
+  const accountId = scheduleSync.peekAccountId();
+
+  if (!accountId) {
+    accountTranscriptionEventsState = createEmptyAccountTranscriptionEventsState("local");
+    renderTranscriptionEventsPanel();
+    return accountTranscriptionEventsState;
+  }
+
+  accountTranscriptionEventsState = {
+    ...accountTranscriptionEventsState,
+    status: "loading",
+    accountId,
+  };
+  renderTranscriptionEventsPanel();
+
+  try {
+    const result = await scheduleSync.getTranscriptionEvents();
+    accountTranscriptionEventsState = {
+      status: result.status || "ok",
+      accountId: result.accountId || accountId,
+      checkedAt: new Date().toISOString(),
+      events: normalizeTranscriptionEvents(result.events),
+    };
+    if (!silent && accountTranscriptionEventsState.status !== "offline") {
+      setSyncStatus("Журнал диктовки обновлён.");
+    }
+  } catch {
+    accountTranscriptionEventsState = {
+      status: "offline",
+      accountId,
+      checkedAt: "",
+      events: [],
+    };
+    if (!silent) {
+      setSyncStatus("Не удалось загрузить журнал диктовки. Повторите после подключения.");
+    }
+  }
+
+  renderTranscriptionEventsPanel();
+  return accountTranscriptionEventsState;
 }
 
 function setPaidFeatureCheckoutState(patch) {
@@ -5170,6 +5399,9 @@ async function submitVoiceRecording(button, target, chunks, mimeType) {
       language: "ru-RU",
       prompt: "Focus planner field dictation",
     });
+    refreshTranscriptionEvents({ silent: true }).catch(() => {
+      renderTranscriptionEventsPanel();
+    });
 
     if (result.status === "transcribed") {
       if (insertVoiceTranscript(target, result.text)) {
@@ -5486,6 +5718,9 @@ async function refreshAuthSession() {
     });
     refreshEntitlementEvents({ silent: true }).catch(() => {
       renderEntitlementEventsPanel();
+    });
+    refreshTranscriptionEvents({ silent: true }).catch(() => {
+      renderTranscriptionEventsPanel();
     });
   } else {
     resetAccountEntitlementsState("local");
@@ -5996,6 +6231,7 @@ async function ensureSyncAccountReady() {
   await refreshSyncAccountProfile();
   await refreshAccountEntitlements({ silent: true });
   await refreshEntitlementEvents({ silent: true });
+  await refreshTranscriptionEvents({ silent: true });
   await syncSavedSchedules();
   await syncSavedTasks();
   await syncSavedNotes();
@@ -6746,6 +6982,9 @@ function bindControls() {
       refreshEntitlementEvents({ silent: true }).catch(() => {
         renderEntitlementEventsPanel();
       });
+      refreshTranscriptionEvents({ silent: true }).catch(() => {
+        renderTranscriptionEventsPanel();
+      });
       refreshReminderPushDiagnostics().catch(() => {
         renderDeviceCheck();
       });
@@ -6765,6 +7004,9 @@ function bindControls() {
       renderPaidFeatureSurfaces();
       refreshAccountEntitlements({ silent: true }).catch(() => {
         renderPaidFeatureSurfaces();
+      });
+      refreshTranscriptionEvents({ silent: true }).catch(() => {
+        renderTranscriptionEventsPanel();
       });
     }
     if (name === "reminder") {
@@ -7232,6 +7474,7 @@ function bindControls() {
   document.querySelector("#paidFeaturesRefreshButton")?.addEventListener("click", () => {
     refreshAccountEntitlements();
     refreshEntitlementEvents({ silent: true });
+    refreshTranscriptionEvents({ silent: true });
   });
 
   document.querySelector("#syncConnectButton")?.addEventListener("click", () => {
@@ -7493,6 +7736,8 @@ refreshAccountEntitlements({ silent: true }).then(() => {
   return checkPendingSubscriptionCheckout({ silent: true });
 }).then(() => {
   return refreshEntitlementEvents({ silent: true });
+}).then(() => {
+  return refreshTranscriptionEvents({ silent: true });
 }).catch(() => {
   renderPaidFeatureSurfaces();
 });
@@ -7537,6 +7782,7 @@ function runOnlineRecoverySync() {
     checkPendingSubscriptionCheckout({ silent: true }),
     refreshAccountEntitlements({ silent: true }),
     refreshEntitlementEvents({ silent: true }),
+    refreshTranscriptionEvents({ silent: true }),
   ]).finally(() => {
     pendingOnlineRecoverySync = null;
   });

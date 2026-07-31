@@ -3585,3 +3585,67 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Backend now records bounded transcription diagnostics for the current account while excluding audio and recognized text payloads.
 - commit_status: committed
 - notes: Syntax check passed, focused server test passed 64/64, and `npm.cmd run test` passed 183/183 on 2026-07-31. No deployment or git push.
+
+## TASK-066
+
+- title: Add voice transcription diagnostics UI
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_transcription_ui
+- priority: high
+- source: next transcription UI step after TASK-065 backend diagnostics log
+- spec_reference: `docs/specs/voice-transcription-diagnostics-ui.md`
+- spec_status: implemented_local_committed
+- goal: show recent account-scoped server transcription attempts in Settings without exposing audio or recognized text.
+- out_of_scope:
+  - live STT provider integration
+  - admin dashboard or cross-account diagnostics
+  - audio payload storage
+  - recognized text storage
+  - payment-provider changes
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - sync client exposes `getTranscriptionEvents()`
+  - Settings includes a transcription diagnostics panel
+  - account-required, loading, offline, empty, and populated states render safely
+  - backend status/reason codes are mapped to readable Russian UI labels
+  - UI does not render raw audio or recognized text payloads
+  - service worker cache is bumped to `focus-pwa-v88`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_transcription_ui task
+- file_limit: up to 12 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 65
+- stop_conditions:
+  - implementation requires live STT provider credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/index.html`
+  - `public/js/app.js`
+  - `public/js/sync.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - `tests/focus-sync-client.test.mjs`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - voice transcription diagnostics log
+  - voice transcription usage quota
+  - paid feature UI shell
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Settings now shows a compact server dictation diagnostics journal backed by `scheduleSync.getTranscriptionEvents()` and refreshed with account/UI lifecycle events.
+- commit_status: committed
+- notes: Syntax checks passed, focused client/static tests passed 90/90, and `npm.cmd run test` passed 184/184 on 2026-07-31. No deployment or git push.

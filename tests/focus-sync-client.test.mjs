@@ -881,6 +881,53 @@ test("entitlement events load account access audit entries", async () => {
   assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
 });
 
+test("transcription events load account diagnostics entries", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        accountId: "account-1",
+        events: [{
+          id: "transcription-event-1",
+          status: "provider_not_configured",
+          provider: "disabled",
+          reason: "provider_not_configured",
+          mimeType: "audio/webm",
+          language: "ru-RU",
+          textLength: 0,
+          spent: false,
+          usage: {
+            period: "2026-07",
+            used: 0,
+            limit: 30,
+            remaining: 30,
+            resetAt: "2026-08-01T00:00:00.000Z",
+          },
+          createdAt: "2026-07-31T10:00:00.000Z",
+        }],
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.getTranscriptionEvents();
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.accountId, "account-1");
+  assert.equal(result.events.length, 1);
+  assert.equal(result.events[0].status, "provider_not_configured");
+  assert.equal(result.events[0].reason, "provider_not_configured");
+  assert.equal(calls[0].url, "/api/sync/transcription/events");
+  assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
+  assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
+});
+
 test("transcription client handles gated provider scaffold states", async () => {
   const noAccountClient = createFocusSyncClient({
     fetch: async () => {

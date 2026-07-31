@@ -76,6 +76,7 @@ Status: DRAFT
 - TASK-063 is implemented locally: backend stores bounded processed provider event keys and ignores exact YooKassa webhook replay delivery before entitlement activation or duplicate audit logging.
 - TASK-064 is implemented locally: backend transcription now has a configurable provider adapter and local `localEcho` provider for end-to-end checks; successful transcriptions spend monthly usage and provider-missing/failure paths do not.
 - TASK-065 is implemented locally: backend records bounded account-scoped transcription diagnostics without storing audio or recognized text payloads.
+- TASK-066 is implemented locally: Settings now shows a server transcription diagnostics journal backed by `scheduleSync.getTranscriptionEvents()`; service worker cache is `focus-pwa-v88`.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
 - Runtime through local commit `2362d05` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-31; remote backup is `/opt/focus-v2/deploy-backups/backup-20260731-134936-pre-2362d05`; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v87`, and public requisites/subscription/privacy pages returned `200`.
 
@@ -98,7 +99,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-065 checks passed locally (`node --check server/sync-server.mjs`; `node --test tests/focus-sync-server.test.mjs` 64/64; `npm.cmd run test` 183/183). Production deploy on 2026-07-31 uploaded current runtime through commit `2362d05`; app, API health, service worker, requisites, subscription, privacy, and manifest checks passed; backend service is active.
+- Current result: local Git repository exists; TASK-066 checks passed locally (`node --check public/js/app.js`; `node --check public/js/sync.js`; `node --check public/service-worker.js`; focused client/static tests 90/90; `npm.cmd run test` 184/184). Production deploy on 2026-07-31 uploaded runtime through commit `2362d05`; app, API health, service worker, requisites, subscription, privacy, and manifest checks passed; backend service is active.
 
 ## Open Questions
 

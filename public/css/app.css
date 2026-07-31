@@ -2822,6 +2822,10 @@ h3 {
   background: rgba(217, 107, 95, .22);
 }
 
+.paid-feature-event__status--warn {
+  background: rgba(216, 154, 61, .24);
+}
+
 .paid-feature-event--empty {
   grid-template-columns: 1fr;
 }

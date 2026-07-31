@@ -71,4 +71,5 @@ Status: DRAFT
 | YOOKASSA-WEBHOOK-REPLAY-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-webhook-replay-guard.md` | TASK-063 stores processed YooKassa webhook event keys and ignores exact replay delivery before entitlement processing. |
 | VOICE-TRANSCRIPTION-PROVIDER-ADAPTER-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-provider-adapter.md` | TASK-064 adds a server-side transcription provider boundary with a local end-to-end provider and usage spending on success. |
 | VOICE-TRANSCRIPTION-DIAGNOSTICS-LOG-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-diagnostics-log.md` | TASK-065 records account-scoped transcription attempt diagnostics without storing audio or recognized text. |
+| VOICE-TRANSCRIPTION-DIAGNOSTICS-UI-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-diagnostics-ui.md` | TASK-066 shows recent server transcription diagnostics in Settings without exposing audio or recognized text. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

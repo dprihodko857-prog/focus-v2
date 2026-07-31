@@ -690,6 +690,31 @@ export function createFocusSyncClient({
       }
     },
 
+    async getTranscriptionEvents() {
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/transcription/events"), {
+          headers: await withHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Focus sync transcription events load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          events: Array.isArray(result.events) ? result.events : [],
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          events: [],
+        };
+      }
+    },
+
     async transcribeAudio({ audioBase64, mimeType, language = "ru-RU", prompt = "" } = {}) {
       const accountId = getStored(ACCOUNT_KEY);
       if (!accountId) {
