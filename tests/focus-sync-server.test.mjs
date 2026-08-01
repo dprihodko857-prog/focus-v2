@@ -1182,6 +1182,7 @@ test("sync transcription status endpoint reports provider readiness and limits",
       featureKey: "voiceTranscription",
       providerConfigured: true,
       provider: "localEcho",
+      providerModel: null,
       monthlyLimit: 12,
       maxDurationMs: 60000,
       checkedAt: "2026-07-12T09:05:00.000Z",
@@ -1197,6 +1198,43 @@ test("sync transcription status endpoint reports provider readiness and limits",
 
     assert.equal(methodResponse.status, 405);
     assert.equal((await methodResponse.json()).error, "method_not_allowed");
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync transcription status endpoint reports configured OpenAI model", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+    voiceTranscriptionProvider: {
+      provider: "openai",
+      apiKey: "sk-test-openai-transcription-key",
+      model: "gpt-transcribe",
+      transcriptionsUrl: "https://api.openai.test/v1/audio/transcriptions",
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-transcription-openai-status";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/transcription/status`, {
+      method: "GET",
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.accountId, accountId);
+    assert.equal(result.providerConfigured, true);
+    assert.equal(result.provider, "openai");
+    assert.equal(result.providerModel, "gpt-transcribe");
   } finally {
     await close(server);
     db.close();

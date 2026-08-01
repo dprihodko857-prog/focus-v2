@@ -2659,6 +2659,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
       providerConfigured: Boolean(voiceTranscriptionProvider),
       provider: voiceTranscriptionProvider?.provider || null,
+      providerModel: voiceTranscriptionProvider?.model || null,
       monthlyLimit: normalizeMonthlyUsageLimit(voiceTranscriptionMonthlyLimit),
       maxDurationMs: MAX_TRANSCRIPTION_DURATION_MS,
       checkedAt: accountContext.checkedAt,

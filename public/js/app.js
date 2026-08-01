@@ -107,6 +107,7 @@ let accountTranscriptionStatusState = {
   checkedAt: "",
   providerConfigured: false,
   provider: null,
+  providerModel: null,
   monthlyLimit: 0,
   maxDurationMs: 0,
 };
@@ -174,6 +175,7 @@ function createEmptyAccountTranscriptionStatusState(status = "idle") {
     checkedAt: "",
     providerConfigured: false,
     provider: null,
+    providerModel: null,
     monthlyLimit: 0,
     maxDurationMs: 0,
   };
@@ -4471,6 +4473,7 @@ function normalizeTranscriptionStatus(result, accountId) {
     checkedAt: result.checkedAt ? String(result.checkedAt) : "",
     providerConfigured: result.providerConfigured === true,
     provider: result.provider ? String(result.provider) : null,
+    providerModel: result.providerModel ? String(result.providerModel) : null,
     monthlyLimit: normalizePositiveInteger(result.monthlyLimit),
     maxDurationMs: normalizePositiveInteger(result.maxDurationMs),
   };
@@ -4747,8 +4750,11 @@ function getTranscriptionReadinessSummary() {
     ? `максимальная запись ${formatTranscriptionDuration(accountTranscriptionStatusState.maxDurationMs)}`
     : "максимальная длительность не указана";
   const providerText = accountTranscriptionStatusState.provider || "сервер";
+  const modelText = accountTranscriptionStatusState.providerModel
+    ? `, модель ${accountTranscriptionStatusState.providerModel}`
+    : "";
 
-  return `STT-провайдер готов: ${providerText}. ${limitText}, ${durationText}.`;
+  return `STT-провайдер готов: ${providerText}${modelText}. ${limitText}, ${durationText}.`;
 }
 
 function renderTranscriptionEventsPanel() {

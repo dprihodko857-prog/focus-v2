@@ -944,6 +944,7 @@ test("transcription status loads provider readiness diagnostics", async () => {
         featureKey: "voiceTranscription",
         providerConfigured: true,
         provider: "localEcho",
+        providerModel: "local-model",
         monthlyLimit: 30,
         maxDurationMs: 60000,
         checkedAt: "2026-07-31T10:00:00.000Z",
@@ -960,6 +961,7 @@ test("transcription status loads provider readiness diagnostics", async () => {
   assert.equal(result.featureKey, "voiceTranscription");
   assert.equal(result.providerConfigured, true);
   assert.equal(result.provider, "localEcho");
+  assert.equal(result.providerModel, "local-model");
   assert.equal(result.monthlyLimit, 30);
   assert.equal(result.maxDurationMs, 60000);
   assert.equal(result.checkedAt, "2026-07-31T10:00:00.000Z");

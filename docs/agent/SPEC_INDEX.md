@@ -75,4 +75,5 @@ Status: DRAFT
 | VOICE-TRANSCRIPTION-DURATION-METADATA-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-duration-metadata.md` | TASK-067 carries bounded recording duration metadata through transcription requests and diagnostics. |
 | VOICE-TRANSCRIPTION-READINESS-STATUS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-readiness-status.md` | TASK-068 shows current-account server transcription provider readiness before recording attempts. |
 | VOICE-TRANSCRIPTION-OPENAI-PROVIDER-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-openai-provider.md` | TASK-069 adds an env-configured OpenAI STT provider adapter behind the existing transcription API. |
+| VOICE-TRANSCRIPTION-PROVIDER-METADATA-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-provider-metadata.md` | TASK-070 shows safe provider model metadata in transcription readiness diagnostics. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |
