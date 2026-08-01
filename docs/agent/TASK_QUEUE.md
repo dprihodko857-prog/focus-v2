@@ -3777,3 +3777,65 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Settings now shows provider readiness and limits before server dictation attempts.
 - commit_status: committed
 - notes: Syntax checks passed, focused server/client/static tests passed 156/156, and `npm.cmd run test` passed 186/186 on 2026-08-01. No deployment or git push.
+
+## TASK-069
+
+- title: Add OpenAI voice transcription provider adapter
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_transcription_backend
+- priority: high
+- source: next provider wiring step after TASK-068 readiness status
+- spec_reference: `docs/specs/voice-transcription-openai-provider.md`
+- spec_status: implemented_local_committed
+- goal: add an environment-configured OpenAI STT adapter behind the existing entitlement-gated transcription API.
+- out_of_scope:
+  - setting production secrets
+  - live OpenAI network verification
+  - UI for entering provider credentials
+  - payment-provider changes
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - provider remains disabled unless `FOCUS_VOICE_TRANSCRIPTION_PROVIDER=openai` and an API key are configured
+  - configured OpenAI provider sends multipart form-data to the transcription endpoint
+  - successful provider responses spend monthly usage
+  - provider failures do not spend monthly usage
+  - Settings diagnostics map OpenAI provider failure reasons to readable labels
+  - service worker cache is bumped to `focus-pwa-v91`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/sync-integration-assets.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_transcription_backend task
+- file_limit: up to 12 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 68
+- stop_conditions:
+  - implementation requires live OpenAI credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/focus-sync-server.test.mjs`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - voice transcription provider adapter
+  - voice transcription readiness status
+  - voice transcription usage quota
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Backend now supports an env-configured OpenAI transcription provider without changing the client contract.
+- commit_status: committed
+- notes: Syntax checks passed, focused backend/static tests passed 116/116, and `npm.cmd run test` passed 188/188 on 2026-08-01. No deployment or git push.

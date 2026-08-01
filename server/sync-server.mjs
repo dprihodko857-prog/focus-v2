@@ -17,6 +17,8 @@ const DEFAULT_FOCUS_PLUS_PERIOD_DAYS = readPositiveIntegerEnv("FOCUS_PLUS_PERIOD
 const DEFAULT_YOOKASSA_PAYMENTS_URL = normalizeUrl(process.env.FOCUS_YOOKASSA_PAYMENTS_URL || "https://api.yookassa.ru/v3/payments");
 const DEFAULT_VOICE_TRANSCRIPTION_MONTHLY_LIMIT = readPositiveIntegerEnv("FOCUS_VOICE_TRANSCRIPTION_MONTHLY_LIMIT", 300);
 const MAX_TRANSCRIPTION_DURATION_MS = readPositiveIntegerEnv("FOCUS_VOICE_TRANSCRIPTION_MAX_DURATION_MS", 60 * 1000);
+const DEFAULT_OPENAI_TRANSCRIPTION_URL = "https://api.openai.com/v1/audio/transcriptions";
+const DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "gpt-transcribe";
 const MAX_BODY_BYTES = 1024 * 1024;
 const AUTH_SESSION_COOKIE = "focus_auth_session";
 const AUTH_TRANSIENT_COOKIE = "focus_auth_pkce";
@@ -1123,7 +1125,17 @@ function createVoiceTranscriptionProviderConfig(env = process.env) {
   );
 
   if (provider !== "localEcho") {
-    return null;
+    if (provider !== "openai") {
+      return null;
+    }
+
+    return createOpenAITranscriptionProviderConfig({
+      apiKey: env.FOCUS_OPENAI_API_KEY || env.OPENAI_API_KEY || "",
+      model: env.FOCUS_OPENAI_TRANSCRIPTION_MODEL || env.OPENAI_TRANSCRIPTION_MODEL || "",
+      transcriptionsUrl: env.FOCUS_OPENAI_TRANSCRIPTION_URL || env.OPENAI_TRANSCRIPTION_URL || "",
+      organization: env.FOCUS_OPENAI_ORGANIZATION || env.OPENAI_ORG_ID || env.OPENAI_ORGANIZATION || "",
+      project: env.FOCUS_OPENAI_PROJECT || env.OPENAI_PROJECT_ID || "",
+    });
   }
 
   return {
@@ -1149,6 +1161,10 @@ function normalizeVoiceTranscriptionProviderConfig(config) {
     };
   }
 
+  if (provider === "openai") {
+    return createOpenAITranscriptionProviderConfig(config);
+  }
+
   if (typeof config.transcribe === "function") {
     return {
       provider,
@@ -1164,8 +1180,52 @@ function normalizeVoiceTranscriptionProviderName(value) {
   if (["local", "localEcho", "local_echo", "test", "testProvider"].includes(provider)) {
     return provider === "testProvider" ? "testProvider" : "localEcho";
   }
+  if (["openai", "openAI", "openai_audio", "openai-transcribe", "openai_transcription"].includes(provider)) {
+    return "openai";
+  }
 
   return sanitizeProviderEventPart(provider);
+}
+
+function createOpenAITranscriptionProviderConfig({
+  apiKey,
+  model,
+  transcriptionsUrl,
+  url,
+  organization,
+  project,
+} = {}) {
+  const normalizedApiKey = normalizeOpenAIApiKey(apiKey);
+  const normalizedModel = normalizeOpenAITranscriptionModel(model);
+  const normalizedUrl = normalizeUrl(transcriptionsUrl || url || DEFAULT_OPENAI_TRANSCRIPTION_URL);
+
+  if (!normalizedApiKey || !normalizedModel || !normalizedUrl) {
+    return null;
+  }
+
+  return {
+    provider: "openai",
+    apiKey: normalizedApiKey,
+    model: normalizedModel,
+    transcriptionsUrl: normalizedUrl,
+    organization: sanitizeHttpHeaderValue(organization),
+    project: sanitizeHttpHeaderValue(project),
+  };
+}
+
+function normalizeOpenAIApiKey(value) {
+  const apiKey = String(value || "").trim();
+  return apiKey.length >= 20 && !/[\r\n]/.test(apiKey) ? apiKey : "";
+}
+
+function normalizeOpenAITranscriptionModel(value) {
+  const model = String(value || "").trim() || DEFAULT_OPENAI_TRANSCRIPTION_MODEL;
+  return /^[a-zA-Z0-9_.:-]{1,120}$/.test(model) ? model : DEFAULT_OPENAI_TRANSCRIPTION_MODEL;
+}
+
+function sanitizeHttpHeaderValue(value) {
+  const headerValue = String(value || "").trim();
+  return headerValue && !/[\r\n]/.test(headerValue) ? headerValue.slice(0, 200) : "";
 }
 
 function sanitizeTranscriptionText(value) {
@@ -1173,7 +1233,7 @@ function sanitizeTranscriptionText(value) {
   return value.replace(/\s+/g, " ").trim().slice(0, MAX_TRANSCRIPTION_TEXT_LENGTH);
 }
 
-async function transcribeVoiceAudio({ providerConfig, transcriptionRequest, checkedAt }) {
+async function transcribeVoiceAudio({ providerConfig, transcriptionRequest, checkedAt, fetchImpl }) {
   if (!providerConfig) {
     return {
       statusCode: 503,
@@ -1197,6 +1257,15 @@ async function transcribeVoiceAudio({ providerConfig, transcriptionRequest, chec
         checkedAt,
       },
     };
+  }
+
+  if (providerConfig.provider === "openai") {
+    return transcribeWithOpenAIProvider({
+      providerConfig,
+      transcriptionRequest,
+      checkedAt,
+      fetchImpl,
+    });
   }
 
   if (typeof providerConfig.transcribe !== "function") {
@@ -1239,6 +1308,128 @@ async function transcribeVoiceAudio({ providerConfig, transcriptionRequest, chec
       checkedAt,
     });
   }
+}
+
+async function transcribeWithOpenAIProvider({ providerConfig, transcriptionRequest, checkedAt, fetchImpl }) {
+  if (!fetchImpl || typeof FormData !== "function" || typeof Blob !== "function") {
+    return createFailedTranscriptionProviderResponse({
+      provider: providerConfig.provider,
+      reason: "provider_unavailable",
+      checkedAt,
+    });
+  }
+
+  const audioBuffer = Buffer.from(transcriptionRequest.audioBase64, "base64");
+  if (!audioBuffer.length) {
+    return createFailedTranscriptionProviderResponse({
+      provider: providerConfig.provider,
+      reason: "no_audio",
+      checkedAt,
+    });
+  }
+
+  const formData = new FormData();
+  formData.append("file", new Blob([audioBuffer], { type: transcriptionRequest.mimeType }), getTranscriptionFileName(transcriptionRequest.mimeType));
+  formData.append("model", providerConfig.model);
+  formData.append("response_format", "json");
+
+  const language = normalizeOpenAITranscriptionLanguage(transcriptionRequest.language);
+  if (language) {
+    formData.append("language", language);
+  }
+
+  if (transcriptionRequest.prompt) {
+    formData.append("prompt", transcriptionRequest.prompt);
+  }
+
+  const headers = {
+    authorization: `Bearer ${providerConfig.apiKey}`,
+  };
+  if (providerConfig.organization) {
+    headers["openai-organization"] = providerConfig.organization;
+  }
+  if (providerConfig.project) {
+    headers["openai-project"] = providerConfig.project;
+  }
+
+  try {
+    const response = await fetchImpl(providerConfig.transcriptionsUrl, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      return createFailedTranscriptionProviderResponse({
+        provider: providerConfig.provider,
+        reason: getOpenAITranscriptionFailureReason(response.status, result),
+        checkedAt,
+      });
+    }
+
+    const text = sanitizeTranscriptionText(result?.text);
+    if (!text) {
+      return createFailedTranscriptionProviderResponse({
+        provider: providerConfig.provider,
+        reason: "empty_transcription",
+        checkedAt,
+      });
+    }
+
+    return {
+      statusCode: 200,
+      body: {
+        status: "transcribed",
+        provider: providerConfig.provider,
+        text,
+        language: normalizeTranscriptionLanguage(result?.language || transcriptionRequest.language),
+        checkedAt,
+      },
+    };
+  } catch {
+    return createFailedTranscriptionProviderResponse({
+      provider: providerConfig.provider,
+      reason: "provider_error",
+      checkedAt,
+    });
+  }
+}
+
+function normalizeOpenAITranscriptionLanguage(language) {
+  const normalizedLanguage = normalizeTranscriptionLanguage(language);
+  return normalizedLanguage.split("-")[0].toLowerCase();
+}
+
+function getTranscriptionFileName(mimeType) {
+  const extensionByMimeType = {
+    "audio/aac": "aac",
+    "audio/mp4": "mp4",
+    "audio/mpeg": "mp3",
+    "audio/ogg": "ogg",
+    "audio/wav": "wav",
+    "audio/webm": "webm",
+    "audio/x-m4a": "m4a",
+    "audio/x-wav": "wav",
+  };
+  return `focus-audio.${extensionByMimeType[mimeType] || "webm"}`;
+}
+
+function getOpenAITranscriptionFailureReason(statusCode, result) {
+  const providerCode = sanitizeStoredName(result?.error?.code || result?.error?.type || "");
+  if (providerCode === "insufficient_quota" || providerCode === "rate_limit_exceeded") {
+    return "provider_rate_limited";
+  }
+  if (statusCode === 401 || statusCode === 403) {
+    return "provider_auth_failed";
+  }
+  if (statusCode === 400 || statusCode === 413 || providerCode === "invalid_request_error") {
+    return "provider_rejected_audio";
+  }
+  if (statusCode === 429) {
+    return "provider_rate_limited";
+  }
+  return "provider_error";
 }
 
 function createFailedTranscriptionProviderResponse({ provider, reason, checkedAt }) {
@@ -2575,6 +2766,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       providerConfig: voiceTranscriptionProvider,
       transcriptionRequest,
       checkedAt: accountContext.checkedAt,
+      fetchImpl,
     });
 
     if (transcriptionResult.body?.status !== "transcribed") {

@@ -913,6 +913,175 @@ test("sync transcription endpoint uses configured local provider and spends mont
   }
 });
 
+test("sync transcription endpoint can use configured OpenAI provider", async () => {
+  const db = createSyncDatabase(":memory:");
+  const providerCalls = [];
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+    voiceTranscriptionMonthlyLimit: 2,
+    voiceTranscriptionProvider: {
+      provider: "openai",
+      apiKey: "sk-test-openai-transcription-key",
+      model: "gpt-transcribe",
+      transcriptionsUrl: "https://api.openai.test/v1/audio/transcriptions",
+      organization: "org_focus",
+      project: "proj_focus",
+    },
+    fetchImpl: async (url, options = {}) => {
+      providerCalls.push({ url, options });
+      return jsonResponse(200, { text: "Новая задача из записи" });
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-transcription-openai-provider";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  db.setAccountEntitlements({
+    accountId,
+    updatedAt: "2026-07-12T09:00:00.000Z",
+    entitlements: {
+      voiceTranscription: {
+        enabled: true,
+        source: "subscription",
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/transcription`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createTranscriptionRequest({
+        language: "ru-RU",
+        prompt: "задача",
+      })),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      status: "transcribed",
+      provider: "openai",
+      text: "Новая задача из записи",
+      language: "ru-RU",
+      checkedAt: "2026-07-12T09:05:00.000Z",
+      accountId,
+      featureKey: "voiceTranscription",
+      usage: {
+        accountId,
+        featureKey: "voiceTranscription",
+        period: "2026-07",
+        used: 1,
+        limit: 2,
+        remaining: 1,
+        resetAt: "2026-08-01T00:00:00.000Z",
+        updatedAt: "2026-07-12T09:05:00.000Z",
+      },
+    });
+
+    assert.equal(providerCalls.length, 1);
+    assert.equal(providerCalls[0].url, "https://api.openai.test/v1/audio/transcriptions");
+    assert.equal(providerCalls[0].options.method, "POST");
+    assert.equal(providerCalls[0].options.headers.authorization, "Bearer sk-test-openai-transcription-key");
+    assert.equal(providerCalls[0].options.headers["openai-organization"], "org_focus");
+    assert.equal(providerCalls[0].options.headers["openai-project"], "proj_focus");
+
+    const formData = providerCalls[0].options.body;
+    assert.equal(formData.get("model"), "gpt-transcribe");
+    assert.equal(formData.get("response_format"), "json");
+    assert.equal(formData.get("language"), "ru");
+    assert.equal(formData.get("prompt"), "задача");
+    const audioFile = formData.get("file");
+    assert.equal(audioFile.name, "focus-audio.webm");
+    assert.equal(audioFile.type, "audio/webm");
+    assert.ok(audioFile.size > 0);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync transcription OpenAI provider failures do not spend monthly usage", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+    voiceTranscriptionMonthlyLimit: 1,
+    voiceTranscriptionProvider: {
+      provider: "openai",
+      apiKey: "sk-test-openai-transcription-key",
+      model: "gpt-transcribe",
+      transcriptionsUrl: "https://api.openai.test/v1/audio/transcriptions",
+    },
+    fetchImpl: async () => jsonResponse(401, {
+      error: {
+        type: "invalid_api_key",
+      },
+    }),
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-transcription-openai-failed";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  db.setAccountEntitlements({
+    accountId,
+    updatedAt: "2026-07-12T09:00:00.000Z",
+    entitlements: {
+      voiceTranscription: {
+        enabled: true,
+        source: "subscription",
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/transcription`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createTranscriptionRequest()),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      error: "provider_failed",
+      status: "failed",
+      provider: "openai",
+      reason: "provider_auth_failed",
+      text: "",
+      checkedAt: "2026-07-12T09:05:00.000Z",
+      accountId,
+      featureKey: "voiceTranscription",
+      usage: {
+        accountId,
+        featureKey: "voiceTranscription",
+        period: "2026-07",
+        used: 0,
+        limit: 1,
+        remaining: 1,
+        resetAt: "2026-08-01T00:00:00.000Z",
+        updatedAt: null,
+      },
+    });
+    assert.equal(db.getFeatureUsage({
+      accountId,
+      featureKey: "voiceTranscription",
+      checkedAt: "2026-07-12T09:06:00.000Z",
+      limit: 1,
+    }).used, 0);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("sync transcription endpoint reports provider failure without spending monthly usage", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({

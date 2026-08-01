@@ -4524,6 +4524,10 @@ function getTranscriptionEventReasonLabel(reason) {
   if (reason === "usage_limit_exceeded") return "месячный лимит исчерпан";
   if (reason === "provider_not_configured") return "STT-провайдер ещё не настроен";
   if (reason === "provider_error") return "ошибка STT-провайдера";
+  if (reason === "provider_auth_failed") return "ошибка ключа STT-провайдера";
+  if (reason === "provider_rate_limited") return "лимит STT-провайдера";
+  if (reason === "provider_rejected_audio") return "провайдер отклонил аудио";
+  if (reason === "provider_unavailable") return "STT-провайдер недоступен";
   if (reason === "empty_transcription") return "провайдер вернул пустой текст";
   if (reason === "no_audio") return "аудио не передано";
   if (reason === "network_error") return "ошибка сети";
