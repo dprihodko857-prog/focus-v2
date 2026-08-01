@@ -716,6 +716,41 @@ export function createFocusSyncClient({
       }
     },
 
+    async getTranscriptionStatus() {
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/transcription/status"), {
+          headers: await withHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Focus sync transcription status load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          featureKey: normalizePaidFeatureKey(result.featureKey) || VOICE_TRANSCRIPTION_FEATURE_KEY,
+          providerConfigured: result.providerConfigured === true,
+          provider: typeof result.provider === "string" && result.provider.trim() ? result.provider.trim() : null,
+          monthlyLimit: normalizeNonNegativeInteger(result.monthlyLimit),
+          maxDurationMs: normalizeNonNegativeInteger(result.maxDurationMs),
+          checkedAt: normalizeIsoTimestamp(result.checkedAt),
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
+          providerConfigured: false,
+          provider: null,
+          monthlyLimit: 0,
+          maxDurationMs: 0,
+          checkedAt: null,
+        };
+      }
+    },
+
     async transcribeAudio({ audioBase64, mimeType, durationMs = 0, language = "ru-RU", prompt = "" } = {}) {
       const accountId = getStored(ACCOUNT_KEY);
       if (!accountId) {

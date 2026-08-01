@@ -930,6 +930,44 @@ test("transcription events load account diagnostics entries", async () => {
   assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
 });
 
+test("transcription status loads provider readiness diagnostics", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        accountId: "account-1",
+        featureKey: "voiceTranscription",
+        providerConfigured: true,
+        provider: "localEcho",
+        monthlyLimit: 30,
+        maxDurationMs: 60000,
+        checkedAt: "2026-07-31T10:00:00.000Z",
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.getTranscriptionStatus();
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.accountId, "account-1");
+  assert.equal(result.featureKey, "voiceTranscription");
+  assert.equal(result.providerConfigured, true);
+  assert.equal(result.provider, "localEcho");
+  assert.equal(result.monthlyLimit, 30);
+  assert.equal(result.maxDurationMs, 60000);
+  assert.equal(result.checkedAt, "2026-07-31T10:00:00.000Z");
+  assert.equal(calls[0].url, "/api/sync/transcription/status");
+  assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
+  assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
+});
+
 test("transcription client handles gated provider scaffold states", async () => {
   const noAccountClient = createFocusSyncClient({
     fetch: async () => {

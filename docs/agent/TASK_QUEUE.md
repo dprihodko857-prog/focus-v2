@@ -3713,3 +3713,67 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Voice recording requests now carry bounded `durationMs`; backend diagnostics store it and Settings shows duration in the dictation journal.
 - commit_status: committed
 - notes: Syntax checks passed, focused server/client/static tests passed 154/154, and `npm.cmd run test` passed 184/184 on 2026-07-31. No deployment or git push.
+
+## TASK-068
+
+- title: Add voice transcription readiness status
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_transcription_backend_ui
+- priority: high
+- source: next transcription diagnostics hardening step after TASK-067 duration metadata
+- spec_reference: `docs/specs/voice-transcription-readiness-status.md`
+- spec_status: implemented_local_committed
+- goal: show current-account server transcription provider readiness and limits before the user records audio.
+- out_of_scope:
+  - live STT provider integration
+  - provider credential management
+  - payment-provider changes
+  - admin dashboard or cross-account diagnostics
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - backend exposes `GET /api/sync/transcription/status`
+  - status endpoint returns provider configured state, provider name, monthly limit, max duration, and checked timestamp
+  - non-GET calls to status endpoint return `method_not_allowed`
+  - sync client exposes `getTranscriptionStatus()`
+  - Settings transcription journal summary shows readiness before the first recording attempt
+  - service worker cache is bumped to `focus-pwa-v90`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_transcription_backend_ui task
+- file_limit: up to 12 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 67
+- stop_conditions:
+  - implementation requires live STT provider credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/app.js`
+  - `public/js/sync.js`
+  - `public/service-worker.js`
+  - `tests/focus-sync-server.test.mjs`
+  - `tests/focus-sync-client.test.mjs`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - voice transcription provider adapter
+  - voice transcription diagnostics UI
+  - voice transcription duration metadata
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Settings now shows provider readiness and limits before server dictation attempts.
+- commit_status: committed
+- notes: Syntax checks passed, focused server/client/static tests passed 156/156, and `npm.cmd run test` passed 186/186 on 2026-08-01. No deployment or git push.

@@ -101,6 +101,15 @@ let accountEntitlementEventsState = {
   checkedAt: "",
   events: [],
 };
+let accountTranscriptionStatusState = {
+  status: "idle",
+  accountId: "",
+  checkedAt: "",
+  providerConfigured: false,
+  provider: null,
+  monthlyLimit: 0,
+  maxDurationMs: 0,
+};
 let accountTranscriptionEventsState = {
   status: "idle",
   accountId: "",
@@ -155,6 +164,18 @@ function createEmptyAccountTranscriptionEventsState(status = "idle") {
     accountId: scheduleSync.peekAccountId(),
     checkedAt: "",
     events: [],
+  };
+}
+
+function createEmptyAccountTranscriptionStatusState(status = "idle") {
+  return {
+    status,
+    accountId: scheduleSync.peekAccountId(),
+    checkedAt: "",
+    providerConfigured: false,
+    provider: null,
+    monthlyLimit: 0,
+    maxDurationMs: 0,
   };
 }
 
@@ -4188,6 +4209,7 @@ function resetAccountEntitlementsState(status = "idle") {
     usage: createDefaultAccountFeatureUsage(),
   };
   accountEntitlementEventsState = createEmptyAccountEntitlementEventsState(status);
+  accountTranscriptionStatusState = createEmptyAccountTranscriptionStatusState(status);
   accountTranscriptionEventsState = createEmptyAccountTranscriptionEventsState(status);
   paidFeatureCheckoutState = {
     status: "idle",
@@ -4433,6 +4455,27 @@ function normalizeTranscriptionEvents(events = []) {
     }));
 }
 
+function normalizePositiveInteger(value) {
+  const normalizedValue = Math.floor(Number(value));
+  return Number.isFinite(normalizedValue) && normalizedValue > 0 ? normalizedValue : 0;
+}
+
+function normalizeTranscriptionStatus(result, accountId) {
+  if (!result || typeof result !== "object") {
+    return createEmptyAccountTranscriptionStatusState("offline");
+  }
+
+  return {
+    status: result.status || "ok",
+    accountId: result.accountId || accountId,
+    checkedAt: result.checkedAt ? String(result.checkedAt) : "",
+    providerConfigured: result.providerConfigured === true,
+    provider: result.provider ? String(result.provider) : null,
+    monthlyLimit: normalizePositiveInteger(result.monthlyLimit),
+    maxDurationMs: normalizePositiveInteger(result.maxDurationMs),
+  };
+}
+
 function getEntitlementEventFeatureTitle(featureKey) {
   return paidFeatureItems.find(feature => feature.key === featureKey)?.title || "Платная функция";
 }
@@ -4660,19 +4703,48 @@ function getTranscriptionEventsSummary() {
     return "Подключите аккаунт, чтобы видеть журнал серверной транскрибации.";
   }
 
+  const readinessSummary = getTranscriptionReadinessSummary();
+  let eventsSummary = "";
+
   if (accountTranscriptionEventsState.status === "loading") {
-    return "Загружаем последние попытки диктовки.";
+    eventsSummary = "Загружаем последние попытки диктовки.";
+  } else if (accountTranscriptionEventsState.status === "offline") {
+    eventsSummary = "Журнал диктовки сейчас недоступен. Повторите после подключения.";
+  } else if (!accountTranscriptionEventsState.events.length) {
+    eventsSummary = "Попыток серверной транскрибации пока нет. Они появятся после диктовки через запись аудио.";
+  } else {
+    eventsSummary = `Последние попытки диктовки: ${accountTranscriptionEventsState.events.length}.`;
   }
 
-  if (accountTranscriptionEventsState.status === "offline") {
-    return "Журнал диктовки сейчас недоступен. Повторите после подключения.";
+  return readinessSummary ? `${readinessSummary} ${eventsSummary}` : eventsSummary;
+}
+
+function getTranscriptionReadinessSummary() {
+  if (accountTranscriptionStatusState.status === "loading") {
+    return "Проверяем готовность серверной транскрибации.";
   }
 
-  if (!accountTranscriptionEventsState.events.length) {
-    return "Попыток серверной транскрибации пока нет. Они появятся после диктовки через запись аудио.";
+  if (accountTranscriptionStatusState.status === "offline") {
+    return "Готовность серверной транскрибации сейчас недоступна.";
   }
 
-  return `Последние попытки диктовки: ${accountTranscriptionEventsState.events.length}.`;
+  if (accountTranscriptionStatusState.status !== "ok") {
+    return "";
+  }
+
+  if (!accountTranscriptionStatusState.providerConfigured) {
+    return "STT-провайдер ещё не подключён. Записи будут попадать в журнал как «Провайдер».";
+  }
+
+  const limitText = accountTranscriptionStatusState.monthlyLimit
+    ? `лимит ${accountTranscriptionStatusState.monthlyLimit} в месяц`
+    : "лимит не указан";
+  const durationText = accountTranscriptionStatusState.maxDurationMs
+    ? `максимальная запись ${formatTranscriptionDuration(accountTranscriptionStatusState.maxDurationMs)}`
+    : "максимальная длительность не указана";
+  const providerText = accountTranscriptionStatusState.provider || "сервер";
+
+  return `STT-провайдер готов: ${providerText}. ${limitText}, ${durationText}.`;
 }
 
 function renderTranscriptionEventsPanel() {
@@ -4942,11 +5014,17 @@ async function refreshTranscriptionEvents({ silent = false } = {}) {
   const accountId = scheduleSync.peekAccountId();
 
   if (!accountId) {
+    accountTranscriptionStatusState = createEmptyAccountTranscriptionStatusState("local");
     accountTranscriptionEventsState = createEmptyAccountTranscriptionEventsState("local");
     renderTranscriptionEventsPanel();
     return accountTranscriptionEventsState;
   }
 
+  accountTranscriptionStatusState = {
+    ...accountTranscriptionStatusState,
+    status: "loading",
+    accountId,
+  };
   accountTranscriptionEventsState = {
     ...accountTranscriptionEventsState,
     status: "loading",
@@ -4955,17 +5033,29 @@ async function refreshTranscriptionEvents({ silent = false } = {}) {
   renderTranscriptionEventsPanel();
 
   try {
-    const result = await scheduleSync.getTranscriptionEvents();
+    const [statusResult, eventsResult] = await Promise.all([
+      scheduleSync.getTranscriptionStatus(),
+      scheduleSync.getTranscriptionEvents(),
+    ]);
+    accountTranscriptionStatusState = normalizeTranscriptionStatus(statusResult, accountId);
     accountTranscriptionEventsState = {
-      status: result.status || "ok",
-      accountId: result.accountId || accountId,
+      status: eventsResult.status || "ok",
+      accountId: eventsResult.accountId || accountId,
       checkedAt: new Date().toISOString(),
-      events: normalizeTranscriptionEvents(result.events),
+      events: normalizeTranscriptionEvents(eventsResult.events),
     };
-    if (!silent && accountTranscriptionEventsState.status !== "offline") {
+    if (
+      !silent &&
+      accountTranscriptionStatusState.status !== "offline" &&
+      accountTranscriptionEventsState.status !== "offline"
+    ) {
       setSyncStatus("Журнал диктовки обновлён.");
     }
   } catch {
+    accountTranscriptionStatusState = {
+      ...createEmptyAccountTranscriptionStatusState("offline"),
+      accountId,
+    };
     accountTranscriptionEventsState = {
       status: "offline",
       accountId,

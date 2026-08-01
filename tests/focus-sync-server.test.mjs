@@ -983,6 +983,57 @@ test("sync transcription endpoint reports provider failure without spending mont
   }
 });
 
+test("sync transcription status endpoint reports provider readiness and limits", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+    voiceTranscriptionMonthlyLimit: 12,
+    voiceTranscriptionProvider: {
+      provider: "localEcho",
+      text: "Новая задача",
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-transcription-status";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/transcription/status`, {
+      method: "GET",
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      accountId,
+      featureKey: "voiceTranscription",
+      providerConfigured: true,
+      provider: "localEcho",
+      monthlyLimit: 12,
+      maxDurationMs: 60000,
+      checkedAt: "2026-07-12T09:05:00.000Z",
+    });
+
+    const methodResponse = await fetch(`${baseUrl}/api/sync/transcription/status`, {
+      method: "POST",
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(methodResponse.status, 405);
+    assert.equal((await methodResponse.json()).error, "method_not_allowed");
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("sync transcription events endpoint lists diagnostics without audio or text payloads", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({

@@ -23,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v89/);
+  assert.match(serviceWorker, /focus-pwa-v90/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -72,6 +72,7 @@ test("settings expose the sync account connection modal", () => {
 test("sync client exposes paid feature entitlements", () => {
   assert.match(syncJs, /async getAccountEntitlements\(\)/);
   assert.match(syncJs, /async getEntitlementEvents\(\)/);
+  assert.match(syncJs, /async getTranscriptionStatus\(\)/);
   assert.match(syncJs, /async getTranscriptionEvents\(\)/);
   assert.match(syncJs, /async transcribeAudio\(\{ audioBase64, mimeType, durationMs = 0, language = "ru-RU", prompt = "" \} = \{\}\)/);
   assert.match(syncJs, /async createSubscriptionCheckout\(\{ featureKey \} = \{\}\)/);
@@ -82,6 +83,7 @@ test("sync client exposes paid feature entitlements", () => {
   assert.match(syncJs, /paymentId/);
   assert.match(syncJs, /\/sync\/entitlements/);
   assert.match(syncJs, /\/sync\/entitlements\/events/);
+  assert.match(syncJs, /\/sync\/transcription\/status/);
   assert.match(syncJs, /\/sync\/transcription\/events/);
   assert.match(syncJs, /\/sync\/transcription/);
   assert.match(syncJs, /MAX_TRANSCRIPTION_AUDIO_BASE64_LENGTH/);
@@ -127,11 +129,15 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /function renderEntitlementEventsPanel/);
   assert.match(appJs, /async function refreshEntitlementEvents/);
   assert.match(appJs, /function getEntitlementEventStatus/);
+  assert.match(appJs, /accountTranscriptionStatusState/);
+  assert.match(appJs, /function normalizeTranscriptionStatus/);
   assert.match(appJs, /function renderTranscriptionEventsPanel/);
   assert.match(appJs, /async function refreshTranscriptionEvents/);
+  assert.match(appJs, /function getTranscriptionReadinessSummary/);
   assert.match(appJs, /function getTranscriptionEventStatus/);
   assert.match(appJs, /function normalizeTranscriptionEvents/);
   assert.match(appJs, /function formatTranscriptionDuration/);
+  assert.match(appJs, /STT-провайдер готов/);
   assert.match(appJs, /async function startPaidFeatureCheckout/);
   assert.match(appJs, /async function checkPendingSubscriptionCheckout/);
   assert.match(appJs, /Действует до/);
@@ -139,6 +145,7 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /scheduleSync\.getAccountEntitlements\(\)/);
   assert.match(appJs, /usage: result\.usage \|\| createDefaultAccountFeatureUsage\(\)/);
   assert.match(appJs, /scheduleSync\.getEntitlementEvents\(\)/);
+  assert.match(appJs, /scheduleSync\.getTranscriptionStatus\(\)/);
   assert.match(appJs, /scheduleSync\.getTranscriptionEvents\(\)/);
   assert.match(appJs, /scheduleSync\.createSubscriptionCheckout\(\{ featureKey: feature\.key \}\)/);
   assert.match(appJs, /scheduleSync\.getSubscriptionCheckoutStatus\(\{ paymentId: pendingCheckout\.paymentId \}\)/);
@@ -147,6 +154,8 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /data-paid-feature-action="\$\{escapeHtml\(feature\.key\)\}"/);
   assert.match(appJs, /document\.querySelector\("#paidFeaturesRefreshButton"\)\?\.addEventListener\("click"/);
   assert.match(syncJs, /usage: normalizeAccountFeatureUsage\(result\.usage\)/);
+  assert.match(serverJs, /\/api\/sync\/transcription\/status/);
+  assert.match(serverJs, /providerConfigured/);
   assert.match(serverJs, /usage: \{[\s\S]*?voiceTranscription: db\.getFeatureUsage\(\{/);
 });
 

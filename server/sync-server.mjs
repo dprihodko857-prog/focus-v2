@@ -2454,6 +2454,27 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     return;
   }
 
+  if (url.pathname === "/api/sync/transcription/status") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    sendJson(response, 200, {
+      accountId: accountContext.accountId,
+      featureKey: VOICE_TRANSCRIPTION_FEATURE_KEY,
+      providerConfigured: Boolean(voiceTranscriptionProvider),
+      provider: voiceTranscriptionProvider?.provider || null,
+      monthlyLimit: normalizeMonthlyUsageLimit(voiceTranscriptionMonthlyLimit),
+      maxDurationMs: MAX_TRANSCRIPTION_DURATION_MS,
+      checkedAt: accountContext.checkedAt,
+    });
+    return;
+  }
+
   if (url.pathname === "/api/sync/transcription/events") {
     const accountContext = getExistingAccountContext({ request, response, db, now });
     if (!accountContext) return;

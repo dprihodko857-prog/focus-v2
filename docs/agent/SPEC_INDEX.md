@@ -73,4 +73,5 @@ Status: DRAFT
 | VOICE-TRANSCRIPTION-DIAGNOSTICS-LOG-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-diagnostics-log.md` | TASK-065 records account-scoped transcription attempt diagnostics without storing audio or recognized text. |
 | VOICE-TRANSCRIPTION-DIAGNOSTICS-UI-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-diagnostics-ui.md` | TASK-066 shows recent server transcription diagnostics in Settings without exposing audio or recognized text. |
 | VOICE-TRANSCRIPTION-DURATION-METADATA-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-duration-metadata.md` | TASK-067 carries bounded recording duration metadata through transcription requests and diagnostics. |
+| VOICE-TRANSCRIPTION-READINESS-STATUS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-readiness-status.md` | TASK-068 shows current-account server transcription provider readiness before recording attempts. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |
