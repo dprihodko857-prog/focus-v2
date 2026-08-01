@@ -81,6 +81,7 @@ Status: DRAFT
 - TASK-068 is implemented locally: Settings now shows server transcription provider readiness and limits before dictation attempts; service worker cache is `focus-pwa-v90`.
 - TASK-069 is implemented locally: backend supports an env-configured OpenAI transcription provider adapter while leaving production disabled until credentials are configured; service worker cache is `focus-pwa-v91`.
 - TASK-070 is implemented locally: transcription readiness diagnostics expose safe provider model metadata in Settings without exposing provider secrets; service worker cache is `focus-pwa-v92`.
+- TASK-071 is implemented locally: slow OpenAI transcription provider calls are aborted by a configurable timeout, reported as `provider_timeout`, and do not spend voice transcription usage; service worker cache is `focus-pwa-v93`.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
 - Runtime through local commit `2362d05` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-31; remote backup is `/opt/focus-v2/deploy-backups/backup-20260731-134936-pre-2362d05`; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v87`, and public requisites/subscription/privacy pages returned `200`.
 
@@ -103,7 +104,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-070 checks passed locally (`node --check server/sync-server.mjs`; `node --check public/js/app.js`; `node --check public/js/sync.js`; `node --check public/service-worker.js`; focused server/client/static tests 159/159; `npm.cmd run test` 189/189). Production deploy on 2026-07-31 uploaded runtime through commit `2362d05`; app, API health, service worker, requisites, subscription, privacy, and manifest checks passed; backend service is active.
+- Current result: local Git repository exists; TASK-071 checks passed locally (`node --check server/sync-server.mjs`; `node --check public/js/app.js`; `node --check public/js/sync.js`; `node --check public/service-worker.js`; focused server/client/static tests 160/160; `npm.cmd run test` 190/190). Production deploy on 2026-07-31 uploaded runtime through commit `2362d05`; app, API health, service worker, requisites, subscription, privacy, and manifest checks passed; backend service is active.
 
 ## Open Questions
 

@@ -76,4 +76,5 @@ Status: DRAFT
 | VOICE-TRANSCRIPTION-READINESS-STATUS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-readiness-status.md` | TASK-068 shows current-account server transcription provider readiness before recording attempts. |
 | VOICE-TRANSCRIPTION-OPENAI-PROVIDER-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-openai-provider.md` | TASK-069 adds an env-configured OpenAI STT provider adapter behind the existing transcription API. |
 | VOICE-TRANSCRIPTION-PROVIDER-METADATA-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-provider-metadata.md` | TASK-070 shows safe provider model metadata in transcription readiness diagnostics. |
+| VOICE-TRANSCRIPTION-PROVIDER-TIMEOUT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-provider-timeout.md` | TASK-071 aborts slow external STT provider calls with safe diagnostics. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

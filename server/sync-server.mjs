@@ -19,6 +19,7 @@ const DEFAULT_VOICE_TRANSCRIPTION_MONTHLY_LIMIT = readPositiveIntegerEnv("FOCUS_
 const MAX_TRANSCRIPTION_DURATION_MS = readPositiveIntegerEnv("FOCUS_VOICE_TRANSCRIPTION_MAX_DURATION_MS", 60 * 1000);
 const DEFAULT_OPENAI_TRANSCRIPTION_URL = "https://api.openai.com/v1/audio/transcriptions";
 const DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "gpt-transcribe";
+const DEFAULT_OPENAI_TRANSCRIPTION_TIMEOUT_MS = readPositiveIntegerEnv("FOCUS_OPENAI_TRANSCRIPTION_TIMEOUT_MS", 30000);
 const MAX_BODY_BYTES = 1024 * 1024;
 const AUTH_SESSION_COOKIE = "focus_auth_session";
 const AUTH_TRANSIENT_COOKIE = "focus_auth_pkce";
@@ -1133,6 +1134,7 @@ function createVoiceTranscriptionProviderConfig(env = process.env) {
       apiKey: env.FOCUS_OPENAI_API_KEY || env.OPENAI_API_KEY || "",
       model: env.FOCUS_OPENAI_TRANSCRIPTION_MODEL || env.OPENAI_TRANSCRIPTION_MODEL || "",
       transcriptionsUrl: env.FOCUS_OPENAI_TRANSCRIPTION_URL || env.OPENAI_TRANSCRIPTION_URL || "",
+      timeoutMs: env.FOCUS_OPENAI_TRANSCRIPTION_TIMEOUT_MS || env.OPENAI_TRANSCRIPTION_TIMEOUT_MS || "",
       organization: env.FOCUS_OPENAI_ORGANIZATION || env.OPENAI_ORG_ID || env.OPENAI_ORGANIZATION || "",
       project: env.FOCUS_OPENAI_PROJECT || env.OPENAI_PROJECT_ID || "",
     });
@@ -1192,6 +1194,7 @@ function createOpenAITranscriptionProviderConfig({
   model,
   transcriptionsUrl,
   url,
+  timeoutMs,
   organization,
   project,
 } = {}) {
@@ -1208,6 +1211,7 @@ function createOpenAITranscriptionProviderConfig({
     apiKey: normalizedApiKey,
     model: normalizedModel,
     transcriptionsUrl: normalizedUrl,
+    timeoutMs: normalizeOpenAITranscriptionTimeoutMs(timeoutMs),
     organization: sanitizeHttpHeaderValue(organization),
     project: sanitizeHttpHeaderValue(project),
   };
@@ -1221,6 +1225,14 @@ function normalizeOpenAIApiKey(value) {
 function normalizeOpenAITranscriptionModel(value) {
   const model = String(value || "").trim() || DEFAULT_OPENAI_TRANSCRIPTION_MODEL;
   return /^[a-zA-Z0-9_.:-]{1,120}$/.test(model) ? model : DEFAULT_OPENAI_TRANSCRIPTION_MODEL;
+}
+
+function normalizeOpenAITranscriptionTimeoutMs(value) {
+  const timeoutMs = Math.floor(Number(value));
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return DEFAULT_OPENAI_TRANSCRIPTION_TIMEOUT_MS;
+  }
+  return Math.min(timeoutMs, 120000);
 }
 
 function sanitizeHttpHeaderValue(value) {
@@ -1352,11 +1364,20 @@ async function transcribeWithOpenAIProvider({ providerConfig, transcriptionReque
     headers["openai-project"] = providerConfig.project;
   }
 
+  const abortController = typeof AbortController === "function" ? new AbortController() : null;
+  const timeoutId = abortController
+    ? setTimeout(() => abortController.abort(), providerConfig.timeoutMs || DEFAULT_OPENAI_TRANSCRIPTION_TIMEOUT_MS)
+    : null;
+  if (timeoutId && typeof timeoutId.unref === "function") {
+    timeoutId.unref();
+  }
+
   try {
     const response = await fetchImpl(providerConfig.transcriptionsUrl, {
       method: "POST",
       headers,
       body: formData,
+      signal: abortController?.signal,
     });
     const result = await response.json().catch(() => ({}));
 
@@ -1387,13 +1408,21 @@ async function transcribeWithOpenAIProvider({ providerConfig, transcriptionReque
         checkedAt,
       },
     };
-  } catch {
+  } catch (error) {
     return createFailedTranscriptionProviderResponse({
       provider: providerConfig.provider,
-      reason: "provider_error",
+      reason: isAbortError(error) ? "provider_timeout" : "provider_error",
       checkedAt,
     });
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
+}
+
+function isAbortError(error) {
+  return error?.name === "AbortError" || error?.code === "ABORT_ERR";
 }
 
 function normalizeOpenAITranscriptionLanguage(language) {

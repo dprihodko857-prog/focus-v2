@@ -4530,6 +4530,7 @@ function getTranscriptionEventReasonLabel(reason) {
   if (reason === "provider_auth_failed") return "ошибка ключа STT-провайдера";
   if (reason === "provider_rate_limited") return "лимит STT-провайдера";
   if (reason === "provider_rejected_audio") return "провайдер отклонил аудио";
+  if (reason === "provider_timeout") return "STT-провайдер не ответил вовремя";
   if (reason === "provider_unavailable") return "STT-провайдер недоступен";
   if (reason === "empty_transcription") return "провайдер вернул пустой текст";
   if (reason === "no_audio") return "аудио не передано";

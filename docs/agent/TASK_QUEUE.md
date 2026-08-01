@@ -3901,3 +3901,64 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Transcription readiness diagnostics now include safe provider model metadata.
 - commit_status: committed
 - notes: Syntax checks passed, focused server/client/static tests passed 159/159, and `npm.cmd run test` passed 189/189 on 2026-08-01. No deployment or git push.
+
+## TASK-071
+
+- title: Add transcription provider timeout diagnostics
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_transcription_backend
+- priority: high
+- source: follow-up hardening after TASK-069 OpenAI provider adapter and TASK-070 metadata
+- spec_reference: `docs/specs/voice-transcription-provider-timeout.md`
+- spec_status: implemented_local_committed
+- goal: abort slow external STT provider calls and report a safe timeout diagnostic without spending usage.
+- out_of_scope:
+  - live OpenAI credential verification
+  - changing transcription payload shape
+  - payment-provider changes
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - OpenAI transcription fetches receive an `AbortSignal`
+  - provider timeout is configurable through server environment variables
+  - timeout failures return `provider_timeout`
+  - timeout failures do not spend monthly voice transcription usage
+  - Settings diagnostics map timeout failures to a readable label
+  - service worker cache is bumped to `focus-pwa-v93`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_transcription_backend task
+- file_limit: up to 12 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 70
+- stop_conditions:
+  - implementation requires live OpenAI credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/focus-sync-server.test.mjs`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - OpenAI voice transcription provider adapter
+  - voice transcription usage quota
+  - voice transcription diagnostics UI
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Slow OpenAI transcription provider calls now abort with `provider_timeout` and do not spend usage.
+- commit_status: committed
+- notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-01. No deployment or git push.

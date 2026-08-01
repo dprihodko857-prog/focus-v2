@@ -1082,6 +1082,93 @@ test("sync transcription OpenAI provider failures do not spend monthly usage", a
   }
 });
 
+test("sync transcription OpenAI provider timeout does not spend monthly usage", async () => {
+  const db = createSyncDatabase(":memory:");
+  const providerCalls = [];
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:05:00.000Z",
+    voiceTranscriptionMonthlyLimit: 1,
+    voiceTranscriptionProvider: {
+      provider: "openai",
+      apiKey: "sk-test-openai-transcription-key",
+      model: "gpt-transcribe",
+      transcriptionsUrl: "https://api.openai.test/v1/audio/transcriptions",
+      timeoutMs: 1,
+    },
+    fetchImpl: async (url, options = {}) => {
+      providerCalls.push({ url, options });
+      assert.ok(options.signal);
+      return new Promise((resolve, reject) => {
+        options.signal.addEventListener("abort", () => {
+          const error = new Error("aborted");
+          error.name = "AbortError";
+          reject(error);
+        }, { once: true });
+      });
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-transcription-openai-timeout";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  db.setAccountEntitlements({
+    accountId,
+    updatedAt: "2026-07-12T09:00:00.000Z",
+    entitlements: {
+      voiceTranscription: {
+        enabled: true,
+        source: "subscription",
+      },
+    },
+  });
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/transcription`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createTranscriptionRequest()),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      error: "provider_failed",
+      status: "failed",
+      provider: "openai",
+      reason: "provider_timeout",
+      text: "",
+      checkedAt: "2026-07-12T09:05:00.000Z",
+      accountId,
+      featureKey: "voiceTranscription",
+      usage: {
+        accountId,
+        featureKey: "voiceTranscription",
+        period: "2026-07",
+        used: 0,
+        limit: 1,
+        remaining: 1,
+        resetAt: "2026-08-01T00:00:00.000Z",
+        updatedAt: null,
+      },
+    });
+    assert.equal(providerCalls.length, 1);
+    assert.equal(providerCalls[0].options.signal.aborted, true);
+    assert.equal(db.getFeatureUsage({
+      accountId,
+      featureKey: "voiceTranscription",
+      checkedAt: "2026-07-12T09:06:00.000Z",
+      limit: 1,
+    }).used, 0);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("sync transcription endpoint reports provider failure without spending monthly usage", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({
