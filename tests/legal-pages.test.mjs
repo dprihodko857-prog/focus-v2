@@ -20,7 +20,7 @@ test("public requisites page exposes merchant legal details", () => {
 });
 
 test("service worker caches the public requisites page", () => {
-  assert.match(serviceWorker, /focus-pwa-v93/);
+  assert.match(serviceWorker, /focus-pwa-v94/);
   assert.match(serviceWorker, /"\/requisites\.html"/);
 });
 

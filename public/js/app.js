@@ -108,6 +108,7 @@ let accountTranscriptionStatusState = {
   providerConfigured: false,
   provider: null,
   providerModel: null,
+  providerTimeoutMs: 0,
   monthlyLimit: 0,
   maxDurationMs: 0,
 };
@@ -176,6 +177,7 @@ function createEmptyAccountTranscriptionStatusState(status = "idle") {
     providerConfigured: false,
     provider: null,
     providerModel: null,
+    providerTimeoutMs: 0,
     monthlyLimit: 0,
     maxDurationMs: 0,
   };
@@ -4474,6 +4476,7 @@ function normalizeTranscriptionStatus(result, accountId) {
     providerConfigured: result.providerConfigured === true,
     provider: result.provider ? String(result.provider) : null,
     providerModel: result.providerModel ? String(result.providerModel) : null,
+    providerTimeoutMs: normalizePositiveInteger(result.providerTimeoutMs),
     monthlyLimit: normalizePositiveInteger(result.monthlyLimit),
     maxDurationMs: normalizePositiveInteger(result.maxDurationMs),
   };
@@ -4754,8 +4757,12 @@ function getTranscriptionReadinessSummary() {
   const modelText = accountTranscriptionStatusState.providerModel
     ? `, модель ${accountTranscriptionStatusState.providerModel}`
     : "";
+  const timeoutText = accountTranscriptionStatusState.providerTimeoutMs
+    ? `таймаут ответа ${formatTranscriptionDuration(accountTranscriptionStatusState.providerTimeoutMs)}`
+    : "";
+  const diagnosticsText = [limitText, durationText, timeoutText].filter(Boolean).join(", ");
 
-  return `STT-провайдер готов: ${providerText}${modelText}. ${limitText}, ${durationText}.`;
+  return `STT-провайдер готов: ${providerText}${modelText}. ${diagnosticsText}.`;
 }
 
 function renderTranscriptionEventsPanel() {

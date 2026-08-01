@@ -1245,6 +1245,11 @@ function sanitizeTranscriptionText(value) {
   return value.replace(/\s+/g, " ").trim().slice(0, MAX_TRANSCRIPTION_TEXT_LENGTH);
 }
 
+function getVoiceTranscriptionProviderTimeoutMs(providerConfig) {
+  const timeoutMs = Math.floor(Number(providerConfig?.timeoutMs));
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : null;
+}
+
 async function transcribeVoiceAudio({ providerConfig, transcriptionRequest, checkedAt, fetchImpl }) {
   if (!providerConfig) {
     return {
@@ -2689,6 +2694,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       providerConfigured: Boolean(voiceTranscriptionProvider),
       provider: voiceTranscriptionProvider?.provider || null,
       providerModel: voiceTranscriptionProvider?.model || null,
+      providerTimeoutMs: getVoiceTranscriptionProviderTimeoutMs(voiceTranscriptionProvider),
       monthlyLimit: normalizeMonthlyUsageLimit(voiceTranscriptionMonthlyLimit),
       maxDurationMs: MAX_TRANSCRIPTION_DURATION_MS,
       checkedAt: accountContext.checkedAt,

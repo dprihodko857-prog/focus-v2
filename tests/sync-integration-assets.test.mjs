@@ -23,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v93/);
+  assert.match(serviceWorker, /focus-pwa-v94/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -131,6 +131,7 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /function getEntitlementEventStatus/);
   assert.match(appJs, /accountTranscriptionStatusState/);
   assert.match(appJs, /providerModel/);
+  assert.match(appJs, /providerTimeoutMs/);
   assert.match(appJs, /function normalizeTranscriptionStatus/);
   assert.match(appJs, /function renderTranscriptionEventsPanel/);
   assert.match(appJs, /async function refreshTranscriptionEvents/);
@@ -157,9 +158,11 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /data-paid-feature-action="\$\{escapeHtml\(feature\.key\)\}"/);
   assert.match(appJs, /document\.querySelector\("#paidFeaturesRefreshButton"\)\?\.addEventListener\("click"/);
   assert.match(syncJs, /usage: normalizeAccountFeatureUsage\(result\.usage\)/);
+  assert.match(syncJs, /providerTimeoutMs/);
   assert.match(serverJs, /\/api\/sync\/transcription\/status/);
   assert.match(serverJs, /providerConfigured/);
   assert.match(serverJs, /providerModel/);
+  assert.match(serverJs, /providerTimeoutMs/);
   assert.match(serverJs, /usage: \{[\s\S]*?voiceTranscription: db\.getFeatureUsage\(\{/);
   assert.match(serverJs, /DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "gpt-transcribe"/);
   assert.match(serverJs, /DEFAULT_OPENAI_TRANSCRIPTION_URL = "https:\/\/api\.openai\.com\/v1\/audio\/transcriptions"/);

@@ -945,6 +945,7 @@ test("transcription status loads provider readiness diagnostics", async () => {
         providerConfigured: true,
         provider: "localEcho",
         providerModel: "local-model",
+        providerTimeoutMs: 45000,
         monthlyLimit: 30,
         maxDurationMs: 60000,
         checkedAt: "2026-07-31T10:00:00.000Z",
@@ -962,6 +963,7 @@ test("transcription status loads provider readiness diagnostics", async () => {
   assert.equal(result.providerConfigured, true);
   assert.equal(result.provider, "localEcho");
   assert.equal(result.providerModel, "local-model");
+  assert.equal(result.providerTimeoutMs, 45000);
   assert.equal(result.monthlyLimit, 30);
   assert.equal(result.maxDurationMs, 60000);
   assert.equal(result.checkedAt, "2026-07-31T10:00:00.000Z");

@@ -1270,6 +1270,7 @@ test("sync transcription status endpoint reports provider readiness and limits",
       providerConfigured: true,
       provider: "localEcho",
       providerModel: null,
+      providerTimeoutMs: null,
       monthlyLimit: 12,
       maxDurationMs: 60000,
       checkedAt: "2026-07-12T09:05:00.000Z",
@@ -1301,6 +1302,7 @@ test("sync transcription status endpoint reports configured OpenAI model", async
       apiKey: "sk-test-openai-transcription-key",
       model: "gpt-transcribe",
       transcriptionsUrl: "https://api.openai.test/v1/audio/transcriptions",
+      timeoutMs: 45000,
     },
   });
   const baseUrl = await listen(server);
@@ -1322,6 +1324,7 @@ test("sync transcription status endpoint reports configured OpenAI model", async
     assert.equal(result.providerConfigured, true);
     assert.equal(result.provider, "openai");
     assert.equal(result.providerModel, "gpt-transcribe");
+    assert.equal(result.providerTimeoutMs, 45000);
   } finally {
     await close(server);
     db.close();
