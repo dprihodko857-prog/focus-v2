@@ -90,6 +90,7 @@ Status: DRAFT
 - TASK-077 is implemented locally: Useful now shows server transcription readiness in the voice input subscription panel and refreshes it with transcription diagnostics; service worker cache is `focus-pwa-v99`.
 - TASK-078 is implemented locally: paid feature cards now show pending YooKassa checkout state and re-check existing pending payments before creating a new checkout; service worker cache is `focus-pwa-v100`.
 - TASK-079 is implemented locally: pending YooKassa checkout cards now include a safe `Продолжить оплату` link in Settings and Useful when a checkout URL is available; service worker cache is `focus-pwa-v101`.
+- TASK-080 is implemented locally: subscription returns to `/?open=useful` now open Useful and show visible pending checkout status feedback when a stored checkout exists; service worker cache is `focus-pwa-v102`.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
 - Runtime through local commit `2362d05` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-31; remote backup is `/opt/focus-v2/deploy-backups/backup-20260731-134936-pre-2362d05`; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v87`, and public requisites/subscription/privacy pages returned `200`.
 
@@ -112,7 +113,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-079 checks passed locally (`node --check server/sync-server.mjs`; `node --check public/js/app.js`; `node --check public/js/sync.js`; `node --check public/service-worker.js`; focused server/client/static tests 160/160 after rerun; `npm.cmd run test` 190/190). Production deploy on 2026-07-31 uploaded runtime through commit `2362d05`; app, API health, service worker, requisites, subscription, privacy, and manifest checks passed; backend service is active.
+- Current result: local Git repository exists; TASK-080 checks passed locally (`node --check server/sync-server.mjs`; `node --check public/js/app.js`; `node --check public/js/sync.js`; `node --check public/service-worker.js`; focused server/client/static tests 160/160; `npm.cmd run test` 190/190). Production deploy on 2026-07-31 uploaded runtime through commit `2362d05`; app, API health, service worker, requisites, subscription, privacy, and manifest checks passed; backend service is active.
 
 ## Open Questions
 

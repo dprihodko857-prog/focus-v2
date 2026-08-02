@@ -4440,3 +4440,63 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Pending checkout cards now include a safe continuation link in Settings and Useful.
 - commit_status: committed
 - notes: Syntax checks passed, focused server/client/static tests passed 160/160 after rerun, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.
+
+## TASK-080
+
+- title: Open Useful on subscription return
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_payment_frontend_ui
+- priority: medium
+- source: follow-up after TASK-079 pending checkout continuation link
+- spec_reference: `docs/specs/subscription-return-useful-launch.md`
+- spec_status: implemented_local_committed
+- goal: make the public subscription return link open Useful and show visible pending checkout status feedback.
+- out_of_scope:
+  - changing public subscription page copy or price
+  - creating, canceling, expiring, or clearing YooKassa payments
+  - changing webhook behavior or entitlement activation rules
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `/?open=useful` opens the Useful modal after app hydration
+  - payment return through `/?open=useful` checks an existing pending checkout with visible feedback
+  - startup without `?open=useful` keeps pending checkout checks silent
+  - service worker cache is bumped to `focus-pwa-v102`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_payment_frontend_ui task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 79
+- stop_conditions:
+  - implementation requires live YooKassa credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/sync-integration-assets.test.mjs`
+  - `tests/legal-pages.test.mjs`
+  - `tests/install-quality-css.test.mjs`
+  - `tests/desktop-layout-css.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - pending checkout UI
+  - public Focus Plus subscription page
+  - pending YooKassa checkout storage
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Subscription returns to `/?open=useful` now open Useful and show visible pending checkout status feedback when a pending checkout exists.
+- commit_status: committed
+- notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.

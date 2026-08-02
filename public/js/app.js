@@ -187,7 +187,8 @@ function createEmptyAccountTranscriptionStatusState(status = "idle") {
 const installShortcutTargets = new Set([
   "reminder",
   "schedules",
-  "diary"
+  "diary",
+  "useful"
 ]);
 
 function getInitialLaunchTarget() {
@@ -7250,7 +7251,7 @@ function renderSchedulePreview(typeId) {
   `;
 }
 
-function bindControls() {
+function bindControls(initialLaunchTarget = "") {
   const modalLayer = document.querySelector("#modalLayer");
   const scheduleActions = document.querySelector("#scheduleActions");
   const scheduleBackButton = document.querySelector("#scheduleBackButton");
@@ -8103,7 +8104,7 @@ function bindControls() {
   });
 
   function openInitialLaunchTarget() {
-    const target = getInitialLaunchTarget();
+    const target = initialLaunchTarget || getInitialLaunchTarget();
     if (!target) return;
     closeAddMenu();
     openModal(target);
@@ -8124,9 +8125,11 @@ renderLabels();
 renderScheduleTypes();
 renderSyncDataStatus();
 renderPaidFeatureSurfaces();
-const controls = bindControls();
+const initialLaunchTarget = getInitialLaunchTarget();
+const shouldShowInitialPendingCheckoutStatus = initialLaunchTarget === "useful" && Boolean(scheduleSync.getPendingSubscriptionCheckout?.());
+const controls = bindControls(initialLaunchTarget);
 refreshAccountEntitlements({ silent: true }).then(() => {
-  return checkPendingSubscriptionCheckout({ silent: true });
+  return checkPendingSubscriptionCheckout({ silent: !shouldShowInitialPendingCheckoutStatus });
 }).then(() => {
   return refreshEntitlementEvents({ silent: true });
 }).then(() => {
