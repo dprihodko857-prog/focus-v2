@@ -84,4 +84,5 @@ Status: DRAFT
 | VOICE-RECORDING-LIMIT-FEEDBACK-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-recording-limit-feedback.md` | TASK-076 makes the MediaRecorder limit visible and explains auto-stop before transcription. |
 | USEFUL-TRANSCRIPTION-READINESS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/useful-transcription-readiness.md` | TASK-077 shows server transcription readiness in the Useful subscription panel. |
 | SUBSCRIPTION-PENDING-CHECKOUT-UI-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/subscription-pending-checkout-ui.md` | TASK-078 shows pending YooKassa checkout state and re-checks it before creating another payment. |
+| SUBSCRIPTION-PENDING-CHECKOUT-CONTINUE-LINK-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/subscription-pending-checkout-continue-link.md` | TASK-079 lets users reopen a safe pending YooKassa checkout URL without creating another payment. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

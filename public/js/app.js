@@ -4234,6 +4234,27 @@ function getPaidFeaturePendingCheckout(featureKey) {
   return pendingCheckout.featureKey === featureKey ? pendingCheckout : null;
 }
 
+function getSafeCheckoutUrl(value) {
+  const checkoutUrl = String(value || "").trim();
+  if (!checkoutUrl) return "";
+
+  try {
+    const parsedUrl = new URL(checkoutUrl, window.location.origin);
+    return ["https:", "http:"].includes(parsedUrl.protocol) ? parsedUrl.href : "";
+  } catch {
+    return "";
+  }
+}
+
+function renderPaidFeatureCheckoutContinuation(featureKey, compact = false) {
+  const pendingCheckout = getPaidFeaturePendingCheckout(featureKey);
+  const checkoutUrl = getSafeCheckoutUrl(pendingCheckout?.checkoutUrl);
+  if (!checkoutUrl) return "";
+
+  const compactClass = compact ? " secondary-link--compact" : "";
+  return `<a class="secondary-link${compactClass}" href="${escapeHtml(checkoutUrl)}" rel="noopener">Продолжить оплату</a>`;
+}
+
 function getPaidFeatureEntitlement(featureKey) {
   return mergeAccountEntitlements(accountEntitlementsState.entitlements)[featureKey] ||
     createDefaultAccountEntitlements()[featureKey];
@@ -4977,6 +4998,7 @@ function renderPaidFeaturesPanel() {
         <div class="paid-feature-card__side">
           <span class="paid-feature-status paid-feature-status--${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
           <a class="secondary-link secondary-link--compact" href="${escapeHtml(feature.subscriptionUrl)}">Условия и цена</a>
+          ${renderPaidFeatureCheckoutContinuation(feature.key, true)}
           <button class="secondary-button secondary-button--compact" type="button" data-paid-feature-action="${escapeHtml(feature.key)}"${status.disabled ? " disabled" : ""}>${escapeHtml(status.actionLabel)}</button>
         </div>
       </article>
@@ -5008,6 +5030,7 @@ function renderUsefulSubscriptionPanel() {
     </div>
     <div class="useful-subscription-panel__actions">
       <a class="secondary-link" href="${escapeHtml(feature.subscriptionUrl)}">Условия и цена</a>
+      ${renderPaidFeatureCheckoutContinuation(feature.key)}
       <button class="secondary-button" type="button" data-paid-feature-action="${escapeHtml(feature.key)}"${status.disabled ? " disabled" : ""}>${escapeHtml(status.actionLabel)}</button>
     </div>
   `;
