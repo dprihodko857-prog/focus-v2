@@ -4265,3 +4265,62 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Recording hints now show the current limit and auto-stop has a clear status.
 - commit_status: committed
 - notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.
+
+## TASK-077
+
+- title: Show Useful transcription readiness
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_transcription_frontend_ui
+- priority: medium
+- source: follow-up after TASK-068 readiness status and TASK-062 Useful usage diagnostics
+- spec_reference: `docs/specs/useful-transcription-readiness.md`
+- spec_status: implemented_local_committed
+- goal: show server-side transcription readiness inside the Useful voice input subscription panel.
+- out_of_scope:
+  - wiring live STT credentials
+  - changing transcription quota, duration limit, or provider timeout
+  - adding a separate Useful diagnostics journal
+  - changing YooKassa checkout or webhook behavior
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - Useful shows a readable readiness line when current transcription status is available
+  - Useful updates the readiness line after transcription status/events refresh
+  - readiness metadata remains safe and does not expose provider secrets
+  - service worker cache is bumped to `focus-pwa-v99`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_transcription_frontend_ui task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 76
+- stop_conditions:
+  - implementation requires live OpenAI credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/app.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - Useful paid feature UI
+  - transcription readiness status
+  - transcription diagnostics journal
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Useful now shows server transcription readiness and refreshes it with transcription diagnostics.
+- commit_status: committed
+- notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.

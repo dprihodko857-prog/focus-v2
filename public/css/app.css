@@ -2939,6 +2939,10 @@ h3 {
   color: var(--text-muted);
 }
 
+.useful-subscription-panel__readiness {
+  color: var(--text);
+}
+
 .useful-subscription-panel__actions {
   display: grid;
   gap: 8px;

@@ -23,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v98/);
+  assert.match(serviceWorker, /focus-pwa-v99/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -116,12 +116,14 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appCss, /\.secondary-link\s*{/);
   assert.match(appCss, /\.paid-feature-status--ok\s*{/);
   assert.match(appCss, /\.useful-subscription-panel\s*{/);
+  assert.match(appCss, /\.useful-subscription-panel__readiness\s*{/);
   assert.match(appJs, /const paidFeatureItems = \[/);
   assert.match(appJs, /key:\s*"voiceTranscription"/);
   assert.match(appJs, /priceLabel:\s*"Focus Plus · 199 ₽\/мес"/);
   assert.match(appJs, /subscriptionUrl:\s*"\/subscription\.html"/);
   assert.match(appJs, /Условия и цена/);
   assert.match(appJs, /function renderPaidFeatureSurfaces/);
+  assert.match(appJs, /function renderUsefulTranscriptionReadiness/);
   assert.match(appJs, /function renderPaidFeatureUsageDiagnostics/);
   assert.match(appJs, /getPaidFeatureUsageText\(featureKey\)/);
   assert.match(appJs, /Использовано \$\{usage\.used\} из \$\{usage\.limit\}/);
@@ -153,6 +155,8 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /scheduleSync\.getEntitlementEvents\(\)/);
   assert.match(appJs, /scheduleSync\.getTranscriptionStatus\(\)/);
   assert.match(appJs, /scheduleSync\.getTranscriptionEvents\(\)/);
+  assert.match(appJs, /renderUsefulSubscriptionPanel\(\);[\s\S]*?scheduleSync\.getTranscriptionStatus\(\)/);
+  assert.match(appJs, /scheduleSync\.getTranscriptionEvents\(\)[\s\S]*?renderUsefulSubscriptionPanel\(\);/);
   assert.match(appJs, /scheduleSync\.createSubscriptionCheckout\(\{ featureKey: feature\.key \}\)/);
   assert.match(appJs, /scheduleSync\.getSubscriptionCheckoutStatus\(\{ paymentId: pendingCheckout\.paymentId \}\)/);
   assert.match(appJs, /checkPendingSubscriptionCheckout\(\{ silent: true \}\)/);

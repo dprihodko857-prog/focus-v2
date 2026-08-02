@@ -4867,6 +4867,13 @@ function getPaidFeaturesSummary() {
   return "Платные функции пока закрыты. Каркас готов для подключения оплаты и активации.";
 }
 
+function renderUsefulTranscriptionReadiness() {
+  const summary = getTranscriptionReadinessSummary();
+  if (!summary) return "";
+
+  return `<small class="useful-subscription-panel__readiness">${escapeHtml(summary)}</small>`;
+}
+
 function renderPaidFeaturesPanel() {
   const summary = document.querySelector("#paidFeaturesSummary");
   const list = document.querySelector("#paidFeaturesList");
@@ -4925,6 +4932,7 @@ function renderUsefulSubscriptionPanel() {
       <h3>${escapeHtml(feature.title)}</h3>
       <p>${escapeHtml(feature.description)}</p>
       <small>${escapeHtml(feature.priceLabel)}. ${escapeHtml(status.detail)}</small>
+      ${renderUsefulTranscriptionReadiness()}
       ${renderPaidFeatureUsageDiagnostics(feature.key)}
     </div>
     <div class="useful-subscription-panel__actions">
@@ -5056,6 +5064,7 @@ async function refreshTranscriptionEvents({ silent = false } = {}) {
     accountId,
   };
   renderTranscriptionEventsPanel();
+  renderUsefulSubscriptionPanel();
 
   try {
     const [statusResult, eventsResult] = await Promise.all([
@@ -5093,6 +5102,7 @@ async function refreshTranscriptionEvents({ silent = false } = {}) {
   }
 
   renderTranscriptionEventsPanel();
+  renderUsefulSubscriptionPanel();
   return accountTranscriptionEventsState;
 }
 
