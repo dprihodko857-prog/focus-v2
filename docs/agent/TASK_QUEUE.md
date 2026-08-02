@@ -4087,3 +4087,64 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Transcription diagnostics now include safe provider processing time metadata.
 - commit_status: committed
 - notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.
+
+## TASK-074
+
+- title: Clarify transcription provider failure messages
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_transcription_frontend_ui
+- priority: medium
+- source: follow-up after TASK-071 through TASK-073 provider diagnostics
+- spec_reference: `docs/specs/voice-transcription-provider-failure-messages.md`
+- spec_status: implemented_local_committed
+- goal: show reason-aware user messages after server voice recording failures.
+- out_of_scope:
+  - storing raw audio, recognized text, or provider secrets
+  - changing provider retry, timeout, quota, entitlement, or payment behavior
+  - live OpenAI verification
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - failed server transcription responses expose a bounded safe `reason` in `scheduleSync.transcribeAudio()`
+  - the recording UI passes `result.reason` into failure-message selection
+  - provider timeout, auth, rate-limit, rejected-audio, unavailable, empty, no-audio, and generic provider failure reasons have specific messages
+  - existing status-only messages remain unchanged for locked, account-required, invalid request, quota exceeded, provider-not-configured, and offline states
+  - service worker cache is bumped to `focus-pwa-v96`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_transcription_frontend_ui task
+- file_limit: up to 12 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 73
+- stop_conditions:
+  - implementation requires live OpenAI credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/app.js`
+  - `public/js/sync.js`
+  - `public/service-worker.js`
+  - `tests/focus-sync-client.test.mjs`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - voice recording UI scaffold
+  - voice transcription provider adapter
+  - voice transcription provider timeout
+  - transcription processing time diagnostics
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Voice recording failure messages now use safe provider failure reasons.
+- commit_status: committed
+- notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.

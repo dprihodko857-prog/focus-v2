@@ -5460,7 +5460,61 @@ function stopActiveVoiceRecorder() {
   }
 }
 
-function getVoiceTranscriptionFailureMessage(status) {
+function getVoiceTranscriptionProviderFailureMessage(reason) {
+  switch (reason) {
+    case "provider_auth_failed":
+      return {
+        message: "STT-провайдер отклонил ключ. Проверьте серверную настройку.",
+        tone: "bad",
+      };
+    case "provider_rate_limited":
+      return {
+        message: "STT-провайдер ограничил запросы. Попробуйте позже.",
+        tone: "warn",
+      };
+    case "provider_rejected_audio":
+      return {
+        message: "STT-провайдер отклонил аудио. Запишите короче или чётче.",
+        tone: "bad",
+      };
+    case "provider_timeout":
+      return {
+        message: "STT-провайдер не ответил вовремя. Попробуйте ещё раз.",
+        tone: "warn",
+      };
+    case "provider_unavailable":
+      return {
+        message: "STT-провайдер сейчас недоступен. Попробуйте позже.",
+        tone: "warn",
+      };
+    case "empty_transcription":
+      return {
+        message: "Провайдер не распознал текст. Запишите ещё раз.",
+        tone: "warn",
+      };
+    case "no_audio":
+      return {
+        message: "Аудио не передано. Запишите ещё раз.",
+        tone: "bad",
+      };
+    case "provider_error":
+      return {
+        message: "STT-провайдер вернул ошибку. Попробуйте позже.",
+        tone: "bad",
+      };
+    default:
+      return null;
+  }
+}
+
+function getVoiceTranscriptionFailureMessage(status, reason = "") {
+  if (status === "failed") {
+    return getVoiceTranscriptionProviderFailureMessage(reason) || {
+      message: "STT-провайдер не выполнил транскрибацию. Попробуйте позже.",
+      tone: "bad",
+    };
+  }
+
   switch (status) {
     case "provider-not-configured":
       return {
@@ -5542,7 +5596,7 @@ async function submitVoiceRecording(button, target, chunks, mimeType, durationMs
       return;
     }
 
-    const failure = getVoiceTranscriptionFailureMessage(result.status);
+    const failure = getVoiceTranscriptionFailureMessage(result.status, result.reason);
     finishVoiceTranscription(button, failure.message, failure.tone);
   } catch {
     finishVoiceTranscription(button, "Не удалось подготовить запись к отправке.", "bad");

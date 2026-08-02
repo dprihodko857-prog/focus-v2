@@ -79,4 +79,5 @@ Status: DRAFT
 | VOICE-TRANSCRIPTION-PROVIDER-TIMEOUT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-provider-timeout.md` | TASK-071 aborts slow external STT provider calls with safe diagnostics. |
 | VOICE-TRANSCRIPTION-PROVIDER-TIMEOUT-METADATA-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-provider-timeout-metadata.md` | TASK-072 shows safe provider timeout metadata in transcription readiness diagnostics. |
 | VOICE-TRANSCRIPTION-PROCESSING-TIME-DIAGNOSTICS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-processing-time-diagnostics.md` | TASK-073 records safe per-attempt provider processing time in transcription diagnostics. |
+| VOICE-TRANSCRIPTION-PROVIDER-FAILURE-MESSAGES-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-provider-failure-messages.md` | TASK-074 shows reason-aware provider failure messages after server voice recording. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

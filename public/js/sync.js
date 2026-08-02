@@ -835,6 +835,7 @@ export function createFocusSyncClient({
           accountId: result.accountId || accountId,
           featureKey: normalizePaidFeatureKey(result.featureKey) || VOICE_TRANSCRIPTION_FEATURE_KEY,
           provider: typeof result.provider === "string" ? result.provider : null,
+          reason: result.status === "transcribed" ? null : normalizeTranscriptionFailureReason(result.reason),
           usage: normalizeTranscriptionUsage(result.usage),
           text: typeof result.text === "string" ? result.text : "",
         };
@@ -1552,6 +1553,11 @@ function normalizeTranscriptionUsage(usage) {
     resetAt,
     updatedAt,
   };
+}
+
+function normalizeTranscriptionFailureReason(value) {
+  const reason = String(value || "").trim();
+  return /^[a-z][a-z0-9_:-]{0,80}$/.test(reason) ? reason : null;
 }
 
 function normalizeNonNegativeInteger(value) {

@@ -1139,6 +1139,50 @@ test("transcription client handles gated provider scaffold states", async () => 
     },
     text: "",
   });
+
+  const failedClient = createFocusSyncClient({
+    fetch: async () => jsonResponse({
+      error: "provider_failed",
+      status: "failed",
+      accountId: "account-1",
+      featureKey: "voiceTranscription",
+      provider: "openai",
+      reason: "provider_timeout",
+      usage: {
+        period: "2026-07",
+        used: 0,
+        limit: 1,
+        remaining: 1,
+        resetAt: "2026-08-01T00:00:00.000Z",
+        updatedAt: "2026-07-12T09:00:00.000Z",
+      },
+    }),
+    localStorage: createMemoryLocalStorage({
+      "focus-sync-account-id": "account-1",
+      "focus-sync-device-id": "device-1",
+    }),
+    randomUUID: () => "device-1",
+  });
+
+  assert.deepEqual(await failedClient.transcribeAudio({
+    audioBase64: "UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
+    mimeType: "audio/webm",
+  }), {
+    status: "failed",
+    accountId: "account-1",
+    featureKey: "voiceTranscription",
+    provider: "openai",
+    reason: "provider_timeout",
+    usage: {
+      period: "2026-07",
+      used: 0,
+      limit: 1,
+      remaining: 1,
+      resetAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: "2026-07-12T09:00:00.000Z",
+    },
+    text: "",
+  });
 });
 
 test("subscription checkout loads a configured provider URL", async () => {

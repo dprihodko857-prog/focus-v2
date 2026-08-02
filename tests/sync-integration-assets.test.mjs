@@ -23,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v95/);
+  assert.match(serviceWorker, /focus-pwa-v96/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -201,6 +201,9 @@ test("voice input buttons are gated by the paid transcription entitlement", () =
   assert.match(appJs, /function blobToBase64\(blob\)/);
   assert.match(appJs, /scheduleSync\.transcribeAudio\(\{/);
   assert.match(appJs, /durationMs,/);
+  assert.match(appJs, /function getVoiceTranscriptionProviderFailureMessage\(reason\)/);
+  assert.match(appJs, /provider_timeout/);
+  assert.match(appJs, /getVoiceTranscriptionFailureMessage\(result\.status, result\.reason\)/);
   assert.match(appJs, /provider-not-configured/);
   assert.match(appJs, /usage-limit-exceeded/);
   assert.match(appJs, /Месячный лимит транскрибации исчерпан/);
@@ -208,6 +211,7 @@ test("voice input buttons are gated by the paid transcription entitlement", () =
   assert.match(appJs, /handlePaidFeatureAction\("voiceTranscription", openModal\)/);
   assert.match(appJs, /recognition\.lang = "ru-RU"/);
   assert.match(syncJs, /usage_limit_exceeded/);
+  assert.match(syncJs, /normalizeTranscriptionFailureReason\(result\.reason\)/);
   assert.match(syncJs, /normalizeTranscriptionUsage\(result\.usage\)/);
   assert.match(serverJs, /FOCUS_VOICE_TRANSCRIPTION_MONTHLY_LIMIT/);
   assert.match(serverJs, /db\.getFeatureUsage\(\{/);
