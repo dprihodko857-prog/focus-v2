@@ -4026,3 +4026,64 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Transcription readiness diagnostics now include safe provider timeout metadata.
 - commit_status: committed
 - notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-01. No deployment or git push.
+
+## TASK-073
+
+- title: Add transcription processing time diagnostics
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_transcription_backend_ui
+- priority: medium
+- source: follow-up after TASK-071 timeout handling and TASK-072 timeout metadata
+- spec_reference: `docs/specs/voice-transcription-processing-time-diagnostics.md`
+- spec_status: implemented_local_committed
+- goal: show safe per-attempt provider processing time in the current-account dictation diagnostics journal.
+- out_of_scope:
+  - storing raw audio or recognized text
+  - live OpenAI verification
+  - changing transcription success, quota, entitlement, or payment behavior
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - backend measures elapsed time around transcription provider calls
+  - transcription diagnostic events include bounded `processingMs`
+  - pre-provider events stay compatible with `processingMs: 0`
+  - Settings journal shows processing time when present
+  - service worker cache is bumped to `focus-pwa-v95`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_transcription_backend_ui task
+- file_limit: up to 12 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 72
+- stop_conditions:
+  - implementation requires live OpenAI credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/focus-sync-server.test.mjs`
+  - `tests/focus-sync-client.test.mjs`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - voice transcription diagnostics log
+  - voice transcription diagnostics UI
+  - OpenAI voice transcription provider timeout
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Transcription diagnostics now include safe provider processing time metadata.
+- commit_status: committed
+- notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.

@@ -20,6 +20,7 @@ const MAX_TRANSCRIPTION_DURATION_MS = readPositiveIntegerEnv("FOCUS_VOICE_TRANSC
 const DEFAULT_OPENAI_TRANSCRIPTION_URL = "https://api.openai.com/v1/audio/transcriptions";
 const DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "gpt-transcribe";
 const DEFAULT_OPENAI_TRANSCRIPTION_TIMEOUT_MS = readPositiveIntegerEnv("FOCUS_OPENAI_TRANSCRIPTION_TIMEOUT_MS", 30000);
+const MAX_TRANSCRIPTION_PROCESSING_MS = 120000;
 const MAX_BODY_BYTES = 1024 * 1024;
 const AUTH_SESSION_COOKIE = "focus_auth_session";
 const AUTH_TRANSIENT_COOKIE = "focus_auth_pkce";
@@ -427,6 +428,7 @@ class JsonSyncDatabase {
     reason,
     mimeType,
     durationMs,
+    processingMs,
     language,
     textLength,
     spent,
@@ -453,6 +455,7 @@ class JsonSyncDatabase {
       reason: sanitizeStoredName(reason),
       mimeType: normalizeTranscriptionMimeType(mimeType) || null,
       durationMs: normalizeTranscriptionEventDurationMs(durationMs),
+      processingMs: normalizeTranscriptionEventProcessingMs(processingMs),
       language: normalizeTranscriptionLanguage(language),
       textLength: normalizeTranscriptionTextLength(textLength),
       spent: spent === true,
@@ -1487,6 +1490,7 @@ function saveTranscriptionAuditEvent(db, {
   result,
   usage,
   spent,
+  processingMs,
   checkedAt,
 }) {
   return db.saveTranscriptionEvent({
@@ -1497,6 +1501,7 @@ function saveTranscriptionAuditEvent(db, {
     reason: result?.reason || result?.error,
     mimeType: transcriptionRequest?.mimeType,
     durationMs: transcriptionRequest?.durationMs,
+    processingMs,
     language: transcriptionRequest?.language,
     textLength: typeof result?.text === "string" ? result.text.length : 0,
     spent,
@@ -2364,6 +2369,11 @@ function normalizeTranscriptionEventDurationMs(value) {
   return Number.isFinite(durationMs) && durationMs > 0 ? Math.min(durationMs, MAX_TRANSCRIPTION_DURATION_MS) : 0;
 }
 
+function normalizeTranscriptionEventProcessingMs(value) {
+  const processingMs = Math.floor(Number(value));
+  return Number.isFinite(processingMs) && processingMs > 0 ? Math.min(processingMs, MAX_TRANSCRIPTION_PROCESSING_MS) : 0;
+}
+
 function normalizeTranscriptionEventUsage(usage) {
   if (!isPlainObject(usage)) {
     return null;
@@ -2798,12 +2808,14 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       return;
     }
 
+    const transcriptionStartedAt = Date.now();
     const transcriptionResult = await transcribeVoiceAudio({
       providerConfig: voiceTranscriptionProvider,
       transcriptionRequest,
       checkedAt: accountContext.checkedAt,
       fetchImpl,
     });
+    const transcriptionProcessingMs = normalizeTranscriptionEventProcessingMs(Date.now() - transcriptionStartedAt);
 
     if (transcriptionResult.body?.status !== "transcribed") {
       saveTranscriptionAuditEvent(db, {
@@ -2812,6 +2824,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
         transcriptionRequest,
         result: transcriptionResult.body,
         usage,
+        processingMs: transcriptionProcessingMs,
         checkedAt: accountContext.checkedAt,
       });
       sendJson(response, transcriptionResult.statusCode, {
@@ -2839,6 +2852,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       result: transcriptionResult.body,
       usage: spentUsage,
       spent: true,
+      processingMs: transcriptionProcessingMs,
       checkedAt: accountContext.checkedAt,
     });
 

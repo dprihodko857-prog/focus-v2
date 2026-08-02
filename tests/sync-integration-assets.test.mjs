@@ -23,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v94/);
+  assert.match(serviceWorker, /focus-pwa-v95/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -138,6 +138,8 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /function getTranscriptionReadinessSummary/);
   assert.match(appJs, /function getTranscriptionEventStatus/);
   assert.match(appJs, /function normalizeTranscriptionEvents/);
+  assert.match(appJs, /processingMs/);
+  assert.match(appJs, /обработка: \$\{processingText\}/);
   assert.match(appJs, /function formatTranscriptionDuration/);
   assert.match(appJs, /STT-провайдер готов/);
   assert.match(appJs, /provider_auth_failed/);
@@ -163,6 +165,8 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(serverJs, /providerConfigured/);
   assert.match(serverJs, /providerModel/);
   assert.match(serverJs, /providerTimeoutMs/);
+  assert.match(serverJs, /processingMs/);
+  assert.match(serverJs, /MAX_TRANSCRIPTION_PROCESSING_MS/);
   assert.match(serverJs, /usage: \{[\s\S]*?voiceTranscription: db\.getFeatureUsage\(\{/);
   assert.match(serverJs, /DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "gpt-transcribe"/);
   assert.match(serverJs, /DEFAULT_OPENAI_TRANSCRIPTION_URL = "https:\/\/api\.openai\.com\/v1\/audio\/transcriptions"/);

@@ -4451,6 +4451,7 @@ function normalizeTranscriptionEvents(events = []) {
       reason: event.reason ? String(event.reason) : "",
       mimeType: event.mimeType ? String(event.mimeType) : "",
       durationMs: Number.isFinite(Number(event.durationMs)) ? Math.max(0, Number(event.durationMs)) : 0,
+      processingMs: Number.isFinite(Number(event.processingMs)) ? Math.max(0, Number(event.processingMs)) : 0,
       language: event.language ? String(event.language) : "",
       textLength: Number.isFinite(Number(event.textLength)) ? Math.max(0, Number(event.textLength)) : 0,
       spent: event.spent === true,
@@ -4592,6 +4593,11 @@ function getTranscriptionEventDetails(event) {
   const durationText = formatTranscriptionDuration(event.durationMs);
   if (durationText) {
     details.push(`длительность: ${durationText}`);
+  }
+
+  const processingText = formatTranscriptionDuration(event.processingMs);
+  if (processingText) {
+    details.push(`обработка: ${processingText}`);
   }
 
   if (event.language) {

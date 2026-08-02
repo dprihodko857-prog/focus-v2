@@ -1406,6 +1406,8 @@ test("sync transcription events endpoint lists diagnostics without audio or text
     assert.equal(successEvent.reason, null);
     assert.equal(successEvent.mimeType, "audio/webm");
     assert.equal(successEvent.durationMs, 12345);
+    assert.equal(Number.isInteger(successEvent.processingMs), true);
+    assert.equal(successEvent.processingMs >= 0, true);
     assert.equal(successEvent.language, "ru-RU");
     assert.equal(successEvent.textLength, "Новая задача".length);
     assert.equal(successEvent.spent, true);
@@ -1426,6 +1428,7 @@ test("sync transcription events endpoint lists diagnostics without audio or text
     assert.equal(invalidEvent.reason, "invalid_transcription_request");
     assert.equal(invalidEvent.mimeType, null);
     assert.equal(invalidEvent.durationMs, 0);
+    assert.equal(invalidEvent.processingMs, 0);
     assert.equal(invalidEvent.textLength, 0);
     assert.equal(invalidEvent.spent, false);
     assert.equal(invalidEvent.usage, null);

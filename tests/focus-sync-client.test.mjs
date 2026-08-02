@@ -899,6 +899,7 @@ test("transcription events load account diagnostics entries", async () => {
           reason: "provider_not_configured",
           mimeType: "audio/webm",
           durationMs: 12345,
+          processingMs: 876,
           language: "ru-RU",
           textLength: 0,
           spent: false,
@@ -925,6 +926,7 @@ test("transcription events load account diagnostics entries", async () => {
   assert.equal(result.events[0].status, "provider_not_configured");
   assert.equal(result.events[0].reason, "provider_not_configured");
   assert.equal(result.events[0].durationMs, 12345);
+  assert.equal(result.events[0].processingMs, 876);
   assert.equal(calls[0].url, "/api/sync/transcription/events");
   assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
   assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
