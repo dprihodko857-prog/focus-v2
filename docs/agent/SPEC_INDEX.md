@@ -86,4 +86,5 @@ Status: DRAFT
 | SUBSCRIPTION-PENDING-CHECKOUT-UI-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/subscription-pending-checkout-ui.md` | TASK-078 shows pending YooKassa checkout state and re-checks it before creating another payment. |
 | SUBSCRIPTION-PENDING-CHECKOUT-CONTINUE-LINK-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/subscription-pending-checkout-continue-link.md` | TASK-079 lets users reopen a safe pending YooKassa checkout URL without creating another payment. |
 | SUBSCRIPTION-RETURN-USEFUL-LAUNCH-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/subscription-return-useful-launch.md` | TASK-080 opens Useful from `/?open=useful` and shows visible pending checkout status after payment return. |
+| SUBSCRIPTION-PENDING-CHECKOUT-RESET-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/subscription-pending-checkout-reset.md` | TASK-081 lets users clear a stale local pending checkout and start payment again. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

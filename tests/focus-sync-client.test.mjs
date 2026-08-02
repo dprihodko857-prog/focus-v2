@@ -1368,6 +1368,11 @@ test("subscription checkout status keeps pending YooKassa payments queued", asyn
   assert.equal(status.paymentStatus, "pending");
   assert.equal(status.paid, false);
   assert.match(storage.getItem("focus-sync-pending-subscription-checkout"), /payment-client-pending-123/);
+
+  client.clearPendingSubscriptionCheckout();
+
+  assert.equal(client.getPendingSubscriptionCheckout(), null);
+  assert.equal(storage.getItem("focus-sync-pending-subscription-checkout"), null);
 });
 
 test("checkAccountId validates a shared account without storing it locally", async () => {

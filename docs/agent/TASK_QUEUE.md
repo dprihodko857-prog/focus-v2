@@ -4500,3 +4500,65 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Subscription returns to `/?open=useful` now open Useful and show visible pending checkout status feedback when a pending checkout exists.
 - commit_status: committed
 - notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.
+
+## TASK-081
+
+- title: Add pending checkout reset action
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_payment_frontend_ui
+- priority: medium
+- source: follow-up after TASK-080 subscription return handling
+- spec_reference: `docs/specs/subscription-pending-checkout-reset.md`
+- spec_status: implemented_local_committed
+- goal: let users clear a stale local pending checkout and start payment again.
+- out_of_scope:
+  - canceling a payment in YooKassa
+  - refunding, voiding, or expiring provider-side payments
+  - changing webhook behavior or entitlement activation rules
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - pending checkout cards show a local `Начать заново` reset action
+  - reset asks for confirmation before clearing local state
+  - confirmed reset removes the pending checkout from local storage
+  - after reset, the paid feature action can create a new checkout
+  - service worker cache is bumped to `focus-pwa-v103`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_payment_frontend_ui task
+- file_limit: up to 11 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 80
+- stop_conditions:
+  - implementation requires live YooKassa credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/focus-sync-client.test.mjs`
+  - `tests/sync-integration-assets.test.mjs`
+  - `tests/legal-pages.test.mjs`
+  - `tests/install-quality-css.test.mjs`
+  - `tests/desktop-layout-css.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - pending checkout UI
+  - pending checkout continuation link
+  - pending YooKassa checkout storage
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Pending checkout cards now include a confirmed local reset action in Settings and Useful.
+- commit_status: committed
+- notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.

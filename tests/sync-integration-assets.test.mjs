@@ -23,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v102/);
+  assert.match(serviceWorker, /focus-pwa-v103/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -127,6 +127,10 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /function getPaidFeaturePendingCheckout/);
   assert.match(appJs, /function getSafeCheckoutUrl/);
   assert.match(appJs, /function renderPaidFeatureCheckoutContinuation/);
+  assert.match(appJs, /function renderPaidFeatureCheckoutReset/);
+  assert.match(appJs, /data-paid-feature-reset="\$\{escapeHtml\(featureKey\)\}"/);
+  assert.match(appJs, /function resetPendingSubscriptionCheckout/);
+  assert.match(appJs, /scheduleSync\.clearPendingSubscriptionCheckout\?\.\(\)/);
   assert.match(appJs, /"useful"/);
   assert.match(appJs, /const initialLaunchTarget = getInitialLaunchTarget\(\)/);
   assert.match(appJs, /const shouldShowInitialPendingCheckoutStatus = initialLaunchTarget === "useful" && Boolean\(scheduleSync\.getPendingSubscriptionCheckout\?\.\(\)\)/);

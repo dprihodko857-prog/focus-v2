@@ -4256,6 +4256,13 @@ function renderPaidFeatureCheckoutContinuation(featureKey, compact = false) {
   return `<a class="secondary-link${compactClass}" href="${escapeHtml(checkoutUrl)}" rel="noopener">Продолжить оплату</a>`;
 }
 
+function renderPaidFeatureCheckoutReset(featureKey, compact = false) {
+  if (!getPaidFeaturePendingCheckout(featureKey)) return "";
+
+  const compactClass = compact ? " secondary-button--compact" : "";
+  return `<button class="secondary-button${compactClass}" type="button" data-paid-feature-reset="${escapeHtml(featureKey)}">Начать заново</button>`;
+}
+
 function getPaidFeatureEntitlement(featureKey) {
   return mergeAccountEntitlements(accountEntitlementsState.entitlements)[featureKey] ||
     createDefaultAccountEntitlements()[featureKey];
@@ -5000,6 +5007,7 @@ function renderPaidFeaturesPanel() {
           <span class="paid-feature-status paid-feature-status--${escapeHtml(status.tone)}">${escapeHtml(status.label)}</span>
           <a class="secondary-link secondary-link--compact" href="${escapeHtml(feature.subscriptionUrl)}">Условия и цена</a>
           ${renderPaidFeatureCheckoutContinuation(feature.key, true)}
+          ${renderPaidFeatureCheckoutReset(feature.key, true)}
           <button class="secondary-button secondary-button--compact" type="button" data-paid-feature-action="${escapeHtml(feature.key)}"${status.disabled ? " disabled" : ""}>${escapeHtml(status.actionLabel)}</button>
         </div>
       </article>
@@ -5032,6 +5040,7 @@ function renderUsefulSubscriptionPanel() {
     <div class="useful-subscription-panel__actions">
       <a class="secondary-link" href="${escapeHtml(feature.subscriptionUrl)}">Условия и цена</a>
       ${renderPaidFeatureCheckoutContinuation(feature.key)}
+      ${renderPaidFeatureCheckoutReset(feature.key)}
       <button class="secondary-button" type="button" data-paid-feature-action="${escapeHtml(feature.key)}"${status.disabled ? " disabled" : ""}>${escapeHtml(status.actionLabel)}</button>
     </div>
   `;
@@ -5316,6 +5325,22 @@ async function checkPendingSubscriptionCheckout({ silent = true } = {}) {
     });
   }
   return result;
+}
+
+function resetPendingSubscriptionCheckout(featureKey) {
+  const feature = paidFeatureItems.find(item => item.key === featureKey);
+  const pendingCheckout = getPaidFeaturePendingCheckout(featureKey);
+  if (!feature || !pendingCheckout) return;
+
+  const shouldReset = typeof window.confirm !== "function" || window.confirm("Очистить локальную ссылку на незавершённую оплату? Уже созданный платёж в YooKassa не отменяется.");
+  if (!shouldReset) return;
+
+  scheduleSync.clearPendingSubscriptionCheckout?.();
+  setPaidFeatureCheckoutState({
+    status: "idle",
+    featureKey: "",
+  });
+  setSyncStatus(`Локальная ссылка на незавершённую оплату очищена. ${feature.title} можно оформить заново.`);
 }
 
 async function handlePaidFeatureAction(featureKey, openModal) {
@@ -8017,6 +8042,12 @@ function bindControls(initialLaunchTarget = "") {
         });
         setSyncStatus("Не удалось подготовить оплату подписки. Повторите попытку позже.");
       });
+      return;
+    }
+
+    const paidFeatureResetButton = event.target.closest("[data-paid-feature-reset]");
+    if (paidFeatureResetButton) {
+      resetPendingSubscriptionCheckout(paidFeatureResetButton.dataset.paidFeatureReset);
       return;
     }
 
