@@ -4614,3 +4614,57 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. YooKassa webhook auth now accepts `Authorization: Bearer ...` after existing query/custom header token paths.
 - commit_status: committed
 - notes: Server syntax check passed, focused server tests passed 70/70, and `npm.cmd run test` passed 191/191 on 2026-08-02. No deployment or git push.
+
+## TASK-083
+
+- title: Distinguish unknown YooKassa feature metadata
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_payment_backend_hardening
+- priority: medium
+- source: follow-up after TASK-082 webhook auth hardening
+- spec_reference: `docs/specs/yookassa-unknown-feature-diagnostics.md`
+- spec_status: implemented_local_committed
+- goal: report unsupported YooKassa paid feature metadata as `feature_unknown` without activating access.
+- out_of_scope:
+  - adding new paid features
+  - accepting arbitrary feature keys
+  - changing YooKassa payment creation metadata
+  - changing client UI labels
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - unknown webhook feature metadata returns `ignored` with `feature_unknown`
+  - unknown checkout-status feature metadata returns `ignored` with `feature_unknown`
+  - unknown feature metadata does not activate `voiceTranscription`
+  - missing feature metadata keeps the existing `feature_missing` reason
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_payment_backend_hardening task
+- file_limit: up to 6 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 82
+- stop_conditions:
+  - implementation requires live YooKassa credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - YooKassa webhook scaffold
+  - YooKassa return-status checks
+  - entitlement audit diagnostics
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. YooKassa webhook and return-status checks now distinguish missing feature metadata from unsupported feature metadata.
+- commit_status: committed
+- notes: Server syntax check passed, focused server tests passed 71/71, and `npm.cmd run test` passed 192/192 on 2026-08-02. No deployment or git push.

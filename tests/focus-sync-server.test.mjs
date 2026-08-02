@@ -2048,6 +2048,82 @@ test("YooKassa webhook ignores non-activating or unmatched notifications", async
   }
 });
 
+test("YooKassa payment metadata reports unknown paid features safely", async () => {
+  const db = createSyncDatabase(":memory:");
+  const accountId = "account-yookassa-unknown-feature";
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:30:00.000Z",
+    yookassaWebhookToken: "focus-yookassa-token-123",
+    yookassaConfig: {
+      shopId: "100500",
+      secretKey: "test_secret_key",
+      returnUrl: "https://focus-v2.dmnao83.ru/subscription.html",
+      paymentsUrl: "https://api.yookassa.test/v3/payments",
+      amountValue: "199.00",
+      currency: "RUB",
+    },
+    fetchImpl: async () => jsonResponse(200, {
+      id: "payment-status-feature-unknown-123",
+      status: "succeeded",
+      paid: true,
+      metadata: {
+        accountId,
+        featureKey: "futureFeature",
+      },
+    }),
+  });
+  const baseUrl = await listen(server);
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const webhookResponse = await fetch(`${baseUrl}/api/yookassa/webhook?token=focus-yookassa-token-123`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(createYooKassaPaymentNotification({
+        accountId,
+        featureKey: "futureFeature",
+        paymentId: "payment-webhook-feature-unknown-123",
+      })),
+    });
+    assert.equal(webhookResponse.status, 200);
+    assert.deepEqual(await webhookResponse.json(), {
+      status: "ignored",
+      reason: "feature_unknown",
+      event: "payment.succeeded",
+      accountId,
+    });
+
+    const statusResponse = await fetch(`${baseUrl}/api/sync/checkout/status?paymentId=payment-status-feature-unknown-123`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(statusResponse.status, 200);
+    assert.deepEqual(await statusResponse.json(), {
+      provider: "yookassa",
+      accountId,
+      paymentId: "payment-status-feature-unknown-123",
+      checkedAt: "2026-07-12T09:30:00.000Z",
+      status: "ignored",
+      reason: "feature_unknown",
+      paymentStatus: "succeeded",
+      paid: true,
+    });
+
+    const events = db.listEntitlementEvents(accountId);
+    assert.equal(events[0].origin, "yookassa-status");
+    assert.equal(events[0].reason, "feature_unknown");
+    assert.equal(events[1].origin, "yookassa-webhook");
+    assert.equal(events[1].reason, "feature_unknown");
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("subscription checkout reports missing payment provider without activating access", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({

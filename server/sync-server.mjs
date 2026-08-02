@@ -1716,9 +1716,9 @@ function createYooKassaWebhookEventKey(notification) {
 
   const paymentStatus = sanitizeProviderEventPart(payment.status) || "unknown";
   const paidState = payment.paid === true ? "paid" : "unpaid";
-  const { accountId, featureKey } = extractYooKassaPaymentMetadata(payment);
+  const { accountId, featureKey, rawFeatureKey } = extractYooKassaPaymentMetadata(payment);
   const accountPart = sanitizeProviderEventPart(accountId) || "account-missing";
-  const featurePart = sanitizeProviderEventPart(featureKey) || "feature-missing";
+  const featurePart = sanitizeProviderEventPart(featureKey || rawFeatureKey) || (rawFeatureKey ? "feature-unknown" : "feature-missing");
   return normalizeProviderEventKey(`yookassa:${eventName}:${paymentId}:${paymentStatus}:${paidState}:${accountPart}:${featurePart}`);
 }
 
@@ -1825,7 +1825,7 @@ async function checkYooKassaPaymentStatus({
   const payment = isPlainObject(result) ? result : {};
   const paymentStatus = typeof payment.status === "string" ? payment.status : "unknown";
   const paid = payment.paid === true;
-  const { accountId: paymentAccountId, featureKey } = extractYooKassaPaymentMetadata(payment);
+  const { accountId: paymentAccountId, featureKey, rawFeatureKey } = extractYooKassaPaymentMetadata(payment);
 
   if (!paymentAccountId) {
     saveEntitlementAuditEvent(db, {
@@ -1877,6 +1877,7 @@ async function checkYooKassaPaymentStatus({
   }
 
   if (!featureKey) {
+    const reason = getYooKassaFeatureMetadataReason(rawFeatureKey);
     saveEntitlementAuditEvent(db, {
       accountId,
       origin: "yookassa-status",
@@ -1885,7 +1886,7 @@ async function checkYooKassaPaymentStatus({
       paymentId,
       paymentStatus,
       paid,
-      reason: "feature_missing",
+      reason,
       checkedAt,
     });
     return {
@@ -1893,7 +1894,7 @@ async function checkYooKassaPaymentStatus({
       body: {
         ...baseBody,
         status: "ignored",
-        reason: "feature_missing",
+        reason,
         paymentStatus,
         paid,
       },
@@ -2010,7 +2011,7 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
   const paymentId = normalizeYooKassaPaymentId(payment.id) || null;
   const paymentStatus = typeof payment.status === "string" ? payment.status : "unknown";
   const paid = payment.paid === true;
-  const { accountId, featureKey } = extractYooKassaPaymentMetadata(payment);
+  const { accountId, featureKey, rawFeatureKey } = extractYooKassaPaymentMetadata(payment);
 
   if (notification.event !== "payment.succeeded" || payment.status !== "succeeded" || payment.paid !== true) {
     if (accountId && db.getAccount(accountId)) {
@@ -2050,6 +2051,7 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
   }
 
   if (!featureKey) {
+    const reason = getYooKassaFeatureMetadataReason(rawFeatureKey);
     if (db.getAccount(accountId)) {
       saveEntitlementAuditEvent(db, {
         accountId,
@@ -2059,7 +2061,7 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
         paymentId,
         paymentStatus,
         paid,
-        reason: "feature_missing",
+        reason,
         checkedAt,
       });
     }
@@ -2068,7 +2070,7 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
       statusCode: 200,
       body: {
         status: "ignored",
-        reason: "feature_missing",
+        reason,
         event: notification.event,
         accountId,
       },
@@ -2230,10 +2232,16 @@ function saveProcessedYooKassaWebhookEvent({ db, eventKey, notification, result,
 
 function extractYooKassaPaymentMetadata(payment) {
   const metadata = isPlainObject(payment?.metadata) ? payment.metadata : {};
+  const rawFeatureKey = String(metadata.focusFeatureKey ?? metadata.featureKey ?? metadata.feature ?? "").trim();
   return {
     accountId: String(metadata.focusAccountId || metadata.accountId || metadata.account || "").trim(),
-    featureKey: normalizePaidFeatureKey(metadata.focusFeatureKey ?? metadata.featureKey ?? metadata.feature),
+    featureKey: normalizePaidFeatureKey(rawFeatureKey),
+    rawFeatureKey,
   };
+}
+
+function getYooKassaFeatureMetadataReason(rawFeatureKey) {
+  return String(rawFeatureKey || "").trim() ? "feature_unknown" : "feature_missing";
 }
 
 function pruneAccountStateByKeys(stateByAccount, accountId, activeKeys) {
