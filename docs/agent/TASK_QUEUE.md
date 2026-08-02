@@ -4148,3 +4148,62 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Voice recording failure messages now use safe provider failure reasons.
 - commit_status: committed
 - notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.
+
+## TASK-075
+
+- title: Add microphone failure feedback for voice input
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_transcription_frontend_ui
+- priority: medium
+- source: follow-up after TASK-060 voice recording UI and TASK-074 failure messaging
+- spec_reference: `docs/specs/voice-input-microphone-failure-feedback.md`
+- spec_status: implemented_local_committed
+- goal: show specific, actionable messages when microphone access or browser speech recognition fails.
+- out_of_scope:
+  - requesting permissions before the user presses a voice input button
+  - persisting microphone permission diagnostics
+  - storing raw audio or recognized text
+  - changing backend transcription, provider, payment, or subscription behavior
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `NotAllowedError`, `SecurityError`, and `PermissionDeniedError` show a permission-specific message
+  - `NotFoundError` and related device-missing errors show a microphone-missing message
+  - `NotReadableError` and related busy-device errors show a busy-microphone message
+  - speech-recognition `not-allowed`, `audio-capture`, `network`, `no-speech`, and `aborted` errors have specific messages
+  - service worker cache is bumped to `focus-pwa-v97`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_transcription_frontend_ui task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 74
+- stop_conditions:
+  - implementation requires live OpenAI credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - voice input foundation
+  - voice recording UI scaffold
+  - transcription provider failure messages
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Voice input now shows specific microphone and speech-recognition failure messages.
+- commit_status: committed
+- notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.

@@ -23,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v96/);
+  assert.match(serviceWorker, /focus-pwa-v97/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -194,6 +194,13 @@ test("voice input buttons are gated by the paid transcription entitlement", () =
   assert.match(appJs, /window\.SpeechRecognition \|\| window\.webkitSpeechRecognition/);
   assert.match(appJs, /function getMediaRecorderConstructor\(\)/);
   assert.match(appJs, /navigator\.mediaDevices\?\.getUserMedia/);
+  assert.match(appJs, /function getVoiceMicrophoneFailureMessage\(error\)/);
+  assert.match(appJs, /NotAllowedError/);
+  assert.match(appJs, /NotFoundError/);
+  assert.match(appJs, /NotReadableError/);
+  assert.match(appJs, /function getSpeechRecognitionFailureMessage\(error\)/);
+  assert.match(appJs, /no-speech/);
+  assert.match(appJs, /audio-capture/);
   assert.match(appJs, /function renderVoiceInputControls\(\)/);
   assert.match(appJs, /function startVoiceInput\(button\)/);
   assert.match(appJs, /async function startVoiceRecording\(button\)/);

@@ -5243,6 +5243,68 @@ function getVoiceRecordingMimeType() {
   ].find(type => MediaRecorderConstructor.isTypeSupported(type)) || "";
 }
 
+function getVoiceMicrophoneFailureMessage(error) {
+  const name = String(error?.name || "").trim();
+
+  if (["NotAllowedError", "SecurityError", "PermissionDeniedError"].includes(name)) {
+    return "Доступ к микрофону запрещён. Разрешите микрофон в настройках браузера и повторите попытку.";
+  }
+
+  if (["NotFoundError", "DevicesNotFoundError"].includes(name)) {
+    return "Микрофон не найден. Подключите микрофон и повторите попытку.";
+  }
+
+  if (["NotReadableError", "TrackStartError"].includes(name)) {
+    return "Микрофон занят другим приложением. Закройте его и повторите попытку.";
+  }
+
+  if (["OverconstrainedError", "ConstraintNotSatisfiedError"].includes(name)) {
+    return "Браузер не смог подобрать настройки микрофона. Попробуйте другой микрофон.";
+  }
+
+  if (name === "AbortError") {
+    return "Браузер прервал доступ к микрофону. Повторите попытку.";
+  }
+
+  return "Браузер не дал доступ к микрофону. Проверьте разрешения и повторите попытку.";
+}
+
+function getSpeechRecognitionFailureMessage(error) {
+  switch (String(error || "").trim()) {
+    case "not-allowed":
+    case "service-not-allowed":
+      return {
+        message: "Доступ к микрофону запрещён. Разрешите микрофон в настройках браузера.",
+        tone: "bad",
+      };
+    case "audio-capture":
+      return {
+        message: "Микрофон недоступен. Проверьте подключение и разрешения.",
+        tone: "bad",
+      };
+    case "network":
+      return {
+        message: "Сервис распознавания недоступен из-за сети. Попробуйте позже.",
+        tone: "bad",
+      };
+    case "no-speech":
+      return {
+        message: "Речь не распознана. Повторите фразу чуть ближе к микрофону.",
+        tone: "warn",
+      };
+    case "aborted":
+      return {
+        message: "Голосовой ввод остановлен.",
+        tone: "warn",
+      };
+    default:
+      return {
+        message: "Не удалось распознать речь. Повторите попытку.",
+        tone: "bad",
+      };
+  }
+}
+
 function isTextInputControl(element) {
   return Boolean(element && (
     element.tagName === "TEXTAREA"
@@ -5623,8 +5685,8 @@ async function startVoiceRecording(button) {
   let stream;
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch {
-    setVoiceStatus(button, "Браузер не дал доступ к микрофону.", "bad");
+  } catch (error) {
+    setVoiceStatus(button, getVoiceMicrophoneFailureMessage(error), "bad");
     return;
   }
 
@@ -5735,11 +5797,9 @@ function startVoiceInput(button) {
   };
 
   recognition.onerror = event => {
-    const error = event?.error || "";
-    finalMessage = error === "not-allowed" || error === "service-not-allowed"
-      ? "Браузер не дал доступ к микрофону."
-      : "Не удалось распознать речь. Повторите попытку.";
-    finalTone = "bad";
+    const failure = getSpeechRecognitionFailureMessage(event?.error);
+    finalMessage = failure.message;
+    finalTone = failure.tone;
   };
 
   recognition.onend = () => {
