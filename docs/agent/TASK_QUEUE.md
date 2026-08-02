@@ -4668,3 +4668,59 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. YooKassa webhook and return-status checks now distinguish missing feature metadata from unsupported feature metadata.
 - commit_status: committed
 - notes: Server syntax check passed, focused server tests passed 71/71, and `npm.cmd run test` passed 192/192 on 2026-08-02. No deployment or git push.
+
+## TASK-084
+
+- title: Guard YooKassa activation by payment amount and currency
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_payment_backend_hardening
+- priority: medium
+- source: follow-up after TASK-083 YooKassa metadata diagnostics
+- spec_reference: `docs/specs/yookassa-payment-amount-guard.md`
+- spec_status: implemented_local_committed
+- goal: require terminal paid YooKassa payments to match the configured Focus Plus amount and currency before activating paid feature access.
+- out_of_scope:
+  - changing the Focus Plus price
+  - adding multiple tariffs or currencies
+  - live YooKassa API work
+  - changing client UI labels
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - mismatched paid webhook amount returns `ignored` with `amount_mismatch`
+  - mismatched paid checkout-status currency returns `ignored` with `currency_mismatch`
+  - ignored amount/currency failures do not activate `voiceTranscription`
+  - amount/currency failures are recorded in entitlement audit events
+  - matching `199.00 RUB` paid payments still activate access
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_payment_backend_hardening task
+- file_limit: up to 6 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 83
+- stop_conditions:
+  - implementation requires live YooKassa credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - YooKassa checkout payment config
+  - YooKassa webhook scaffold
+  - YooKassa return-status checks
+  - entitlement audit diagnostics
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. YooKassa webhook and return-status activation now reject terminal paid payments with missing, mismatched, or wrong-currency amount data; new webhook replay keys include normalized amount/currency.
+- commit_status: committed
+- notes: Server syntax check passed, focused server tests passed 72/72, and `npm.cmd run test` passed 193/193 on 2026-08-02. No deployment or git push.

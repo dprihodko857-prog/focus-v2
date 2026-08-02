@@ -1719,7 +1719,12 @@ function createYooKassaWebhookEventKey(notification) {
   const { accountId, featureKey, rawFeatureKey } = extractYooKassaPaymentMetadata(payment);
   const accountPart = sanitizeProviderEventPart(accountId) || "account-missing";
   const featurePart = sanitizeProviderEventPart(featureKey || rawFeatureKey) || (rawFeatureKey ? "feature-unknown" : "feature-missing");
-  return normalizeProviderEventKey(`yookassa:${eventName}:${paymentId}:${paymentStatus}:${paidState}:${accountPart}:${featurePart}`);
+  const amount = isPlainObject(payment.amount) ? payment.amount : null;
+  const amountPart = sanitizeProviderEventPart(normalizeMoneyAmount(amount?.value)) || "amount-missing";
+  const currencyPart = sanitizeProviderEventPart(String(amount?.currency || "").trim().toUpperCase()) || "currency-missing";
+  return normalizeProviderEventKey(
+    `yookassa:${eventName}:${paymentId}:${paymentStatus}:${paidState}:${accountPart}:${featurePart}:${amountPart}:${currencyPart}`,
+  );
 }
 
 function createYooKassaPaymentStatusUrl(yookassaConfig, paymentId) {
@@ -1902,6 +1907,34 @@ async function checkYooKassaPaymentStatus({
   }
 
   if (paymentStatus === "succeeded" && paid) {
+    const amountMismatchReason = getYooKassaPaymentAmountMismatchReason(payment, yookassaConfig);
+    if (amountMismatchReason) {
+      saveEntitlementAuditEvent(db, {
+        accountId,
+        featureKey,
+        origin: "yookassa-status",
+        status: "ignored",
+        source: "yookassa",
+        paymentId,
+        paymentStatus,
+        paid,
+        reason: amountMismatchReason,
+        checkedAt,
+      });
+
+      return {
+        statusCode: 200,
+        body: {
+          ...baseBody,
+          status: "ignored",
+          reason: amountMismatchReason,
+          featureKey,
+          paymentStatus,
+          paid,
+        },
+      };
+    }
+
     const currentEntitlements = db.getAccountEntitlements(accountId, checkedAt);
     const subscriptionEntitlement = createSubscriptionFeatureEntitlement({
       currentEntitlement: currentEntitlements[featureKey],
@@ -1999,7 +2032,7 @@ async function checkYooKassaPaymentStatus({
   };
 }
 
-function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
+function applyYooKassaWebhookNotification({ db, notification, checkedAt, yookassaConfig }) {
   if (!isPlainObject(notification) || notification.type !== "notification" || typeof notification.event !== "string") {
     return {
       statusCode: 400,
@@ -2111,6 +2144,34 @@ function applyYooKassaWebhookNotification({ db, notification, checkedAt }) {
         event: notification.event,
         accountId,
         featureKey,
+      },
+    };
+  }
+
+  const amountMismatchReason = getYooKassaPaymentAmountMismatchReason(payment, yookassaConfig);
+  if (amountMismatchReason) {
+    saveEntitlementAuditEvent(db, {
+      accountId,
+      featureKey,
+      origin: "yookassa-webhook",
+      status: "ignored",
+      source: "yookassa",
+      paymentId,
+      paymentStatus,
+      paid,
+      reason: amountMismatchReason,
+      checkedAt,
+    });
+
+    return {
+      statusCode: 200,
+      body: {
+        status: "ignored",
+        reason: amountMismatchReason,
+        event: notification.event,
+        accountId,
+        featureKey,
+        paymentId,
       },
     };
   }
@@ -2242,6 +2303,31 @@ function extractYooKassaPaymentMetadata(payment) {
 
 function getYooKassaFeatureMetadataReason(rawFeatureKey) {
   return String(rawFeatureKey || "").trim() ? "feature_unknown" : "feature_missing";
+}
+
+function getYooKassaPaymentAmountMismatchReason(payment, yookassaConfig) {
+  if (!yookassaConfig) {
+    return "";
+  }
+
+  const amount = isPlainObject(payment?.amount) ? payment.amount : null;
+  if (!amount) {
+    return "amount_missing";
+  }
+
+  const value = normalizeMoneyAmount(amount.value);
+  const expectedValue = normalizeMoneyAmount(yookassaConfig.amountValue);
+  const currency = String(amount.currency || "").trim().toUpperCase();
+  const expectedCurrency = String(yookassaConfig.currency || "").trim().toUpperCase();
+  if (!expectedValue || value !== expectedValue) {
+    return "amount_mismatch";
+  }
+
+  if (!expectedCurrency || currency !== expectedCurrency) {
+    return "currency_mismatch";
+  }
+
+  return "";
 }
 
 function pruneAccountStateByKeys(stateByAccount, accountId, activeKeys) {
@@ -3070,6 +3156,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       db,
       notification: body,
       checkedAt,
+      yookassaConfig,
     });
     saveProcessedYooKassaWebhookEvent({
       db,

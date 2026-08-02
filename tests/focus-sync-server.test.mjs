@@ -2410,6 +2410,10 @@ test("subscription checkout status activates access from a paid YooKassa payment
         id: "payment-status-success-123",
         status: "succeeded",
         paid: true,
+        amount: {
+          value: "199.00",
+          currency: "RUB",
+        },
         metadata: {
           accountId: "account-checkout-status-success",
           featureKey: "voiceTranscription",
@@ -2490,6 +2494,90 @@ test("subscription checkout status reports missing YooKassa config", async () =>
       status: "provider_not_configured",
       error: "provider_not_configured",
     });
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("YooKassa paid payments with mismatched amount or currency stay inactive", async () => {
+  const db = createSyncDatabase(":memory:");
+  const accountId = "account-yookassa-amount-guard";
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:35:00.000Z",
+    yookassaWebhookToken: "focus-yookassa-token-123",
+    yookassaConfig: {
+      shopId: "123456",
+      secretKey: "test_secret_key",
+      returnUrl: "https://focus-v2.dmnao83.ru/subscription.html",
+      paymentsUrl: "https://api.yookassa.test/v3/payments",
+      amountValue: "199.00",
+      currency: "RUB",
+    },
+    fetchImpl: async () => jsonResponse(200, {
+      id: "payment-status-currency-mismatch-123",
+      status: "succeeded",
+      paid: true,
+      amount: {
+        value: "199.00",
+        currency: "USD",
+      },
+      metadata: {
+        accountId,
+        featureKey: "voiceTranscription",
+      },
+    }),
+  });
+  const baseUrl = await listen(server);
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const webhookResponse = await fetch(`${baseUrl}/api/yookassa/webhook?token=focus-yookassa-token-123`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(createYooKassaPaymentNotification({
+        accountId,
+        paymentId: "payment-webhook-amount-mismatch-123",
+        amountValue: "99.00",
+      })),
+    });
+    assert.equal(webhookResponse.status, 200);
+    assert.deepEqual(await webhookResponse.json(), {
+      status: "ignored",
+      reason: "amount_mismatch",
+      event: "payment.succeeded",
+      accountId,
+      featureKey: "voiceTranscription",
+      paymentId: "payment-webhook-amount-mismatch-123",
+    });
+
+    const statusResponse = await fetch(`${baseUrl}/api/sync/checkout/status?paymentId=payment-status-currency-mismatch-123`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(statusResponse.status, 200);
+    assert.deepEqual(await statusResponse.json(), {
+      provider: "yookassa",
+      accountId,
+      paymentId: "payment-status-currency-mismatch-123",
+      checkedAt: "2026-07-12T09:35:00.000Z",
+      status: "ignored",
+      reason: "currency_mismatch",
+      featureKey: "voiceTranscription",
+      paymentStatus: "succeeded",
+      paid: true,
+    });
+
+    const events = db.listEntitlementEvents(accountId);
+    assert.equal(events.length, 2);
+    assert.equal(events[0].origin, "yookassa-status");
+    assert.equal(events[0].reason, "currency_mismatch");
+    assert.equal(events[1].origin, "yookassa-webhook");
+    assert.equal(events[1].reason, "amount_mismatch");
     assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
   } finally {
     await close(server);
@@ -3990,19 +4078,27 @@ function createYooKassaPaymentNotification({
   status = "succeeded",
   paid = true,
   paymentId = "2f295ff7-000f-5000-9000-000000000001",
+  amountValue = "199.00",
+  currency = "RUB",
+  amount = { value: amountValue, currency },
 } = {}) {
+  const payment = {
+    id: paymentId,
+    status,
+    paid,
+    metadata: {
+      accountId,
+      featureKey,
+    },
+  };
+  if (amount) {
+    payment.amount = amount;
+  }
+
   return {
     type: "notification",
     event,
-    object: {
-      id: paymentId,
-      status,
-      paid,
-      metadata: {
-        accountId,
-        featureKey,
-      },
-    },
+    object: payment,
   };
 }
 
