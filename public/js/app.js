@@ -130,6 +130,7 @@ let activeVoiceRecorderButton = null;
 let activeVoiceRecorderChunks = [];
 let activeVoiceRecorderTimer = null;
 let activeVoiceRecorderStartedAt = 0;
+let activeVoiceRecorderStoppedByLimit = false;
 let activeVoiceTranscriptionButton = null;
 
 function createDefaultAccountEntitlements() {
@@ -5243,6 +5244,10 @@ function getVoiceRecordingMimeType() {
   ].find(type => MediaRecorderConstructor.isTypeSupported(type)) || "";
 }
 
+function formatVoiceRecordingLimit() {
+  return `${Math.max(1, Math.round(VOICE_RECORDING_MAX_MS / 1000))} сек`;
+}
+
 function getVoiceMicrophoneFailureMessage(error) {
   const name = String(error?.name || "").trim();
 
@@ -5329,7 +5334,7 @@ function getVoiceInputAccessState() {
     return {
       status: "recording-ready",
       label: "Записать",
-      detail: "Нажмите, чтобы записать короткий фрагмент для серверной транскрибации.",
+      detail: `Нажмите, чтобы записать фрагмент до ${formatVoiceRecordingLimit()} для серверной транскрибации.`,
     };
   }
 
@@ -5396,7 +5401,7 @@ function renderVoiceInputControls() {
       isRecognizing
         ? "Говорите. Текст появится в выбранном поле."
         : isRecording
-          ? "Идёт запись. Нажмите ещё раз, чтобы отправить."
+          ? `Идёт запись до ${formatVoiceRecordingLimit()}. Нажмите ещё раз, чтобы отправить.`
           : isTranscribing
             ? "Отправляем запись на транскрибацию..."
           : access.detail,
@@ -5502,6 +5507,7 @@ function clearActiveVoiceRecorder() {
   activeVoiceRecorderButton = null;
   activeVoiceRecorderChunks = [];
   activeVoiceRecorderStartedAt = 0;
+  activeVoiceRecorderStoppedByLimit = false;
 }
 
 function stopActiveVoiceRecorder() {
@@ -5626,7 +5632,7 @@ function finishVoiceTranscription(button, message, tone = "warn") {
   setVoiceStatus(button, message, tone);
 }
 
-async function submitVoiceRecording(button, target, chunks, mimeType, durationMs = 0) {
+async function submitVoiceRecording(button, target, chunks, mimeType, durationMs = 0, stoppedByLimit = false) {
   if (!chunks.length) {
     setVoiceStatus(button, "Запись пустая. Попробуйте ещё раз.", "bad");
     return;
@@ -5634,6 +5640,9 @@ async function submitVoiceRecording(button, target, chunks, mimeType, durationMs
 
   activeVoiceTranscriptionButton = button;
   renderVoiceInputControls();
+  if (stoppedByLimit) {
+    setVoiceStatus(button, `Запись достигла лимита ${formatVoiceRecordingLimit()}. Отправляем на транскрибацию...`, "warn");
+  }
 
   try {
     const blob = new Blob(chunks, { type: mimeType || chunks[0]?.type || "audio/webm" });
@@ -5706,6 +5715,7 @@ async function startVoiceRecording(button) {
   activeVoiceRecorderButton = button;
   activeVoiceRecorderChunks = [];
   activeVoiceRecorderStartedAt = Date.now();
+  activeVoiceRecorderStoppedByLimit = false;
 
   recorder.ondataavailable = event => {
     if (activeVoiceRecorder === recorder && event.data?.size > 0) {
@@ -5724,6 +5734,7 @@ async function startVoiceRecording(button) {
     const durationMs = activeVoiceRecorder === recorder && activeVoiceRecorderStartedAt
       ? Math.min(VOICE_RECORDING_MAX_MS, Math.max(0, Date.now() - activeVoiceRecorderStartedAt))
       : 0;
+    const stoppedByLimit = activeVoiceRecorder === recorder && activeVoiceRecorderStoppedByLimit;
     clearActiveVoiceRecorder();
     stopVoiceRecordingStream(stream);
     renderVoiceInputControls();
@@ -5733,7 +5744,7 @@ async function startVoiceRecording(button) {
       return;
     }
 
-    void submitVoiceRecording(button, target, chunks, recordedMimeType, durationMs);
+    void submitVoiceRecording(button, target, chunks, recordedMimeType, durationMs, stoppedByLimit);
   };
 
   try {
@@ -5747,6 +5758,7 @@ async function startVoiceRecording(button) {
   }
 
   activeVoiceRecorderTimer = window.setTimeout(() => {
+    activeVoiceRecorderStoppedByLimit = true;
     stopActiveVoiceRecorder();
   }, VOICE_RECORDING_MAX_MS);
   renderVoiceInputControls();

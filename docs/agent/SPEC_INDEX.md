@@ -81,4 +81,5 @@ Status: DRAFT
 | VOICE-TRANSCRIPTION-PROCESSING-TIME-DIAGNOSTICS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-processing-time-diagnostics.md` | TASK-073 records safe per-attempt provider processing time in transcription diagnostics. |
 | VOICE-TRANSCRIPTION-PROVIDER-FAILURE-MESSAGES-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-transcription-provider-failure-messages.md` | TASK-074 shows reason-aware provider failure messages after server voice recording. |
 | VOICE-INPUT-MICROPHONE-FAILURE-FEEDBACK-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-input-microphone-failure-feedback.md` | TASK-075 shows specific microphone and speech-recognition failure messages. |
+| VOICE-RECORDING-LIMIT-FEEDBACK-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/voice-recording-limit-feedback.md` | TASK-076 makes the MediaRecorder limit visible and explains auto-stop before transcription. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

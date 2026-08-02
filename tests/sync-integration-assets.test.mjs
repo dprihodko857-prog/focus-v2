@@ -23,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v97/);
+  assert.match(serviceWorker, /focus-pwa-v98/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -194,6 +194,9 @@ test("voice input buttons are gated by the paid transcription entitlement", () =
   assert.match(appJs, /window\.SpeechRecognition \|\| window\.webkitSpeechRecognition/);
   assert.match(appJs, /function getMediaRecorderConstructor\(\)/);
   assert.match(appJs, /navigator\.mediaDevices\?\.getUserMedia/);
+  assert.match(appJs, /function formatVoiceRecordingLimit\(\)/);
+  assert.match(appJs, /activeVoiceRecorderStoppedByLimit/);
+  assert.match(appJs, /Запись достигла лимита/);
   assert.match(appJs, /function getVoiceMicrophoneFailureMessage\(error\)/);
   assert.match(appJs, /NotAllowedError/);
   assert.match(appJs, /NotFoundError/);
@@ -205,6 +208,7 @@ test("voice input buttons are gated by the paid transcription entitlement", () =
   assert.match(appJs, /function startVoiceInput\(button\)/);
   assert.match(appJs, /async function startVoiceRecording\(button\)/);
   assert.match(appJs, /activeVoiceRecorderStartedAt/);
+  assert.match(appJs, /submitVoiceRecording\(button, target, chunks, recordedMimeType, durationMs, stoppedByLimit\)/);
   assert.match(appJs, /function blobToBase64\(blob\)/);
   assert.match(appJs, /scheduleSync\.transcribeAudio\(\{/);
   assert.match(appJs, /durationMs,/);
