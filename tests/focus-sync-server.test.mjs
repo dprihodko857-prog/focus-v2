@@ -1857,6 +1857,40 @@ test("YooKassa payment succeeded webhook activates voice transcription access", 
   }
 });
 
+test("YooKassa webhook accepts bearer token authorization", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T10:10:00.000Z",
+    yookassaWebhookToken: "focus-yookassa-token-123",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-yookassa-webhook-bearer";
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/yookassa/webhook`, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer focus-yookassa-token-123",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(createYooKassaPaymentNotification({
+        accountId,
+        featureKey: "voice_transcription",
+        paymentId: "payment-webhook-bearer-123",
+      })),
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).status, "activated");
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.paymentId, "payment-webhook-bearer-123");
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("YooKassa duplicate payment webhook keeps the existing subscription period", async () => {
   const db = createSyncDatabase(":memory:");
   const ticks = [

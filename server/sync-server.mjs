@@ -3586,6 +3586,10 @@ function getAdminTokenFromRequest(request) {
     return headerToken;
   }
 
+  return getBearerTokenFromRequest(request);
+}
+
+function getBearerTokenFromRequest(request) {
   const authorization = String(request.headers.authorization || "").trim();
   const match = authorization.match(/^Bearer\s+(.+)$/i);
   return match ? match[1].trim() : "";
@@ -3601,7 +3605,12 @@ function getYooKassaWebhookTokenFromRequest({ request, url }) {
     return queryToken;
   }
 
-  return String(request.headers["x-focus-yookassa-token"] || "").trim();
+  const headerToken = String(request.headers["x-focus-yookassa-token"] || "").trim();
+  if (headerToken) {
+    return headerToken;
+  }
+
+  return getBearerTokenFromRequest(request);
 }
 
 function isAuthorizedYooKassaWebhookRequest({ request, url, yookassaWebhookToken }) {

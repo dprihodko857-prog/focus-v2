@@ -10,7 +10,7 @@ Focus Plus needs automatic entitlement activation after payment. YooKassa verifi
 
 - Add a backend webhook route at `/api/yookassa/webhook`.
 - Keep the route disabled unless `FOCUS_YOOKASSA_WEBHOOK_TOKEN` is configured.
-- Accept a secret token through `?token=...`, `?webhookToken=...`, or `x-focus-yookassa-token`.
+- Accept a secret token through `?token=...`, `?webhookToken=...`, `x-focus-yookassa-token`, or `Authorization: Bearer ...`.
 - Parse YooKassa notification bodies with `type: "notification"`, `event`, and `object`.
 - Activate `voiceTranscription` only for `payment.succeeded` with `object.status: "succeeded"` and `object.paid: true`.
 - Read account and feature from payment metadata.

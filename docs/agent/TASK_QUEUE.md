@@ -4562,3 +4562,55 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Pending checkout cards now include a confirmed local reset action in Settings and Useful.
 - commit_status: committed
 - notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.
+
+## TASK-082
+
+- title: Add YooKassa webhook Bearer auth
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_payment_backend_hardening
+- priority: medium
+- source: follow-up after TASK-081 pending checkout reset and current payment hardening queue
+- spec_reference: `docs/specs/yookassa-webhook-bearer-auth.md`
+- spec_status: implemented_local_committed
+- goal: let the YooKassa webhook authenticate with `Authorization: Bearer ...` while keeping existing token paths.
+- out_of_scope:
+  - removing query-token support
+  - changing YooKassa payment creation or status checks
+  - adding IP allow-listing, mTLS, or provider-specific signature verification
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - webhook requests with a valid Bearer token are accepted
+  - webhook requests without a valid token are still rejected
+  - existing webhook query-token and custom-header behavior remains compatible
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_payment_backend_hardening task
+- file_limit: up to 7 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 81
+- stop_conditions:
+  - implementation requires live YooKassa credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - YooKassa webhook scaffold
+  - YooKassa webhook replay guard
+  - admin Bearer token parsing helper
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. YooKassa webhook auth now accepts `Authorization: Bearer ...` after existing query/custom header token paths.
+- commit_status: committed
+- notes: Server syntax check passed, focused server tests passed 70/70, and `npm.cmd run test` passed 191/191 on 2026-08-02. No deployment or git push.
