@@ -4324,3 +4324,61 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Useful now shows server transcription readiness and refreshes it with transcription diagnostics.
 - commit_status: committed
 - notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.
+
+## TASK-078
+
+- title: Show pending subscription checkout state
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_payment_frontend_ui
+- priority: medium
+- source: follow-up after TASK-055 pending YooKassa checkout storage and TASK-046 paid feature UI
+- spec_reference: `docs/specs/subscription-pending-checkout-ui.md`
+- spec_status: implemented_local_committed
+- goal: show unfinished YooKassa checkout state and re-check it before creating another payment.
+- out_of_scope:
+  - creating new payment provider endpoints
+  - changing YooKassa payment creation or webhook behavior
+  - implementing recurring billing, refunds, receipts, or cancellation management
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - Settings and Useful show pending checkout state for the current account and feature
+  - paid feature action checks an existing pending checkout before creating a new one
+  - checking state disables the action while status verification is running
+  - terminal canceled, failed, and invalid payment states remain visible and allow a new checkout attempt
+  - service worker cache is bumped to `focus-pwa-v100`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-server.test.mjs tests/focus-sync-client.test.mjs tests/sync-integration-assets.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_payment_frontend_ui task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 77
+- stop_conditions:
+  - implementation requires live YooKassa credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - pending YooKassa checkout storage
+  - paid feature UI shell
+  - YooKassa return payment status
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Paid feature cards now show pending checkout states and check existing payments before new checkout creation.
+- commit_status: committed
+- notes: Syntax checks passed, focused server/client/static tests passed 160/160, and `npm.cmd run test` passed 190/190 on 2026-08-02. No deployment or git push.

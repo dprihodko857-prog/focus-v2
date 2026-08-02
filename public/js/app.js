@@ -4223,6 +4223,17 @@ function resetAccountEntitlementsState(status = "idle") {
   renderPaidFeatureSurfaces();
 }
 
+function getPaidFeaturePendingCheckout(featureKey) {
+  const pendingCheckout = scheduleSync.getPendingSubscriptionCheckout?.();
+  const accountId = scheduleSync.peekAccountId();
+
+  if (!accountId || !pendingCheckout || pendingCheckout.accountId !== accountId) {
+    return null;
+  }
+
+  return pendingCheckout.featureKey === featureKey ? pendingCheckout : null;
+}
+
 function getPaidFeatureEntitlement(featureKey) {
   return mergeAccountEntitlements(accountEntitlementsState.entitlements)[featureKey] ||
     createDefaultAccountEntitlements()[featureKey];
@@ -4299,6 +4310,36 @@ function getPaidFeatureStatus(feature) {
       };
     }
 
+    if (paidFeatureCheckoutState.status === "checking") {
+      return {
+        tone: "warn",
+        label: "Проверяем оплату",
+        detail: "Сверяем статус последнего платежа ЮKassa.",
+        actionLabel: "Проверяем",
+        disabled: true,
+      };
+    }
+
+    if (paidFeatureCheckoutState.status === "ready") {
+      return {
+        tone: "warn",
+        label: "Открываем оплату",
+        detail: "Страница оплаты подготовлена. Если она не открылась, повторите попытку.",
+        actionLabel: "Оформить",
+        disabled: false,
+      };
+    }
+
+    if (paidFeatureCheckoutState.status === "pending") {
+      return {
+        tone: "warn",
+        label: "Ожидает оплаты",
+        detail: "Платёж создан, но доступ ещё не подтверждён. Нажмите «Проверить», чтобы сверить статус.",
+        actionLabel: "Проверить",
+        disabled: false,
+      };
+    }
+
     if (paidFeatureCheckoutState.status === "provider-not-configured") {
       return {
         tone: "warn",
@@ -4319,6 +4360,26 @@ function getPaidFeatureStatus(feature) {
       };
     }
 
+    if (paidFeatureCheckoutState.status === "canceled") {
+      return {
+        tone: "warn",
+        label: "Оплата отменена",
+        detail: "Доступ не изменён. Можно оформить подписку заново.",
+        actionLabel: "Оформить заново",
+        disabled: false,
+      };
+    }
+
+    if (paidFeatureCheckoutState.status === "invalid-payment") {
+      return {
+        tone: "bad",
+        label: "Платёж не найден",
+        detail: "Не удалось связать последний платёж с этим аккаунтом. Создайте новый переход к оплате.",
+        actionLabel: "Оформить",
+        disabled: false,
+      };
+    }
+
     if (paidFeatureCheckoutState.status === "failed") {
       return {
         tone: "bad",
@@ -4328,6 +4389,16 @@ function getPaidFeatureStatus(feature) {
         disabled: false,
       };
     }
+  }
+
+  if (getPaidFeaturePendingCheckout(feature.key)) {
+    return {
+      tone: "warn",
+      label: "Ожидает оплаты",
+      detail: "Есть незавершённый платёж ЮKassa. Нажмите «Проверить», чтобы обновить статус.",
+      actionLabel: "Проверить",
+      disabled: false,
+    };
   }
 
   return {
@@ -5122,7 +5193,10 @@ async function startPaidFeatureCheckout(feature, openModal) {
   const result = await scheduleSync.createSubscriptionCheckout({ featureKey: feature.key });
 
   if (result.status === "ready" && result.checkoutUrl) {
-    setPaidFeatureCheckoutState({ status: "ready", featureKey: feature.key });
+    setPaidFeatureCheckoutState({
+      status: result.provider === "yookassa" && result.paymentId ? "pending" : "ready",
+      featureKey: feature.key,
+    });
     setSyncStatus("Открываем страницу оплаты подписки.");
     window.location.assign(result.checkoutUrl);
     return;
@@ -5150,6 +5224,11 @@ async function checkPendingSubscriptionCheckout({ silent = true } = {}) {
     return null;
   }
 
+  setPaidFeatureCheckoutState({
+    status: "checking",
+    featureKey: pendingCheckout.featureKey,
+  });
+
   const result = await scheduleSync.getSubscriptionCheckoutStatus({ paymentId: pendingCheckout.paymentId });
   const featureKey = result.featureKey || pendingCheckout.featureKey;
   const feature = paidFeatureItems.find(item => item.key === featureKey);
@@ -5167,6 +5246,10 @@ async function checkPendingSubscriptionCheckout({ silent = true } = {}) {
       renderPaidFeatureSurfaces();
     }
 
+    setPaidFeatureCheckoutState({
+      status: "idle",
+      featureKey: "",
+    });
     await refreshAccountEntitlements({ silent: true });
     await refreshEntitlementEvents({ silent: true });
 
@@ -5174,6 +5257,18 @@ async function checkPendingSubscriptionCheckout({ silent = true } = {}) {
       setSyncStatus(`Оплата подтверждена. ${featureTitle} включён для этого аккаунта.`);
     }
     return result;
+  }
+
+  if (["pending", "provider-not-configured", "offline", "canceled", "failed", "invalid-payment"].includes(result.status)) {
+    setPaidFeatureCheckoutState({
+      status: result.status,
+      featureKey,
+    });
+  } else {
+    setPaidFeatureCheckoutState({
+      status: "failed",
+      featureKey,
+    });
   }
 
   if (!silent) {
@@ -5219,6 +5314,11 @@ async function handlePaidFeatureAction(featureKey, openModal) {
 
   if (entitlement?.enabled) {
     setSyncStatus(`${feature.title} уже активен для этого аккаунта.`);
+    return;
+  }
+
+  if (getPaidFeaturePendingCheckout(featureKey)) {
+    await checkPendingSubscriptionCheckout({ silent: false });
     return;
   }
 
