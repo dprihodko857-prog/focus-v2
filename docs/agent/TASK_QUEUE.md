@@ -4778,3 +4778,60 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Checkout-status verification now ignores missing or mismatched provider payment ids before account, feature, amount, or activation work.
 - commit_status: committed
 - notes: Server syntax check passed, focused server tests passed 73/73, and `npm.cmd run test` passed 194/194 on 2026-08-03. No deployment or git push.
+
+## TASK-086
+
+- title: Add public fixed price list for YooKassa review
+- status: DONE
+- owner_gate: triggered_by_yookassa_review_comment
+- task_type: public_legal_static_page
+- priority: high
+- source: YooKassa manager comment dated 2026-07-30 requesting fixed prices on the site.
+- spec_reference: `docs/specs/public-fixed-price-list.md`
+- spec_status: implemented_local_committed
+- goal: publish an unambiguous public price-list page with a fixed Focus Plus price suitable for YooKassa review.
+- out_of_scope:
+  - changing the Focus Plus price
+  - adding multiple plans, discounts, receipts, taxes, or invoice generation
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `/prices.html` exists as a standalone public HTML page
+  - page shows `Тариф Focus Plus`, `199 ₽`, and `30 календарных дней`
+  - page does not contain approximate `от 199 ₽` price wording
+  - subscription, offer, and requisites pages link to `/prices.html`
+  - service worker cache includes `/prices.html`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check public/service-worker.js`
+  - `node --test tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small public_static_compliance task
+- file_limit: up to 9 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 85
+- stop_conditions:
+  - implementation requires production deploy
+  - implementation requires legal/tax advice beyond static price wording
+  - checks fail outside the approved scope
+- areas:
+  - `public/prices.html`
+  - `public/subscription.html`
+  - `public/offer.html`
+  - `public/requisites.html`
+  - `public/service-worker.js`
+  - static tests
+  - Project Maestro memory
+- dependencies:
+  - public subscription page
+  - public legal documents
+  - public requisites page
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Public price list shows fixed Focus Plus price `199 ₽` for 30 calendar days, public pages link to it, and service worker cache is `focus-pwa-v104`.
+- commit_status: committed
+- notes: Service worker syntax check passed, focused static tests passed 50/50, and `npm.cmd run test` passed 195/195 on 2026-08-03. No deployment or git push.

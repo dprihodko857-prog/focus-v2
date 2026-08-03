@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="description" content="Прайс-лист Focus: фиксированная цена тарифа Focus Plus." />
+  <meta name="theme-color" content="#1f2937" />
+  <meta name="robots" content="index, follow" />
+  <title>Прайс-лист - Focus</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-v2-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon-v2.png" />
+  <style>
+    :root {
+      --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg: #111827;
+      --panel: rgba(255, 252, 244, .88);
+      --panel-soft: rgba(255, 252, 244, .72);
+      --text: #1f1a16;
+      --muted: #4c433a;
+      --accent: #f97316;
+      --border: rgba(255, 255, 255, .64);
+      --shadow: 0 30px 86px rgba(0, 0, 0, .24);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-height: 100%;
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: var(--font-sans);
+      background:
+        linear-gradient(120deg, rgba(17, 24, 39, .84), rgba(249, 115, 22, .2)),
+        url("/assets/months/large/july.webp") center / cover fixed;
+    }
+
+    body::before {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: rgba(17, 24, 39, .24);
+      backdrop-filter: blur(14px) saturate(112%);
+      content: "";
+    }
+
+    a {
+      color: inherit;
+      font-weight: 850;
+    }
+
+    .price-page {
+      width: min(100%, 1040px);
+      margin: 0 auto;
+      padding: clamp(20px, 4vw, 52px);
+    }
+
+    .price-card {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 32px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(26px) saturate(128%);
+    }
+
+    .price-head {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 18px;
+      align-items: center;
+      padding: clamp(22px, 4vw, 34px);
+      border-bottom: 1px solid rgba(31, 26, 22, .14);
+      background:
+        radial-gradient(circle at 100% 0, rgba(249, 115, 22, .2), transparent 34%),
+        rgba(255, 252, 244, .36);
+    }
+
+    .brand-mark {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: #10151e url("/assets/focus-logo-v2.png") center / 100% 100% no-repeat;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+    }
+
+    .eyebrow {
+      display: block;
+      color: var(--accent);
+      font-size: .86rem;
+      font-weight: 850;
+      line-height: 1.2;
+    }
+
+    h1,
+    h2,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 0;
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.05;
+    }
+
+    .home-link {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 18px;
+      border: 1px solid rgba(31, 26, 22, .14);
+      border-radius: 999px;
+      background: rgba(255, 252, 244, .58);
+      text-decoration: none;
+    }
+
+    .price-body {
+      display: grid;
+      gap: 18px;
+      padding: clamp(22px, 4vw, 34px);
+    }
+
+    .notice,
+    .price-table-wrap,
+    .section {
+      border: 1px solid rgba(255, 255, 255, .7);
+      border-radius: 24px;
+      background: var(--panel-soft);
+    }
+
+    .notice,
+    .section {
+      padding: 18px 20px;
+    }
+
+    .notice {
+      color: var(--muted);
+      font-weight: 760;
+      line-height: 1.5;
+    }
+
+    .price-table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 680px;
+    }
+
+    th,
+    td {
+      padding: 18px 20px;
+      border-bottom: 1px solid rgba(31, 26, 22, .14);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: .9rem;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+
+    td {
+      font-size: 1rem;
+      font-weight: 740;
+      line-height: 1.45;
+    }
+
+    .fixed-price {
+      color: var(--text);
+      font-size: 1.25rem;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .section h2 {
+      margin-bottom: 10px;
+      font-size: 1.25rem;
+      line-height: 1.2;
+    }
+
+    .section p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1.55;
+    }
+
+    .price-foot {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      align-items: center;
+      padding: 0 clamp(22px, 4vw, 34px) clamp(22px, 4vw, 34px);
+      color: var(--muted);
+      font-size: .95rem;
+      font-weight: 680;
+    }
+
+    @media (max-width: 720px) {
+      .price-page {
+        padding: 12px;
+      }
+
+      .price-card {
+        border-radius: 24px;
+      }
+
+      .price-head {
+        grid-template-columns: auto 1fr;
+      }
+
+      .home-link {
+        grid-column: 1 / -1;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="price-page">
+    <article class="price-card" aria-labelledby="pageTitle">
+      <header class="price-head">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <span class="eyebrow">Focus</span>
+          <h1 id="pageTitle">Прайс-лист</h1>
+        </div>
+        <a class="home-link" href="/">Открыть приложение</a>
+      </header>
+
+      <div class="price-body">
+        <p class="notice">
+          На этой странице указаны фиксированные цены на платные цифровые услуги сервиса Focus. Формулировки с ценой «от» не используются.
+        </p>
+
+        <section class="price-table-wrap" aria-labelledby="priceTitle">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Услуга</th>
+                <th scope="col">Что входит</th>
+                <th scope="col">Период доступа</th>
+                <th scope="col">Фиксированная цена</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Тариф Focus Plus</td>
+                <td>Голосовой ввод и транскрибация речи в текст для создания расписаний, дел, заметок и записей личного дневника в планировщике Focus.</td>
+                <td>30 календарных дней с момента подтверждения оплаты</td>
+                <td><span class="fixed-price">199 ₽</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section class="section" aria-labelledby="termsTitle">
+          <h2 id="termsTitle">Условия</h2>
+          <p>
+            Цена тарифа Focus Plus фиксированная: 199 ₽ за 30 календарных дней доступа. Доступ активируется для аккаунта Focus после подтверждения оплаты платежным провайдером.
+          </p>
+        </section>
+      </div>
+
+      <footer class="price-foot">
+        <span>Дата публикации страницы: 3 августа 2026 г.</span>
+        <span>·</span>
+        <a href="/subscription.html">Тариф Focus Plus</a>
+        <span>·</span>
+        <a href="/offer.html">Публичная оферта</a>
+        <span>·</span>
+        <a href="/requisites.html">Реквизиты исполнителя</a>
+      </footer>
+    </article>
+  </main>
+</body>
+</html>
