@@ -90,4 +90,5 @@ Status: DRAFT
 | YOOKASSA-WEBHOOK-BEARER-AUTH-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-webhook-bearer-auth.md` | TASK-082 lets the YooKassa webhook authenticate with `Authorization: Bearer ...` while keeping existing token paths. |
 | YOOKASSA-UNKNOWN-FEATURE-DIAGNOSTICS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-unknown-feature-diagnostics.md` | TASK-083 reports unsupported YooKassa feature metadata as `feature_unknown` without activating access. |
 | YOOKASSA-PAYMENT-AMOUNT-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-payment-amount-guard.md` | TASK-084 requires terminal paid YooKassa payments to match the configured amount and currency before access activation. |
+| YOOKASSA-STATUS-PAYMENT-ID-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-status-payment-id-guard.md` | TASK-085 requires YooKassa checkout-status responses to return the same payment id before access activation. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

@@ -2501,6 +2501,69 @@ test("subscription checkout status reports missing YooKassa config", async () =>
   }
 });
 
+test("subscription checkout status ignores provider responses for another payment id", async () => {
+  const db = createSyncDatabase(":memory:");
+  const accountId = "account-checkout-status-payment-id-guard";
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-07-12T09:34:00.000Z",
+    yookassaConfig: {
+      shopId: "123456",
+      secretKey: "test_secret_key",
+      returnUrl: "https://focus-v2.dmnao83.ru/subscription.html",
+      paymentsUrl: "https://api.yookassa.test/v3/payments",
+      amountValue: "199.00",
+      currency: "RUB",
+    },
+    fetchImpl: async () => jsonResponse(200, {
+      id: "payment-status-provider-other-123",
+      status: "succeeded",
+      paid: true,
+      amount: {
+        value: "199.00",
+        currency: "RUB",
+      },
+      metadata: {
+        accountId,
+        featureKey: "voiceTranscription",
+      },
+    }),
+  });
+  const baseUrl = await listen(server);
+  createTestAccount(db, accountId, "2026-07-12T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/checkout/status?paymentId=payment-status-requested-123`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      provider: "yookassa",
+      accountId,
+      paymentId: "payment-status-requested-123",
+      checkedAt: "2026-07-12T09:34:00.000Z",
+      status: "ignored",
+      reason: "payment_id_mismatch",
+      providerPaymentId: "payment-status-provider-other-123",
+      paymentStatus: "succeeded",
+      paid: true,
+    });
+
+    const events = db.listEntitlementEvents(accountId);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].origin, "yookassa-status");
+    assert.equal(events[0].reason, "payment_id_mismatch");
+    assert.equal(events[0].paymentId, "payment-status-requested-123");
+    assert.equal(db.getAccountEntitlements(accountId).voiceTranscription.enabled, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("YooKassa paid payments with mismatched amount or currency stay inactive", async () => {
   const db = createSyncDatabase(":memory:");
   const accountId = "account-yookassa-amount-guard";

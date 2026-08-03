@@ -1828,9 +1828,36 @@ async function checkYooKassaPaymentStatus({
   }
 
   const payment = isPlainObject(result) ? result : {};
+  const providerPaymentId = normalizeYooKassaPaymentId(payment.id);
   const paymentStatus = typeof payment.status === "string" ? payment.status : "unknown";
   const paid = payment.paid === true;
   const { accountId: paymentAccountId, featureKey, rawFeatureKey } = extractYooKassaPaymentMetadata(payment);
+  if (!providerPaymentId || providerPaymentId !== paymentId) {
+    const reason = providerPaymentId ? "payment_id_mismatch" : "payment_id_missing";
+    saveEntitlementAuditEvent(db, {
+      accountId,
+      featureKey,
+      origin: "yookassa-status",
+      status: "ignored",
+      source: "yookassa",
+      paymentId,
+      paymentStatus,
+      paid,
+      reason,
+      checkedAt,
+    });
+    return {
+      statusCode: 200,
+      body: {
+        ...baseBody,
+        status: "ignored",
+        reason,
+        providerPaymentId: providerPaymentId || null,
+        paymentStatus,
+        paid,
+      },
+    };
+  }
 
   if (!paymentAccountId) {
     saveEntitlementAuditEvent(db, {

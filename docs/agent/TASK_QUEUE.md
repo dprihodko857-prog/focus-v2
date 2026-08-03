@@ -4724,3 +4724,57 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. YooKassa webhook and return-status activation now reject terminal paid payments with missing, mismatched, or wrong-currency amount data; new webhook replay keys include normalized amount/currency.
 - commit_status: committed
 - notes: Server syntax check passed, focused server tests passed 72/72, and `npm.cmd run test` passed 193/193 on 2026-08-02. No deployment or git push.
+
+## TASK-085
+
+- title: Guard YooKassa status activation by returned payment id
+- status: DONE
+- owner_gate: approved_by_plan
+- task_type: subscription_payment_backend_hardening
+- priority: medium
+- source: follow-up after TASK-084 YooKassa amount/currency guard
+- spec_reference: `docs/specs/yookassa-status-payment-id-guard.md`
+- spec_status: implemented_local_committed
+- goal: require YooKassa checkout-status responses to return the same provider payment id requested by the backend before activating paid feature access.
+- out_of_scope:
+  - live YooKassa API work
+  - changing pending checkout storage
+  - changing YooKassa webhook processing
+  - changing client UI labels
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - paid status response for another payment id returns `ignored` with `payment_id_mismatch`
+  - diagnostic response includes the mismatched provider payment id
+  - mismatch is recorded in entitlement audit events
+  - mismatched status response does not activate `voiceTranscription`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small subscription_payment_backend_hardening task
+- file_limit: up to 6 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 84
+- stop_conditions:
+  - implementation requires live YooKassa credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - YooKassa return-status checks
+  - YooKassa amount/currency guard
+  - entitlement audit diagnostics
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Checkout-status verification now ignores missing or mismatched provider payment ids before account, feature, amount, or activation work.
+- commit_status: committed
+- notes: Server syntax check passed, focused server tests passed 73/73, and `npm.cmd run test` passed 194/194 on 2026-08-03. No deployment or git push.

@@ -95,6 +95,7 @@ Status: DRAFT
 - TASK-082 is implemented locally: the YooKassa webhook endpoint now also accepts `Authorization: Bearer ...` tokens while keeping query and `x-focus-yookassa-token` authentication compatible.
 - TASK-083 is implemented locally: YooKassa webhook and return-status metadata now distinguish missing feature keys from unsupported feature keys with `feature_missing` vs `feature_unknown` diagnostics.
 - TASK-084 is implemented locally: YooKassa webhook and return-status activation now require terminal paid payments to match the configured amount and currency, with `amount_missing`, `amount_mismatch`, and `currency_mismatch` audit reasons.
+- TASK-085 is implemented locally: YooKassa checkout-status activation now requires the provider response `payment.id` to match the requested payment id, with `payment_id_missing` and `payment_id_mismatch` audit reasons.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
 - Runtime through local commit `2362d05` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-31; remote backup is `/opt/focus-v2/deploy-backups/backup-20260731-134936-pre-2362d05`; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v87`, and public requisites/subscription/privacy pages returned `200`.
 
@@ -117,7 +118,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-084 checks passed locally (`node --check server/sync-server.mjs`; `node --test tests/focus-sync-server.test.mjs` 72/72; `npm.cmd run test` 193/193). Production deploy on 2026-07-31 uploaded runtime through commit `2362d05`; app, API health, service worker, requisites, subscription, privacy, and manifest checks passed; backend service is active.
+- Current result: local Git repository exists; TASK-085 checks passed locally (`node --check server/sync-server.mjs`; `node --test tests/focus-sync-server.test.mjs` 73/73; `npm.cmd run test` 194/194). Production deploy on 2026-07-31 uploaded runtime through commit `2362d05`; app, API health, service worker, requisites, subscription, privacy, and manifest checks passed; backend service is active.
 
 ## Open Questions
 
