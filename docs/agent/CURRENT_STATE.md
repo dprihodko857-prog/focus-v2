@@ -99,6 +99,7 @@ Status: DRAFT
 - TASK-086 is implemented locally: a public `/prices.html` page now shows the fixed Focus Plus price `199 ₽` for 30 calendar days, subscription/offer/requisites pages link to it, and service worker cache is `focus-pwa-v104`.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
 - Runtime through local commit `2362d05` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-31; remote backup is `/opt/focus-v2/deploy-backups/backup-20260731-134936-pre-2362d05`; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v87`, and public requisites/subscription/privacy pages returned `200`.
+- Runtime through local commit `8a2795c` was deployed to `https://focus-v2.dmnao83.ru` on 2026-08-03; remote backup is `/opt/focus-v2/deploy-backups/backup-20260803-122215-pre-8a2795c.tgz`; backend `focus-v2-sync` was active, public app, prices, subscription, offer, requisites, service worker, and API health checks passed; service worker cache is `focus-pwa-v104`.
 
 ## In Progress
 
@@ -119,7 +120,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-086 checks passed locally (`node --check public/service-worker.js`; focused static tests 50/50; `npm.cmd run test` 195/195). Production deploy on 2026-07-31 uploaded runtime through commit `2362d05`; app, API health, service worker, requisites, subscription, privacy, and manifest checks passed; backend service is active.
+- Current result: local Git repository exists; TASK-086 checks passed locally (`node --check public/service-worker.js`; focused static tests 50/50; `npm.cmd run test` 195/195). Production deploy on 2026-08-03 uploaded runtime through commit `8a2795c`; app, API health, service worker, prices, subscription, offer, and requisites checks passed; backend service is active.
 
 ## Open Questions
 
