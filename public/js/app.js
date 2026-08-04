@@ -1,7 +1,21 @@
-import { createFocusStorage, DIARY_PIN_KEY, LEGACY_BIRTHDAYS_KEY, LEGACY_DIARY_KEY, LEGACY_NOTES_KEY, LEGACY_SCHEDULES_KEY, LEGACY_TASKS_KEY, parseScheduleList, QUOTE_CACHE_KEY, REMINDERS_KEY } from "./storage.js";
+import { createFocusStorage, DIARY_PIN_KEY, HOLIDAY_CATALOG_CACHE_KEY, HOLIDAY_PREFERENCES_CACHE_KEY, HOLIDAY_RELIGIOUS_PREFERENCES_KEY, LEGACY_BIRTHDAYS_KEY, LEGACY_DIARY_KEY, LEGACY_NOTES_KEY, LEGACY_SCHEDULES_KEY, LEGACY_TASKS_KEY, parseScheduleList, QUOTE_CACHE_KEY, REMINDERS_KEY } from "./storage.js";
 import { createFocusAuthClient } from "./auth.js";
 import { createFocusSyncClient } from "./sync.js";
 import { createFocusNotifications, createLocalReminder } from "./notifications.js";
+import {
+  HOLIDAY_DEFAULT_PREFERENCES,
+  HOLIDAY_DEFAULT_RELIGIOUS_PREFERENCES,
+  HOLIDAY_RELIGIOUS_TRADITIONS,
+  HOLIDAY_SUPPORTED_COUNTRIES,
+  getHolidayDateStatusMessage,
+  getHolidayEventColor,
+  getHolidayEventTypeLabel,
+  getProfessionalHolidayCategories,
+  getPublishedHolidayCatalog as getBundledPublishedHolidayCatalog,
+  normalizeHolidayPreferences,
+  normalizeHolidayReligiousPreferences,
+  selectHolidayEvents,
+} from "./holiday-catalog.js";
 
 const quotes = [
   "Делай сегодня то, что приблизит тебя к завтра.",
@@ -188,7 +202,8 @@ const installShortcutTargets = new Set([
   "reminder",
   "schedules",
   "diary",
-  "useful"
+  "useful",
+  "holidays"
 ]);
 
 function getInitialLaunchTarget() {
@@ -670,6 +685,15 @@ let quotePreferencesState = {
   timezone: "",
   effectiveFromLocalDate: "",
 };
+let holidayCatalogState = {
+  status: "idle",
+  catalog: getBundledPublishedHolidayCatalog({ countryCode: "RU", year: 2026 }),
+  checkedAt: "",
+};
+let holidayPreferencesState = normalizeHolidayPreferences(HOLIDAY_DEFAULT_PREFERENCES);
+let holidayReligiousPreferencesState = normalizeHolidayReligiousPreferences(HOLIDAY_DEFAULT_RELIGIOUS_PREFERENCES);
+let holidayProfessionalCategoriesState = getProfessionalHolidayCategories();
+let holidaySettingsSaveState = "idle";
 let currentCalendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedDayCardDate = new Date();
 
@@ -689,16 +713,13 @@ function formatDate() {
 function renderQuote() {
   const quoteText = document.querySelector("#quoteText");
   if (quoteText) {
-    const quote = getActiveDailyQuote();
-    const text = quote ? formatQuoteMarqueeText(quote) : quotes[quoteIndex % quotes.length];
+    const dailyQuotes = Array.isArray(dailyQuotesState.quotes) ? dailyQuotesState.quotes : [];
+    const text = dailyQuotes.length
+      ? dailyQuotes.map(formatQuoteMarqueeText).filter(Boolean).join("   /   ")
+      : quotes[quoteIndex % quotes.length];
     quoteText.textContent = text;
     quoteText.dataset.quoteCopy = text;
   }
-}
-
-function getActiveDailyQuote() {
-  const dailyQuotes = Array.isArray(dailyQuotesState.quotes) ? dailyQuotesState.quotes : [];
-  return dailyQuotes.length ? dailyQuotes[quoteIndex % dailyQuotes.length] : null;
 }
 
 function formatQuoteMarqueeText(quote) {
@@ -947,6 +968,400 @@ async function saveQuotePreferencesUi() {
   }
 }
 
+async function hydrateHolidayCalendar() {
+  const year = new Date().getFullYear();
+  const cachedCatalog = await loadHolidayCatalogFromCache();
+  const cachedPreferences = await loadHolidayPreferencesFromCache();
+  const localReligiousPreferences = await loadHolidayReligiousPreferences();
+
+  if (cachedCatalog?.catalogId) {
+    holidayCatalogState = {
+      status: "cached",
+      catalog: cachedCatalog,
+      checkedAt: cachedCatalog.savedAt || "",
+    };
+  }
+  if (cachedPreferences) {
+    holidayPreferencesState = normalizeHolidayPreferences(cachedPreferences);
+  }
+  holidayReligiousPreferencesState = normalizeHolidayReligiousPreferences(localReligiousPreferences);
+
+  renderHolidaySettingsUi();
+  renderCalendar();
+  renderSummary();
+
+  const [catalogResult, preferencesResult, categoriesResult] = await Promise.all([
+    scheduleSync.getPublishedHolidayCatalog({ countryCode: "RU", year }),
+    scheduleSync.getHolidayPreferences(),
+    scheduleSync.getHolidayProfessionalCategories(),
+  ]);
+
+  if (catalogResult.catalog?.catalogId) {
+    holidayCatalogState = {
+      status: catalogResult.status,
+      catalog: catalogResult.catalog,
+      checkedAt: new Date().toISOString(),
+    };
+    await saveHolidayCatalogToCache(catalogResult.catalog);
+  }
+
+  holidayPreferencesState = normalizeHolidayPreferences(preferencesResult.preferences || cachedPreferences || HOLIDAY_DEFAULT_PREFERENCES);
+  holidayProfessionalCategoriesState = categoriesResult.categories?.length
+    ? categoriesResult.categories
+    : getProfessionalHolidayCategories();
+  await saveHolidayPreferencesToCache(holidayPreferencesState);
+  renderHolidaySettingsUi();
+  renderCalendar();
+  renderSummary();
+}
+
+async function loadHolidayCatalogFromCache() {
+  try {
+    const cache = await scheduleStorage.loadHolidayCatalogCache();
+    return cache?.catalog && typeof cache.catalog === "object" ? cache.catalog : null;
+  } catch {
+    return readLocalStorageObject(HOLIDAY_CATALOG_CACHE_KEY)?.catalog || null;
+  }
+}
+
+async function saveHolidayCatalogToCache(catalog) {
+  const cache = {
+    catalog,
+    savedAt: new Date().toISOString(),
+    storageKey: HOLIDAY_CATALOG_CACHE_KEY,
+  };
+  try {
+    await scheduleStorage.saveHolidayCatalogCache(cache);
+  } catch {
+    writeLocalStorageObject(HOLIDAY_CATALOG_CACHE_KEY, cache);
+  }
+}
+
+async function loadHolidayPreferencesFromCache() {
+  try {
+    return await scheduleStorage.loadHolidayPreferencesCache();
+  } catch {
+    return readLocalStorageObject(HOLIDAY_PREFERENCES_CACHE_KEY);
+  }
+}
+
+async function saveHolidayPreferencesToCache(preferences) {
+  const normalizedPreferences = normalizeHolidayPreferences(preferences);
+  try {
+    await scheduleStorage.saveHolidayPreferencesCache(normalizedPreferences);
+  } catch {
+    writeLocalStorageObject(HOLIDAY_PREFERENCES_CACHE_KEY, normalizedPreferences);
+  }
+}
+
+async function loadHolidayReligiousPreferences() {
+  try {
+    return normalizeHolidayReligiousPreferences(await scheduleStorage.loadHolidayReligiousPreferences());
+  } catch {
+    return normalizeHolidayReligiousPreferences(readLocalStorageObject(HOLIDAY_RELIGIOUS_PREFERENCES_KEY));
+  }
+}
+
+async function saveHolidayReligiousPreferences(preferences) {
+  const normalizedPreferences = normalizeHolidayReligiousPreferences({
+    ...preferences,
+    setupCompleted: true,
+    updatedAt: new Date().toISOString(),
+  });
+  holidayReligiousPreferencesState = normalizedPreferences;
+  try {
+    await scheduleStorage.saveHolidayReligiousPreferences(normalizedPreferences);
+  } catch {
+    writeLocalStorageObject(HOLIDAY_RELIGIOUS_PREFERENCES_KEY, normalizedPreferences);
+  }
+}
+
+function readLocalStorageObject(key) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "null");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalStorageObject(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Локальное хранилище может быть недоступно; состояние текущей сессии уже обновлено.
+  }
+}
+
+function getHolidayEventsForDate(date) {
+  return selectHolidayEvents({
+    catalog: holidayCatalogState.catalog,
+    preferences: holidayPreferencesState,
+    religiousPreferences: holidayReligiousPreferencesState,
+    date,
+  }).map(event => ({
+    id: event.id,
+    time: "Весь день",
+    title: event.shortTitle || event.title,
+    subtitle: getHolidayEventSubtitle(event),
+    color: getHolidayEventColor(event),
+    isSystemEvent: true,
+    holidayEvent: event,
+  }));
+}
+
+function getHolidayEventSubtitle(event) {
+  const statusMessage = getHolidayDateStatusMessage(event);
+  const typeLabel = getHolidayEventTypeLabel(event);
+  if (statusMessage) {
+    return `${typeLabel} · ${statusMessage}`;
+  }
+  if (event.isOfficialNonWorkingDay) {
+    return `${typeLabel} · официальный нерабочий день`;
+  }
+  return `${typeLabel} · ${event.calendarTitle || "Focus Holiday Catalog"}`;
+}
+
+function getHolidayEventById(eventId) {
+  const catalogEvents = Array.isArray(holidayCatalogState.catalog?.events) ? holidayCatalogState.catalog.events : [];
+  const calendars = new Map((holidayCatalogState.catalog?.calendars || []).map(calendar => [calendar.id, calendar]));
+  const event = catalogEvents.find(item => item.id === eventId);
+  if (!event) return null;
+  const calendar = calendars.get(event.calendarId);
+  return {
+    ...event,
+    calendarKind: calendar?.calendarKind || "",
+    calendarTitle: calendar?.title || "",
+    isSystemEvent: true,
+  };
+}
+
+function renderHolidayEventDetail(eventId) {
+  const event = getHolidayEventById(eventId);
+  const title = document.querySelector("#holidayEventTitle");
+  const body = document.querySelector("#holidayEventBody");
+  if (!title || !body || !event) return false;
+
+  const source = (holidayCatalogState.catalog?.sources || []).find(item => item.id === event.sourceId);
+  title.textContent = event.title;
+  body.innerHTML = `
+    <article class="holiday-detail-card" style="--event-color:${getHolidayEventColor(event)}">
+      <div class="holiday-detail-card__head">
+        <span>${escapeHtml(getHolidayEventTypeLabel(event))}</span>
+        <strong>${escapeHtml(formatHolidayDateRange(event))}</strong>
+      </div>
+      <ul class="holiday-detail-list">
+        <li><span>Календарь</span><strong>${escapeHtml(event.calendarTitle || "Focus Holiday Catalog")}</strong></li>
+        <li><span>Статус дня</span><strong>${event.isOfficialNonWorkingDay ? "Официальный нерабочий" : event.eventType === "working_weekend" ? "Рабочий день" : "Не отмечен как нерабочий"}</strong></li>
+        <li><span>Статус даты</span><strong>${escapeHtml(getHolidayDateStatusLabel(event.dateStatus))}</strong></li>
+        ${event.sourceReference ? `<li><span>Основание</span><strong>${escapeHtml(event.sourceReference)}</strong></li>` : ""}
+        ${source ? `<li><span>Источник</span><strong>${escapeHtml(source.title)} · ${escapeHtml(source.organization)}</strong></li>` : ""}
+      </ul>
+      ${getHolidayDateStatusMessage(event) ? `<p class="holiday-detail-note">${escapeHtml(getHolidayDateStatusMessage(event))}</p>` : ""}
+      <p class="holiday-detail-note">Это системное событие Focus. Его нельзя редактировать как пользовательскую задачу.</p>
+    </article>
+  `;
+  return true;
+}
+
+function formatHolidayDateRange(event) {
+  if (event.endLocalDate && event.endLocalDate !== event.startLocalDate) {
+    return `${event.startLocalDate} — ${event.endLocalDate}`;
+  }
+  return event.startLocalDate || "";
+}
+
+function getHolidayDateStatusLabel(status) {
+  if (status === "fixed") return "Постоянная дата";
+  if (status === "calculated") return "Переходящая дата";
+  if (status === "preliminary") return "Предварительная";
+  if (status === "confirmed") return "Подтверждённая";
+  return "Не указан";
+}
+
+function renderHolidaySettingsUi() {
+  const status = document.querySelector("#holidaySettingsStatus");
+  const country = document.querySelector("#holidayCountrySelect");
+  const publicToggle = document.querySelector("#holidayPublicEnabled");
+  const overridesToggle = document.querySelector("#holidayOverridesEnabled");
+  const categories = document.querySelector("#holidayProfessionalCategories");
+  const summary = document.querySelector("#holidaySettingsSummary");
+  if (!status || !country || !publicToggle || !overridesToggle || !categories || !summary) return;
+
+  country.innerHTML = HOLIDAY_SUPPORTED_COUNTRIES.map(item => `
+    <option value="${escapeHtml(item.code)}">${escapeHtml(item.title)}</option>
+  `).join("");
+  country.value = holidayPreferencesState.countryCode;
+  publicToggle.checked = holidayPreferencesState.publicHolidaysEnabled;
+  overridesToggle.checked = holidayPreferencesState.workingDayOverridesEnabled;
+
+  document.querySelectorAll("input[name='holidayProfessionalMode']").forEach(input => {
+    input.checked = input.value === holidayPreferencesState.professionalMode;
+  });
+
+  const selectedProfessionalCodes = new Set(holidayPreferencesState.professionalCategoryCodes);
+  const categoriesDisabled = holidayPreferencesState.professionalMode !== "selected";
+  categories.innerHTML = holidayProfessionalCategoriesState.map(category => `
+    <label class="holiday-option ${categoriesDisabled ? "is-disabled" : ""}">
+      <input type="checkbox" value="${escapeHtml(category.code)}" ${selectedProfessionalCodes.has(category.code) ? "checked" : ""} ${categoriesDisabled ? "disabled" : ""} />
+      <span>${escapeHtml(category.title)}</span>
+    </label>
+  `).join("");
+
+  const selectedTraditions = new Set(holidayReligiousPreferencesState.selectedTraditions);
+  document.querySelectorAll("#holidayReligiousOptions input[type='checkbox']").forEach(input => {
+    input.checked = selectedTraditions.has(input.value);
+  });
+
+  const catalog = holidayCatalogState.catalog;
+  const catalogStatus = catalog?.checksum
+    ? `Каталог ${catalog.countryCode}-${catalog.calendarYear}, версия ${catalog.version}, checksum ${catalog.checksum}.`
+    : "Каталог праздников пока не загружен.";
+  status.textContent = holidaySettingsSaveState === "saved"
+    ? "Настройки праздников сохранены."
+    : holidaySettingsSaveState === "offline"
+      ? "Нет соединения. Настройки сохранены локально и применены на этом устройстве."
+      : holidaySettingsSaveState === "invalid"
+        ? "Не удалось сохранить настройки. Проверьте выбранные параметры."
+        : catalogStatus;
+  summary.textContent = getHolidaySettingsSummary();
+
+  const saveButton = document.querySelector("#holidaySettingsSaveButton");
+  if (saveButton) {
+    saveButton.textContent = holidaySettingsSaveState === "saving" ? "Сохраняем..." : "Сохранить";
+    saveButton.disabled = holidaySettingsSaveState === "saving";
+  }
+}
+
+function getHolidaySettingsSummary() {
+  const countryTitle = HOLIDAY_SUPPORTED_COUNTRIES.find(item => item.code === holidayPreferencesState.countryCode)?.title || "Россия";
+  const religiousTitles = HOLIDAY_RELIGIOUS_TRADITIONS
+    .filter(item => holidayReligiousPreferencesState.selectedTraditions.includes(item.code))
+    .map(item => item.shortTitle.toLocaleLowerCase("ru-RU"));
+  const professionalSummary = holidayPreferencesState.professionalMode === "all"
+    ? "все"
+    : holidayPreferencesState.professionalMode === "selected"
+      ? holidayPreferencesState.professionalCategoryCodes
+        .map(code => holidayProfessionalCategoriesState.find(category => category.code === code)?.title.toLocaleLowerCase("ru-RU"))
+        .filter(Boolean)
+        .join(", ") || "не выбраны"
+      : "не показывать";
+
+  return [
+    `Страна календаря: ${countryTitle}`,
+    `Государственные праздники: ${holidayPreferencesState.publicHolidaysEnabled ? "включены" : "выключены"}`,
+    `Религиозные календари: ${religiousTitles.length ? religiousTitles.join(", ") : "не показывать"}`,
+    `Профессиональные направления: ${professionalSummary}`,
+  ].join(". ");
+}
+
+function readHolidayPreferencesDraft() {
+  const selectedProfessionalCodes = [...document.querySelectorAll("#holidayProfessionalCategories input[type='checkbox']:checked")]
+    .map(input => input.value)
+    .filter(Boolean);
+  const professionalMode = document.querySelector("input[name='holidayProfessionalMode']:checked")?.value || "none";
+  return normalizeHolidayPreferences({
+    countryCode: document.querySelector("#holidayCountrySelect")?.value || "RU",
+    publicHolidaysEnabled: document.querySelector("#holidayPublicEnabled")?.checked !== false,
+    workingDayOverridesEnabled: document.querySelector("#holidayOverridesEnabled")?.checked !== false,
+    professionalMode,
+    professionalCategoryCodes: professionalMode === "selected" ? selectedProfessionalCodes : [],
+    setupCompleted: true,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+function readHolidayReligiousPreferencesDraft() {
+  return normalizeHolidayReligiousPreferences({
+    selectedTraditions: [...document.querySelectorAll("#holidayReligiousOptions input[type='checkbox']:checked")]
+      .map(input => input.value)
+      .filter(Boolean),
+    setupCompleted: true,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+function syncHolidayProfessionalControls() {
+  holidaySettingsSaveState = "idle";
+  holidayPreferencesState = normalizeHolidayPreferences({
+    ...holidayPreferencesState,
+    ...readHolidayPreferencesDraft(),
+  });
+  renderHolidaySettingsUi();
+  renderCalendar();
+  renderSummary();
+}
+
+function updateHolidaySettingsPreview() {
+  holidaySettingsSaveState = "idle";
+  holidayPreferencesState = readHolidayPreferencesDraft();
+  holidayReligiousPreferencesState = readHolidayReligiousPreferencesDraft();
+  renderHolidaySettingsUi();
+  renderCalendar();
+  renderSummary();
+}
+
+async function saveHolidaySettingsUi() {
+  holidaySettingsSaveState = "saving";
+  renderHolidaySettingsUi();
+  const serverPreferences = readHolidayPreferencesDraft();
+  const religiousPreferences = readHolidayReligiousPreferencesDraft();
+  const result = await scheduleSync.updateHolidayPreferences(serverPreferences);
+  if (result.status === "invalid") {
+    holidaySettingsSaveState = "invalid";
+    renderHolidaySettingsUi();
+    return false;
+  }
+  if (result.status === "saved") {
+    holidayPreferencesState = normalizeHolidayPreferences(result.preferences);
+  } else {
+    holidayPreferencesState = serverPreferences;
+  }
+  await saveHolidayPreferencesToCache(holidayPreferencesState);
+  await saveHolidayReligiousPreferences(religiousPreferences);
+  holidaySettingsSaveState = result.status === "offline" ? "offline" : "saved";
+  renderHolidaySettingsUi();
+  renderCalendar();
+  renderSummary();
+  return true;
+}
+
+async function skipHolidaySettingsUi() {
+  const now = new Date().toISOString();
+  holidaySettingsSaveState = "saving";
+  renderHolidaySettingsUi();
+  const serverPreferences = normalizeHolidayPreferences({
+    ...HOLIDAY_DEFAULT_PREFERENCES,
+    setupCompleted: true,
+    updatedAt: now,
+  });
+  const religiousPreferences = normalizeHolidayReligiousPreferences({
+    ...HOLIDAY_DEFAULT_RELIGIOUS_PREFERENCES,
+    setupCompleted: true,
+    updatedAt: now,
+  });
+  const result = await scheduleSync.updateHolidayPreferences(serverPreferences);
+  if (result.status === "invalid") {
+    holidaySettingsSaveState = "invalid";
+    renderHolidaySettingsUi();
+    return false;
+  }
+  holidayPreferencesState = result.status === "saved"
+    ? normalizeHolidayPreferences(result.preferences)
+    : serverPreferences;
+  await saveHolidayPreferencesToCache(holidayPreferencesState);
+  await saveHolidayReligiousPreferences(religiousPreferences);
+  holidaySettingsSaveState = result.status === "offline" ? "offline" : "saved";
+  renderHolidaySettingsUi();
+  renderCalendar();
+  renderSummary();
+  return true;
+}
+
+function shouldOpenHolidayInitialSetup() {
+  return !holidayPreferencesState.setupCompleted || !holidayReligiousPreferencesState.setupCompleted;
+}
+
 async function toggleQuoteFavorite(quoteId) {
   const quote = dailyQuotesState.quotes.find(item => item.id === quoteId);
   if (!quote) return;
@@ -967,7 +1382,7 @@ async function shareQuote(quoteId) {
   const text = formatQuoteMarqueeText(quote);
   try {
     if (navigator.share) {
-      await navigator.share({ title: "Цитата дня Focus", text });
+      await navigator.share({ title: "Цитаты дня Focus", text });
       return;
     }
     await navigator.clipboard?.writeText(text);
@@ -1097,18 +1512,21 @@ function formatDayTitle(date) {
 
 function getCalendarMarkers(date) {
   const markers = [...(markerMap[date.getDate()] || [])];
+  getHolidayEventsForDate(date).forEach(event => {
+    markers.push(event.color);
+  });
   if (getBirthdaysForDate(date).length) {
     markers.push("#D96B5F");
   }
   if (getDiaryEntriesForDate(date).length) {
     markers.push("#8C7AE6");
   }
-  return markers;
+  return [...new Set(markers)].slice(0, 4);
 }
 
 function getEventsForDate(date) {
   const day = date.getDate();
-  const events = [];
+  const events = [...getHolidayEventsForDate(date)];
   const markers = markerMap[day] || [];
   const labelByColor = Object.fromEntries(labels.map(([label, color]) => [color, label]));
 
@@ -1189,9 +1607,15 @@ function renderDayCard(date) {
               <strong>${escapeHtml(item.title)}</strong>
               <small>${escapeHtml(item.subtitle)}</small>
             </div>
-            <button class="icon-button icon-button--tiny" type="button" aria-label="Удалить">
-              <span class="icon icon-trash"></span>
-            </button>
+            ${item.isSystemEvent ? `
+              <button class="secondary-button secondary-button--compact" type="button" data-open-holiday-event="${escapeHtml(item.id)}">
+                Подробнее
+              </button>
+            ` : `
+              <button class="icon-button icon-button--tiny" type="button" aria-label="Удалить">
+                <span class="icon icon-trash"></span>
+              </button>
+            `}
           </article>
         `).join("") : `
           <div class="day-card-empty">
@@ -1268,6 +1692,12 @@ function renderSummary() {
 
 function getTodaySummaryItems() {
   const today = new Date();
+  const holidayItems = getHolidayEventsForDate(today).slice(0, 3).map(event => ({
+    time: event.time,
+    title: event.title,
+    subtitle: event.subtitle,
+    color: event.color,
+  }));
   const birthdayItems = getBirthdaysForDate(today).map(birthday => ({
     time: "Весь день",
     title: `День рождения: ${birthday.name}`,
@@ -1281,7 +1711,7 @@ function getTodaySummaryItems() {
     color: "#8C7AE6",
   }));
 
-  return [...summaryItems, ...birthdayItems, ...diaryItems];
+  return [...holidayItems, ...summaryItems, ...birthdayItems, ...diaryItems];
 }
 
 function getTodayTaskKey(date = new Date()) {
@@ -7601,6 +8031,8 @@ function bindControls(initialLaunchTarget = "") {
     useful: document.querySelector("#usefulModal"),
     reminders: document.querySelector("#remindersModal"),
     quotes: document.querySelector("#quotesModal"),
+    holidays: document.querySelector("#holidaysModal"),
+    holidayEvent: document.querySelector("#holidayEventModal"),
     schedules: document.querySelector("#schedulesModal"),
     scheduleDetail: document.querySelector("#scheduleDetailModal"),
     dayCard: document.querySelector("#dayCardModal"),
@@ -7675,6 +8107,9 @@ function bindControls(initialLaunchTarget = "") {
       loadQuotePreferencesUi().catch(() => {
         renderQuotePreferencesUi();
       });
+    }
+    if (name === "holidays") {
+      renderHolidaySettingsUi();
     }
     if (name === "notes") {
       renderNotes();
@@ -7828,20 +8263,7 @@ function bindControls(initialLaunchTarget = "") {
     renderDiaryEditorState();
   }
 
-  document.querySelector("#quotePrev")?.addEventListener("click", () => {
-    const quoteCount = Math.max(1, dailyQuotesState.quotes.length || quotes.length);
-    quoteIndex = (quoteIndex - 1 + quoteCount) % quoteCount;
-    renderQuote();
-  });
-
-  document.querySelector("#quoteNext")?.addEventListener("click", () => {
-    const quoteCount = Math.max(1, dailyQuotesState.quotes.length || quotes.length);
-    quoteIndex = (quoteIndex + 1) % quoteCount;
-    renderQuote();
-  });
-
-  document.querySelector(".quote-card")?.addEventListener("click", event => {
-    if (event.target.closest("#quotePrev, #quoteNext")) return;
+  document.querySelector(".quote-card")?.addEventListener("click", () => {
     openModal("quotes");
   });
 
@@ -8346,6 +8768,40 @@ function bindControls(initialLaunchTarget = "") {
     sendTestPushNotification();
   });
 
+  document.querySelector("#holidaySettingsSaveButton")?.addEventListener("click", () => {
+    saveHolidaySettingsUi().catch(() => {
+      holidaySettingsSaveState = "offline";
+      renderHolidaySettingsUi();
+    });
+  });
+
+  document.querySelector("#holidaySettingsSkipButton")?.addEventListener("click", () => {
+    skipHolidaySettingsUi().then(saved => {
+      if (saved) closeModal();
+    }).catch(() => {
+      holidaySettingsSaveState = "offline";
+      renderHolidaySettingsUi();
+    });
+  });
+
+  document.querySelectorAll("#holidayCountrySelect, #holidayPublicEnabled, #holidayOverridesEnabled").forEach(control => {
+    control.addEventListener("change", updateHolidaySettingsPreview);
+  });
+
+  document.querySelectorAll("input[name='holidayProfessionalMode']").forEach(input => {
+    input.addEventListener("change", syncHolidayProfessionalControls);
+  });
+
+  document.querySelector("#holidayProfessionalCategories")?.addEventListener("change", event => {
+    if (!event.target.closest("input[type='checkbox']")) return;
+    updateHolidaySettingsPreview();
+  });
+
+  document.querySelector("#holidayReligiousOptions")?.addEventListener("change", event => {
+    if (!event.target.closest("input[type='checkbox']")) return;
+    updateHolidaySettingsPreview();
+  });
+
   document.querySelector("#reminderSaveButton")?.addEventListener("click", () => {
     saveLocalReminder(closeModal);
   });
@@ -8462,6 +8918,14 @@ function bindControls(initialLaunchTarget = "") {
       return;
     }
 
+    const openHolidayEventButton = event.target.closest("[data-open-holiday-event]");
+    if (openHolidayEventButton) {
+      if (renderHolidayEventDetail(openHolidayEventButton.dataset.openHolidayEvent)) {
+        openModal("holidayEvent");
+      }
+      return;
+    }
+
     const openDiaryForDayButton = event.target.closest("[data-open-diary-entry-for-day]");
     if (openDiaryForDayButton) {
       diaryDraftDateKey = toIsoDate(selectedDayCardDate);
@@ -8527,7 +8991,14 @@ function bindControls(initialLaunchTarget = "") {
 
   function openInitialLaunchTarget() {
     const target = initialLaunchTarget || getInitialLaunchTarget();
-    if (!target) return;
+    if (!target) {
+      if (shouldOpenHolidayInitialSetup()) {
+        closeAddMenu();
+        closeAppMenu();
+        openModal("holidays");
+      }
+      return;
+    }
     closeAddMenu();
     closeAppMenu();
     openModal(target);
@@ -8569,11 +9040,12 @@ loadDiaryPinSettings().catch(() => {
 const schedulesReady = hydrateSavedSchedules();
 const tasksReady = hydrateSavedTasks();
 const notesReady = hydrateSavedNotes();
+const holidaysReady = hydrateHolidayCalendar();
 const remindersReady = hydrateLocalReminders().finally(() => {
   return hydrateSavedBirthdays().finally(() => hydrateSavedDiaryEntries());
 });
 
-Promise.allSettled([schedulesReady, tasksReady, notesReady, remindersReady]).finally(() => {
+Promise.allSettled([schedulesReady, tasksReady, notesReady, holidaysReady, remindersReady]).finally(() => {
   controls.openInitialLaunchTarget();
 });
 
@@ -8606,6 +9078,7 @@ function runOnlineRecoverySync() {
     refreshAccountEntitlements({ silent: true }),
     refreshEntitlementEvents({ silent: true }),
     refreshTranscriptionEvents({ silent: true }),
+    hydrateHolidayCalendar(),
   ]).finally(() => {
     pendingOnlineRecoverySync = null;
   });

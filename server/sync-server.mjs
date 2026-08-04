@@ -4,6 +4,13 @@ import http from "node:http";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import webPush from "web-push";
+import {
+  getHolidayCatalogVersion,
+  getProfessionalHolidayCategories,
+  getPublishedHolidayCatalog,
+  normalizeHolidayPreferences,
+  validateHolidayPreferences,
+} from "../public/js/holiday-catalog.js";
 
 const DEFAULT_PORT = Number(process.env.FOCUS_SYNC_PORT || 4178);
 const DEFAULT_DB_PATH = process.env.FOCUS_SYNC_DB || join(process.cwd(), "data", "focus-sync.json");
@@ -598,6 +605,22 @@ class JsonSyncDatabase {
     return this.state.userQuotePreferences[accountId];
   }
 
+  getUserHolidayPreferences(accountId) {
+    const preferences = this.state.userHolidayPreferences?.[accountId];
+    return preferences ? normalizeHolidayPreferences(preferences) : null;
+  }
+
+  saveUserHolidayPreferences({ accountId, preferences, updatedAt }) {
+    const normalizedPreferences = normalizeHolidayPreferences(preferences);
+    this.state.userHolidayPreferences ||= {};
+    this.state.userHolidayPreferences[accountId] = {
+      ...normalizedPreferences,
+      updatedAt,
+    };
+    this.persist();
+    return this.state.userHolidayPreferences[accountId];
+  }
+
   getDailyQuoteSet({ accountId, localDate }) {
     return this.state.dailyQuoteSets[createDailyQuoteSetKey(accountId, localDate)] || null;
   }
@@ -1145,6 +1168,7 @@ function readState(dbPath, { profanityRules = DEFAULT_QUOTE_PROFANITY_RULES } = 
       quoteCategories: normalizeQuoteCategories(parsed.quoteCategories),
       quoteCatalog: normalizeQuoteCatalog(parsed.quoteCatalog, { profanityRules }),
       userQuotePreferences: isPlainObject(parsed.userQuotePreferences) ? parsed.userQuotePreferences : {},
+      userHolidayPreferences: isPlainObject(parsed.userHolidayPreferences) ? parsed.userHolidayPreferences : {},
       dailyQuoteSets: isPlainObject(parsed.dailyQuoteSets) ? parsed.dailyQuoteSets : {},
       dailyQuoteSetItems: isPlainObject(parsed.dailyQuoteSetItems) ? parsed.dailyQuoteSetItems : {},
       favoriteQuotes: isPlainObject(parsed.favoriteQuotes) ? parsed.favoriteQuotes : {},
@@ -1192,6 +1216,7 @@ function createEmptyState() {
     quoteCategories: normalizeQuoteCategories(),
     quoteCatalog: [],
     userQuotePreferences: {},
+    userHolidayPreferences: {},
     dailyQuoteSets: {},
     dailyQuoteSetItems: {},
     favoriteQuotes: {},
@@ -3717,6 +3742,117 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       configured: Boolean(pushPublicKey),
       publicKey: pushPublicKey || null,
     });
+    return;
+  }
+
+  if (url.pathname === "/api/holiday-calendars/professional-categories") {
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    sendJson(response, 200, {
+      status: "ok",
+      categories: getProfessionalHolidayCategories(),
+      selectionModes: [
+        { code: "none", title: "Не показывать" },
+        { code: "all", title: "Показывать все" },
+        { code: "selected", title: "Выбрать направления" },
+      ],
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/holiday-calendars/version") {
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    const version = getHolidayCatalogVersion({
+      countryCode: url.searchParams.get("country") || "RU",
+      year: url.searchParams.get("year") || new Date(now()).getUTCFullYear(),
+    });
+
+    if (!version) {
+      sendJson(response, 404, { error: "holiday_catalog_not_found" });
+      return;
+    }
+
+    sendJson(response, 200, version);
+    return;
+  }
+
+  if (url.pathname === "/api/holiday-calendars/published") {
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    const catalog = getPublishedHolidayCatalog({
+      countryCode: url.searchParams.get("country") || "RU",
+      year: url.searchParams.get("year") || new Date(now()).getUTCFullYear(),
+    });
+
+    if (!catalog) {
+      sendJson(response, 404, { error: "holiday_catalog_not_found" });
+      return;
+    }
+
+    sendJson(response, 200, {
+      status: "ok",
+      ...catalog,
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/holiday-preferences") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method === "GET") {
+      sendJson(response, 200, {
+        status: "ok",
+        accountId: accountContext.accountId,
+        preferences: db.getUserHolidayPreferences(accountContext.accountId) || normalizeHolidayPreferences({
+          setupCompleted: false,
+          updatedAt: accountContext.checkedAt,
+        }),
+        checkedAt: accountContext.checkedAt,
+      });
+      return;
+    }
+
+    if (request.method === "PUT") {
+      const body = await readJsonBody(request, { optional: true });
+      const validation = validateHolidayPreferences(body || {});
+      if (!validation.ok) {
+        sendJson(response, 400, {
+          error: "invalid_holiday_preferences",
+          details: validation.errors,
+        });
+        return;
+      }
+
+      const saved = db.saveUserHolidayPreferences({
+        accountId: accountContext.accountId,
+        preferences: {
+          ...validation.preferences,
+          setupCompleted: true,
+        },
+        updatedAt: accountContext.checkedAt,
+      });
+
+      sendJson(response, 200, {
+        status: "saved",
+        accountId: accountContext.accountId,
+        preferences: saved,
+        checkedAt: accountContext.checkedAt,
+      });
+      return;
+    }
+
+    sendJson(response, 405, { error: "method_not_allowed" });
     return;
   }
 

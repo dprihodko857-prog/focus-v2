@@ -1,3 +1,10 @@
+import {
+  getHolidayCatalogVersion as getBundledHolidayCatalogVersion,
+  getProfessionalHolidayCategories as getBundledProfessionalHolidayCategories,
+  getPublishedHolidayCatalog as getBundledPublishedHolidayCatalog,
+  normalizeHolidayPreferences,
+} from "./holiday-catalog.js";
+
 const ACCOUNT_KEY = "focus-sync-account-id";
 const DEVICE_KEY = "focus-sync-device-id";
 const DEVICE_NAME_KEY = "focus-sync-device-name";
@@ -1257,6 +1264,132 @@ export function createFocusSyncClient({
       });
     },
 
+    async getHolidayProfessionalCategories() {
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/holiday-calendars/professional-categories"));
+        if (!response.ok) {
+          throw new Error("Focus holiday professional categories load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          selectionModes: Array.isArray(result.selectionModes) ? result.selectionModes : [],
+          categories: normalizeHolidayProfessionalCategories(result.categories),
+        };
+      } catch {
+        return {
+          status: "offline",
+          selectionModes: [
+            { code: "none", title: "Не показывать" },
+            { code: "all", title: "Показывать все" },
+            { code: "selected", title: "Выбрать направления" },
+          ],
+          categories: normalizeHolidayProfessionalCategories(getBundledProfessionalHolidayCategories()),
+        };
+      }
+    },
+
+    async getHolidayCatalogVersion({ countryCode = "RU", year = new Date().getFullYear() } = {}) {
+      const query = createHolidayCatalogQuery(countryCode, year);
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, `/holiday-calendars/version${query}`));
+        if (!response.ok) {
+          throw new Error("Focus holiday catalog version load failed.");
+        }
+
+        return {
+          status: "ok",
+          ...normalizeHolidayCatalogVersion(await response.json()),
+        };
+      } catch {
+        return {
+          status: "offline",
+          ...normalizeHolidayCatalogVersion(getBundledHolidayCatalogVersion({ countryCode, year })),
+        };
+      }
+    },
+
+    async getPublishedHolidayCatalog({ countryCode = "RU", year = new Date().getFullYear() } = {}) {
+      const query = createHolidayCatalogQuery(countryCode, year);
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, `/holiday-calendars/published${query}`));
+        if (!response.ok) {
+          throw new Error("Focus holiday catalog load failed.");
+        }
+
+        return {
+          status: "ok",
+          catalog: normalizeHolidayCatalogResponse(await response.json()),
+        };
+      } catch {
+        return {
+          status: "offline",
+          catalog: normalizeHolidayCatalogResponse(getBundledPublishedHolidayCatalog({ countryCode, year })),
+        };
+      }
+    },
+
+    async getHolidayPreferences() {
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/holiday-preferences"), {
+          headers: await withHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Focus holiday preferences load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          preferences: normalizeHolidayPreferences(result.preferences),
+          checkedAt: normalizeTimestamp(result.checkedAt),
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          preferences: normalizeHolidayPreferences(),
+          checkedAt: null,
+        };
+      }
+    },
+
+    async updateHolidayPreferences(preferences = {}) {
+      const normalizedPreferences = normalizeHolidayPreferences(preferences);
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/holiday-preferences"), {
+          method: "PUT",
+          headers: await withHeaders(),
+          body: JSON.stringify(normalizedPreferences),
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          return {
+            status: "invalid",
+            error: result.error || "invalid_holiday_preferences",
+            details: Array.isArray(result.details) ? result.details : [],
+          };
+        }
+
+        return {
+          status: "saved",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          preferences: normalizeHolidayPreferences(result.preferences),
+          checkedAt: normalizeTimestamp(result.checkedAt),
+        };
+      } catch {
+        return {
+          status: "offline",
+          error: "offline",
+          preferences: normalizedPreferences,
+        };
+      }
+    },
+
     async getQuoteCategories() {
       try {
         const response = await fetchImpl(apiUrl(apiBaseUrl, "/quotes/categories"));
@@ -1571,6 +1704,61 @@ function createEmptyReminderDeliveryStats() {
 
 function apiUrl(baseUrl, path) {
   return `${baseUrl.replace(/\/$/, "")}${path}`;
+}
+
+function createHolidayCatalogQuery(countryCode = "RU", year = new Date().getFullYear()) {
+  const country = encodeURIComponent(String(countryCode || "RU").trim().toUpperCase());
+  const calendarYear = Math.floor(Number(year)) || new Date().getFullYear();
+  return `?country=${country}&year=${encodeURIComponent(String(calendarYear))}`;
+}
+
+function normalizeHolidayCatalogVersion(version) {
+  const source = version && typeof version === "object" && !Array.isArray(version) ? version : {};
+  return {
+    countryCode: String(source.countryCode || "").trim().toUpperCase(),
+    calendarYear: Math.floor(Number(source.calendarYear) || 0),
+    version: Math.floor(Number(source.version) || 0),
+    status: String(source.status || "").trim(),
+    publishedAt: normalizeTimestamp(source.publishedAt),
+    checksum: sanitizeText(source.checksum, 120),
+  };
+}
+
+function normalizeHolidayCatalogResponse(catalog) {
+  const source = catalog && typeof catalog === "object" && !Array.isArray(catalog) ? catalog : {};
+  return {
+    catalogId: sanitizeText(source.catalogId, 180),
+    countryCode: String(source.countryCode || "").trim().toUpperCase(),
+    calendarYear: Math.floor(Number(source.calendarYear) || 0),
+    version: Math.floor(Number(source.version) || 0),
+    status: String(source.status || "").trim(),
+    validFromLocalDate: normalizeLocalDate(source.validFromLocalDate),
+    validUntilLocalDate: normalizeLocalDate(source.validUntilLocalDate),
+    publishedAt: normalizeTimestamp(source.publishedAt),
+    checksum: sanitizeText(source.checksum, 120),
+    calendars: Array.isArray(source.calendars) ? source.calendars : [],
+    events: Array.isArray(source.events) ? source.events : [],
+    sources: Array.isArray(source.sources) ? source.sources : [],
+    professionalCategories: normalizeHolidayProfessionalCategories(source.professionalCategories),
+    changeLog: Array.isArray(source.changeLog) ? source.changeLog : [],
+  };
+}
+
+function normalizeHolidayProfessionalCategories(categories) {
+  return Array.isArray(categories)
+    ? categories
+      .map(category => {
+        const source = category && typeof category === "object" && !Array.isArray(category) ? category : {};
+        const code = String(source.code || "").trim();
+        const title = sanitizeText(source.title || source.titleRu, 160);
+        return code && title ? {
+          code,
+          title,
+          sortOrder: Math.floor(Number(source.sortOrder) || 0),
+        } : null;
+      })
+      .filter(Boolean)
+    : [];
 }
 
 function encodeHeaderValue(value) {

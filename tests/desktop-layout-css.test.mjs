@@ -12,8 +12,9 @@ test("desktop dashboard uses the full width with a logo-triggered app menu", () 
   assert.match(appCss, /\.app-shell\s*{[\s\S]*?align-content:\s*start;/);
   assert.match(appCss, /\.app-shell\s*{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(360px, 500px\);/);
   assert.match(appCss, /\.top-dock\s*{[\s\S]*?grid-column:\s*1 \/ 3;[\s\S]*?grid-template-columns:\s*72px minmax\(220px, 1fr\) minmax\(120px, \.62fr\);/);
-  assert.match(indexHtml, /<\/section>\s*<section class="quote-card glass-panel" aria-label="Цитата дня">[\s\S]*?<section class="dashboard-grid">/);
-  assert.match(appCss, /\.quote-card\s*{[\s\S]*?grid-column:\s*1 \/ 3;[\s\S]*?grid-row:\s*2;[\s\S]*?grid-template-columns:\s*40px auto minmax\(0, 1fr\) 40px;/);
+  assert.match(indexHtml, /<\/section>\s*<section class="quote-card glass-panel" aria-label="Цитаты дня">[\s\S]*?<section class="dashboard-grid">/);
+  assert.doesNotMatch(indexHtml, /id="quotePrev"|id="quoteNext"/);
+  assert.match(appCss, /\.quote-card\s*{[\s\S]*?grid-column:\s*1 \/ 3;[\s\S]*?grid-row:\s*2;[\s\S]*?grid-template-columns:\s*auto minmax\(0, 1fr\);/);
   assert.match(appCss, /\.quote-marquee\s*{[\s\S]*?overflow:\s*hidden;/);
   assert.match(appCss, /\.quote-card p\s*{[\s\S]*?animation:\s*quote-marquee 26s linear infinite;/);
   assert.match(appCss, /\.quote-card p::after\s*{[\s\S]*?content:\s*attr\(data-quote-copy\);/);
@@ -53,7 +54,7 @@ test("desktop dashboard uses the full width with a logo-triggered app menu", () 
 });
 
 test("service worker cache is bumped after desktop layout CSS changes", () => {
-  assert.match(serviceWorker, /focus-pwa-v109/);
+  assert.match(serviceWorker, /focus-pwa-v110/);
 });
 
 test("warm glass summary keeps text contrast above the seasonal background", () => {

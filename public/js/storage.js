@@ -9,6 +9,9 @@ export const BIRTHDAYS_KEY = "focusBirthdays";
 export const DIARY_KEY = "focusDiaryEntries";
 export const DIARY_PIN_KEY = "focusDiaryPin";
 export const QUOTE_CACHE_KEY = "focusDailyQuotesCache";
+export const HOLIDAY_CATALOG_CACHE_KEY = "focusHolidayCatalogCache";
+export const HOLIDAY_PREFERENCES_CACHE_KEY = "focusHolidayPreferencesCache";
+export const HOLIDAY_RELIGIOUS_PREFERENCES_KEY = "focusHolidayReligiousPreferences";
 export const LEGACY_SCHEDULES_KEY = "focus-v2-schedules";
 export const LEGACY_TASKS_KEY = "focus-v2-tasks";
 export const LEGACY_NOTES_KEY = "focus-v2-notes";
@@ -181,6 +184,45 @@ export function createFocusStorage({
         : null;
       await putValue(QUOTE_CACHE_KEY, normalizedCache);
       return normalizedCache;
+    },
+
+    async loadHolidayCatalogCache() {
+      const cache = await getValue(HOLIDAY_CATALOG_CACHE_KEY);
+      return cache && typeof cache === "object" && !Array.isArray(cache) ? cache : null;
+    },
+
+    async saveHolidayCatalogCache(cache) {
+      const normalizedCache = cache && typeof cache === "object" && !Array.isArray(cache)
+        ? cache
+        : null;
+      await putValue(HOLIDAY_CATALOG_CACHE_KEY, normalizedCache);
+      return normalizedCache;
+    },
+
+    async loadHolidayPreferencesCache() {
+      const preferences = await getValue(HOLIDAY_PREFERENCES_CACHE_KEY);
+      return preferences && typeof preferences === "object" && !Array.isArray(preferences) ? preferences : null;
+    },
+
+    async saveHolidayPreferencesCache(preferences) {
+      const normalizedPreferences = preferences && typeof preferences === "object" && !Array.isArray(preferences)
+        ? preferences
+        : null;
+      await putValue(HOLIDAY_PREFERENCES_CACHE_KEY, normalizedPreferences);
+      return normalizedPreferences;
+    },
+
+    async loadHolidayReligiousPreferences() {
+      const preferences = await getValue(HOLIDAY_RELIGIOUS_PREFERENCES_KEY);
+      return preferences && typeof preferences === "object" && !Array.isArray(preferences) ? preferences : null;
+    },
+
+    async saveHolidayReligiousPreferences(preferences) {
+      const normalizedPreferences = preferences && typeof preferences === "object" && !Array.isArray(preferences)
+        ? preferences
+        : null;
+      await putValue(HOLIDAY_RELIGIOUS_PREFERENCES_KEY, normalizedPreferences);
+      return normalizedPreferences;
     },
 
     async migrateSchedulesFromLocalStorage() {

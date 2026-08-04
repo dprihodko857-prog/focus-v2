@@ -47,6 +47,9 @@
         <button class="nav-item" type="button" aria-label="Мои расписания" data-open-modal="schedules">
           <span class="icon icon-calendar"></span><span>Мои расписания</span>
         </button>
+        <button class="nav-item" type="button" aria-label="Праздники" data-open-modal="holidays">
+          <span class="icon icon-calendar"></span><span>Праздники</span>
+        </button>
         <button class="nav-item" type="button" aria-label="Дни рождения" data-open-modal="birthdays">
           <span class="icon icon-gift"></span><span>Дни рождения</span>
         </button>
@@ -95,17 +98,11 @@
         </div>
       </section>
 
-      <section class="quote-card glass-panel" aria-label="Цитата дня">
-        <button class="icon-button" id="quotePrev" type="button" aria-label="Предыдущая цитата">
-          <span class="icon icon-arrow-left"></span>
-        </button>
-        <span class="quote-card__label">Цитата дня</span>
+      <section class="quote-card glass-panel" aria-label="Цитаты дня">
+        <span class="quote-card__label">Цитаты дня</span>
         <div class="quote-marquee" aria-live="polite">
           <p id="quoteText" data-quote-copy="Делай сегодня то, что приблизит тебя к завтра.">Делай сегодня то, что приблизит тебя к завтра.</p>
         </div>
-        <button class="icon-button" id="quoteNext" type="button" aria-label="Следующая цитата">
-          <span class="icon icon-arrow-right"></span>
-        </button>
       </section>
 
       <section class="dashboard-grid">
@@ -320,6 +317,116 @@
             <div class="quote-category-options" id="quoteCategoryOptions" aria-label="Тематики цитат"></div>
           </div>
         </div>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="holidaysModal" role="dialog" aria-modal="true" aria-labelledby="holidaysTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Календарь фокуса</span>
+            <h2 id="holidaysTitle">Праздники</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <p class="modal-hint" id="holidaySettingsStatus">Загружаем праздничный каталог.</p>
+
+          <div class="holiday-settings-panel">
+            <div class="holiday-settings-panel__head">
+              <div>
+                <span class="modal-kicker">Шаг 1</span>
+                <h3>Страна календаря</h3>
+              </div>
+            </div>
+            <label class="field-block field-block--wide">
+              <span>Страна календаря</span>
+              <select id="holidayCountrySelect"></select>
+            </label>
+          </div>
+
+          <div class="holiday-settings-panel">
+            <div class="holiday-settings-panel__head">
+              <div>
+                <span class="modal-kicker">Шаг 2</span>
+                <h3>Государственные праздники России</h3>
+              </div>
+            </div>
+            <label class="field-check">
+              <input id="holidayPublicEnabled" type="checkbox" checked />
+              <span>Показывать государственные праздники</span>
+            </label>
+            <label class="field-check">
+              <input id="holidayOverridesEnabled" type="checkbox" checked />
+              <span>Показывать официальные переносы выходных</span>
+            </label>
+          </div>
+
+          <div class="holiday-settings-panel">
+            <div class="holiday-settings-panel__head">
+              <div>
+                <span class="modal-kicker">Шаг 3</span>
+                <h3>Какие религиозные календари показывать?</h3>
+              </div>
+            </div>
+            <p class="modal-hint">Вы выбираете только календари, которые хотите видеть. Эта настройка не определяет ваше вероисповедание.</p>
+            <div class="holiday-option-grid" id="holidayReligiousOptions">
+              <label class="holiday-option">
+                <input type="checkbox" value="orthodox" />
+                <span>Православный</span>
+              </label>
+              <label class="holiday-option">
+                <input type="checkbox" value="catholic" />
+                <span>Католический</span>
+              </label>
+              <label class="holiday-option">
+                <input type="checkbox" value="islamic" />
+                <span>Исламский</span>
+              </label>
+            </div>
+            <p class="holiday-privacy-note">Выбор религиозных календарей хранится только на этом устройстве.</p>
+          </div>
+
+          <div class="holiday-settings-panel">
+            <div class="holiday-settings-panel__head">
+              <div>
+                <span class="modal-kicker">Шаг 4</span>
+                <h3>Какие профессиональные праздники вам интересны?</h3>
+              </div>
+            </div>
+            <div class="holiday-mode-row">
+              <label class="holiday-mode-option">
+                <input type="radio" name="holidayProfessionalMode" value="none" checked />
+                <span>Не показывать</span>
+              </label>
+              <label class="holiday-mode-option">
+                <input type="radio" name="holidayProfessionalMode" value="all" />
+                <span>Показывать все</span>
+              </label>
+              <label class="holiday-mode-option">
+                <input type="radio" name="holidayProfessionalMode" value="selected" />
+                <span>Выбрать направления</span>
+              </label>
+            </div>
+            <div class="holiday-option-grid holiday-option-grid--categories" id="holidayProfessionalCategories" aria-label="Профессиональные направления"></div>
+          </div>
+
+          <div class="holiday-settings-panel holiday-settings-panel--summary">
+            <div class="holiday-settings-panel__head">
+              <div>
+                <span class="modal-kicker">Шаг 5</span>
+                <h3>Подтверждение</h3>
+              </div>
+            </div>
+            <p id="holidaySettingsSummary">Страна календаря: Россия.</p>
+          </div>
+        </div>
+
+        <footer class="modal-actions">
+          <button class="secondary-button" type="button" id="holidaySettingsSkipButton">Пропустить</button>
+          <button class="primary-button" type="button" id="holidaySettingsSaveButton">Сохранить</button>
+        </footer>
       </section>
 
       <section class="focus-modal" id="taskModal" role="dialog" aria-modal="true" aria-labelledby="taskTitle" hidden>
@@ -858,6 +965,25 @@
         </header>
 
         <div class="modal-body" id="dayCardBody"></div>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="holidayEventModal" role="dialog" aria-modal="true" aria-labelledby="holidayEventTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Праздничный календарь</span>
+            <h2 id="holidayEventTitle">Событие</h2>
+          </div>
+          <div class="modal-head-actions">
+            <button class="icon-button" type="button" aria-label="Назад к карточке дня" title="Назад" data-back-to-day-card>
+              <span class="icon icon-arrow-left"></span>
+            </button>
+            <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+              <span class="icon icon-close"></span>
+            </button>
+          </div>
+        </header>
+
+        <div class="modal-body" id="holidayEventBody"></div>
       </section>
 
       <section class="focus-modal focus-modal--wide focus-modal--week" id="weekViewModal" role="dialog" aria-modal="true" aria-labelledby="weekViewTitle" hidden>

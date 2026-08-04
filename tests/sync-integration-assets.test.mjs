@@ -23,13 +23,14 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v109/);
+  assert.match(serviceWorker, /focus-pwa-v110/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
   assert.match(serviceWorker, /"\/requisites\.html"/);
   assert.match(serviceWorker, /"\/js\/auth\.js"/);
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
+  assert.match(serviceWorker, /"\/js\/holiday-catalog\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
   assert.match(serviceWorker, /addEventListener\("push"/);
 });
@@ -52,6 +53,28 @@ test("app shell exposes daily quotes sync and preferences UI", () => {
   assert.match(serverJs, /\/api\/quotes\/categories/);
   assert.match(serverJs, /\/api\/quotes\/today/);
   assert.match(serverJs, /\/api\/quotes\/preferences/);
+});
+
+test("app shell exposes holiday catalog settings and readonly event details", () => {
+  assert.match(indexHtml, /data-open-modal="holidays"/);
+  assert.match(indexHtml, /id="holidaysModal"/);
+  assert.match(indexHtml, /id="holidaySettingsSaveButton"/);
+  assert.match(indexHtml, /id="holidayReligiousOptions"/);
+  assert.match(indexHtml, /id="holidayProfessionalCategories"/);
+  assert.match(indexHtml, /id="holidayEventModal"/);
+  assert.match(appCss, /\.holiday-settings-panel\s*{/);
+  assert.match(appCss, /\.holiday-detail-card\s*{/);
+  assert.match(appJs, /holidays:\s*document\.querySelector\("#holidaysModal"\)/);
+  assert.match(appJs, /holidayEvent:\s*document\.querySelector\("#holidayEventModal"\)/);
+  assert.match(appJs, /hydrateHolidayCalendar\(\)/);
+  assert.match(appJs, /data-open-holiday-event/);
+  assert.match(appJs, /scheduleStorage\.loadHolidayReligiousPreferences/);
+  assert.match(appJs, /scheduleStorage\.saveHolidayReligiousPreferences/);
+  assert.match(syncJs, /async getPublishedHolidayCatalog/);
+  assert.match(syncJs, /async getHolidayPreferences/);
+  assert.match(syncJs, /async updateHolidayPreferences/);
+  assert.match(serverJs, /\/api\/holiday-calendars\/published/);
+  assert.match(serverJs, /\/api\/holiday-preferences/);
 });
 
 test("service worker does not cache sync API responses", () => {
