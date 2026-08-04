@@ -118,6 +118,7 @@ Status: DRAFT
 - Runtime through local commit `eb4d600` was deployed to `https://focus-v2.dmnao83.ru` on 2026-08-04; remote backup is `/opt/focus-v2/deploy-backups/backup-20260804-113353-pre-eb4d600.tgz`; backend `focus-v2-sync` was active, public app, prices, subscription, offer, requisites, privacy, API health, quote audit, quote today API, and holiday catalog endpoints passed; service worker cache is `focus-pwa-v115`.
 - Runtime through local commit `23ffea1` was deployed to `https://focus-v2.dmnao83.ru` on 2026-08-04; remote backup is `/opt/focus-v2/deploy-backups/backup-20260804-145306-pre-23ffea1.tgz`; backend `focus-v2-sync` was active, public app, prices, subscription, offer, requisites, privacy, API health, quote audit, quote today API, and holiday catalog endpoints passed; service worker cache is `focus-pwa-v116`.
 - Runtime through exact local commit `099f981` was deployed to `https://focus-v2.dmnao83.ru` on 2026-08-04; remote backup is `/opt/focus-v2/deploy-backups/backup-20260804-142659-pre-099f981.tgz`; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v119`, Personal Schedule Planner app/modal/module markers were present, personal schedule status without account returned `401 account_required`, and subscription/privacy pages returned `200`. Later local TASK-100/TASK-101 commits were intentionally not deployed.
+- Runtime through exact local commit `89030fa` was deployed to `https://focus-v2.dmnao83.ru` on 2026-08-04; remote backup is `/opt/focus-v2/deploy-backups/backup-20260804-143356-pre-89030fa.tgz`; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v121`, server syntax checks passed, quote audit/API validation passed, the holiday catalog endpoint passed, and `/prices.html` returned `200`.
 
 ## In Progress
 
@@ -138,7 +139,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-101 planner/service-worker syntax checks passed, focused planner/static tests passed 65/65, `npm.cmd run test` passed 245/245, and `git diff --check` passed on 2026-08-04. Latest production deploy on 2026-08-04 uploaded exact runtime commit `099f981`; app, API health, service worker `focus-pwa-v119`, Personal Schedule Planner static markers/modules, account-gated planner status route, subscription, and privacy checks passed; backend service is active. Later local TASK-100/TASK-101 commits are not deployed.
+- Current result: local Git repository exists; TASK-101 planner/service-worker syntax checks passed, focused planner/static tests passed 65/65, `npm.cmd run test` passed 245/245, and `git diff --check` passed on 2026-08-04. Latest production deploy on 2026-08-04 uploaded exact runtime commit `89030fa`; app, API health, service worker `focus-pwa-v121`, server syntax, quote audit/API validation, holiday catalog, `/prices.html`, and backend service checks passed.
 
 ## Open Questions
 
