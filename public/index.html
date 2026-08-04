@@ -874,12 +874,15 @@
 
           <div class="useful-subscription-panel" id="usefulSubscriptionPanel" aria-live="polite" hidden></div>
 
-          <div class="useful-grid" aria-label="Будущие сервисы">
-            <article class="useful-card">
-              <span class="icon icon-check" aria-hidden="true"></span>
-              <div>
-                <h3>Шаблоны дня</h3>
-                <p>Готовые сценарии для учёбы, работы, спорта и спокойного личного режима.</p>
+          <div class="useful-grid" aria-label="Сервисы Focus">
+            <article class="useful-card personal-schedule-feature" id="personalScheduleFeature">
+              <span class="icon icon-sparkles" aria-hidden="true"></span>
+              <div class="personal-schedule-feature__main">
+                <h3>Идеальное расписание</h3>
+                <p>Ответь на несколько вопросов — Focus подготовит удобный план дня или недели с учётом твоих целей, обязанностей и ритма.</p>
+              </div>
+              <div class="personal-schedule-feature__actions">
+                <button class="primary-button primary-button--compact" type="button" data-ps-feature-action="new">Составить расписание</button>
               </div>
             </article>
             <article class="useful-card">
@@ -905,6 +908,25 @@
             </article>
           </div>
         </div>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="personalScheduleModal" role="dialog" aria-modal="true" aria-labelledby="personalScheduleTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Personal Schedule Planner</span>
+            <h2 id="personalScheduleTitle">Идеальное расписание</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <p class="modal-hint" id="personalScheduleStatus">Focus подготовит персональный вариант расписания. Перед добавлением в календарь всё можно проверить и изменить.</p>
+          <div class="personal-schedule-shell" id="personalScheduleBody" aria-live="polite"></div>
+        </div>
+
+        <footer class="modal-actions" id="personalScheduleActions"></footer>
       </section>
 
       <section class="focus-modal focus-modal--wide" id="schedulesModal" role="dialog" aria-modal="true" aria-labelledby="schedulesTitle" hidden>

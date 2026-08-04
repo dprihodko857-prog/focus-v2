@@ -11,6 +11,12 @@ import {
   normalizeHolidayPreferences,
   validateHolidayPreferences,
 } from "../public/js/holiday-catalog.js";
+import {
+  PERSONAL_SCHEDULE_ENTITLEMENT_FLAGS,
+  PERSONAL_SCHEDULE_PROMPT_VERSION,
+  createMockPersonalScheduleProvider,
+  validatePersonalScheduleAiRequest,
+} from "../public/js/personal-schedule-planner.js";
 
 const DEFAULT_PORT = Number(process.env.FOCUS_SYNC_PORT || 4178);
 const DEFAULT_DB_PATH = process.env.FOCUS_SYNC_DB || join(process.cwd(), "data", "focus-sync.json");
@@ -3687,9 +3693,14 @@ export function createFocusSyncServer({
   yookassaWebhookToken = normalizeSecretToken(process.env.FOCUS_YOOKASSA_WEBHOOK_TOKEN || ""),
   voiceTranscriptionMonthlyLimit = DEFAULT_VOICE_TRANSCRIPTION_MONTHLY_LIMIT,
   voiceTranscriptionProvider = createVoiceTranscriptionProviderConfig(),
+  personalScheduleProvider = null,
   logger = console,
 } = {}) {
   const normalizedVoiceTranscriptionProvider = normalizeVoiceTranscriptionProviderConfig(voiceTranscriptionProvider);
+  const normalizedPersonalScheduleProvider = personalScheduleProvider || createMockPersonalScheduleProvider({
+    createId: prefix => `${prefix}-${createId()}`,
+    now: () => new Date(now()),
+  });
   if (db && typeof db.auditQuoteCatalogForProduction === "function") {
     db.auditQuoteCatalogForProduction();
   }
@@ -3712,6 +3723,7 @@ export function createFocusSyncServer({
         yookassaWebhookToken,
         voiceTranscriptionMonthlyLimit,
         voiceTranscriptionProvider: normalizedVoiceTranscriptionProvider,
+        personalScheduleProvider: normalizedPersonalScheduleProvider,
       });
     } catch (error) {
       if (isHttpRequestError(error)) {
@@ -3740,7 +3752,7 @@ export function createFocusSyncServer({
   return server;
 }
 
-async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, yookassaConfig, adminToken, yookassaWebhookToken, voiceTranscriptionMonthlyLimit, voiceTranscriptionProvider }) {
+async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, yookassaConfig, adminToken, yookassaWebhookToken, voiceTranscriptionMonthlyLimit, voiceTranscriptionProvider, personalScheduleProvider }) {
   const url = new URL(request.url || "/", "http://127.0.0.1");
 
   if (request.method === "OPTIONS") {
@@ -4168,6 +4180,77 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     sendJson(response, 200, {
       accountId: accountContext.accountId,
       events: db.listEntitlementEvents(accountContext.accountId, 12),
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/sync/personal-schedule/status") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    sendJson(response, 200, {
+      accountId: accountContext.accountId,
+      providerConfigured: Boolean(personalScheduleProvider),
+      provider: personalScheduleProvider?.provider || "mock",
+      promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
+      features: getPersonalScheduleFeatureFlags(),
+      checkedAt: accountContext.checkedAt,
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/sync/personal-schedule/generate") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    if (!personalScheduleProvider?.generate) {
+      sendJson(response, 503, {
+        error: "provider_not_configured",
+        status: "provider_not_configured",
+        accountId: accountContext.accountId,
+        provider: null,
+        promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
+      });
+      return;
+    }
+
+    const body = await readJsonBody(request);
+    const requestValidation = validatePersonalScheduleAiRequest(body);
+    if (!requestValidation.ok) {
+      sendJson(response, 400, {
+        error: "invalid_personal_schedule_request",
+        status: "invalid_request",
+        accountId: accountContext.accountId,
+        promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
+        errors: requestValidation.errors,
+      });
+      return;
+    }
+
+    const generationResult = await personalScheduleProvider.generate(body);
+    if (generationResult.status === "invalid_request") {
+      sendJson(response, 400, {
+        error: "invalid_personal_schedule_request",
+        accountId: accountContext.accountId,
+        ...generationResult,
+      });
+      return;
+    }
+
+    sendJson(response, 200, {
+      accountId: accountContext.accountId,
+      checkedAt: accountContext.checkedAt,
+      ...generationResult,
     });
     return;
   }
@@ -5765,6 +5848,13 @@ function getAccountEntitlements(db, { accountId, checkedAt }) {
       }),
     },
   };
+}
+
+function getPersonalScheduleFeatureFlags() {
+  return Object.fromEntries(PERSONAL_SCHEDULE_ENTITLEMENT_FLAGS.map(flag => [
+    flag,
+    !["personal_schedule_ai_revisions", "personal_schedule_adaptation"].includes(flag),
+  ]));
 }
 
 function getScheduleSnapshot(db, accountId) {

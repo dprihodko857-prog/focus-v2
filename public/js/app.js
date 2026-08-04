@@ -2,6 +2,7 @@ import { createFocusStorage, DIARY_PIN_KEY, HOLIDAY_CATALOG_CACHE_KEY, HOLIDAY_P
 import { createFocusAuthClient } from "./auth.js";
 import { createFocusSyncClient } from "./sync.js";
 import { createFocusNotifications, createLocalReminder } from "./notifications.js";
+import { createPersonalSchedulePlannerUi } from "./personal-schedule-ui.js";
 import {
   HOLIDAY_DEFAULT_PREFERENCES,
   HOLIDAY_DEFAULT_RELIGIOUS_PREFERENCES,
@@ -85,6 +86,20 @@ let authSession = null;
 let syncAccountProfile = null;
 let scheduleEditDraft = null;
 let scheduleFilter = "all";
+
+const personalSchedulePlannerUi = createPersonalSchedulePlannerUi({
+  storage: scheduleStorage,
+  sync: scheduleSync,
+  getExistingData: () => ({
+    schedules: savedSchedules,
+    tasks: savedTasks,
+    reminders: localReminders,
+    birthdays: savedBirthdays,
+  }),
+  setCollections: applyPersonalScheduleCollections,
+  showStatus: setSyncStatus,
+  escapeHtml,
+});
 
 const syncCollectionItems = [
   { key: "schedules", title: "Расписания", getCount: () => savedSchedules.length },
@@ -3664,6 +3679,38 @@ async function persistLocalReminders() {
   const remindersSnapshot = [...localReminders];
   await saveRemindersLocally(remindersSnapshot);
   runBackgroundSync(() => scheduleSync.pushReminders(remindersSnapshot), "reminders");
+}
+
+function applyPersonalScheduleCollections({ schedules, tasks: nextTasks, reminders, reason = "" } = {}) {
+  if (Array.isArray(schedules)) {
+    savedSchedules = schedules;
+    persistSavedSchedules();
+    renderSavedSchedules();
+  }
+
+  if (Array.isArray(nextTasks)) {
+    savedTasks = normalizeTaskList(nextTasks);
+    persistSavedTasks();
+    renderTasks();
+  }
+
+  if (Array.isArray(reminders)) {
+    localReminders = reminders;
+    persistLocalReminders().then(() => {
+      scheduleLocalReminders();
+      renderReminderList();
+      updateReminderPermissionState();
+    });
+  }
+
+  renderCalendar();
+  renderSummary();
+  if (reason === "personal_schedule_import") {
+    setSyncStatus("Personal Schedule Planner добавил черновик в существующие расписания Focus.");
+  }
+  if (reason === "personal_schedule_rollback") {
+    setSyncStatus("Personal Schedule Planner откатил последний импорт.");
+  }
 }
 
 function setReminderStatus(message) {
@@ -8103,6 +8150,7 @@ function bindControls(initialLaunchTarget = "") {
     reminders: document.querySelector("#remindersModal"),
     quotes: document.querySelector("#quotesModal"),
     holidays: document.querySelector("#holidaysModal"),
+    personalSchedule: document.querySelector("#personalScheduleModal"),
     holidayEvent: document.querySelector("#holidayEventModal"),
     schedules: document.querySelector("#schedulesModal"),
     scheduleDetail: document.querySelector("#scheduleDetailModal"),
@@ -8239,12 +8287,16 @@ function bindControls(initialLaunchTarget = "") {
     }
     if (name === "useful") {
       renderPaidFeatureSurfaces();
+      personalSchedulePlannerUi.renderFeatureCard();
       refreshAccountEntitlements({ silent: true }).catch(() => {
         renderPaidFeatureSurfaces();
       });
       refreshTranscriptionEvents({ silent: true }).catch(() => {
         renderTranscriptionEventsPanel();
       });
+    }
+    if (name === "personalSchedule") {
+      personalSchedulePlannerUi.renderFeatureCard();
     }
     if (name === "reminder") {
       if (!reminderEditId) {
@@ -8333,6 +8385,9 @@ function bindControls(initialLaunchTarget = "") {
     diaryPendingModal = "";
     renderDiaryEditorState();
   }
+
+  personalSchedulePlannerUi.setOpenModal(openModal);
+  personalSchedulePlannerUi.bind();
 
   document.querySelector(".quote-card")?.addEventListener("click", () => {
     openModal("quotes");
@@ -9112,11 +9167,12 @@ const schedulesReady = hydrateSavedSchedules();
 const tasksReady = hydrateSavedTasks();
 const notesReady = hydrateSavedNotes();
 const holidaysReady = hydrateHolidayCalendar();
+const personalScheduleReady = personalSchedulePlannerUi.hydrate();
 const remindersReady = hydrateLocalReminders().finally(() => {
   return hydrateSavedBirthdays().finally(() => hydrateSavedDiaryEntries());
 });
 
-Promise.allSettled([schedulesReady, tasksReady, notesReady, holidaysReady, remindersReady]).finally(() => {
+Promise.allSettled([schedulesReady, tasksReady, notesReady, holidaysReady, personalScheduleReady, remindersReady]).finally(() => {
   controls.openInitialLaunchTarget();
 });
 

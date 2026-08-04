@@ -1,4 +1,4 @@
-const CACHE_NAME = "focus-pwa-v117";
+const CACHE_NAME = "focus-pwa-v118";
 const NAVIGATION_TIMEOUT_MS = 8000;
 
 const APP_SHELL = [
@@ -18,6 +18,8 @@ const APP_SHELL = [
   "/js/sync.js",
   "/js/holiday-catalog.js",
   "/js/notifications.js",
+  "/js/personal-schedule-planner.js",
+  "/js/personal-schedule-ui.js",
   "/js/storage.js",
   "/js/app.js",
   "/assets/focus-logo-v2.png",

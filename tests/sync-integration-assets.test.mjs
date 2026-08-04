@@ -23,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v117/);
+  assert.match(serviceWorker, /focus-pwa-v118/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -392,8 +392,14 @@ test("app guards legacy localStorage fallback reads", () => {
 test("app menu exposes the useful services hub", () => {
   assert.match(indexHtml, /data-open-modal="useful"/);
   assert.match(indexHtml, /id="usefulModal"/);
-  assert.match(indexHtml, /Шаблоны дня/);
+  assert.match(indexHtml, /id="personalScheduleFeature"/);
+  assert.match(indexHtml, /Идеальное расписание/);
+  assert.match(indexHtml, /id="personalScheduleModal"/);
   assert.match(appJs, /useful:\s*document\.querySelector\("#usefulModal"\)/);
+  assert.match(appJs, /personalSchedule:\s*document\.querySelector\("#personalScheduleModal"\)/);
+  assert.match(appJs, /createPersonalSchedulePlannerUi/);
+  assert.match(serviceWorker, /"\/js\/personal-schedule-planner\.js"/);
+  assert.match(serviceWorker, /"\/js\/personal-schedule-ui\.js"/);
 });
 
 test("reminder modal exposes local notification controls", () => {

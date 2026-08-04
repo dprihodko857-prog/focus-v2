@@ -8,6 +8,7 @@ import {
   LEGACY_NOTES_KEY,
   LEGACY_SCHEDULES_KEY,
   LEGACY_TASKS_KEY,
+  PERSONAL_SCHEDULE_PLANNER_KEY,
   DIARY_PIN_KEY,
   parseScheduleList,
   QUOTE_CACHE_KEY,
@@ -237,6 +238,28 @@ test("daily quotes cache persists the current server set for offline display", a
 
   await storage.saveDailyQuotesCache(null);
   assert.equal(await storage.loadDailyQuotesCache(), null);
+});
+
+test("personal schedule planner state persists in IndexedDB", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const localStorage = createMemoryLocalStorage({
+    [PERSONAL_SCHEDULE_PLANNER_KEY]: JSON.stringify({ status: "legacy" }),
+  });
+  const storage = createFocusStorage({ indexedDB, localStorage });
+  const plannerState = {
+    schemaVersion: 1,
+    status: "draft_ready",
+    promptVersion: "personal-schedule-planner@2026-08-04.v1",
+    drafts: [{ id: "draft-1" }],
+  };
+
+  await storage.savePersonalSchedulePlanner(plannerState);
+
+  assert.deepEqual(await storage.loadPersonalSchedulePlanner(), plannerState);
+  assert.equal(localStorage.getItem(PERSONAL_SCHEDULE_PLANNER_KEY), null);
+
+  await storage.savePersonalSchedulePlanner(null);
+  assert.equal(await storage.loadPersonalSchedulePlanner(), null);
 });
 
 test("successful IndexedDB saves remove stale legacy fallback keys", async () => {

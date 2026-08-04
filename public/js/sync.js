@@ -29,6 +29,8 @@ const VOICE_TRANSCRIPTION_FEATURE_KEY = "voiceTranscription";
 const PAID_FEATURE_KEYS = new Set([VOICE_TRANSCRIPTION_FEATURE_KEY]);
 const MAX_TRANSCRIPTION_AUDIO_BASE64_LENGTH = 768 * 1024;
 const MAX_TRANSCRIPTION_DURATION_MS = 60 * 1000;
+const PERSONAL_SCHEDULE_PROMPT_VERSION = "personal-schedule-planner@2026-08-04.v1";
+const MAX_PERSONAL_SCHEDULE_REQUEST_LENGTH = 96 * 1024;
 const TRANSCRIPTION_MIME_TYPES = new Set([
   "audio/aac",
   "audio/mp4",
@@ -869,6 +871,97 @@ export function createFocusSyncClient({
       }
     },
 
+    async getPersonalScheduleStatus() {
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/personal-schedule/status"), {
+          headers: await withHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Focus personal schedule status load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          providerConfigured: result.providerConfigured === true,
+          provider: typeof result.provider === "string" ? result.provider : "mock",
+          promptVersion: typeof result.promptVersion === "string" ? result.promptVersion : PERSONAL_SCHEDULE_PROMPT_VERSION,
+          features: normalizePersonalScheduleFeatures(result.features),
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          providerConfigured: false,
+          provider: null,
+          promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
+          features: normalizePersonalScheduleFeatures(null),
+        };
+      }
+    },
+
+    async generatePersonalSchedule(requestBody = {}) {
+      const serializedBody = serializePersonalScheduleRequest(requestBody);
+      if (!serializedBody) {
+        return {
+          status: "invalid-request",
+          accountId: getStored(ACCOUNT_KEY),
+          promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
+          draft: null,
+        };
+      }
+
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/personal-schedule/generate"), {
+          method: "POST",
+          headers: await withHeaders(),
+          body: serializedBody,
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (response.status === 400) {
+          return {
+            status: "invalid-request",
+            accountId: result.accountId || getStored(ACCOUNT_KEY),
+            promptVersion: result.promptVersion || PERSONAL_SCHEDULE_PROMPT_VERSION,
+            errors: Array.isArray(result.errors) ? result.errors : [],
+            draft: null,
+          };
+        }
+
+        if (response.status === 503) {
+          return {
+            status: "provider-not-configured",
+            accountId: result.accountId || getStored(ACCOUNT_KEY),
+            provider: typeof result.provider === "string" ? result.provider : null,
+            promptVersion: result.promptVersion || PERSONAL_SCHEDULE_PROMPT_VERSION,
+            draft: null,
+          };
+        }
+
+        if (!response.ok) {
+          throw new Error("Focus personal schedule generation failed.");
+        }
+
+        return {
+          status: result.status === "draft_ready" ? "draft_ready" : "generation_failed",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          provider: typeof result.provider === "string" ? result.provider : "mock",
+          promptVersion: result.promptVersion || PERSONAL_SCHEDULE_PROMPT_VERSION,
+          draft: result.draft && typeof result.draft === "object" ? result.draft : null,
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
+          draft: null,
+        };
+      }
+    },
+
     async createSubscriptionCheckout({ featureKey } = {}) {
       const normalizedFeatureKey = normalizePaidFeatureKey(featureKey);
       const accountId = getStored(ACCOUNT_KEY);
@@ -1704,6 +1797,42 @@ function createEmptyReminderDeliveryStats() {
 
 function apiUrl(baseUrl, path) {
   return `${baseUrl.replace(/\/$/, "")}${path}`;
+}
+
+function serializePersonalScheduleRequest(requestBody) {
+  if (!requestBody || typeof requestBody !== "object" || Array.isArray(requestBody)) {
+    return "";
+  }
+
+  const body = {
+    ...requestBody,
+    promptVersion: typeof requestBody.promptVersion === "string"
+      ? requestBody.promptVersion
+      : PERSONAL_SCHEDULE_PROMPT_VERSION,
+  };
+  let serialized = "";
+  try {
+    serialized = JSON.stringify(body);
+  } catch {
+    return "";
+  }
+
+  return serialized.length <= MAX_PERSONAL_SCHEDULE_REQUEST_LENGTH ? serialized : "";
+}
+
+function normalizePersonalScheduleFeatures(features) {
+  const source = features && typeof features === "object" && !Array.isArray(features)
+    ? features
+    : {};
+  const normalizeFlag = (key, fallback) => source[key] === undefined ? fallback : source[key] === true;
+  return {
+    personal_schedule_quick: normalizeFlag("personal_schedule_quick", true),
+    personal_schedule_deep: normalizeFlag("personal_schedule_deep", true),
+    personal_schedule_three_variants: normalizeFlag("personal_schedule_three_variants", true),
+    personal_schedule_ai_revisions: normalizeFlag("personal_schedule_ai_revisions", false),
+    personal_schedule_history: normalizeFlag("personal_schedule_history", true),
+    personal_schedule_adaptation: normalizeFlag("personal_schedule_adaptation", false),
+  };
 }
 
 function createHolidayCatalogQuery(countryCode = "RU", year = new Date().getFullYear()) {

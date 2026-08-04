@@ -6,6 +6,12 @@ import { tmpdir } from "node:os";
 import { test } from "node:test";
 
 import {
+  PERSONAL_SCHEDULE_PROMPT_VERSION,
+  createDefaultPersonalScheduleIntake,
+  createPersonalScheduleAiRequest,
+} from "../public/js/personal-schedule-planner.js";
+
+import {
   createFocusSyncServer,
   createQuoteProfanityRulesFromTerms,
   createSyncDatabase,
@@ -1691,6 +1697,141 @@ test("sync transcription status endpoint reports configured OpenAI model", async
     assert.equal(result.provider, "openai");
     assert.equal(result.providerModel, "gpt-transcribe");
     assert.equal(result.providerTimeoutMs, 45000);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync personal schedule status endpoint reports mock provider readiness", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-04T09:05:00.000Z",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-personal-schedule-status";
+  createTestAccount(db, accountId, "2026-08-04T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/personal-schedule/status`, {
+      method: "GET",
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      accountId,
+      providerConfigured: true,
+      provider: "mock",
+      promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
+      features: {
+        personal_schedule_quick: true,
+        personal_schedule_deep: true,
+        personal_schedule_three_variants: true,
+        personal_schedule_ai_revisions: false,
+        personal_schedule_history: true,
+        personal_schedule_adaptation: false,
+      },
+      checkedAt: "2026-08-04T09:05:00.000Z",
+    });
+
+    const methodResponse = await fetch(`${baseUrl}/api/sync/personal-schedule/status`, {
+      method: "POST",
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(methodResponse.status, 405);
+    assert.equal((await methodResponse.json()).error, "method_not_allowed");
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync personal schedule generation validates request and calls provider", async () => {
+  const db = createSyncDatabase(":memory:");
+  const generatedRequests = [];
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-04T09:05:00.000Z",
+    personalScheduleProvider: {
+      provider: "testProvider",
+      async generate(request) {
+        generatedRequests.push(request);
+        return {
+          status: "draft_ready",
+          provider: "testProvider",
+          promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
+          draft: {
+            id: "draft-provider-1",
+            promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
+            variants: [],
+          },
+        };
+      },
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-personal-schedule-generate";
+  createTestAccount(db, accountId, "2026-08-04T08:00:00.000Z");
+
+  try {
+    const invalidResponse = await fetch(`${baseUrl}/api/sync/personal-schedule/generate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({
+        promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
+        mode: "quick",
+        period: {},
+        constraints: {},
+        privacy: { sendsDiary: true },
+      }),
+    });
+
+    assert.equal(invalidResponse.status, 400);
+    assert.equal((await invalidResponse.json()).error, "invalid_personal_schedule_request");
+    assert.equal(generatedRequests.length, 0);
+
+    const requestBody = createPersonalScheduleAiRequest({
+      intake: createDefaultPersonalScheduleIntake(new Date("2026-08-04T09:05:00.000Z")),
+      now: new Date("2026-08-04T09:05:00.000Z"),
+    });
+    const response = await fetch(`${baseUrl}/api/sync/personal-schedule/generate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), {
+      accountId,
+      checkedAt: "2026-08-04T09:05:00.000Z",
+      status: "draft_ready",
+      provider: "testProvider",
+      promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
+      draft: {
+        id: "draft-provider-1",
+        promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
+        variants: [],
+      },
+    });
+    assert.equal(generatedRequests.length, 1);
+    assert.equal(generatedRequests[0].privacy.sendsDiary, false);
   } finally {
     await close(server);
     db.close();

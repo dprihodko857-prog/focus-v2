@@ -102,4 +102,5 @@ Status: DRAFT
 | HOLIDAY-MERGED-STATUS-METADATA-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/holiday-merged-status-metadata.md` | TASK-094 preserves all semantic system holiday metadata when duplicate holiday events are merged. |
 | CALENDAR-STATUS-BACKGROUNDS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/calendar-status-backgrounds.md` | TASK-095 renders semantic calendar statuses as layered date-cell backgrounds instead of separate status dots. |
 | CALENDAR-STATUS-BACKGROUND-CONTRAST-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/calendar-status-background-contrast.md` | TASK-096 increases layered calendar status background opacity for quicker scanning while preserving the v116 rendering model. |
+| PERSONAL-SCHEDULE-PLANNER-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/personal-schedule-planner.md` | TASK-097 adds the Personal Schedule Planner Useful UI, domain model, storage, client, backend mock-provider route, import, and rollback foundation. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

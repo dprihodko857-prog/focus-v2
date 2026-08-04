@@ -1110,6 +1110,106 @@ test("transcription status loads provider readiness diagnostics", async () => {
   assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
 });
 
+test("personal schedule status loads provider readiness diagnostics", async () => {
+  const calls = [];
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        accountId: "account-1",
+        providerConfigured: true,
+        provider: "mock",
+        promptVersion: "personal-schedule-planner@2026-08-04.v1",
+        features: {
+          personal_schedule_quick: false,
+          personal_schedule_ai_revisions: true,
+        },
+      });
+    },
+    localStorage: createMemoryLocalStorage({
+      "focus-sync-account-id": "account-1",
+      "focus-sync-device-id": "device-1",
+    }),
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.getPersonalScheduleStatus();
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.accountId, "account-1");
+  assert.equal(result.providerConfigured, true);
+  assert.equal(result.provider, "mock");
+  assert.equal(result.promptVersion, "personal-schedule-planner@2026-08-04.v1");
+  assert.equal(result.features.personal_schedule_quick, false);
+  assert.equal(result.features.personal_schedule_deep, true);
+  assert.equal(result.features.personal_schedule_ai_revisions, true);
+  assert.equal(result.features.personal_schedule_adaptation, false);
+  assert.equal(calls[0].url, "/api/sync/personal-schedule/status");
+  assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
+  assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
+});
+
+test("personal schedule generation maps invalid, provider, and offline states", async () => {
+  const calls = [];
+  let online = true;
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      if (!online) {
+        throw new Error("offline");
+      }
+      return jsonResponse({
+        accountId: "account-1",
+        status: "draft_ready",
+        provider: "mock",
+        promptVersion: "personal-schedule-planner@2026-08-04.v1",
+        draft: { id: "draft-1" },
+      });
+    },
+    localStorage: createMemoryLocalStorage({
+      "focus-sync-account-id": "account-1",
+      "focus-sync-device-id": "device-1",
+    }),
+    randomUUID: () => "device-1",
+  });
+
+  assert.deepEqual(await client.generatePersonalSchedule(null), {
+    status: "invalid-request",
+    accountId: "account-1",
+    promptVersion: "personal-schedule-planner@2026-08-04.v1",
+    draft: null,
+  });
+  assert.equal(calls.length, 0);
+
+  const result = await client.generatePersonalSchedule({
+    mode: "quick",
+    period: {},
+    constraints: {},
+    privacy: {},
+  });
+
+  assert.equal(result.status, "draft_ready");
+  assert.equal(result.accountId, "account-1");
+  assert.equal(result.provider, "mock");
+  assert.deepEqual(result.draft, { id: "draft-1" });
+  assert.equal(calls[0].url, "/api/sync/personal-schedule/generate");
+  assert.equal(calls[0].options.method, "POST");
+  assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
+  assert.equal(JSON.parse(calls[0].options.body).promptVersion, "personal-schedule-planner@2026-08-04.v1");
+
+  online = false;
+  const offlineResult = await client.generatePersonalSchedule({
+    mode: "quick",
+    period: {},
+    constraints: {},
+    privacy: {},
+  });
+
+  assert.equal(offlineResult.status, "offline");
+  assert.equal(offlineResult.accountId, "account-1");
+  assert.equal(offlineResult.draft, null);
+});
+
 test("transcription client handles gated provider scaffold states", async () => {
   const noAccountClient = createFocusSyncClient({
     fetch: async () => {

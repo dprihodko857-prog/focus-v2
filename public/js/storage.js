@@ -12,6 +12,7 @@ export const QUOTE_CACHE_KEY = "focusDailyQuotesCache";
 export const HOLIDAY_CATALOG_CACHE_KEY = "focusHolidayCatalogCache";
 export const HOLIDAY_PREFERENCES_CACHE_KEY = "focusHolidayPreferencesCache";
 export const HOLIDAY_RELIGIOUS_PREFERENCES_KEY = "focusHolidayReligiousPreferences";
+export const PERSONAL_SCHEDULE_PLANNER_KEY = "focusPersonalSchedulePlanner";
 export const LEGACY_SCHEDULES_KEY = "focus-v2-schedules";
 export const LEGACY_TASKS_KEY = "focus-v2-tasks";
 export const LEGACY_NOTES_KEY = "focus-v2-notes";
@@ -223,6 +224,20 @@ export function createFocusStorage({
         : null;
       await putValue(HOLIDAY_RELIGIOUS_PREFERENCES_KEY, normalizedPreferences);
       return normalizedPreferences;
+    },
+
+    async loadPersonalSchedulePlanner() {
+      const plannerState = await getValue(PERSONAL_SCHEDULE_PLANNER_KEY);
+      return plannerState && typeof plannerState === "object" && !Array.isArray(plannerState) ? plannerState : null;
+    },
+
+    async savePersonalSchedulePlanner(plannerState) {
+      const normalizedPlannerState = plannerState && typeof plannerState === "object" && !Array.isArray(plannerState)
+        ? plannerState
+        : null;
+      await putValue(PERSONAL_SCHEDULE_PLANNER_KEY, normalizedPlannerState);
+      removeLegacyValue(PERSONAL_SCHEDULE_PLANNER_KEY);
+      return normalizedPlannerState;
     },
 
     async migrateSchedulesFromLocalStorage() {

@@ -5411,3 +5411,84 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Layered semantic calendar backgrounds are stronger for today, non-working days, secular holidays, religious holidays, and working weekends while user event markers remain separate.
 - commit_status: committed
 - notes: `node --check public/js/app.js` passed, `node --check public/service-worker.js` passed, focused static/PWA tests passed 53/53, `npm.cmd run test` passed 225/225, Browser desktop sanity confirmed 42 cells, 13 status backgrounds, and 0 status-dot elements, and `git diff --check` passed on 2026-08-04. No deployment or push.
+
+## TASK-097
+
+- title: Add Personal Schedule Planner scaffold
+- status: DONE
+- owner_gate: owner_continue_after_task_096
+- task_type: schedule_planner_ui_backend
+- priority: high
+- source: owner asked to continue after TASK-096; local working tree contained the bounded planner scaffold slice
+- spec_reference: `docs/specs/personal-schedule-planner.md`
+- spec_status: implemented_local_committed
+- goal: add a safe Personal Schedule Planner scaffold that appears in Useful, collects normalized planning input, generates mock-provider drafts, and imports/rolls back Focus entities only after confirmation.
+- out_of_scope:
+  - live AI provider integration, credentials, prompt tuning, or network calls
+  - payment or entitlement gating changes
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - planner module normalizes intake, Big Five answers, existing intervals, AI requests, generated drafts, import batches, and rollback results
+  - AI request payloads do not include raw notes, diary text, or personal event titles
+  - mock provider returns deterministic local draft schedules for quick/deep modes
+  - Useful exposes the "Идеальное расписание" entry and personal schedule modal
+  - planner UI can hydrate local state, step through intake, request generation, import selected drafts, and roll back the latest import
+  - storage persists planner state through IndexedDB and clears stale fallback data
+  - sync client exposes provider status and generation helpers with invalid/offline states
+  - backend exposes account-scoped status and generation routes with request validation
+  - service worker cache is bumped for the new app shell modules
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/js/personal-schedule-planner.js`
+  - `node --check public/js/storage.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --check server/sync-server.mjs`
+  - `node --check tests/personal-schedule-planner.test.mjs`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --check tests/personal-schedule-sync.test.mjs`
+  - `node --check tests/focus-storage.test.mjs`
+  - `node --check tests/focus-sync-client.test.mjs`
+  - `node --check tests/focus-sync-server.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/personal-schedule-sync.test.mjs tests/focus-storage.test.mjs tests/focus-sync-client.test.mjs tests/focus-sync-server.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one medium planner scaffold task
+- file_limit: up to 18 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 96
+- stop_conditions:
+  - implementation requires live AI provider credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/index.html`
+  - `public/css/app.css`
+  - `public/js/app.js`
+  - `public/js/personal-schedule-ui.js`
+  - `public/js/personal-schedule-planner.js`
+  - `public/js/storage.js`
+  - `public/js/sync.js`
+  - `public/service-worker.js`
+  - `server/sync-server.mjs`
+  - `tests/personal-schedule-planner.test.mjs`
+  - `tests/focus-storage.test.mjs`
+  - `tests/focus-sync-client.test.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - `tests/sync-integration-assets.test.mjs`
+  - static PWA contract tests
+  - Project Maestro memory
+- dependencies:
+  - existing manual schedule creation
+  - existing sync account foundation
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Useful now exposes Personal Schedule Planner; the scaffold includes the modal flow, reusable domain module, IndexedDB state persistence, sync client status/generation helpers, backend mock-provider routes, import, and rollback handling.
+- commit_status: committed
+- notes: Syntax checks passed, focused planner/static/storage/client/server tests passed 217/217, `npm.cmd run test` passed 244/244, and `git diff --check` passed on 2026-08-04 after updating the Useful static-contract expectation for the Personal Schedule Planner entry. No deployment or git push.
