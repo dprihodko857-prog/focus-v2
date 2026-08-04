@@ -508,12 +508,20 @@ export function validatePersonalScheduleDraft({ draft, intake = createDefaultPer
   const blocks = Array.isArray(draft?.blocks) ? draft.blocks : [];
   const blockingConflicts = [];
   const warnings = [];
+  const validBlocks = [];
 
   blocks.forEach((block, index) => {
     const startMinute = Number.isFinite(block.startMinute) ? block.startMinute : parseTimeToMinutes(block.startTime);
     const endMinute = Number.isFinite(block.endMinute) ? block.endMinute : parseTimeToMinutes(block.endTime);
     if (!Number.isFinite(startMinute) || !Number.isFinite(endMinute) || endMinute <= startMinute) {
       blockingConflicts.push({ code: "invalid_time", blockId: block.id || `block-${index}` });
+    } else {
+      validBlocks.push({
+        id: block.id || `block-${index}`,
+        weekday: normalizeWeekdayLabel(block.weekday) || Number(block.weekday) || 1,
+        startMinute,
+        endMinute,
+      });
     }
     for (const interval of normalizeExistingIntervals(existingIntervals)) {
       if (interval.weekday !== Number(block.weekday)) continue;
@@ -527,6 +535,21 @@ export function validatePersonalScheduleDraft({ draft, intake = createDefaultPer
       }
     }
   });
+
+  for (let firstIndex = 0; firstIndex < validBlocks.length; firstIndex += 1) {
+    for (let secondIndex = firstIndex + 1; secondIndex < validBlocks.length; secondIndex += 1) {
+      const first = validBlocks[firstIndex];
+      const second = validBlocks[secondIndex];
+      if (first.weekday !== second.weekday) continue;
+      if (rangesOverlap(first.startMinute, first.endMinute, second.startMinute, second.endMinute)) {
+        blockingConflicts.push({
+          code: "draft_overlap",
+          blockId: first.id,
+          conflictingBlockId: second.id,
+        });
+      }
+    }
+  }
 
   const sleepMinutes = getSleepMinutes(normalizedIntake.sleep.bedTime, normalizedIntake.sleep.wakeTime);
   if (sleepMinutes < normalizedIntake.sleep.minimumSleepMinutes) {
@@ -751,22 +774,37 @@ function createVariantBlocks({ intake, profile, createId }) {
     let cursor = clampInteger(startBase + (index % 2) * 15, 360, 1260, 540);
     const goals = intake.goals.length ? intake.goals : structuredCloneSafe(DEFAULT_GOALS);
     const primary = goals.find(goal => goal.priority === "high" && goal.category !== "rest") || goals[0];
+    const primaryDuration = Math.max(primary.minimumMinutes, Math.min(primary.desiredMinutes, focusMinutes));
+    const hasWorkBlock = intake.work.type !== "none" && intake.work.workdays.includes(weekday);
+    const workStart = hasWorkBlock ? parseTimeToMinutes(intake.work.startTime) : NaN;
+    const workEnd = hasWorkBlock ? parseTimeToMinutes(intake.work.endTime) : NaN;
+    let primaryStart = cursor;
+    if (
+      hasWorkBlock &&
+      Number.isFinite(workStart) &&
+      Number.isFinite(workEnd) &&
+      rangesOverlap(primaryStart, primaryStart + primaryDuration, workStart, workEnd)
+    ) {
+      const earliestFocusStart = parseTimeToMinutes(intake.sleep.wakeTime) + Math.max(15, intake.work.preparationMinutes);
+      const latestPreWorkStart = workStart - primaryDuration;
+      primaryStart = latestPreWorkStart >= earliestFocusStart
+        ? latestPreWorkStart
+        : workEnd + Math.max(buffer, intake.work.commuteAfterMinutes);
+    }
     blocks.push(createBlock({
       createId,
       weekday,
-      startMinute: cursor,
-      duration: Math.max(primary.minimumMinutes, Math.min(primary.desiredMinutes, focusMinutes)),
+      startMinute: primaryStart,
+      duration: primaryDuration,
       title: primary.title,
       category: primary.category,
       priority: primary.priority,
       flexibility: "semi_flexible",
       rationale: getBlockRationale(primary, profile),
     }));
-    cursor += Math.max(primary.minimumMinutes, Math.min(primary.desiredMinutes, focusMinutes)) + breakMinutes + buffer;
+    cursor = primaryStart + primaryDuration + breakMinutes + buffer;
 
-    if (intake.work.type !== "none" && intake.work.workdays.includes(weekday)) {
-      const workStart = parseTimeToMinutes(intake.work.startTime);
-      const workEnd = parseTimeToMinutes(intake.work.endTime);
+    if (hasWorkBlock) {
       blocks.push(createBlock({
         createId,
         weekday,

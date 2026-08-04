@@ -81,6 +81,7 @@ test("deterministic engine creates one quick variant and three deep variants", (
   assert.equal(deep.variants.length, 3);
   assert.equal(quick.variants[0].validation.ok, true);
   assert.ok(quick.variants[0].blocks.some(block => block.category === "rest"));
+  assert.equal(hasOverlappingBlocks(quick.variants[0].blocks), false);
 });
 
 test("draft validation blocks fixed conflicts and sleep below the requested minimum", () => {
@@ -131,6 +132,38 @@ test("draft validation blocks fixed conflicts and sleep below the requested mini
   assert.equal(shortSleep.blockingConflicts.some(item => item.code === "sleep_below_minimum"), true);
 });
 
+test("draft validation blocks overlapping generated blocks", () => {
+  const overlap = validatePersonalScheduleDraft({
+    intake: createDefaultPersonalScheduleIntake(),
+    draft: {
+      blocks: [{
+        id: "focus",
+        title: "Focus",
+        category: "focus",
+        weekday: "Вторник",
+        startTime: "08:30",
+        endTime: "09:30",
+        startMinute: 510,
+        endMinute: 570,
+        flexibility: "semi_flexible",
+      }, {
+        id: "work",
+        title: "Work",
+        category: "work",
+        weekday: 2,
+        startTime: "09:00",
+        endTime: "18:00",
+        startMinute: 540,
+        endMinute: 1080,
+        flexibility: "fixed",
+      }],
+    },
+  });
+
+  assert.equal(overlap.ok, false);
+  assert.equal(overlap.blockingConflicts.some(item => item.code === "draft_overlap"), true);
+});
+
 test("import batch writes existing Focus entities and rollback removes only imported ids", () => {
   const draft = createDeterministicScheduleDraft({
     intake: createDefaultPersonalScheduleIntake(),
@@ -175,3 +208,17 @@ test("import batch writes existing Focus entities and rollback removes only impo
   assert.ok(rolledBack.schedules.some(item => item.id === "existing-schedule"));
   assert.equal(rolledBack.schedules.some(item => item.id === batchResult.batch.entities.schedules[0].id), false);
 });
+
+function hasOverlappingBlocks(blocks) {
+  for (let firstIndex = 0; firstIndex < blocks.length; firstIndex += 1) {
+    for (let secondIndex = firstIndex + 1; secondIndex < blocks.length; secondIndex += 1) {
+      const first = blocks[firstIndex];
+      const second = blocks[secondIndex];
+      if (first.weekday !== second.weekday) continue;
+      if (first.startMinute < second.endMinute && second.startMinute < first.endMinute) {
+        return true;
+      }
+    }
+  }
+  return false;
+}

@@ -5663,3 +5663,60 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Holiday detail cards now include an "О празднике" section and the side stripe follows calendar semantic colors for religious, secular, non-working, and working-weekend cases.
 - commit_status: committed
 - notes: Syntax checks passed for `app.js` and the service worker; focused static/PWA tests passed 58/58; Playwright CLI DOM QA confirmed "Успение Пресвятой Богородицы" renders a visible description and green `rgb(95, 144, 115)` side stripe. Full regression passed locally on 2026-08-04. No deployment or git push.
+
+## TASK-101
+
+- title: Guard Personal Schedule Planner generated drafts against overlaps
+- status: DONE
+- owner_gate: owner_continue_after_task_100
+- task_type: schedule_planner_quality_guard
+- priority: high
+- source: continuing the next local planner hardening slice after TASK-100
+- spec_reference: `docs/specs/personal-schedule-overlap-guard.md`
+- spec_status: implemented_local_committed
+- goal: prevent generated Personal Schedule Planner drafts from silently accepting overlapping blocks, especially default focus blocks placed inside fixed work windows.
+- out_of_scope:
+  - live AI provider credentials or provider routing
+  - prompt redesign
+  - planner modal redesign
+  - backend API contract changes
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - deterministic quick variants do not contain overlapping blocks
+  - draft validation reports overlapping generated blocks as blocking `draft_overlap` conflicts
+  - generated-block overlap validation handles Russian weekday labels as well as numeric weekdays
+  - the deterministic engine moves the primary focus block away from a same-day fixed work window before adding the work block
+  - PWA cache is bumped to `focus-pwa-v121`
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/personal-schedule-planner.js`
+  - `node --check tests/personal-schedule-planner.test.mjs`
+  - `node --check public/service-worker.js`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small planner quality task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 101
+- stop_conditions:
+  - implementation requires live AI provider credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/personal-schedule-planner.js`
+  - `public/service-worker.js`
+  - `tests/personal-schedule-planner.test.mjs`
+  - static PWA contract tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-097 Personal Schedule Planner scaffold
+  - TASK-098 Personal Schedule Planner UI polish
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Draft validation now blocks generated-block overlaps, weekday labels are normalized in overlap checks, and deterministic focus blocks move away from fixed work windows before the work block is added.
+- commit_status: committed
+- notes: Planner and service-worker syntax checks passed; focused planner/static tests passed 65/65; `npm.cmd run test` passed 245/245; `git diff --check` passed on 2026-08-04. No deployment or git push.

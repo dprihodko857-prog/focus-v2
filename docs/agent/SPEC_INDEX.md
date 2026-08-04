@@ -106,4 +106,5 @@ Status: DRAFT
 | PERSONAL-SCHEDULE-PLANNER-UI-POLISH-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/personal-schedule-planner-ui-polish.md` | TASK-098 localizes and polishes the Personal Schedule Planner shell, review labels, weekday picker, and browser QA evidence. |
 | PERSONAL-SCHEDULE-IMPORT-ARTIFACTS-LOCALIZATION-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/personal-schedule-import-artifacts-localization.md` | TASK-099 localizes user-visible Personal Schedule Planner import artifacts while preserving internal source ids for rollback. |
 | HOLIDAY-DETAIL-DESCRIPTION-ACCENT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/holiday-detail-description-accent.md` | TASK-100 adds holiday detail descriptions and aligns detail side stripes with calendar semantic colors. |
+| PERSONAL-SCHEDULE-OVERLAP-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/personal-schedule-overlap-guard.md` | TASK-101 blocks generated Personal Schedule Planner overlaps and moves deterministic focus blocks away from fixed work windows. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |
