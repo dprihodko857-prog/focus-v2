@@ -4835,3 +4835,286 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Public price list shows fixed Focus Plus price `199 ₽` for 30 calendar days, public pages link to it, and service worker cache is `focus-pwa-v104`.
 - commit_status: committed
 - notes: Service worker syntax check passed, focused static tests passed 50/50, and `npm.cmd run test` passed 195/195 on 2026-08-03. No deployment or git push.
+
+## TASK-087
+
+- title: Block profane production quote output
+- status: DONE
+- owner_gate: recovered_from_local_commit_after_owner_continue
+- task_type: quote_catalog_backend_hardening
+- priority: high
+- source: local commit `2285964` after TASK-086 and owner continuation
+- spec_reference: `docs/specs/quote-production-profanity-guard.md`
+- spec_status: implemented_local_committed
+- goal: prevent unsafe active quote catalog entries from being served in production daily quote output.
+- out_of_scope:
+  - replacing the quote catalog
+  - adding a third-party moderation service
+  - public quote submissions
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - active quote catalog entries are validated before production output
+  - unsafe selected quote items cannot remain in a served daily quote set
+  - diagnostics and public responses do not expose matched profanity text
+  - audit scripts exist for local production quote checks
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+- sandbox_level: current_workspace
+- cycle_budget: recovered memory record for one committed backend hardening task
+- file_limit: already implemented in local commit `2285964`
+- command_limit: not applicable for recovered record
+- chain_position: 86
+- stop_conditions:
+  - implementation requires a third-party moderation provider
+  - implementation requires production deploy or git push
+- areas:
+  - `server/sync-server.mjs`
+  - `scripts/audit-production-quotes.mjs`
+  - `scripts/verify-production-quotes-api.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - public fixed price deploy record
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Production quote output is guarded by local profanity validation, blocked items cannot remain in served daily quote sets, and audit scripts are available.
+- commit_status: committed
+- notes: Recovered in Project Maestro memory on 2026-08-04 from local commit `2285964`. Current full regression passed 219/219. No deployment or git push.
+
+## TASK-088
+
+- title: Add daily quotes client
+- status: DONE
+- owner_gate: recovered_from_local_commit_after_owner_continue
+- task_type: daily_quotes_frontend_sync
+- priority: medium
+- source: local commit `e43a0fd` after TASK-087 and owner continuation
+- spec_reference: `docs/specs/daily-quotes-client.md`
+- spec_status: implemented_local_committed
+- goal: show a daily five-quote set in Focus with cache, preferences, favorites, and sync client integration.
+- out_of_scope:
+  - public quote submission workflow
+  - new auth, database, or frontend app
+  - external quote provider integration
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - the dashboard exposes the current daily quote
+  - the quotes modal lists today's five quotes
+  - local cache preserves the current set for offline display
+  - category preferences can be saved for the next local day
+  - favorites can be toggled through the sync client
+  - service worker cache is bumped to `focus-pwa-v109`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/focus-sync-client.test.mjs tests/focus-storage.test.mjs tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+- sandbox_level: current_workspace
+- cycle_budget: recovered memory record for one committed frontend/sync task
+- file_limit: already implemented in local commit `e43a0fd`
+- command_limit: not applicable for recovered record
+- chain_position: 87
+- stop_conditions:
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/index.html`
+  - `public/css/app.css`
+  - `public/js/app.js`
+  - `public/js/storage.js`
+  - `public/js/sync.js`
+  - `public/service-worker.js`
+  - tests
+  - Project Maestro memory
+- dependencies:
+  - quote production profanity guard
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. Focus now has daily quotes UI, local cache, category preferences, favorite toggles, and sync client support.
+- commit_status: committed
+- notes: Recovered in Project Maestro memory on 2026-08-04 from local commit `e43a0fd`. Current full regression passed 219/219. No deployment or git push.
+
+## TASK-089
+
+- title: Add holiday calendar catalog
+- status: DONE
+- owner_gate: owner_requested_holiday_catalog
+- task_type: holiday_calendar_catalog
+- priority: high
+- source: owner request for Focus Holiday Calendar Catalog and local commit `0d56953`
+- spec_reference: `docs/specs/holiday-calendar-catalog.md`
+- spec_status: implemented_local_committed
+- goal: add the RU-2026 holiday calendar catalog with readonly events, safe server preferences, and local-only religious selections.
+- out_of_scope:
+  - separate frontend application
+  - separate auth or database
+  - external secrets or credentials
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - RU-2026 bundled catalog validates and has a stable checksum
+  - public holidays include official transfers when enabled
+  - professional holidays support none/all/selected category modes
+  - religious calendar selections are local-only and not stored server-side
+  - system holiday events are readonly and deduplicated without removing user events
+  - server exposes catalog/version/preferences endpoints through existing sync backend
+  - service worker cache is bumped to `focus-pwa-v110`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/holiday-catalog.js`
+  - `node --check public/js/app.js`
+  - `node --check public/js/sync.js`
+  - `node --check server/sync-server.mjs`
+  - `node --check scripts/holiday-catalog-admin.mjs`
+  - `node scripts/holiday-catalog-admin.mjs validate`
+  - `node scripts/holiday-catalog-admin.mjs dry-run`
+  - `node --test tests/holiday-catalog.test.mjs tests/holiday-sync.test.mjs tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs`
+  - `npm.cmd run test`
+  - local browser smoke check
+  - `git diff --check`
+- sandbox_level: current_workspace
+- cycle_budget: one bounded holiday catalog task
+- file_limit: already implemented in local commit `0d56953`
+- command_limit: not applicable for recovered record
+- chain_position: 88
+- stop_conditions:
+  - implementation requires production deploy or git push
+  - implementation requires external credentials
+  - holiday sources require legal/tax advice beyond public calendar facts
+- areas:
+  - `docs/specs/holiday-calendar-catalog.md`
+  - `public/js/holiday-catalog.js`
+  - `public/js/app.js`
+  - `public/js/storage.js`
+  - `public/js/sync.js`
+  - `server/sync-server.mjs`
+  - `scripts/holiday-catalog-admin.mjs`
+  - tests
+  - Project Maestro memory
+- dependencies:
+  - daily quotes client app-shell integration
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Focus now includes a bundled RU-2026 holiday catalog, readonly holiday events, server-safe preferences, local-only religious selections, admin validation/dry-run, and tests.
+- commit_status: committed
+- notes: Recovered in Project Maestro memory on 2026-08-04 from local commit `0d56953`. Current full regression passed 219/219. No deployment or git push.
+
+## TASK-090
+
+- title: Calm topbar Focus brand animation
+- status: DONE
+- owner_gate: owner_continue_after_holiday_catalog
+- task_type: design_runtime
+- priority: low
+- source: owner asked to continue after holiday catalog smoke check on 2026-08-04; existing local diff simplified the topbar brand animation
+- spec_reference: `docs/specs/focus-brand-topbar-breathing.md`
+- spec_status: implemented_local_committed
+- goal: replace the brighter logo shimmer/glint with a calmer breathing animation while preserving reduced-motion behavior.
+- out_of_scope:
+  - changing logo geometry or icon assets
+  - changing navigation/menu behavior
+  - redesigning seasonal backgrounds
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `.brand-mark--topbar` uses `brand-breathe 4.2s ease-in-out infinite`
+  - `brand-shimmer`, `brand-glint`, and the sweeping `linear-gradient(112deg)` glint are removed
+  - breathing animation uses a bounded scale and shadow pulse
+  - `prefers-reduced-motion: reduce` disables the animation
+  - service worker cache is bumped to `focus-pwa-v113`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check public/service-worker.js`
+  - `node --test tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small design runtime task
+- file_limit: 9 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 89
+- stop_conditions:
+  - implementation requires a broader visual redesign
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - static tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-089 holiday catalog cache baseline
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. The topbar Focus mark now uses a restrained `brand-breathe` scale/shadow pulse instead of the previous shimmer/glint animation, and service worker cache is `focus-pwa-v113`.
+- commit_status: committed
+- notes: `node --check public/service-worker.js` passed, focused static/seed tests passed 54/54, `npm.cmd run test` passed 222/222, and `git diff --check` passed on 2026-08-04. Local commit only; no deployment or push.
+
+## TASK-091
+
+- title: Add quote seed helper and separator-boundary guard
+- status: DONE
+- owner_gate: owner_continue_after_task_090
+- task_type: quote_catalog_backend_hardening
+- priority: medium
+- source: local commit `638969a` after TASK-089 and owner continuation
+- spec_reference: `docs/specs/quote-catalog-seed-and-separator-boundaries.md`
+- spec_status: implemented_local_committed
+- goal: avoid false positives from ordinary separators in masked profanity matching and provide an explicit local production quote seed helper.
+- out_of_scope:
+  - running seed import against production
+  - automatically replacing verified quote catalog entries
+  - adding a third-party content or moderation provider
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - ordinary separators are treated as boundaries, not mask wildcards
+  - explicit mask characters still trigger masked profanity detection
+  - server tests cover both the ordinary-separator pass case and masked failure case
+  - `scripts/seed-production-quotes.mjs summary` reports a deterministic seed summary
+  - seed import remains explicit and operator-run
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check server/sync-server.mjs`
+  - `node --check scripts/seed-production-quotes.mjs`
+  - `node scripts/seed-production-quotes.mjs summary`
+  - `node --test tests/focus-sync-server.test.mjs`
+  - `node --test tests/production-quote-seed.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small quote catalog hardening task
+- file_limit: already implemented in local commit `638969a`
+- command_limit: not applicable for recovered record
+- chain_position: 90
+- stop_conditions:
+  - implementation requires production seed import
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `server/sync-server.mjs`
+  - `scripts/seed-production-quotes.mjs`
+  - `tests/focus-sync-server.test.mjs`
+  - `tests/production-quote-seed.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-087 quote production profanity guard
+  - TASK-088 daily quotes client
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. Ordinary separators now stop masked profanity matching instead of acting as masks, explicit mask characters still work, and the seed helper can summarize/import 6300 generated quotes across 14 categories.
+- commit_status: committed
+- notes: Recovered in Project Maestro memory on 2026-08-04 from local commit `638969a`. `node --check scripts/seed-production-quotes.mjs` passed, seed summary reported 6300 quotes across 14 categories, focused server tests passed 81/81, focused production seed tests passed 2/2, and `npm.cmd run test` passed 222/222. No seed import, deployment, or push.

@@ -92,4 +92,9 @@ Status: DRAFT
 | YOOKASSA-PAYMENT-AMOUNT-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-payment-amount-guard.md` | TASK-084 requires terminal paid YooKassa payments to match the configured amount and currency before access activation. |
 | YOOKASSA-STATUS-PAYMENT-ID-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/yookassa-status-payment-id-guard.md` | TASK-085 requires YooKassa checkout-status responses to return the same payment id before access activation. |
 | PUBLIC-FIXED-PRICE-LIST-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/public-fixed-price-list.md` | TASK-086 adds a public fixed-price page for YooKassa review and links it from public legal/tariff pages. |
+| QUOTE-PRODUCTION-PROFANITY-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/quote-production-profanity-guard.md` | TASK-087 blocks unsafe production daily quote catalog items before output. |
+| DAILY-QUOTES-CLIENT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/daily-quotes-client.md` | TASK-088 adds the daily quotes client, cache, preferences, and favorite toggles. |
+| HOLIDAY-CALENDAR-CATALOG-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/holiday-calendar-catalog.md` | TASK-089 adds the RU-2026 holiday catalog, readonly holiday events, safe server preferences, and local-only religious selections. |
+| FOCUS-BRAND-TOPBAR-BREATHING-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/focus-brand-topbar-breathing.md` | TASK-090 replaces the topbar brand shimmer/glint with a restrained breathing animation. |
+| QUOTE-CATALOG-SEED-SEPARATOR-BOUNDARIES-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/quote-catalog-seed-and-separator-boundaries.md` | TASK-091 adds a production quote seed helper and treats ordinary separators as profanity word boundaries rather than masks. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

@@ -34,9 +34,12 @@ test("desktop dashboard uses the full width with a logo-triggered app menu", () 
   assert.match(appCss, /\.add-button\s*{[\s\S]*?height:\s*var\(--top-dock-height\);/);
   assert.match(indexHtml, /id="brandMenuButton"[\s\S]*?aria-controls="appMenu"/);
   assert.match(indexHtml, /<aside class="sidebar" id="appMenu"[\s\S]*?hidden>/);
-  assert.match(appCss, /\.brand-mark--topbar\s*{[\s\S]*?animation:\s*brand-shimmer 2\.8s ease-in-out infinite;/);
-  assert.match(appCss, /\.brand-mark--topbar::after\s*{[\s\S]*?linear-gradient\(112deg[\s\S]*?animation:\s*brand-glint 2\.8s ease-in-out infinite;/);
-  assert.match(appCss, /@keyframes brand-glint/);
+  assert.match(appCss, /\.brand-mark--topbar\s*{[\s\S]*?animation:\s*brand-breathe 4\.2s ease-in-out infinite;/);
+  assert.match(appCss, /@keyframes brand-breathe/);
+  assert.match(appCss, /transform:\s*scale\(1\.075\)/);
+  assert.match(appCss, /0 0 0 10px rgba\(249, 115, 22, \.26\)/);
+  assert.match(appCss, /0 22px 56px rgba\(249, 115, 22, \.42\)/);
+  assert.doesNotMatch(appCss, /brand-glint|brand-shimmer|linear-gradient\(112deg/);
   assert.match(appCss, /\.app-shell \.sidebar\s*{[\s\S]*?position:\s*fixed\s*!important;[\s\S]*?width:\s*min\(304px, calc\(100vw - 28px\)\)\s*!important;/);
   assert.match(appCss, /\.app-shell \.sidebar__nav\s*{[\s\S]*?grid-template-columns:\s*1fr\s*!important;/);
   assert.match(appJs, /function openAppMenu\(\)/);
@@ -54,7 +57,7 @@ test("desktop dashboard uses the full width with a logo-triggered app menu", () 
 });
 
 test("service worker cache is bumped after desktop layout CSS changes", () => {
-  assert.match(serviceWorker, /focus-pwa-v110/);
+  assert.match(serviceWorker, /focus-pwa-v113/);
 });
 
 test("warm glass summary keeps text contrast above the seasonal background", () => {
