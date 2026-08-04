@@ -5352,3 +5352,62 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Semantic calendar statuses now use layered cell backgrounds while ordinary user markers stay as event dots.
 - commit_status: committed
 - notes: `node --check public/js/app.js` passed, `node --check public/service-worker.js` passed, focused static/PWA tests passed 53/53, `npm.cmd run test` passed 225/225, browser sanity confirmed 42 cells, 13 status backgrounds, and 0 status-dot elements, and `git diff --check` passed on 2026-08-04. Production deploy through commit `23ffea1` completed on 2026-08-04 with service worker `focus-pwa-v116`; no git push.
+
+## TASK-096
+
+- title: Strengthen calendar status background contrast
+- status: DONE
+- owner_gate: owner_continue_after_task_095_deploy
+- task_type: calendar_visual_refinement
+- priority: medium
+- source: owner asked to continue after production deploy on 2026-08-04; local working tree already contained a bounded status background contrast slice
+- spec_reference: `docs/specs/calendar-status-background-contrast.md`
+- spec_status: implemented_local_committed
+- goal: make semantic calendar status background layers easier to scan without changing the rendering model or holiday data.
+- out_of_scope:
+  - changing holiday source data
+  - changing server APIs or holiday preferences
+  - changing event modal editing behavior
+  - reintroducing semantic status marker dots
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - today, non-working, secular holiday, religious holiday, and working weekend background layers are visibly stronger
+  - multiple statuses still render as layered background bands
+  - user event markers remain separate from semantic status rendering
+  - accessible date labels and semantic classes remain unchanged
+  - service worker cache is bumped for the JavaScript change
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small calendar visual refinement task
+- file_limit: up to 10 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 95
+- stop_conditions:
+  - implementation requires holiday source data changes
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/desktop-layout-css.test.mjs`
+  - `tests/install-quality-css.test.mjs`
+  - `tests/legal-pages.test.mjs`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-092 semantic calendar statuses
+  - TASK-095 calendar status background rendering
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Layered semantic calendar backgrounds are stronger for today, non-working days, secular holidays, religious holidays, and working weekends while user event markers remain separate.
+- commit_status: committed
+- notes: `node --check public/js/app.js` passed, `node --check public/service-worker.js` passed, focused static/PWA tests passed 53/53, `npm.cmd run test` passed 225/225, Playwright desktop/mobile sanity confirmed 42 cells, 13 status backgrounds, 0 status-dot elements, and 44x44 minimum mobile cells, and `git diff --check` passed on 2026-08-04. No deployment or push.

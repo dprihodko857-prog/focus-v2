@@ -1551,11 +1551,11 @@ function getCalendarDateStatus(date, { holidayEvents = [], isToday = false } = {
 
 function getCalendarStatusBackground(status) {
   const layers = [];
-  if (status.isToday) layers.push("color-mix(in srgb, var(--calendar-today), transparent 64%)");
-  if (status.isNonWorking) layers.push("color-mix(in srgb, var(--calendar-non-working-day), transparent 72%)");
-  if (status.hasSecularHoliday) layers.push("color-mix(in srgb, var(--calendar-secular-holiday), transparent 74%)");
-  if (status.hasReligiousHoliday) layers.push("color-mix(in srgb, var(--calendar-religious-holiday), transparent 74%)");
-  if (status.isWorkingWeekend) layers.push("color-mix(in srgb, var(--calendar-working-weekend), transparent 84%)");
+  if (status.isToday) layers.push("color-mix(in srgb, var(--calendar-today), transparent 48%)");
+  if (status.isNonWorking) layers.push("color-mix(in srgb, var(--calendar-non-working-day), transparent 56%)");
+  if (status.hasSecularHoliday) layers.push("color-mix(in srgb, var(--calendar-secular-holiday), transparent 58%)");
+  if (status.hasReligiousHoliday) layers.push("color-mix(in srgb, var(--calendar-religious-holiday), transparent 58%)");
+  if (status.isWorkingWeekend) layers.push("color-mix(in srgb, var(--calendar-working-weekend), transparent 72%)");
   if (!layers.length) return "";
   if (layers.length === 1) {
     return `linear-gradient(145deg, ${layers[0]}, ${layers[0]})`;

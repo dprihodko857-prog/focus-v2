@@ -57,7 +57,7 @@ test("desktop dashboard uses the full width with a logo-triggered app menu", () 
 });
 
 test("service worker cache is bumped after desktop layout CSS changes", () => {
-  assert.match(serviceWorker, /focus-pwa-v116/);
+  assert.match(serviceWorker, /focus-pwa-v117/);
 });
 
 test("main calendar exposes independent semantic date statuses", () => {
@@ -68,6 +68,11 @@ test("main calendar exposes independent semantic date statuses", () => {
   assert.match(tokenCss, /--calendar-working-weekend:\s*#4c433a;/);
   assert.match(appJs, /function getCalendarDateStatus/);
   assert.match(appJs, /function getCalendarStatusBackground/);
+  assert.match(appJs, /var\(--calendar-today\), transparent 48%/);
+  assert.match(appJs, /var\(--calendar-non-working-day\), transparent 56%/);
+  assert.match(appJs, /var\(--calendar-secular-holiday\), transparent 58%/);
+  assert.match(appJs, /var\(--calendar-religious-holiday\), transparent 58%/);
+  assert.match(appJs, /var\(--calendar-working-weekend\), transparent 72%/);
   assert.match(appJs, /function getHolidayEventTypes/);
   assert.match(appJs, /getHolidayEventTypes\(event\)\.has\("working_weekend"\)/);
   assert.match(appJs, /event\.isOfficialNonWorkingDay === true/);

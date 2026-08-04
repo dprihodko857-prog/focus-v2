@@ -1,4 +1,4 @@
-const CACHE_NAME = "focus-pwa-v116";
+const CACHE_NAME = "focus-pwa-v117";
 const NAVIGATION_TIMEOUT_MS = 8000;
 
 const APP_SHELL = [
