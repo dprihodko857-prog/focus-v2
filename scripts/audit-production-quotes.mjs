@@ -18,7 +18,7 @@ const REQUIRED_RAW_QUOTE_FIELDS = ["id", "text", "authorName", "sourceTitle", "s
 
 export function auditProductionQuotes(
   dbPath = DEFAULT_PRODUCTION_QUOTE_DB_PATH,
-  { checkedAt = new Date().toISOString() } = {},
+  { checkedAt = new Date().toISOString(), readOnly = true } = {},
 ) {
   if (!dbPath) {
     throw new Error("dbPath is required.");
@@ -27,13 +27,21 @@ export function auditProductionQuotes(
   const state = readQuoteDatabaseState(dbPath);
   const before = summarizeStoredQuoteState(state);
   const rawIntegrity = inspectRawQuoteCatalog(state.quoteCatalog);
-  const db = createSyncDatabase(dbPath);
+  const db = createSyncDatabase(readOnly ? ":memory:" : dbPath);
 
   try {
+    if (readOnly) {
+      db.replaceQuoteCatalog({
+        quotes: state.quoteCatalog,
+        categories: state.quoteCategories,
+      });
+    }
+
     const audit = db.auditQuoteCatalogForProduction({ checkedAt });
     const catalog = db.getQuoteCatalog();
     const categories = db.getQuoteCategories();
     return {
+      mode: readOnly ? "read_only" : "write_normalized",
       before,
       audit,
       quality: createProductionQuoteQualityReport({
@@ -268,8 +276,10 @@ function printJson(value) {
 }
 
 function runCli() {
-  const [dbPath = DEFAULT_PRODUCTION_QUOTE_DB_PATH] = process.argv.slice(2);
-  printJson(auditProductionQuotes(dbPath));
+  const args = process.argv.slice(2);
+  const readOnly = !args.includes("--write-normalized");
+  const dbPath = args.find(arg => !arg.startsWith("--")) || DEFAULT_PRODUCTION_QUOTE_DB_PATH;
+  printJson(auditProductionQuotes(dbPath, { readOnly }));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

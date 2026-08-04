@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -159,6 +159,7 @@ test("production quote audit reports category readiness without exposing quote t
     setupDb.close();
 
     const result = auditProductionQuotes(dbPath, { checkedAt: "2026-08-04T10:00:00.000Z" });
+    assert.equal(result.mode, "read_only");
     assert.equal(result.before.quoteCatalog, 70);
     assert.equal(result.audit.totalQuotes, 70);
     assert.equal(result.audit.blockedQuotes, 0);
@@ -184,6 +185,42 @@ test("production quote audit reports category readiness without exposing quote t
       assert.equal(category.available, false);
       assert.equal(category.dailySetReady, true);
     });
+  } finally {
+    rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test("production quote audit is read-only by default", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "focus-quote-readonly-audit-"));
+  const dbPath = join(tempDir, "sync.json");
+  const rawState = {
+    quoteCatalog: [
+      createManualQuote(),
+      {
+        ...createManualQuote(),
+        id: "manual-import-quote-copy",
+      },
+      {
+        id: "incomplete-quote",
+        text: "Incomplete raw quote.",
+        authorName: "Focus Editorial",
+      },
+    ],
+  };
+
+  try {
+    writeFileSync(dbPath, `${JSON.stringify(rawState, null, 2)}\n`);
+    const before = readFileSync(dbPath, "utf8");
+    const result = auditProductionQuotes(dbPath, { checkedAt: "2026-08-04T10:30:00.000Z" });
+    const after = readFileSync(dbPath, "utf8");
+
+    assert.equal(result.mode, "read_only");
+    assert.equal(result.before.quoteCatalog, 3);
+    assert.equal(result.audit.totalQuotes, 1);
+    assert.equal(result.quality.removedByNormalization, 2);
+    assert.equal(result.quality.rawIntegrity.duplicateTextHashCount, 1);
+    assert.equal(result.quality.rawIntegrity.incompleteQuoteCount, 1);
+    assert.equal(after, before);
   } finally {
     rmSync(tempDir, { force: true, recursive: true });
   }
