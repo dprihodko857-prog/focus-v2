@@ -166,6 +166,26 @@ test("system holiday duplicates are merged without swallowing user events", () =
   assert.ok(events.some(event => event.id === "user-christmas-note"));
 });
 
+test("merged system holiday duplicates preserve all calendar status metadata", () => {
+  const events = selectHolidayEvents({
+    catalog,
+    preferences: normalizeHolidayPreferences({
+      publicHolidaysEnabled: true,
+      workingDayOverridesEnabled: true,
+    }),
+    religiousPreferences: normalizeHolidayReligiousPreferences({
+      selectedTraditions: ["orthodox"],
+    }),
+    date: "2026-01-07",
+  });
+  const christmas = events.find(event => event.id === "ru-2026-public-christmas");
+
+  assert.equal(christmas.isOfficialNonWorkingDay, true);
+  assert.deepEqual(christmas.mergedEventTypes.sort(), ["public_holiday", "religious_holiday"]);
+  assert.deepEqual(christmas.mergedCalendarKinds.sort(), ["public", "religious"]);
+  assert.deepEqual(christmas.mergedReligiousTraditions, ["orthodox"]);
+});
+
 test("server holiday preferences validation does not carry religious fields", () => {
   const validation = validateHolidayPreferences({
     countryCode: "RU",

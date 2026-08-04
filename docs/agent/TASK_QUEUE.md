@@ -5235,3 +5235,60 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. `importProductionQuoteSeed()` now supports test-sized seed generation via `perCategory` while the CLI default remains production-sized, and tests cover replace/preserve import behavior.
 - commit_status: committed
 - notes: `node --check scripts/seed-production-quotes.mjs` passed, `node --check tests/production-quote-seed.test.mjs` passed, seed summary reported 6300 quotes across 14 categories, focused production seed tests passed 3/3, `npm.cmd run test` passed 224/224, and `git diff --check` passed on 2026-08-04. No production seed import, deployment, or push.
+
+## TASK-094
+
+- title: Preserve merged holiday status metadata
+- status: DONE
+- owner_gate: owner_continue_after_task_093
+- task_type: holiday_calendar_hardening
+- priority: medium
+- source: follow-up to TASK-092 semantic calendar statuses; duplicate system holidays could hide secondary status markers after merging
+- spec_reference: `docs/specs/holiday-merged-status-metadata.md`
+- spec_status: implemented_local_committed
+- goal: keep all semantic system holiday metadata available after duplicate system events are merged.
+- out_of_scope:
+  - changing holiday catalog data
+  - changing server APIs or holiday preferences
+  - changing event modal editing behavior
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - duplicate system holidays preserve all merged event types
+  - duplicate system holidays preserve calendar kinds, titles, ids, and religious traditions
+  - a merged duplicate is official non-working if any merged event is official non-working
+  - user events are not swallowed by system duplicate merging
+  - calendar status detection reads merged event types as well as the primary event type
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/js/holiday-catalog.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/holiday-catalog.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small holiday calendar hardening task
+- file_limit: up to 8 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 93
+- stop_conditions:
+  - implementation requires holiday source data changes
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/holiday-catalog.js`
+  - `public/js/app.js`
+  - `tests/holiday-catalog.test.mjs`
+  - `tests/desktop-layout-css.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-089 holiday calendar catalog
+  - TASK-092 semantic calendar statuses
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Duplicate system events now merge semantic metadata instead of dropping secondary system holiday status.
+- commit_status: committed
+- notes: `node --check public/js/app.js` passed, `node --check public/js/holiday-catalog.js` passed, `node --check public/service-worker.js` passed, focused calendar/static tests passed 61/61, `npm.cmd run test` passed 225/225, and `git diff --check` passed on 2026-08-04. No deployment or push.

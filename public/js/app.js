@@ -7,6 +7,7 @@ import {
   HOLIDAY_DEFAULT_RELIGIOUS_PREFERENCES,
   HOLIDAY_RELIGIOUS_TRADITIONS,
   HOLIDAY_SUPPORTED_COUNTRIES,
+  HOLIDAY_WORKING_DAY_OVERRIDE_TYPES,
   getHolidayDateStatusMessage,
   getHolidayEventColor,
   getHolidayEventTypeLabel,
@@ -1533,17 +1534,14 @@ function formatDayTitle(date) {
 
 function getCalendarDateStatus(date, { holidayEvents = [], isToday = false } = {}) {
   const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-  const isWorkingWeekend = holidayEvents.some(event => event.eventType === "working_weekend");
+  const isWorkingWeekend = holidayEvents.some(event => getHolidayEventTypes(event).has("working_weekend"));
   const hasOfficialNonWorkingDay = holidayEvents.some(event => (
     event.isOfficialNonWorkingDay === true
-    && (event.eventType === "public_holiday" || HOLIDAY_WORKING_DAY_OVERRIDE_TYPES.includes(event.eventType))
+    && (getHolidayEventTypes(event).has("public_holiday") || HOLIDAY_WORKING_DAY_OVERRIDE_TYPES.some(type => getHolidayEventTypes(event).has(type)))
   ));
-  const hasSecularHoliday = holidayEvents.some(event => [
-    "public_holiday",
-    "commemorative_date",
-    "professional_holiday"
-  ].includes(event.eventType));
-  const hasReligiousHoliday = holidayEvents.some(event => event.eventType === "religious_holiday");
+  const hasSecularHoliday = holidayEvents.some(event => ["public_holiday", "commemorative_date", "professional_holiday"]
+    .some(type => getHolidayEventTypes(event).has(type)));
+  const hasReligiousHoliday = holidayEvents.some(event => getHolidayEventTypes(event).has("religious_holiday"));
 
   return {
     isToday,
@@ -1552,6 +1550,10 @@ function getCalendarDateStatus(date, { holidayEvents = [], isToday = false } = {
     hasSecularHoliday,
     hasReligiousHoliday,
   };
+}
+
+function getHolidayEventTypes(event = {}) {
+  return new Set([event.eventType, ...(event.mergedEventTypes || [])].filter(Boolean));
 }
 
 function getCalendarDateAriaLabel(date, status) {

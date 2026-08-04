@@ -99,4 +99,5 @@ Status: DRAFT
 | QUOTE-CATALOG-SEED-SEPARATOR-BOUNDARIES-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/quote-catalog-seed-and-separator-boundaries.md` | TASK-091 adds a production quote seed helper and treats ordinary separators as profanity word boundaries rather than masks. |
 | CALENDAR-SEMANTIC-DATE-STATUSES-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/calendar-semantic-date-statuses.md` | TASK-092 gives today, non-working days, secular holidays, religious holidays, and working weekends separate calendar grid treatments. |
 | QUOTE-SEED-IMPORT-CONTRACT-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/quote-seed-import-contract.md` | TASK-093 covers explicit quote seed import replacement/preservation behavior without changing the production seed default. |
+| HOLIDAY-MERGED-STATUS-METADATA-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/holiday-merged-status-metadata.md` | TASK-094 preserves all semantic system holiday metadata when duplicate holiday events are merged. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

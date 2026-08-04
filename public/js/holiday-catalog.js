@@ -879,19 +879,40 @@ export function selectHolidayEvents({ catalog, preferences, religiousPreferences
 
 export function mergeHolidayEvents(systemEvents = [], userEvents = []) {
   const merged = [];
-  const seen = new Set();
+  const seen = new Map();
 
   [...systemEvents, ...userEvents].forEach(event => {
     if (!event) return;
     const key = event.isSystemEvent
       ? [event.startLocalDate, event.endLocalDate || "", normalizeComparableText(event.title)].join("|")
       : `user:${event.id || event.title || merged.length}`;
-    if (seen.has(key)) return;
-    seen.add(key);
+    if (seen.has(key)) {
+      const existingIndex = seen.get(key);
+      merged[existingIndex] = mergeSystemHolidayDuplicate(merged[existingIndex], event);
+      return;
+    }
+    seen.set(key, merged.length);
     merged.push(event);
   });
 
   return merged.sort(compareHolidayEvents);
+}
+
+function mergeSystemHolidayDuplicate(existing = {}, event = {}) {
+  if (!existing.isSystemEvent || !event.isSystemEvent) return existing;
+  return {
+    ...existing,
+    isOfficialNonWorkingDay: existing.isOfficialNonWorkingDay === true || event.isOfficialNonWorkingDay === true,
+    mergedEventIds: mergeUniqueValues(existing.mergedEventIds || [existing.id], [event.id]),
+    mergedEventTypes: mergeUniqueValues(existing.mergedEventTypes || [existing.eventType], [event.eventType]),
+    mergedCalendarKinds: mergeUniqueValues(existing.mergedCalendarKinds || [existing.calendarKind], [event.calendarKind]),
+    mergedCalendarTitles: mergeUniqueValues(existing.mergedCalendarTitles || [existing.calendarTitle], [event.calendarTitle]),
+    mergedReligiousTraditions: mergeUniqueValues(existing.mergedReligiousTraditions || [existing.religiousTradition], [event.religiousTradition]),
+  };
+}
+
+function mergeUniqueValues(existingValues = [], nextValues = []) {
+  return [...new Set([...existingValues, ...nextValues].filter(Boolean))];
 }
 
 export function getHolidayEventColor(event = {}) {
