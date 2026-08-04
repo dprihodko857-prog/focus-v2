@@ -5178,3 +5178,60 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Calendar cells now compute semantic status from selected holiday events, use independent classes/status markers, and keep user event dots separate from holiday status.
 - commit_status: committed
 - notes: `node --check public/js/app.js` passed, `node --check public/service-worker.js` passed, focused static tests passed 53/53, `npm.cmd run test` passed 224/224, and `git diff --check` passed on 2026-08-04. No deployment or push.
+
+## TASK-093
+
+- title: Harden quote seed import contract
+- status: DONE
+- owner_gate: owner_continue_after_task_092
+- task_type: quote_catalog_tooling_hardening
+- priority: medium
+- source: owner asked to continue after TASK-092 on 2026-08-04; explicit seed import behavior needed direct file-backed coverage
+- spec_reference: `docs/specs/quote-seed-import-contract.md`
+- spec_status: implemented_local_committed
+- goal: cover explicit production quote seed import behavior without changing CLI defaults or running any production import.
+- out_of_scope:
+  - running seed import against production
+  - changing the production default seed size
+  - changing generated quote content
+  - adding a third-party quote provider
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `importProductionQuoteSeed()` accepts optional `perCategory` for test/API callers
+  - omitted `perCategory` still uses the production threshold of 450 quotes per category
+  - import with `replaceSeed: true` removes previous `focus-seed-*` records
+  - manual non-seed quote records are preserved during replacement
+  - import with `replaceSeed: false` dedupes existing seed ids without growing duplicates
+  - CLI summary still reports 6300 quotes across 14 categories
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check scripts/seed-production-quotes.mjs`
+  - `node --check tests/production-quote-seed.test.mjs`
+  - `node scripts/seed-production-quotes.mjs summary`
+  - `node --test tests/production-quote-seed.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small quote catalog tooling task
+- file_limit: up to 6 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 92
+- stop_conditions:
+  - implementation requires production seed import
+  - implementation requires changing generated quote content
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `scripts/seed-production-quotes.mjs`
+  - `tests/production-quote-seed.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-091 quote seed helper
+- design_review_required: false
+- security_review_required: true
+- outcome: Implemented locally. `importProductionQuoteSeed()` now supports test-sized seed generation via `perCategory` while the CLI default remains production-sized, and tests cover replace/preserve import behavior.
+- commit_status: committed
+- notes: `node --check scripts/seed-production-quotes.mjs` passed, `node --check tests/production-quote-seed.test.mjs` passed, seed summary reported 6300 quotes across 14 categories, focused production seed tests passed 3/3, `npm.cmd run test` passed 224/224, and `git diff --check` passed on 2026-08-04. No production seed import, deployment, or push.

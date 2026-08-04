@@ -143,14 +143,14 @@ export function getProductionQuoteSeedSummary(quotes = createProductionQuoteSeed
   };
 }
 
-export function importProductionQuoteSeed(dbPath, { replaceSeed = true } = {}) {
+export function importProductionQuoteSeed(dbPath, { replaceSeed = true, perCategory = QUOTE_SEED_PER_CATEGORY } = {}) {
   if (!dbPath) {
     throw new Error("dbPath is required.");
   }
 
   const db = createSyncDatabase(dbPath);
   try {
-    const seedQuotes = createProductionQuoteSeed();
+    const seedQuotes = createProductionQuoteSeed({ perCategory });
     const existingQuotes = db.getQuoteCatalog();
     const preservedQuotes = replaceSeed
       ? existingQuotes.filter(quote => !String(quote.id || "").startsWith(`${QUOTE_SEED_ID_PREFIX}-`))

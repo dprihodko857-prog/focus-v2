@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 
 import {
@@ -8,6 +11,7 @@ import {
 import {
   createProductionQuoteSeed,
   getProductionQuoteSeedSummary,
+  importProductionQuoteSeed,
   QUOTE_SEED_ID_PREFIX,
   QUOTE_SEED_PER_CATEGORY,
 } from "../scripts/seed-production-quotes.mjs";
@@ -93,6 +97,54 @@ test("production quote seed passes audit and powers categories and today APIs", 
   }
 });
 
+test("production quote seed import replaces prior seed records and preserves manual quotes", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "focus-quote-seed-"));
+  const dbPath = join(tempDir, "sync.json");
+
+  try {
+    const setupDb = createSyncDatabase(dbPath);
+    setupDb.replaceQuoteCatalog({
+      quotes: [
+        createManualQuote(),
+        {
+          ...createProductionQuoteSeed({ perCategory: 1 })[0],
+          id: `${QUOTE_SEED_ID_PREFIX}-stale-record`,
+          text: "Stale seed record that should be replaced by import.",
+          sourceReference: "Stale seed import test",
+        },
+      ],
+    });
+    setupDb.close();
+
+    const result = importProductionQuoteSeed(dbPath, { perCategory: 2 });
+    assert.equal(result.status, "imported");
+    assert.equal(result.replaceSeed, true);
+    assert.equal(result.preservedQuoteCount, 1);
+    assert.equal(result.seedQuoteCount, 28);
+    assert.equal(result.totalQuoteCount, 29);
+    assert.equal(result.audit.blockedQuotes, 0);
+    assert.equal(result.summary.quoteCount, 28);
+    assert.equal(result.summary.categoryCount, 14);
+    assert.deepEqual(new Set(Object.values(result.summary.perCategory)), new Set([2]));
+
+    const importedDb = createSyncDatabase(dbPath);
+    const importedCatalog = importedDb.getQuoteCatalog();
+    importedDb.close();
+
+    assert.equal(importedCatalog.length, 29);
+    assert.ok(importedCatalog.some(quote => quote.id === "manual-import-quote"));
+    assert.equal(importedCatalog.some(quote => quote.id === `${QUOTE_SEED_ID_PREFIX}-stale-record`), false);
+    assert.equal(importedCatalog.filter(quote => String(quote.id).startsWith(`${QUOTE_SEED_ID_PREFIX}-`)).length, 28);
+
+    const preserveResult = importProductionQuoteSeed(dbPath, { replaceSeed: false, perCategory: 2 });
+    assert.equal(preserveResult.replaceSeed, false);
+    assert.equal(preserveResult.preservedQuoteCount, 29);
+    assert.equal(preserveResult.totalQuoteCount, 29);
+  } finally {
+    rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
 function isProductionEligibleLike(quote) {
   return quote
     && quote.verificationStatus === "verified"
@@ -114,6 +166,29 @@ function countQuotesByCategory(quotes) {
     });
   });
   return counts;
+}
+
+function createManualQuote() {
+  return {
+    id: "manual-import-quote",
+    text: "Manual catalog quote remains available after seed import.",
+    authorName: "Focus Editorial",
+    sourceTitle: "Manual seed import test",
+    sourceType: "other",
+    sourceReference: "Manual record",
+    publicationYear: 2026,
+    originalLanguage: "ru",
+    displayLanguage: "ru",
+    verificationStatus: "verified",
+    rightsStatus: "permission_granted",
+    rightsNote: "Manual test quote.",
+    isActive: true,
+    verifiedBy: "Focus Editorial",
+    verifiedAt: "2026-08-04T00:00:00.000Z",
+    createdAt: "2026-08-04T00:00:00.000Z",
+    updatedAt: "2026-08-04T00:00:00.000Z",
+    categoryCodes: ["life_wisdom"],
+  };
 }
 
 function listen(server) {

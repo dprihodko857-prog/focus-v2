@@ -10,6 +10,7 @@ Focus needs a large local production quote seed helper and a narrower profanity 
 - Keep explicit mask characters such as `*`, `#`, `_`, `?`, `•`, and `·` as mask tokens.
 - Add a server regression test proving ordinary separators do not create false positives.
 - Add a local production quote seed helper that can summarize and import generated seed quotes.
+- Allow tests to run the import path with a smaller generated seed while keeping the CLI default at the production 6300-quote seed.
 - Keep seed import explicit and operator-run; do not import seed data during normal server startup.
 
 ## Out Of Scope
@@ -25,4 +26,4 @@ Focus needs a large local production quote seed helper and a narrower profanity 
 - `node scripts/seed-production-quotes.mjs summary`
 - `node --test tests/focus-sync-server.test.mjs`
 - `node --test tests/production-quote-seed.test.mjs`
-- Current full local regression on 2026-08-04: `npm.cmd run test` passed 222/222.
+- Current full local regression on 2026-08-04: `npm.cmd run test` passed 224/224.
