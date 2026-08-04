@@ -5410,4 +5410,4 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - security_review_required: false
 - outcome: Implemented locally. Layered semantic calendar backgrounds are stronger for today, non-working days, secular holidays, religious holidays, and working weekends while user event markers remain separate.
 - commit_status: committed
-- notes: `node --check public/js/app.js` passed, `node --check public/service-worker.js` passed, focused static/PWA tests passed 53/53, `npm.cmd run test` passed 225/225, Playwright desktop/mobile sanity confirmed 42 cells, 13 status backgrounds, 0 status-dot elements, and 44x44 minimum mobile cells, and `git diff --check` passed on 2026-08-04. No deployment or push.
+- notes: `node --check public/js/app.js` passed, `node --check public/service-worker.js` passed, focused static/PWA tests passed 53/53, `npm.cmd run test` passed 225/225, Browser desktop sanity confirmed 42 cells, 13 status backgrounds, and 0 status-dot elements, and `git diff --check` passed on 2026-08-04. No deployment or push.

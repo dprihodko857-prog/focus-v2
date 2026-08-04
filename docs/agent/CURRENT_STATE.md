@@ -132,7 +132,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-096 checks passed locally on 2026-08-04 (`node --check public/js/app.js`; `node --check public/service-worker.js`; focused static/PWA tests 53/53; `npm.cmd run test` 225/225; Playwright desktop/mobile sanity check; `git diff --check`). Production deploy on 2026-08-04 uploaded runtime through commit `23ffea1`; app, API health, service worker `focus-pwa-v116`, quote catalog audit, quote today API, holiday catalog endpoints, prices, subscription, offer, privacy, and requisites checks passed; backend service is active.
+- Current result: local Git repository exists; TASK-096 checks passed locally on 2026-08-04 (`node --check public/js/app.js`; `node --check public/service-worker.js`; focused static/PWA tests 53/53; `npm.cmd run test` 225/225; Browser desktop sanity confirmed 42 cells, 13 status backgrounds, and 0 status-dot elements; `git diff --check`). Production deploy on 2026-08-04 uploaded runtime through commit `23ffea1`; app, API health, service worker `focus-pwa-v116`, quote catalog audit, quote today API, holiday catalog endpoints, prices, subscription, offer, privacy, and requisites checks passed; backend service is active.
 
 ## Open Questions
 
