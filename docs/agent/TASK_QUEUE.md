@@ -5605,3 +5605,61 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Personal Schedule imports now use "Идеальное расписание" in schedule notes/details while stable internal source ids remain unchanged.
 - commit_status: committed
 - notes: Planner syntax checks passed, planner unit tests passed 6/6, focused planner/static/storage/client/server tests passed 217/217, `npm.cmd run test` passed 244/244, and `git diff --check` passed on 2026-08-04. No deployment or git push.
+
+## TASK-100
+
+- title: Enrich holiday detail descriptions and semantic accents
+- status: DONE
+- owner_gate: owner_requested_holiday_detail_polish_on_2026-08-04
+- task_type: holiday_calendar_ui_polish
+- priority: high
+- source: owner screenshot feedback: holiday detail modal needs an explanation section and its side stripe must match calendar semantic colors
+- spec_reference: `docs/specs/holiday-detail-description-accent.md`
+- spec_status: implemented_local_committed
+- goal: add readable holiday descriptions to readonly holiday detail cards and align the detail accent color with religious/secular/non-working calendar semantics.
+- out_of_scope:
+  - holiday source data or server API changes
+  - production deployment
+  - git push, tags, or release work
+  - full encyclopedia coverage beyond Focus catalog/fallback descriptions
+- acceptance_criteria:
+  - "Подробнее" for a holiday opens a detail modal with an "О празднике" section
+  - religious holiday detail side stripes use the green calendar religious color
+  - secular holiday detail side stripes use orange when the date is not a non-working day
+  - secular holiday detail side stripes use red when the date is a weekend, official non-working day, or transferred/additional day off
+  - working weekend detail side stripes remain dark
+  - PWA cache is bumped to `focus-pwa-v120`
+  - static contracts cover the new detail description and accent helpers
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `npm.cmd run test`
+  - Playwright CLI DOM QA at `http://127.0.0.1:5177/`
+  - `git diff --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small UI polish task
+- file_limit: up to 12 files
+- command_limit: up to 12 meaningful commands
+- chain_position: 100
+- stop_conditions:
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+  - screenshots require changing holiday source data
+- areas:
+  - `public/js/app.js`
+  - `public/css/app.css`
+  - `public/index.html`
+  - `public/service-worker.js`
+  - static PWA contract tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-089 holiday catalog
+  - TASK-092 semantic calendar statuses
+  - TASK-095 calendar status backgrounds
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. Holiday detail cards now include an "О празднике" section and the side stripe follows calendar semantic colors for religious, secular, non-working, and working-weekend cases.
+- commit_status: committed
+- notes: Syntax checks passed for `app.js` and the service worker; focused static/PWA tests passed 58/58; Playwright CLI DOM QA confirmed "Успение Пресвятой Богородицы" renders a visible description and green `rgb(95, 144, 115)` side stripe. Full regression passed locally on 2026-08-04. No deployment or git push.

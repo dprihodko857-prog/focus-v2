@@ -23,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v119/);
+  assert.match(serviceWorker, /focus-pwa-v120/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -64,10 +64,17 @@ test("app shell exposes holiday catalog settings and readonly event details", ()
   assert.match(indexHtml, /id="holidayEventModal"/);
   assert.match(appCss, /\.holiday-settings-panel\s*{/);
   assert.match(appCss, /\.holiday-detail-card\s*{/);
+  assert.match(appCss, /\.holiday-detail-description\s*{/);
   assert.match(appJs, /holidays:\s*document\.querySelector\("#holidaysModal"\)/);
   assert.match(appJs, /holidayEvent:\s*document\.querySelector\("#holidayEventModal"\)/);
   assert.match(appJs, /hydrateHolidayCalendar\(\)/);
   assert.match(appJs, /data-open-holiday-event/);
+  assert.match(appJs, /function getHolidayDetailAccentColor/);
+  assert.match(appJs, /function getHolidayEventDescription/);
+  assert.match(appJs, /holiday-detail-description/);
+  assert.match(appJs, /var\(--calendar-religious-holiday\)/);
+  assert.match(appJs, /var\(--calendar-secular-holiday\)/);
+  assert.match(appJs, /var\(--calendar-non-working-day\)/);
   assert.match(appJs, /scheduleStorage\.loadHolidayReligiousPreferences/);
   assert.match(appJs, /scheduleStorage\.saveHolidayReligiousPreferences/);
   assert.match(syncJs, /async getPublishedHolidayCatalog/);

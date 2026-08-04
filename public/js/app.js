@@ -44,6 +44,40 @@ const calendarStatusLabels = {
   workingWeekend: "официальный рабочий выходной"
 };
 
+const HOLIDAY_DESCRIPTION_BY_TITLE = {
+  "Новогодние каникулы": "Государственный период отдыха в начале года: время семейных встреч, восстановления после новогодней ночи и плавного входа в рабочий январь.",
+  "Рождество Христово": "Христианский праздник, посвященный рождению Иисуса Христа. В разных календарных традициях дата может отличаться; статус нерабочего дня Focus показывает отдельно.",
+  "День защитника Отечества": "Государственный праздник, посвященный защитникам страны, военной службе и гражданскому вкладу в безопасность России.",
+  "Международный женский день": "Праздник, связанный с признанием прав, достижений и общественной роли женщин. В России он входит в официальный перечень праздничных дат.",
+  "Праздник Весны и Труда": "Светский праздник труда, солидарности и начала мая. В календаре Focus он помогает заранее учитывать майские выходные и переносы.",
+  "День Победы": "День памяти победы в Великой Отечественной войне. Дата связана с воинской памятью, семейной историей и государственными памятными мероприятиями.",
+  "День России": "Государственный праздник, связанный с современной российской государственностью и датой принятия Декларации о государственном суверенитете РСФСР.",
+  "День народного единства": "Государственный праздник, посвященный идее гражданского единства и исторической памяти о событиях народного ополчения 1612 года.",
+  "Крещение Господне": "В православной традиции праздник связан с евангельским событием Крещения Иисуса Христа в Иордане и темой Богоявления.",
+  "Богоявление Господне": "Христианский праздник, посвященный явлению Христа миру. В западной традиции он также связан с поклонением волхвов.",
+  "Благовещение Пресвятой Богородицы": "Христианский праздник, посвященный вести архангела Гавриила Деве Марии о будущем рождении Иисуса Христа.",
+  "Вход Господень в Иерусалим": "Христианский праздник перед Пасхой, вспоминающий торжественный вход Иисуса Христа в Иерусалим. В русской традиции он известен как Вербное воскресенье.",
+  "Вербное воскресенье": "Народное название праздника Входа Господня в Иерусалим. В православной традиции дата каждый год рассчитывается относительно Пасхи.",
+  "Пасха Христова": "Главный христианский праздник, посвященный Воскресению Иисуса Христа. Дата переходящая и рассчитывается по церковному календарю.",
+  "Пасха": "Главный христианский праздник, посвященный Воскресению Иисуса Христа. В разных традициях дата может рассчитываться по разным календарным правилам.",
+  "Вознесение Господне": "Христианский праздник, который отмечает Вознесение Иисуса Христа после Воскресения. Дата переходящая и зависит от Пасхи.",
+  "День Святой Троицы": "Православный праздник, также известный как Пятидесятница. Он отмечается на пятидесятый день после Пасхи.",
+  "Пятидесятница": "Христианский праздник, связанный с сошествием Святого Духа на апостолов. Дата переходящая и отсчитывается от Пасхи.",
+  "Преображение Господне": "Христианский праздник, посвященный евангельскому событию Преображения Иисуса Христа перед учениками на горе Фавор.",
+  "Успение Пресвятой Богородицы": "В христианской традиции праздник посвящен завершению земной жизни Пресвятой Богородицы и ее переходу к вечной жизни.",
+  "Рождество Пресвятой Богородицы": "Христианский праздник, посвященный рождению Девы Марии. В православном календаре относится к великим праздникам.",
+  "Воздвижение Креста Господня": "Христианский праздник, связанный с почитанием Креста Господня и памятью обретения Креста в церковной традиции.",
+  "Введение во храм Пресвятой Богородицы": "Христианский праздник, посвященный преданию о введении Девы Марии в Иерусалимский храм.",
+  "Торжество Пресвятой Богородицы Марии": "Католический праздник, посвященный Богородице Марии и открывающий гражданский год в литургическом календаре.",
+  "Пальмовое воскресенье": "Христианский праздник перед Пасхой, вспоминающий вход Иисуса Христа в Иерусалим. В западной традиции связан с пальмовыми ветвями.",
+  "День всех святых": "Христианский праздник памяти всех святых. В католической традиции отмечается как отдельная торжественная дата.",
+  "Ночь аль-Исра ва-ль-Мирадж": "Исламская памятная дата, связанная с ночным путешествием и вознесением пророка Мухаммада в мусульманской традиции.",
+  "Начало месяца Рамадан": "Начало священного месяца поста в исламе. Дата зависит от лунного календаря и может уточняться по наблюдению новой луны.",
+  "Ураза-байрам": "Исламский праздник завершения месяца Рамадан. Он связан с окончанием поста, молитвой, благотворительностью и семейными встречами.",
+  "Курбан-байрам": "Один из главных исламских праздников, связанный с темой жертвенности, паломничества и помощи близким и нуждающимся.",
+  "Мавлид ан-Набий": "Исламская памятная дата, посвященная рождению пророка Мухаммада. В разных общинах традиции отмечания могут отличаться."
+};
+
 const summaryItems = [
   { time: "10:00", title: "Урок математики", subtitle: "Школа №12, 8 В", color: "#D89A3D" },
   { time: "12:30", title: "Встреча с родителями", subtitle: "Онлайн", color: "#C96A87" },
@@ -1151,6 +1185,10 @@ function getHolidayEventSubtitle(event) {
 }
 
 function getHolidayEventById(eventId) {
+  const selectedEvent = getSelectedHolidayEventsForDate(selectedDayCardDate)
+    .find(event => event.id === eventId || (event.mergedEventIds || []).includes(eventId));
+  if (selectedEvent) return selectedEvent;
+
   const catalogEvents = Array.isArray(holidayCatalogState.catalog?.events) ? holidayCatalogState.catalog.events : [];
   const calendars = new Map((holidayCatalogState.catalog?.calendars || []).map(calendar => [calendar.id, calendar]));
   const event = catalogEvents.find(item => item.id === eventId);
@@ -1171,16 +1209,22 @@ function renderHolidayEventDetail(eventId) {
   if (!title || !body || !event) return false;
 
   const source = (holidayCatalogState.catalog?.sources || []).find(item => item.id === event.sourceId);
+  const detailAccentColor = getHolidayDetailAccentColor(event);
+  const description = getHolidayEventDescription(event);
   title.textContent = event.title;
   body.innerHTML = `
-    <article class="holiday-detail-card" style="--event-color:${getHolidayEventColor(event)}">
+    <article class="holiday-detail-card" style="--event-color:${escapeHtml(detailAccentColor)}">
       <div class="holiday-detail-card__head">
         <span>${escapeHtml(getHolidayEventTypeLabel(event))}</span>
         <strong>${escapeHtml(formatHolidayDateRange(event))}</strong>
       </div>
+      <section class="holiday-detail-description">
+        <h3>О празднике</h3>
+        <p>${escapeHtml(description)}</p>
+      </section>
       <ul class="holiday-detail-list">
         <li><span>Календарь</span><strong>${escapeHtml(event.calendarTitle || "Focus Holiday Catalog")}</strong></li>
-        <li><span>Статус дня</span><strong>${event.isOfficialNonWorkingDay ? "Официальный нерабочий" : event.eventType === "working_weekend" ? "Рабочий день" : "Не отмечен как нерабочий"}</strong></li>
+        <li><span>Статус дня</span><strong>${escapeHtml(getHolidayDayStatusLabel(event))}</strong></li>
         <li><span>Статус даты</span><strong>${escapeHtml(getHolidayDateStatusLabel(event.dateStatus))}</strong></li>
         ${event.sourceReference ? `<li><span>Основание</span><strong>${escapeHtml(event.sourceReference)}</strong></li>` : ""}
         ${source ? `<li><span>Источник</span><strong>${escapeHtml(source.title)} · ${escapeHtml(source.organization)}</strong></li>` : ""}
@@ -1190,6 +1234,81 @@ function renderHolidayEventDetail(eventId) {
     </article>
   `;
   return true;
+}
+
+function getHolidayDetailAccentColor(event = {}) {
+  const types = getHolidayEventTypes(event);
+  const hasSecularHoliday = ["public_holiday", "commemorative_date", "professional_holiday"]
+    .some(type => types.has(type));
+  const hasNonWorkingOverride = HOLIDAY_WORKING_DAY_OVERRIDE_TYPES
+    .some(type => types.has(type) && type !== "working_weekend");
+
+  if (types.has("working_weekend")) return "var(--calendar-working-weekend)";
+  if (types.has("religious_holiday")) return "var(--calendar-religious-holiday)";
+  if (hasNonWorkingOverride || (hasSecularHoliday && isHolidayEventNonWorking(event))) {
+    return "var(--calendar-non-working-day)";
+  }
+  if (hasSecularHoliday) return "var(--calendar-secular-holiday)";
+  return "var(--terracotta)";
+}
+
+function getHolidayEventDescription(event = {}) {
+  const explicitDescription = String(event.description || "").trim();
+  if (explicitDescription) return explicitDescription;
+
+  const knownDescription = HOLIDAY_DESCRIPTION_BY_TITLE[event.title] || HOLIDAY_DESCRIPTION_BY_TITLE[event.shortTitle];
+  if (knownDescription) return knownDescription;
+
+  const title = event.shortTitle || event.title || "Эта дата";
+  const types = getHolidayEventTypes(event);
+  if (types.has("religious_holiday")) {
+    const tradition = getHolidayReligiousTraditionLabel(event);
+    const workStatus = isHolidayEventNonWorking(event)
+      ? "Дата совпадает с выходным или официальным нерабочим днем."
+      : "Официальным нерабочим днем в производственном календаре не является.";
+    return `${title} - событие ${tradition}. Focus показывает его рядом с задачами и расписанием, чтобы религиозные даты были заметны при планировании. ${workStatus}`;
+  }
+  if (types.has("working_weekend")) {
+    return `${title} - рабочий день, перенесенный на дату, которая обычно могла бы быть выходной. Focus выделяет его отдельно, чтобы не спутать с днем отдыха.`;
+  }
+  if (HOLIDAY_WORKING_DAY_OVERRIDE_TYPES.some(type => types.has(type))) {
+    return `${title} - перенос или дополнительный день отдыха в производственном календаре. Он влияет на планирование работы, учебы и личных дел.`;
+  }
+  if (event.isOfficialNonWorkingDay === true) {
+    return `${title} - официальный нерабочий праздничный день. Focus выделяет такие даты красным календарным статусом, чтобы их было проще учитывать заранее.`;
+  }
+  if (types.has("professional_holiday")) {
+    return `${title} - профессиональный праздник. Он не делает дату официальным выходным сам по себе, но помогает учитывать отраслевые поводы и поздравления.`;
+  }
+  if (types.has("commemorative_date") || types.has("public_holiday")) {
+    return `${title} - светская календарная дата. Если она не является выходным или официальным нерабочим днем, Focus показывает ее оранжевым статусом.`;
+  }
+  return `${title} - календарное событие Focus. Подробные признаки даты и источник приведены ниже в карточке.`;
+}
+
+function getHolidayReligiousTraditionLabel(event = {}) {
+  const traditions = event.mergedReligiousTraditions || [event.religiousTradition];
+  if (traditions.includes("orthodox")) return "православного календаря";
+  if (traditions.includes("catholic")) return "католического календаря";
+  if (traditions.includes("islamic")) return "исламского календаря";
+  return "религиозного календаря";
+}
+
+function getHolidayDayStatusLabel(event = {}) {
+  if (getHolidayEventTypes(event).has("working_weekend")) return "Рабочий день";
+  if (event.isOfficialNonWorkingDay === true) return "Официальный нерабочий";
+  if (isHolidayEventOnWeekend(event)) return "Календарный выходной";
+  return "Не отмечен как нерабочий";
+}
+
+function isHolidayEventNonWorking(event = {}) {
+  return event.isOfficialNonWorkingDay === true || isHolidayEventOnWeekend(event);
+}
+
+function isHolidayEventOnWeekend(event = {}) {
+  if (!event.startLocalDate) return false;
+  const date = parseIsoDate(event.startLocalDate);
+  return Number.isFinite(date.getTime()) && (date.getDay() === 0 || date.getDay() === 6);
 }
 
 function formatHolidayDateRange(event) {

@@ -679,6 +679,31 @@
   font-weight: 900;
 }
 
+.holiday-detail-description {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-top: 1px solid rgba(47, 42, 38, .1);
+  border-bottom: 1px solid rgba(255, 255, 255, .38);
+  background: rgba(255, 252, 244, .18);
+}
+
+.holiday-detail-description h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.holiday-detail-description p {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 14px;
+  font-weight: 720;
+  line-height: 1.48;
+}
+
 .holiday-detail-list {
   display: grid;
   gap: 10px;
