@@ -15,6 +15,10 @@ import {
   QUOTE_SEED_ID_PREFIX,
   QUOTE_SEED_PER_CATEGORY,
 } from "../scripts/seed-production-quotes.mjs";
+import {
+  auditProductionQuotes,
+  inspectRawQuoteCatalog,
+} from "../scripts/audit-production-quotes.mjs";
 
 test("production quote seed covers every default category at the publication threshold", () => {
   const seed = createProductionQuoteSeed();
@@ -143,6 +147,95 @@ test("production quote seed import replaces prior seed records and preserves man
   } finally {
     rmSync(tempDir, { force: true, recursive: true });
   }
+});
+
+test("production quote audit reports category readiness without exposing quote text", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "focus-quote-audit-"));
+  const dbPath = join(tempDir, "sync.json");
+
+  try {
+    const setupDb = createSyncDatabase(dbPath);
+    setupDb.replaceQuoteCatalog({ quotes: createProductionQuoteSeed({ perCategory: 5 }) });
+    setupDb.close();
+
+    const result = auditProductionQuotes(dbPath, { checkedAt: "2026-08-04T10:00:00.000Z" });
+    assert.equal(result.before.quoteCatalog, 70);
+    assert.equal(result.audit.totalQuotes, 70);
+    assert.equal(result.audit.blockedQuotes, 0);
+    assert.equal(result.quality.checkedAt, "2026-08-04T10:00:00.000Z");
+    assert.equal(result.quality.totalQuotes, 70);
+    assert.equal(result.quality.eligibleQuotes, 70);
+    assert.equal(result.quality.canServeToday, true);
+    assert.equal(result.quality.removedByNormalization, 0);
+    assert.equal(result.quality.rawIntegrity.quoteCount, 70);
+    assert.equal(result.quality.rawIntegrity.duplicateIdCount, 0);
+    assert.equal(result.quality.rawIntegrity.duplicateTextHashCount, 0);
+    assert.equal(result.quality.rawIntegrity.incompleteQuoteCount, 0);
+    assert.equal(result.quality.categoryReadiness.activeCategories, 14);
+    assert.equal(result.quality.categoryReadiness.availableCategories, 0);
+    assert.equal(result.quality.categoryReadiness.underfilledCategories.length, 14);
+    assert.equal(result.quality.categoryReadiness.dailySetGaps.length, 0);
+    assert.deepEqual(result.quality.categoryReadiness.unknownCategoryCodes, []);
+    assert.ok(result.quality.warnings.includes("categories_below_minimum_catalog_size"));
+    assert.equal(result.quality.warnings.includes("categories_below_daily_set_size"), false);
+    result.quality.categoryReadiness.categoryCounts.forEach(category => {
+      assert.equal(category.eligibleQuotes, 5);
+      assert.equal(category.minimumCatalogSize, QUOTE_SEED_PER_CATEGORY);
+      assert.equal(category.available, false);
+      assert.equal(category.dailySetReady, true);
+    });
+  } finally {
+    rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test("production quote raw audit reports duplicates and incomplete records by safe identifiers", () => {
+  const firstDuplicateText = {
+    ...createManualQuote(),
+    id: "duplicate-id",
+    text: "Same raw quote text.",
+  };
+  const duplicateId = {
+    ...createManualQuote(),
+    id: "duplicate-id",
+    text: "Different raw quote text.",
+  };
+  const duplicateText = {
+    ...createManualQuote(),
+    id: "duplicate-text",
+    text: "Same raw quote text.",
+  };
+  const incomplete = {
+    id: "incomplete-quote",
+    text: "Incomplete raw quote.",
+    authorName: "Focus Editorial",
+  };
+
+  const integrity = inspectRawQuoteCatalog([
+    firstDuplicateText,
+    duplicateId,
+    duplicateText,
+    incomplete,
+  ]);
+
+  assert.equal(integrity.quoteCount, 4);
+  assert.equal(integrity.duplicateIdCount, 1);
+  assert.deepEqual(integrity.duplicateIds, [{ id: "duplicate-id", count: 2 }]);
+  assert.equal(integrity.duplicateTextHashCount, 1);
+  assert.equal(integrity.duplicateTextHashes[0].count, 2);
+  assert.deepEqual(integrity.duplicateTextHashes[0].sampleIds, ["duplicate-id", "duplicate-text"]);
+  assert.equal(Object.hasOwn(integrity.duplicateTextHashes[0], "text"), false);
+  assert.equal(integrity.incompleteQuoteCount, 1);
+  assert.deepEqual(integrity.incompleteQuotes, [{
+    index: 3,
+    id: "incomplete-quote",
+    fields: ["sourceTitle", "sourceReference", "categoryCodes"],
+  }]);
+  assert.deepEqual(integrity.truncated, {
+    duplicateIds: false,
+    duplicateTextHashes: false,
+    incompleteQuotes: false,
+  });
 });
 
 function isProductionEligibleLike(quote) {
