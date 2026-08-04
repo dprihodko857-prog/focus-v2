@@ -67,7 +67,7 @@ test("Personal Schedule Planner CSS supports wizard, variants, editor, and mobil
 });
 
 test("service worker caches Personal Schedule Planner modules", () => {
-  assert.match(serviceWorker, /focus-pwa-v122/);
+  assert.match(serviceWorker, /focus-pwa-v125/);
   assert.match(serviceWorker, /"\/js\/personal-schedule-planner\.js"/);
   assert.match(serviceWorker, /"\/js\/personal-schedule-ui\.js"/);
 });

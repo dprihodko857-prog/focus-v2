@@ -5830,3 +5830,113 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Past day cards now render readonly task, reminder, and schedule history with history-specific labels, empty states, pluralization, and sorting.
 - commit_status: committed
 - notes: App/test syntax passed, focused static/planner tests passed 68/68, `npm.cmd run test` passed 248/248, and `git diff --check` passed on 2026-08-04. No deployment or git push.
+
+## TASK-104
+
+- title: Polish configured professional holiday detail descriptions
+- status: DONE
+- owner_gate: owner_continue_after_task_103
+- task_type: calendar_holiday_quality
+- priority: medium
+- source: continuing local calendar holiday polish after TASK-103
+- spec_reference: `docs/specs/professional-holiday-description-polish.md`
+- spec_status: implemented_local_committed
+- goal: make configured professional holiday detail cards more informative while keeping generic fallback copy safe.
+- out_of_scope:
+  - encyclopedia-level descriptions for every professional holiday
+  - holiday catalog source date or metadata changes
+  - backend API contract changes
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - Builder's Day has richer professional holiday detail copy
+  - configured recurrence text can render with safe emphasis
+  - all dynamic text in the holiday detail description remains escaped
+  - unknown professional holidays keep the generic fallback description
+  - PWA cache is bumped to `focus-pwa-v125`
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check tests/sync-integration-assets.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small local calendar holiday task
+- file_limit: up to 8 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 104
+- stop_conditions:
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - static holiday contract tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-089 RU holiday catalog
+  - TASK-100 holiday detail descriptions and accents
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Configured professional holiday details now support escaped structured copy with an emphasized recurrence segment, starting with Builder's Day.
+- commit_status: committed
+- notes: App/test syntax passed; focused static/client tests passed 108/108; `npm.cmd run test` passed 248/248; `git diff --check` passed on 2026-08-04. No deployment or git push.
+
+## TASK-105
+
+- title: Show pending checkout creation time in paid feature actions
+- status: DONE
+- owner_gate: owner_continue_after_task_104
+- task_type: subscription_ui_quality
+- priority: medium
+- source: continuing local paid-feature UX after TASK-103 while provider secrets are unavailable
+- spec_reference: `docs/specs/pending-checkout-timestamp-ux.md`
+- spec_status: implemented_local_committed
+- goal: make stored pending YooKassa checkout actions clearer by showing when the payment link was created.
+- out_of_scope:
+  - live YooKassa API work
+  - payment expiration policy
+  - payment cancellation
+  - backend API contract changes
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - Settings paid-feature card shows the created time for a stored pending checkout when `createdAt` is available
+  - Useful subscription panel shows the same created time for a stored pending checkout
+  - missing `createdAt` does not render an empty note
+  - PWA cache is bumped to `focus-pwa-v125`
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/sync-integration-assets.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/personal-schedule-assets.test.mjs tests/focus-sync-client.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small local subscription UX task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 105
+- stop_conditions:
+  - implementation requires live YooKassa credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/app.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - static paid-feature contract tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-047 subscription checkout foundation
+  - TASK-079 pending checkout continue link
+  - TASK-081 pending checkout reset
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Pending YooKassa checkout actions in Settings and Useful now show the stored checkout creation timestamp when available.
+- commit_status: committed
+- notes: App/service-worker/test syntax passed; focused static/client tests passed 108/108; `npm.cmd run test` passed 248/248; `git diff --check` passed on 2026-08-04. No deployment or git push.

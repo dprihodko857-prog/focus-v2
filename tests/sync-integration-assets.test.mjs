@@ -23,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v122/);
+  assert.match(serviceWorker, /focus-pwa-v125/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -71,6 +71,12 @@ test("app shell exposes holiday catalog settings and readonly event details", ()
   assert.match(appJs, /data-open-holiday-event/);
   assert.match(appJs, /function getHolidayDetailAccentColor/);
   assert.match(appJs, /function getHolidayEventDescription/);
+  assert.match(appJs, /function getHolidayEventDescriptionHtml/);
+  assert.match(appJs, /PROFESSIONAL_HOLIDAY_DESCRIPTION_BY_TITLE/);
+  assert.match(appJs, /"День строителя"/);
+  assert.match(appJs, /отмечается ежегодно во второе воскресенье августа/);
+  assert.match(appJs, /Праздник также традиционно празднуется/);
+  assert.match(appJs, /<strong>\$\{escapeHtml\(part\.text\)\}<\/strong>/);
   assert.match(appJs, /holiday-detail-description/);
   assert.match(appJs, /var\(--calendar-religious-holiday\)/);
   assert.match(appJs, /var\(--calendar-secular-holiday\)/);
@@ -178,6 +184,13 @@ test("settings and useful hub expose paid feature access status", () => {
   assert.match(appJs, /function getSafeCheckoutUrl/);
   assert.match(appJs, /function renderPaidFeatureCheckoutContinuation/);
   assert.match(appJs, /function renderPaidFeatureCheckoutReset/);
+  assert.match(appJs, /function renderPaidFeaturePendingCheckoutMeta/);
+  assert.match(appJs, /Платёж создан:/);
+  assert.match(appCss, /\.paid-feature-checkout-note\s*{/);
+  assert.match(appCss, /\.paid-feature-checkout-note--compact\s*{/);
+  assert.match(appCss, /\.useful-subscription-panel__actions \.paid-feature-checkout-note\s*{/);
+  assert.match(appJs, /renderPaidFeaturePendingCheckoutMeta\(feature\.key, true\)/);
+  assert.match(appJs, /renderPaidFeaturePendingCheckoutMeta\(feature\.key\)/);
   assert.match(appJs, /data-paid-feature-reset="\$\{escapeHtml\(featureKey\)\}"/);
   assert.match(appJs, /function resetPendingSubscriptionCheckout/);
   assert.match(appJs, /scheduleSync\.clearPendingSubscriptionCheckout\?\.\(\)/);
@@ -546,10 +559,13 @@ test("diary section is protected by a four digit PIN gate", () => {
   assert.match(indexHtml, /id="diaryUnlockModal"/);
   assert.match(indexHtml, /id="diaryUnlockPin"/);
   assert.match(indexHtml, /id="diaryUnlockButton"/);
+  assert.match(indexHtml, /id="diaryUnlockChangePinButton"/);
   assert.match(indexHtml, /id="diaryPinModal"/);
   assert.match(indexHtml, /id="diaryPinNew"/);
   assert.match(indexHtml, /id="diaryPinConfirm"/);
   assert.match(indexHtml, /id="diaryPinSetupButton"/);
+  assert.match(indexHtml, /Создать PIN/);
+  assert.match(indexHtml, /Изменить PIN/);
   assert.match(indexHtml, /id="diaryLockButton"/);
   assert.match(appJs, /isValidDiaryPin/);
   assert.match(appJs, /hashDiaryPin/);
@@ -560,4 +576,7 @@ test("diary section is protected by a four digit PIN gate", () => {
   assert.match(appJs, /const legacyDiaryPinSettings = getDiaryPinFromLocalStorage\(\)/);
   assert.match(appJs, /await scheduleStorage\.saveDiaryPinSettings\(legacyDiaryPinSettings\)/);
   assert.match(appJs, /await scheduleStorage\.saveDiaryPinSettings\(normalizedSettings\);\s+clearDiaryPinFromLocalStorage\(\);/);
+  assert.match(appJs, /setupButton\.textContent = hasDiaryPin\(\) \? "Изменить PIN" : "Создать PIN";/);
+  assert.match(appJs, /diaryUnlockChangePinButton/);
+  assert.match(appJs, /loadDiaryPinSettings\(\)\s+\.then\(\(\) => \{\s+renderDiaryPinSummary\(\);/);
 });

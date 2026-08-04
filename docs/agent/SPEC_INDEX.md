@@ -109,4 +109,6 @@ Status: DRAFT
 | PERSONAL-SCHEDULE-OVERLAP-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/personal-schedule-overlap-guard.md` | TASK-101 blocks generated Personal Schedule Planner overlaps and moves deterministic focus blocks away from fixed work windows. |
 | PERSONAL-SCHEDULE-IMPORT-VALIDATION-GUARD-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/personal-schedule-import-validation-guard.md` | TASK-102 blocks Personal Schedule Planner import confirmation when selected variants conflict with existing fixed Focus intervals. |
 | PAST-DAY-CALENDAR-HISTORY-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/past-day-calendar-history.md` | TASK-103 shows readonly Focus history on past calendar day cards instead of future-planning event controls. |
+| PROFESSIONAL-HOLIDAY-DESCRIPTION-POLISH-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/professional-holiday-description-polish.md` | TASK-104 enriches configured professional holiday detail descriptions, starting with Builder's Day. |
+| PENDING-CHECKOUT-TIMESTAMP-UX-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/pending-checkout-timestamp-ux.md` | TASK-105 shows the stored YooKassa checkout creation time in paid-feature actions. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |

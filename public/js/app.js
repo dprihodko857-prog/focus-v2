@@ -78,6 +78,14 @@ const HOLIDAY_DESCRIPTION_BY_TITLE = {
   "Мавлид ан-Набий": "Исламская памятная дата, посвященная рождению пророка Мухаммада. В разных общинах традиции отмечания могут отличаться."
 };
 
+const PROFESSIONAL_HOLIDAY_DESCRIPTION_BY_TITLE = {
+  "День строителя": {
+    audience: "работников строительной отрасли",
+    recurrence: "отмечается ежегодно во второе воскресенье августа",
+    internationalNote: "Праздник также традиционно празднуется в некоторых странах бывшего СССР, таких как Беларусь, Казахстан и другие.",
+  },
+};
+
 const summaryItems = [
   { time: "10:00", title: "Урок математики", subtitle: "Школа №12, 8 В", color: "#D89A3D" },
   { time: "12:30", title: "Встреча с родителями", subtitle: "Онлайн", color: "#C96A87" },
@@ -1210,7 +1218,7 @@ function renderHolidayEventDetail(eventId) {
 
   const source = (holidayCatalogState.catalog?.sources || []).find(item => item.id === event.sourceId);
   const detailAccentColor = getHolidayDetailAccentColor(event);
-  const description = getHolidayEventDescription(event);
+  const descriptionHtml = getHolidayEventDescriptionHtml(event);
   title.textContent = event.title;
   body.innerHTML = `
     <article class="holiday-detail-card" style="--event-color:${escapeHtml(detailAccentColor)}">
@@ -1220,7 +1228,7 @@ function renderHolidayEventDetail(eventId) {
       </div>
       <section class="holiday-detail-description">
         <h3>О празднике</h3>
-        <p>${escapeHtml(description)}</p>
+        <p>${descriptionHtml}</p>
       </section>
       <ul class="holiday-detail-list">
         <li><span>Календарь</span><strong>${escapeHtml(event.calendarTitle || "Focus Holiday Catalog")}</strong></li>
@@ -1252,6 +1260,16 @@ function getHolidayDetailAccentColor(event = {}) {
   return "var(--terracotta)";
 }
 
+function getHolidayEventDescriptionHtml(event = {}) {
+  const professionalParts = getProfessionalHolidayDescriptionParts(event);
+  if (professionalParts) {
+    return professionalParts
+      .map(part => part.strong ? `<strong>${escapeHtml(part.text)}</strong>` : escapeHtml(part.text))
+      .join("");
+  }
+  return escapeHtml(getHolidayEventDescription(event));
+}
+
 function getHolidayEventDescription(event = {}) {
   const explicitDescription = String(event.description || "").trim();
   if (explicitDescription) return explicitDescription;
@@ -1261,6 +1279,9 @@ function getHolidayEventDescription(event = {}) {
 
   const title = event.shortTitle || event.title || "Эта дата";
   const types = getHolidayEventTypes(event);
+  const professionalDescription = getProfessionalHolidayDescription(event);
+  if (professionalDescription) return professionalDescription;
+
   if (types.has("religious_holiday")) {
     const tradition = getHolidayReligiousTraditionLabel(event);
     const workStatus = isHolidayEventNonWorking(event)
@@ -1284,6 +1305,49 @@ function getHolidayEventDescription(event = {}) {
     return `${title} - светская календарная дата. Если она не является выходным или официальным нерабочим днем, Focus показывает ее оранжевым статусом.`;
   }
   return `${title} - календарное событие Focus. Подробные признаки даты и источник приведены ниже в карточке.`;
+}
+
+function getProfessionalHolidayDescription(event = {}) {
+  const parts = getProfessionalHolidayDescriptionParts(event);
+  return parts ? parts.map(part => part.text).join("") : "";
+}
+
+function getProfessionalHolidayDescriptionParts(event = {}) {
+  if (!getHolidayEventTypes(event).has("professional_holiday")) return null;
+
+  const config = PROFESSIONAL_HOLIDAY_DESCRIPTION_BY_TITLE[event.title]
+    || PROFESSIONAL_HOLIDAY_DESCRIPTION_BY_TITLE[event.shortTitle];
+  if (!config) return null;
+
+  const title = event.shortTitle || event.title || "Профессиональный праздник";
+  const dateText = formatHolidayDescriptionDate(event);
+  const yearText = getHolidayDescriptionYear(event);
+  const dateSentence = dateText && yearText
+    ? ` В ${yearText} году этот день приходится на ${dateText}.`
+    : "";
+  const internationalNote = config.internationalNote ? ` ${config.internationalNote}` : "";
+
+  return [
+    { text: `${title} — это профессиональный праздник ${config.audience}, который ` },
+    { text: config.recurrence, strong: true },
+    { text: `.${dateSentence}${internationalNote}` },
+  ];
+}
+
+function formatHolidayDescriptionDate(event = {}) {
+  if (!event.startLocalDate) return "";
+  const date = parseIsoDate(event.startLocalDate);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+  }).format(date);
+}
+
+function getHolidayDescriptionYear(event = {}) {
+  if (!event.startLocalDate) return "";
+  const date = parseIsoDate(event.startLocalDate);
+  return Number.isFinite(date.getTime()) ? String(date.getFullYear()) : "";
 }
 
 function getHolidayReligiousTraditionLabel(event = {}) {
@@ -3082,7 +3146,7 @@ function renderDiaryPinSummary() {
   }
 
   if (setupButton) {
-    setupButton.textContent = hasDiaryPin() ? "Сменить PIN" : "Установить PIN";
+    setupButton.textContent = hasDiaryPin() ? "Изменить PIN" : "Создать PIN";
   }
 }
 
@@ -3096,7 +3160,7 @@ function prepareDiaryPinForm(mode = "setup") {
   const confirm = document.querySelector("#diaryPinConfirm");
 
   if (title) {
-    title.textContent = mode === "change" ? "Сменить PIN дневника" : "Установить PIN дневника";
+    title.textContent = mode === "change" ? "Изменить PIN дневника" : "Создать PIN дневника";
   }
 
   if (currentGroup) {
@@ -3110,7 +3174,7 @@ function prepareDiaryPinForm(mode = "setup") {
   });
 
   if (saveButton) {
-    saveButton.textContent = mode === "change" ? "Сменить PIN" : "Установить PIN";
+    saveButton.textContent = mode === "change" ? "Изменить PIN" : "Создать PIN";
   }
 
   setDiaryPinStatus(mode === "change"
@@ -3166,7 +3230,7 @@ async function saveDiaryPin(onSaved) {
   });
 
   diaryUnlocked = true;
-  setDiaryPinStatus("PIN установлен.");
+  setDiaryPinStatus(diaryPinMode === "change" ? "PIN изменён." : "PIN создан.");
   onSaved?.();
 }
 
@@ -5459,6 +5523,14 @@ function renderPaidFeatureCheckoutReset(featureKey, compact = false) {
   return `<button class="secondary-button${compactClass}" type="button" data-paid-feature-reset="${escapeHtml(featureKey)}">Начать заново</button>`;
 }
 
+function renderPaidFeaturePendingCheckoutMeta(featureKey, compact = false) {
+  const pendingCheckout = getPaidFeaturePendingCheckout(featureKey);
+  if (!pendingCheckout?.createdAt) return "";
+
+  const compactClass = compact ? " paid-feature-checkout-note--compact" : "";
+  return `<small class="paid-feature-checkout-note${compactClass}">Платёж создан: ${escapeHtml(formatSyncTimestamp(pendingCheckout.createdAt))}</small>`;
+}
+
 function getPaidFeatureEntitlement(featureKey) {
   return mergeAccountEntitlements(accountEntitlementsState.entitlements)[featureKey] ||
     createDefaultAccountEntitlements()[featureKey];
@@ -6204,6 +6276,7 @@ function renderPaidFeaturesPanel() {
           <a class="secondary-link secondary-link--compact" href="${escapeHtml(feature.subscriptionUrl)}">Условия и цена</a>
           ${renderPaidFeatureCheckoutContinuation(feature.key, true)}
           ${renderPaidFeatureCheckoutReset(feature.key, true)}
+          ${renderPaidFeaturePendingCheckoutMeta(feature.key, true)}
           <button class="secondary-button secondary-button--compact" type="button" data-paid-feature-action="${escapeHtml(feature.key)}"${status.disabled ? " disabled" : ""}>${escapeHtml(status.actionLabel)}</button>
         </div>
       </article>
@@ -6237,6 +6310,7 @@ function renderUsefulSubscriptionPanel() {
       <a class="secondary-link" href="${escapeHtml(feature.subscriptionUrl)}">Условия и цена</a>
       ${renderPaidFeatureCheckoutContinuation(feature.key)}
       ${renderPaidFeatureCheckoutReset(feature.key)}
+      ${renderPaidFeaturePendingCheckoutMeta(feature.key)}
       <button class="secondary-button" type="button" data-paid-feature-action="${escapeHtml(feature.key)}"${status.disabled ? " disabled" : ""}>${escapeHtml(status.actionLabel)}</button>
     </div>
   `;
@@ -8605,6 +8679,13 @@ function bindControls(initialLaunchTarget = "") {
       renderAuthState();
       renderSyncAccountProfile();
       renderPaidFeatureSurfaces();
+      loadDiaryPinSettings()
+        .then(() => {
+          renderDiaryPinSummary();
+        })
+        .catch(() => {
+          renderDiaryPinSummary();
+        });
       renderInstallDiagnostics();
       renderDeviceCheck();
       refreshAccountEntitlements({ silent: true }).catch(() => {
@@ -9296,6 +9377,15 @@ function bindControls(initialLaunchTarget = "") {
 
   document.querySelector("#diaryPinSetupButton")?.addEventListener("click", () => {
     diaryPendingModal = "";
+    loadDiaryPinSettings()
+      .catch(() => null)
+      .finally(() => {
+        diaryPinMode = hasDiaryPin() ? "change" : "setup";
+        openModal("diaryPin");
+      });
+  });
+
+  document.querySelector("#diaryUnlockChangePinButton")?.addEventListener("click", () => {
     loadDiaryPinSettings()
       .catch(() => null)
       .finally(() => {
