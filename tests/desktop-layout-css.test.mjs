@@ -57,7 +57,7 @@ test("desktop dashboard uses the full width with a logo-triggered app menu", () 
 });
 
 test("service worker cache is bumped after desktop layout CSS changes", () => {
-  assert.match(serviceWorker, /focus-pwa-v115/);
+  assert.match(serviceWorker, /focus-pwa-v116/);
 });
 
 test("main calendar exposes independent semantic date statuses", () => {
@@ -67,6 +67,7 @@ test("main calendar exposes independent semantic date statuses", () => {
   assert.match(tokenCss, /--calendar-religious-holiday:\s*#5f9073;/);
   assert.match(tokenCss, /--calendar-working-weekend:\s*#4c433a;/);
   assert.match(appJs, /function getCalendarDateStatus/);
+  assert.match(appJs, /function getCalendarStatusBackground/);
   assert.match(appJs, /function getHolidayEventTypes/);
   assert.match(appJs, /getHolidayEventTypes\(event\)\.has\("working_weekend"\)/);
   assert.match(appJs, /event\.isOfficialNonWorkingDay === true/);
@@ -76,15 +77,14 @@ test("main calendar exposes independent semantic date statuses", () => {
   assert.match(appJs, /day-cell--non-working/);
   assert.match(appJs, /day-cell--secular-holiday/);
   assert.match(appJs, /day-cell--religious-holiday/);
-  assert.match(appJs, /calendar-status-dot--secular/);
-  assert.match(appJs, /calendar-status-dot--religious/);
-  assert.match(appJs, /calendar-status-dot--working/);
+  assert.match(appJs, /--calendar-status-bg:\$\{escapeHtml\(statusBackground\)\}/);
+  assert.match(appJs, /linear-gradient\(135deg, \$\{stops\.join\(", "\)\}\)/);
+  assert.doesNotMatch(appJs, /calendar-status-markers|calendar-status-dot--secular|calendar-status-dot--religious|calendar-status-dot--working/);
   assert.doesNotMatch(appJs, /getHolidayEventsForDate\(date\)\.forEach\(event => \{\s*markers\.push\(event\.color\);/);
-  assert.match(appCss, /\.day-cell--non-working\s*{[\s\S]*?var\(--calendar-non-working-day\)/);
-  assert.match(appCss, /\.day-cell--current \.day-cell__num\s*{[\s\S]*?var\(--calendar-today\)/);
-  assert.match(appCss, /\.calendar-status-dot--secular\s*{[\s\S]*?var\(--calendar-secular-holiday\)/);
-  assert.match(appCss, /\.calendar-status-dot--religious\s*{[\s\S]*?var\(--calendar-religious-holiday\)/);
-  assert.match(appCss, /\.calendar-status-dot--working\s*{[\s\S]*?var\(--calendar-working-weekend\)/);
+  assert.match(appCss, /\.day-cell\s*{[\s\S]*?--calendar-cell-base-bg:[\s\S]*?background:\s*var\(--calendar-status-bg, transparent\), var\(--calendar-cell-base-bg\);/);
+  assert.match(appCss, /\.day-cell:hover\s*{[\s\S]*?background:\s*var\(--calendar-status-bg, transparent\), var\(--calendar-cell-hover-bg\);/);
+  assert.match(appCss, /\.day-cell__num\s*{[\s\S]*?display:\s*block;/);
+  assert.doesNotMatch(appCss, /\.day-cell--current \.day-cell__num|\.calendar-status-markers|\.calendar-status-dot/);
 });
 
 test("warm glass summary keeps text contrast above the seasonal background", () => {

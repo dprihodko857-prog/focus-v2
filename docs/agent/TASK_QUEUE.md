@@ -5292,3 +5292,63 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Duplicate system events now merge semantic metadata instead of dropping secondary system holiday status.
 - commit_status: committed
 - notes: `node --check public/js/app.js` passed, `node --check public/js/holiday-catalog.js` passed, `node --check public/service-worker.js` passed, focused calendar/static tests passed 61/61, `npm.cmd run test` passed 225/225, and `git diff --check` passed on 2026-08-04. No deployment or push.
+
+## TASK-095
+
+- title: Render calendar statuses as background bands
+- status: DONE
+- owner_gate: owner_continue_after_task_094_deploy
+- task_type: calendar_visual_refinement
+- priority: medium
+- source: owner asked to continue after production deploy on 2026-08-04; local working tree already contained the status background slice
+- spec_reference: `docs/specs/calendar-status-backgrounds.md`
+- spec_status: implemented_local_committed
+- goal: reduce calendar cell clutter by rendering semantic date statuses as layered backgrounds instead of separate status dots.
+- out_of_scope:
+  - changing holiday source data
+  - changing server APIs or holiday preferences
+  - changing event modal editing behavior
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - today, non-working, secular holiday, religious holiday, and working weekend statuses can all contribute to the cell background
+  - multiple statuses render as layered background bands
+  - user event markers remain separate from semantic status rendering
+  - accessible date labels still include semantic status text
+  - normal and hover base backgrounds remain available under status overlays
+  - service worker cache is bumped for the CSS/JS change
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small calendar visual refinement task
+- file_limit: up to 12 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 94
+- stop_conditions:
+  - implementation requires holiday source data changes
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/css/app.css`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/desktop-layout-css.test.mjs`
+  - `tests/install-quality-css.test.mjs`
+  - `tests/legal-pages.test.mjs`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-092 semantic calendar statuses
+  - TASK-094 merged holiday status metadata
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Semantic calendar statuses now use layered cell backgrounds while ordinary user markers stay as event dots.
+- commit_status: committed
+- notes: `node --check public/js/app.js` passed, `node --check public/service-worker.js` passed, focused static/PWA tests passed 53/53, `npm.cmd run test` passed 225/225, browser sanity confirmed 42 cells, 13 status backgrounds, and 0 status-dot elements, and `git diff --check` passed on 2026-08-04. No deployment or push.

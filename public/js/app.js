@@ -1440,17 +1440,14 @@ function renderCalendar() {
       isCurrent ? "day-cell--current day-cell--today" : ""
     ].filter(Boolean).join(" ");
     const ariaLabel = getCalendarDateAriaLabel(cellDate, status);
+    const statusBackground = getCalendarStatusBackground(status);
+    const styleAttribute = statusBackground ? ` style="--calendar-status-bg:${escapeHtml(statusBackground)}"` : "";
 
     const isoDate = toIsoDate(cellDate);
 
     return `
-      <button class="${classes}" type="button" aria-label="${escapeHtml(ariaLabel)}" data-calendar-date="${isoDate}">
+      <button class="${classes}" type="button" aria-label="${escapeHtml(ariaLabel)}" data-calendar-date="${isoDate}"${styleAttribute}>
         <span class="day-cell__num">${cell.n}</span>
-        <span class="calendar-status-markers" aria-hidden="true">
-          ${status.hasSecularHoliday ? `<span class="calendar-status-dot calendar-status-dot--secular"></span>` : ""}
-          ${status.hasReligiousHoliday ? `<span class="calendar-status-dot calendar-status-dot--religious"></span>` : ""}
-          ${status.isWorkingWeekend ? `<span class="calendar-status-dot calendar-status-dot--working"></span>` : ""}
-        </span>
         <span class="markers">
           ${markers.map(color => `<span class="dot" style="background:${color}"></span>`).join("")}
         </span>
@@ -1550,6 +1547,22 @@ function getCalendarDateStatus(date, { holidayEvents = [], isToday = false } = {
     hasSecularHoliday,
     hasReligiousHoliday,
   };
+}
+
+function getCalendarStatusBackground(status) {
+  const layers = [];
+  if (status.isToday) layers.push("color-mix(in srgb, var(--calendar-today), transparent 64%)");
+  if (status.isNonWorking) layers.push("color-mix(in srgb, var(--calendar-non-working-day), transparent 72%)");
+  if (status.hasSecularHoliday) layers.push("color-mix(in srgb, var(--calendar-secular-holiday), transparent 74%)");
+  if (status.hasReligiousHoliday) layers.push("color-mix(in srgb, var(--calendar-religious-holiday), transparent 74%)");
+  if (status.isWorkingWeekend) layers.push("color-mix(in srgb, var(--calendar-working-weekend), transparent 84%)");
+  if (!layers.length) return "";
+  if (layers.length === 1) {
+    return `linear-gradient(145deg, ${layers[0]}, ${layers[0]})`;
+  }
+  const step = 100 / layers.length;
+  const stops = layers.map((color, index) => `${color} ${Math.round(index * step)}% ${Math.round((index + 1) * step)}%`);
+  return `linear-gradient(135deg, ${stops.join(", ")})`;
 }
 
 function getHolidayEventTypes(event = {}) {
