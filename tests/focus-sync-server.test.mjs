@@ -258,6 +258,15 @@ test("quote profanity validation rejects safe marker variants without exposing m
   });
 });
 
+test("quote profanity validation treats ordinary separators as word boundaries, not masks", () => {
+  const ordinary = validateQuoteProfanity("В теме заботы о себе организм встречается с регулярностью, и появляется ровная энергия.");
+  assert.equal(ordinary.status, "passed");
+
+  const masked = validateQuoteProfanity(createSafeProfanityMarkerVariants().masked, { rules: SAFE_PROFANITY_RULES });
+  assert.equal(masked.status, "failed");
+  assert.equal(masked.code, "profanity_detected");
+});
+
 test("quote profanity fixtures use only generated safe markers", () => {
   const source = readFileSync("tests/focus-sync-server.test.mjs", "utf8");
   assert.ok(!source.includes(SAFE_PROFANITY_TEST_MARKER));

@@ -271,6 +271,7 @@ class JsonSyncDatabase {
     this.memoryOnly = dbPath === ":memory:";
     this.profanityRules = normalizeQuoteProfanityRules(profanityRules);
     this.state = this.memoryOnly ? createEmptyState() : readState(dbPath, { profanityRules: this.profanityRules });
+    this.quoteCatalogNormalized = true;
   }
 
   createAccount({ accountId, displayName, createdAt }) {
@@ -557,6 +558,7 @@ class JsonSyncDatabase {
   replaceQuoteCatalog({ quotes, categories } = {}) {
     this.state.quoteCategories = normalizeQuoteCategories(categories || this.state.quoteCategories);
     this.state.quoteCatalog = normalizeQuoteCatalog(quotes, { profanityRules: this.profanityRules });
+    this.quoteCatalogNormalized = true;
     this.persist();
     return {
       categories: this.getQuoteCategories(),
@@ -565,14 +567,17 @@ class JsonSyncDatabase {
   }
 
   getQuoteCatalog() {
-    return normalizeQuoteCatalog(this.state.quoteCatalog, { profanityRules: this.profanityRules });
+    return cloneQuoteCatalog(this.state.quoteCatalog);
   }
 
   auditQuoteCatalogForProduction({ checkedAt = new Date().toISOString() } = {}) {
-    const before = JSON.stringify(this.state.quoteCatalog || []);
-    this.state.quoteCatalog = normalizeQuoteCatalog(this.state.quoteCatalog, { profanityRules: this.profanityRules });
+    const before = this.quoteCatalogNormalized ? "" : JSON.stringify(this.state.quoteCatalog || []);
+    if (!this.quoteCatalogNormalized) {
+      this.state.quoteCatalog = normalizeQuoteCatalog(this.state.quoteCatalog, { profanityRules: this.profanityRules });
+      this.quoteCatalogNormalized = true;
+    }
     const report = createQuoteCatalogAuditReport(this.state.quoteCatalog, { checkedAt });
-    if (JSON.stringify(this.state.quoteCatalog || []) !== before) {
+    if (before && JSON.stringify(this.state.quoteCatalog || []) !== before) {
       this.persist();
     }
     return report;
@@ -1339,6 +1344,27 @@ function normalizeQuoteRecord(quote, { profanityRules = DEFAULT_QUOTE_PROFANITY_
   };
 }
 
+function cloneQuoteCatalog(quotes = []) {
+  if (!Array.isArray(quotes)) {
+    return [];
+  }
+
+  return quotes
+    .filter(isPlainObject)
+    .map(quote => ({
+      ...quote,
+      categoryCodes: Array.isArray(quote.categoryCodes) ? [...quote.categoryCodes] : [],
+      profanityValidation: isPlainObject(quote.profanityValidation)
+        ? {
+            ...quote.profanityValidation,
+            matchedRuleIds: Array.isArray(quote.profanityValidation.matchedRuleIds)
+              ? [...quote.profanityValidation.matchedRuleIds]
+              : [],
+          }
+        : quote.profanityValidation,
+    }));
+}
+
 function normalizeUserQuotePreferences(preferences, { accountId, timezone, checkedAt } = {}) {
   const source = isPlainObject(preferences) ? preferences : {};
   const selectedCategoryCodes = normalizeQuoteCategoryCodes(source.selectedCategoryCodes);
@@ -1616,11 +1642,17 @@ function createMaskedProfanityText(value) {
   for (const char of normalizeProfanityBaseText(value)) {
     if (/[\p{L}\p{N}]/u.test(char)) {
       result += char;
-    } else {
+    } else if (isProfanityMaskCharacter(char)) {
       result += "*";
+    } else {
+      result += "|";
     }
   }
-  return result.replace(/\*+/g, "*");
+  return result.replace(/\*+/g, "*").replace(/\|+/g, "|");
+}
+
+function isProfanityMaskCharacter(char) {
+  return /[*#_?•·]/u.test(char);
 }
 
 function replaceProfanityLeetCharacters(value) {
@@ -1758,6 +1790,10 @@ function matchesMaskedProfanityFrom(tokens, termChars, start, tokenIndex, termIn
   memo.add(memoKey);
 
   const token = tokens[tokenIndex];
+  if (token === "|") {
+    return matchesMaskedProfanityFrom(tokens, termChars, start, tokenIndex + 1, termIndex, visibleCount, visibleThreshold, maxSpan, memo);
+  }
+
   if (token === "*") {
     if (matchesMaskedProfanityFrom(tokens, termChars, start, tokenIndex + 1, termIndex, visibleCount, visibleThreshold, maxSpan, memo)) {
       return true;
