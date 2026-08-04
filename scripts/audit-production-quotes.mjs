@@ -282,6 +282,11 @@ function runCli() {
   printJson(auditProductionQuotes(dbPath, { readOnly }));
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+function isCliInvocation() {
+  return process.argv[1] === "-"
+    || (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href);
+}
+
+if (isCliInvocation()) {
   runCli();
 }
