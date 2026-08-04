@@ -149,6 +149,11 @@ test("import batch writes existing Focus entities and rollback removes only impo
   assert.equal(batchResult.ok, true);
   assert.equal(batchResult.batch.entities.schedules.length, 1);
   assert.ok(batchResult.batch.entities.tasks.length > 0);
+  assert.match(batchResult.batch.entities.schedules[0].note, /Идеальное расписание/);
+  assert.doesNotMatch(batchResult.batch.entities.schedules[0].note, /Personal Schedule Planner/);
+  assert.equal(batchResult.batch.entities.schedules[0].details["Источник"], "Идеальное расписание");
+  assert.equal(batchResult.batch.entities.tasks[0].source, "personal_schedule_planner");
+  assert.equal(batchResult.batch.entities.reminders[0].source, "personal_schedule_planner");
 
   const applied = applyPersonalScheduleImportBatch({
     batch: batchResult.batch,

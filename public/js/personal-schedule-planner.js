@@ -837,10 +837,10 @@ function createScheduleEntity({ draft, variant, now, createId }) {
     isActive: true,
     reminder: "Без напоминаний",
     meta: `${variant.title} · ${variant.blocks.length} бл.`,
-    note: `Создано Personal Schedule Planner. ${variant.recommendationReason || ""}`.trim(),
+    note: `Создано через «Идеальное расписание». ${variant.recommendationReason || ""}`.trim(),
     dayTimes,
     details: {
-      "Источник": "Personal Schedule Planner",
+      "Источник": "Идеальное расписание",
       "Версия": draft.promptVersion || PERSONAL_SCHEDULE_PROMPT_VERSION,
       "Создано": createdAt,
     },

@@ -5551,3 +5551,57 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. The Personal Schedule Planner shell is localized and polished; review privacy language remains explicit; weekday picker labels are conventional Russian abbreviations; browser QA captured current desktop/mobile evidence.
 - commit_status: committed
 - notes: Syntax checks passed, focused planner/static checks passed, `npm.cmd run test` passed 244/244, Browser QA captured `output/playwright/personal-schedule-v119-desktop.png` and `output/playwright/personal-schedule-v119-mobile.png`, and mobile overflow was false at 390px. No deployment or git push.
+
+## TASK-099
+
+- title: Localize Personal Schedule import artifacts
+- status: DONE
+- owner_gate: owner_continue_after_task_098
+- task_type: schedule_planner_import_polish
+- priority: medium
+- source: owner asked to continue after TASK-098; imported schedule artifacts still contained the English feature name
+- spec_reference: `docs/specs/personal-schedule-import-artifacts-localization.md`
+- spec_status: implemented_local_committed
+- goal: make Personal Schedule Planner imports Russian-first in user-visible Focus schedule notes/details while preserving internal source ids for rollback and filtering.
+- out_of_scope:
+  - live AI provider credentials or provider routing
+  - sync/backend API changes
+  - service worker cache bump
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - imported schedule note mentions "Идеальное расписание"
+  - imported schedule note no longer contains `Personal Schedule Planner`
+  - imported schedule `details["Источник"]` is "Идеальное расписание"
+  - imported task and reminder `source` fields remain `personal_schedule_planner`
+  - import and rollback behavior stays unchanged
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/personal-schedule-planner.js`
+  - `node --check tests/personal-schedule-planner.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/personal-schedule-sync.test.mjs tests/focus-storage.test.mjs tests/focus-sync-client.test.mjs tests/focus-sync-server.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small import polish task
+- file_limit: up to 6 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 99
+- stop_conditions:
+  - implementation requires live AI provider credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/personal-schedule-planner.js`
+  - `tests/personal-schedule-planner.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-097 Personal Schedule Planner scaffold
+  - TASK-098 Personal Schedule Planner UI polish
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Personal Schedule imports now use "Идеальное расписание" in schedule notes/details while stable internal source ids remain unchanged.
+- commit_status: committed
+- notes: Planner syntax checks passed, planner unit tests passed 6/6, focused planner/static/storage/client/server tests passed 217/217, `npm.cmd run test` passed 244/244, and `git diff --check` passed on 2026-08-04. No deployment or git push.
