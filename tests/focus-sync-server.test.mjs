@@ -5,7 +5,17 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { test } from "node:test";
 
-import { createFocusSyncServer, createSyncDatabase, dispatchDueReminders, runBackgroundReminderDispatch } from "../server/sync-server.mjs";
+import {
+  createFocusSyncServer,
+  createQuoteProfanityRulesFromTerms,
+  createSyncDatabase,
+  dispatchDueReminders,
+  runBackgroundReminderDispatch,
+  validateQuoteProfanity,
+} from "../server/sync-server.mjs";
+
+const SAFE_PROFANITY_TEST_MARKER = String.fromCodePoint(0x0442, 0x0435, 0x0441, 0x0442, 0x043c, 0x0430, 0x0440, 0x043a, 0x0435, 0x0440);
+const SAFE_PROFANITY_RULES = createQuoteProfanityRulesFromTerms([SAFE_PROFANITY_TEST_MARKER], { idPrefix: "safe-marker" });
 
 test("sync API creates an account and shares schedules across devices", async () => {
   const db = createSyncDatabase(":memory:");
@@ -105,6 +115,353 @@ test("sync API rejects unknown account keys without creating accounts", async ()
     assert.equal((await response.json()).error, "account_not_found");
     assert.equal(db.getAccount("missing-account"), null);
     assert.equal(db.getScheduleSnapshot("missing-account"), null);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("quotes API creates one stable five quote set for the local day", async () => {
+  const db = createSyncDatabase(":memory:");
+  db.replaceQuoteCatalog({ quotes: createTestQuoteCatalog() });
+  const accountId = "account-quotes-today";
+  createTestAccount(db, accountId);
+  let nextId = 0;
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-03T21:05:00.000Z",
+    createId: () => `quote-set-${nextId += 1}`,
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const firstResponse = await fetch(`${baseUrl}/api/quotes/today?timezone=Europe%2FMoscow`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(firstResponse.status, 200);
+    const first = await firstResponse.json();
+    assert.equal(first.localDate, "2026-08-04");
+    assert.equal(first.timezone, "Europe/Moscow");
+    assert.equal(first.validFromUtc, "2026-08-03T21:00:00.000Z");
+    assert.equal(first.quotes.length, 5);
+    assert.deepEqual(first.quotes.map(quote => quote.position), [1, 2, 3, 4, 5]);
+    assert.equal(new Set(first.quotes.map(quote => quote.id)).size, 5);
+    assert.ok(first.quotes.every(quote => quote.authorName && quote.sourceTitle && quote.sourceReference));
+
+    const secondResponse = await fetch(`${baseUrl}/api/quotes/today?timezone=Europe%2FMoscow`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+      },
+    });
+    assert.equal(secondResponse.status, 200);
+    const second = await secondResponse.json();
+    assert.deepEqual(second.quotes.map(quote => quote.id), first.quotes.map(quote => quote.id));
+    assert.equal(nextId, 1);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("quotes API only serves verified active quotes and tracks favorites", async () => {
+  const db = createSyncDatabase(":memory:");
+  db.replaceQuoteCatalog({
+    quotes: [
+      ...createTestQuoteCatalog(),
+      createTestQuote({ id: "quote-draft", verificationStatus: "draft" }),
+      createTestQuote({ id: "quote-review", rightsStatus: "review_required" }),
+      createTestQuote({ id: "quote-inactive", isActive: false }),
+    ],
+  });
+  const accountId = "account-quotes-favorites";
+  createTestAccount(db, accountId);
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-04T09:00:00.000Z",
+    createId: () => "quote-set-favorites",
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const todayResponse = await fetch(`${baseUrl}/api/quotes/today?timezone=Europe%2FMoscow`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(todayResponse.status, 200);
+    const today = await todayResponse.json();
+    const servedIds = today.quotes.map(quote => quote.id);
+    assert.ok(!servedIds.includes("quote-draft"));
+    assert.ok(!servedIds.includes("quote-review"));
+    assert.ok(!servedIds.includes("quote-inactive"));
+
+    const favoriteId = today.quotes[0].id;
+    const favoriteResponse = await fetch(`${baseUrl}/api/quotes/${favoriteId}/favorite`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: "{}",
+    });
+    assert.equal(favoriteResponse.status, 200);
+    assert.equal((await favoriteResponse.json()).isFavorite, true);
+
+    const refreshedResponse = await fetch(`${baseUrl}/api/quotes/today?timezone=Europe%2FMoscow`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    const refreshed = await refreshedResponse.json();
+    assert.equal(refreshed.quotes.find(quote => quote.id === favoriteId).isFavorite, true);
+
+    const unfavoriteResponse = await fetch(`${baseUrl}/api/quotes/${favoriteId}/favorite`, {
+      method: "DELETE",
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(unfavoriteResponse.status, 200);
+    assert.equal((await unfavoriteResponse.json()).isFavorite, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("quote profanity validation rejects safe marker variants without exposing matched text", () => {
+  const variants = createSafeProfanityMarkerVariants();
+
+  assert.equal(validateQuoteProfanity("Ordinary focus quote.", { rules: SAFE_PROFANITY_RULES }).status, "passed");
+
+  [
+    variants.explicit,
+    variants.masked,
+    variants.spaced,
+    variants.leet,
+    variants.transliterated,
+    variants.mixed,
+  ].forEach(variant => {
+    const result = validateQuoteProfanity(variant, { rules: SAFE_PROFANITY_RULES });
+    assert.equal(result.status, "failed");
+    assert.equal(result.code, "profanity_detected");
+    assert.deepEqual(result.matchedRuleIds, ["safe-marker-1"]);
+    assert.ok(!JSON.stringify(result).includes(SAFE_PROFANITY_TEST_MARKER));
+  });
+});
+
+test("quote profanity fixtures use only generated safe markers", () => {
+  const source = readFileSync("tests/focus-sync-server.test.mjs", "utf8");
+  assert.ok(!source.includes(SAFE_PROFANITY_TEST_MARKER));
+
+  Object.values(createSafeProfanityMarkerVariants()).forEach(variant => {
+    assert.equal(validateQuoteProfanity(variant, { rules: SAFE_PROFANITY_RULES }).status, "failed");
+  });
+});
+
+test("quote catalog profanity validation rejects candidates before production output", async () => {
+  const db = createSyncDatabase(":memory:", { profanityRules: SAFE_PROFANITY_RULES });
+  const variants = createSafeProfanityMarkerVariants();
+  const blockedQuotes = [
+    createTestQuote({ id: "quote-blocked-explicit", text: variants.explicit }),
+    createTestQuote({ id: "quote-blocked-masked", text: variants.masked }),
+    createTestQuote({ id: "quote-blocked-spaced", text: variants.spaced }),
+    createTestQuote({ id: "quote-blocked-leet", text: variants.leet }),
+    createTestQuote({ id: "quote-blocked-transliterated", text: variants.transliterated }),
+    createTestQuote({ id: "quote-blocked-mixed", text: variants.mixed }),
+    {
+      ...createTestQuote({ id: "quote-blocked-validation-error", text: "Ordinary focus quote with failed validation result." }),
+      profanityValidation: {
+        status: "failed",
+        code: "profanity_detected",
+        matchedRuleIds: ["safe-validation-error"],
+      },
+    },
+  ];
+  db.replaceQuoteCatalog({ quotes: [...createTestQuoteCatalog(), ...blockedQuotes] });
+
+  const normalizedBlockedQuotes = db.getQuoteCatalog().filter(quote => quote.id.startsWith("quote-blocked-"));
+  assert.equal(normalizedBlockedQuotes.length, blockedQuotes.length);
+  normalizedBlockedQuotes.forEach(quote => {
+    assert.equal(quote.contentValidation, "failed");
+    assert.equal(quote.rejectionCode, "profanity_detected");
+    assert.equal(quote.verificationStatus, "rejected");
+    assert.equal(quote.isActive, false);
+    assert.deepEqual(quote.categoryCodes, []);
+    assert.equal(quote.profanityValidation.status, "failed");
+    assert.equal(quote.profanityValidation.code, "profanity_detected");
+  });
+
+  const repeated = db.replaceQuoteCatalog({
+    quotes: [createTestQuote({ id: "quote-repeat-blocked", text: variants.masked })],
+  });
+  assert.equal(repeated.quotes[0].verificationStatus, "rejected");
+  assert.equal(repeated.quotes[0].profanityValidation.status, "failed");
+
+  db.replaceQuoteCatalog({ quotes: [...createTestQuoteCatalog(), ...blockedQuotes] });
+  const accountId = "account-quotes-profanity";
+  createTestAccount(db, accountId);
+  const loggerCalls = [];
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-04T09:00:00.000Z",
+    createId: () => "quote-set-profanity",
+    logger: { error: (...args) => loggerCalls.push(args) },
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const todayResponse = await fetch(`${baseUrl}/api/quotes/today?timezone=Europe%2FMoscow`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(todayResponse.status, 200);
+    const today = await todayResponse.json();
+    const servedIds = today.quotes.map(quote => quote.id);
+    assert.equal(today.quotes.length, 5);
+    normalizedBlockedQuotes.forEach(quote => assert.ok(!servedIds.includes(quote.id)));
+    assert.ok(today.quotes.every(quote => !Object.prototype.hasOwnProperty.call(quote, "profanityValidation")));
+
+    const favoriteResponse = await fetch(`${baseUrl}/api/quotes/quote-blocked-explicit/favorite`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: "{}",
+    });
+    assert.equal(favoriteResponse.status, 404);
+    assert.equal((await favoriteResponse.json()).error, "quote_not_found");
+
+    const auditReport = db.auditQuoteCatalogForProduction({ checkedAt: "2026-08-04T09:01:00.000Z" });
+    assert.equal(auditReport.blockedQuotes, blockedQuotes.length);
+    assert.ok(auditReport.blockedQuoteIds.includes("quote-blocked-explicit"));
+    assert.ok(auditReport.matchedRuleIds.includes("safe-marker-1"));
+    assert.ok(!JSON.stringify(auditReport).includes(SAFE_PROFANITY_TEST_MARKER));
+    assert.equal(loggerCalls.length, 0);
+    assert.ok(!JSON.stringify(loggerCalls).includes(SAFE_PROFANITY_TEST_MARKER));
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("quotes API rebuilds a daily set when catalog validation blocks an existing item", async () => {
+  const db = createSyncDatabase(":memory:", { profanityRules: SAFE_PROFANITY_RULES });
+  db.replaceQuoteCatalog({ quotes: createTestQuoteCatalog() });
+  const accountId = "account-quotes-profanity-rebuild";
+  createTestAccount(db, accountId);
+  let nextId = 0;
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-04T09:00:00.000Z",
+    createId: () => `quote-set-profanity-rebuild-${nextId += 1}`,
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const firstResponse = await fetch(`${baseUrl}/api/quotes/today?timezone=Europe%2FMoscow`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(firstResponse.status, 200);
+    const first = await firstResponse.json();
+    assert.equal(first.quotes.length, 5);
+    const blockedExistingQuoteId = first.quotes[0].id;
+
+    db.replaceQuoteCatalog({
+      quotes: createTestQuoteCatalog().map(quote => quote.id === blockedExistingQuoteId
+        ? { ...quote, text: createSafeProfanityMarkerVariants().mixed }
+        : quote),
+    });
+
+    const secondResponse = await fetch(`${baseUrl}/api/quotes/today?timezone=Europe%2FMoscow`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+      },
+    });
+    assert.equal(secondResponse.status, 200);
+    const second = await secondResponse.json();
+    assert.equal(second.quotes.length, 5);
+    assert.ok(!second.quotes.map(quote => quote.id).includes(blockedExistingQuoteId));
+    assert.equal(nextId, 2);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("quotes preferences validate selected categories and apply tomorrow", async () => {
+  const db = createSyncDatabase(":memory:");
+  db.replaceQuoteCatalog({ quotes: createTestQuoteCatalog() });
+  const accountId = "account-quotes-preferences";
+  createTestAccount(db, accountId);
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-04T09:00:00.000Z",
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const tooManyResponse = await fetch(`${baseUrl}/api/quotes/preferences`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({
+        selectionMode: "selected_categories",
+        selectedCategoryCodes: ["life_wisdom", "business", "family_children", "motivation"],
+        timezone: "Europe/Moscow",
+      }),
+    });
+    assert.equal(tooManyResponse.status, 400);
+    assert.equal((await tooManyResponse.json()).error, "invalid_quote_category_count");
+
+    const saveResponse = await fetch(`${baseUrl}/api/quotes/preferences`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({
+        selectionMode: "selected_categories",
+        selectedCategoryCodes: ["life_wisdom", "business", "family_children"],
+        timezone: "Europe/Moscow",
+      }),
+    });
+    assert.equal(saveResponse.status, 200);
+    const saved = await saveResponse.json();
+    assert.equal(saved.effectiveFromLocalDate, "2026-08-05");
+    assert.match(saved.message, /завтра в 00:00/);
+    assert.deepEqual(saved.preferences.selectedCategoryCodes, ["life_wisdom", "business", "family_children"]);
+
+    const getResponse = await fetch(`${baseUrl}/api/quotes/preferences?timezone=Europe%2FMoscow`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "phone",
+      },
+    });
+    assert.equal(getResponse.status, 200);
+    const current = await getResponse.json();
+    assert.equal(current.preferences.selectionMode, "any");
+    assert.equal(current.preferences.effectiveFromLocalDate, "2026-08-04");
   } finally {
     await close(server);
     db.close();
@@ -4132,6 +4489,136 @@ function jsonResponse(status, body) {
 function createTestAccount(db, accountId, createdAt = "2026-07-10T00:00:00.000Z") {
   db.createAccount({ accountId, displayName: null, createdAt });
   return accountId;
+}
+
+function createTestQuoteCatalog() {
+  return [
+    createTestQuote({
+      id: "quote-life-1",
+      text: "Опыт есть имя, которое каждый даёт своим ошибкам.",
+      authorName: "Оскар Уайльд",
+      categoryCodes: ["life_wisdom"],
+      sourceTitle: "Веер леди Уиндермир",
+      sourceReference: "Акт III",
+    }),
+    createTestQuote({
+      id: "quote-life-2",
+      text: "Терпение горько, но плод его сладок.",
+      authorName: "Жан-Жак Руссо",
+      categoryCodes: ["life_wisdom"],
+      sourceTitle: "Эмиль, или О воспитании",
+      sourceReference: "Книга II",
+    }),
+    createTestQuote({
+      id: "quote-business-1",
+      text: "Знание становится силой только тогда, когда применяется.",
+      authorName: "Фрэнсис Бэкон",
+      categoryCodes: ["business", "self_development"],
+      sourceTitle: "Размышления",
+      sourceReference: "эссе о знании",
+    }),
+    createTestQuote({
+      id: "quote-business-2",
+      text: "Самое трудное — начать действовать, всё остальное зависит от настойчивости.",
+      authorName: "Амелия Эрхарт",
+      categoryCodes: ["business", "motivation"],
+      sourceTitle: "Last Flight",
+      sourceReference: "сборник записей",
+    }),
+    createTestQuote({
+      id: "quote-family-1",
+      text: "Счастлив тот, кто счастлив у себя дома.",
+      authorName: "Лев Толстой",
+      categoryCodes: ["family_children"],
+      sourceTitle: "Анна Каренина",
+      sourceReference: "часть первая",
+    }),
+    createTestQuote({
+      id: "quote-family-2",
+      text: "Дом — это место, где нас понимают.",
+      authorName: "Иоганн Вольфганг Гёте",
+      categoryCodes: ["family_children"],
+      sourceTitle: "Изречения в прозе",
+      sourceReference: "раздел о доме",
+    }),
+    createTestQuote({
+      id: "quote-time-1",
+      text: "Потерянного времени не воротишь.",
+      authorName: "Бенджамин Франклин",
+      categoryCodes: ["time_productivity"],
+      sourceTitle: "Poor Richard's Almanack",
+      sourceReference: "1736",
+    }),
+    createTestQuote({
+      id: "quote-calm-1",
+      text: "Спокойствие есть идеал мудреца.",
+      authorName: "Фридрих Шиллер",
+      categoryCodes: ["calm_balance"],
+      sourceTitle: "Философские письма",
+      sourceReference: "письмо III",
+    }),
+    createTestQuote({
+      id: "quote-creativity-1",
+      text: "Воображение важнее знания.",
+      authorName: "Альберт Эйнштейн",
+      categoryCodes: ["creativity", "self_development"],
+      sourceTitle: "Интервью The Saturday Evening Post",
+      sourceReference: "1929",
+    }),
+    createTestQuote({
+      id: "quote-humor-1",
+      text: "День без смеха — потерянный день.",
+      authorName: "Чарли Чаплин",
+      categoryCodes: ["humor"],
+      sourceTitle: "My Autobiography",
+      sourceReference: "глава о ранних годах",
+    }),
+  ];
+}
+
+function createSafeProfanityMarkerVariants() {
+  const chars = [...SAFE_PROFANITY_TEST_MARKER];
+  return {
+    explicit: SAFE_PROFANITY_TEST_MARKER,
+    masked: `${chars[0]}${chars[1]}***${chars[6]}${chars[7]}${chars[8]}${chars[9]}`,
+    spaced: chars.join(" "),
+    leet: `${chars[0]}3${chars[2]}${chars[3]}${chars[4]}@${chars[6]}${chars[7]}3${chars[9]}`,
+    transliterated: "testmarker",
+    mixed: `t${chars[1]}s${chars[3]}m${chars[5]}r${chars[7]}e${chars[9]}`,
+  };
+}
+
+function createTestQuote({
+  id = "quote-test",
+  text = "Проверенная тестовая цитата.",
+  authorName = "Тестовый автор",
+  categoryCodes = ["life_wisdom"],
+  sourceTitle = "Тестовый источник",
+  sourceReference = "страница 1",
+  sourceType = "book",
+  verificationStatus = "verified",
+  rightsStatus = "public_domain",
+  isActive = true,
+} = {}) {
+  return {
+    id,
+    text,
+    authorName,
+    sourceTitle,
+    sourceReference,
+    sourceType,
+    publicationYear: 1900,
+    displayLanguage: "ru",
+    verificationStatus,
+    rightsStatus,
+    lengthType: "short",
+    isActive,
+    verifiedBy: "test",
+    verifiedAt: "2026-07-10T00:00:00.000Z",
+    createdAt: "2026-07-10T00:00:00.000Z",
+    updatedAt: "2026-07-10T00:00:00.000Z",
+    categoryCodes,
+  };
 }
 
 function createYooKassaPaymentNotification({
