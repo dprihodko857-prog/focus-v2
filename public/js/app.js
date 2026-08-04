@@ -34,6 +34,14 @@ const labels = [
   ["Спорт", "#47A7B8"]
 ];
 
+const calendarStatusLabels = {
+  today: "сегодня",
+  nonWorking: "выходной или официальный нерабочий день",
+  secularHoliday: "светский праздник",
+  religiousHoliday: "религиозный праздник",
+  workingWeekend: "официальный рабочий выходной"
+};
+
 const summaryItems = [
   { time: "10:00", title: "Урок математики", subtitle: "Школа №12, 8 В", color: "#D89A3D" },
   { time: "12:30", title: "Встреча с родителями", subtitle: "Онлайн", color: "#C96A87" },
@@ -1094,12 +1102,7 @@ function writeLocalStorageObject(key, value) {
 }
 
 function getHolidayEventsForDate(date) {
-  return selectHolidayEvents({
-    catalog: holidayCatalogState.catalog,
-    preferences: holidayPreferencesState,
-    religiousPreferences: holidayReligiousPreferencesState,
-    date,
-  }).map(event => ({
+  return getSelectedHolidayEventsForDate(date).map(event => ({
     id: event.id,
     time: "Весь день",
     title: event.shortTitle || event.title,
@@ -1108,6 +1111,15 @@ function getHolidayEventsForDate(date) {
     isSystemEvent: true,
     holidayEvent: event,
   }));
+}
+
+function getSelectedHolidayEventsForDate(date) {
+  return selectHolidayEvents({
+    catalog: holidayCatalogState.catalog,
+    preferences: holidayPreferencesState,
+    religiousPreferences: holidayReligiousPreferencesState,
+    date,
+  });
 }
 
 function getHolidayEventSubtitle(event) {
@@ -1408,27 +1420,36 @@ function renderCalendar() {
 
   grid.innerHTML = cells.map((cell, index) => {
     const weekday = index % 7;
-    const markers = !cell.muted ? getCalendarMarkers(new Date(cell.year, cell.month, cell.n)) : [];
+    const cellDate = new Date(cell.year, cell.month, cell.n);
+    const holidayEvents = !cell.muted ? getSelectedHolidayEventsForDate(cellDate) : [];
+    const markers = !cell.muted ? getCalendarMarkers(cellDate) : [];
     const isCurrent = !cell.muted
       && cell.n === today.getDate()
       && cell.month === today.getMonth()
       && cell.year === today.getFullYear();
+    const status = getCalendarDateStatus(cellDate, { holidayEvents, isToday: isCurrent });
     const classes = [
       "day-cell",
       cell.muted ? "day-cell--muted" : "",
       weekday >= 5 ? "day-cell--weekend" : "",
-      isCurrent ? "day-cell--current" : ""
+      status.isNonWorking ? "day-cell--non-working" : "",
+      status.isWorkingWeekend ? "day-cell--working-weekend" : "",
+      status.hasSecularHoliday ? "day-cell--secular-holiday" : "",
+      status.hasReligiousHoliday ? "day-cell--religious-holiday" : "",
+      isCurrent ? "day-cell--current day-cell--today" : ""
     ].filter(Boolean).join(" ");
-    const ariaLabel = new Intl.DateTimeFormat("ru-RU", {
-      day: "numeric",
-      month: "long"
-    }).format(new Date(cell.year, cell.month, cell.n));
+    const ariaLabel = getCalendarDateAriaLabel(cellDate, status);
 
-    const isoDate = toIsoDate(new Date(cell.year, cell.month, cell.n));
+    const isoDate = toIsoDate(cellDate);
 
     return `
-      <button class="${classes}" type="button" aria-label="${ariaLabel}" data-calendar-date="${isoDate}">
+      <button class="${classes}" type="button" aria-label="${escapeHtml(ariaLabel)}" data-calendar-date="${isoDate}">
         <span class="day-cell__num">${cell.n}</span>
+        <span class="calendar-status-markers" aria-hidden="true">
+          ${status.hasSecularHoliday ? `<span class="calendar-status-dot calendar-status-dot--secular"></span>` : ""}
+          ${status.hasReligiousHoliday ? `<span class="calendar-status-dot calendar-status-dot--religious"></span>` : ""}
+          ${status.isWorkingWeekend ? `<span class="calendar-status-dot calendar-status-dot--working"></span>` : ""}
+        </span>
         <span class="markers">
           ${markers.map(color => `<span class="dot" style="background:${color}"></span>`).join("")}
         </span>
@@ -1510,11 +1531,46 @@ function formatDayTitle(date) {
   return `${weekday[0].toUpperCase()}${weekday.slice(1)}, ${day}`;
 }
 
+function getCalendarDateStatus(date, { holidayEvents = [], isToday = false } = {}) {
+  const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+  const isWorkingWeekend = holidayEvents.some(event => event.eventType === "working_weekend");
+  const hasOfficialNonWorkingDay = holidayEvents.some(event => (
+    event.isOfficialNonWorkingDay === true
+    && (event.eventType === "public_holiday" || HOLIDAY_WORKING_DAY_OVERRIDE_TYPES.includes(event.eventType))
+  ));
+  const hasSecularHoliday = holidayEvents.some(event => [
+    "public_holiday",
+    "commemorative_date",
+    "professional_holiday"
+  ].includes(event.eventType));
+  const hasReligiousHoliday = holidayEvents.some(event => event.eventType === "religious_holiday");
+
+  return {
+    isToday,
+    isWorkingWeekend,
+    isNonWorking: !isWorkingWeekend && (isWeekend || hasOfficialNonWorkingDay),
+    hasSecularHoliday,
+    hasReligiousHoliday,
+  };
+}
+
+function getCalendarDateAriaLabel(date, status) {
+  const parts = [
+    new Intl.DateTimeFormat("ru-RU", {
+      day: "numeric",
+      month: "long"
+    }).format(date)
+  ];
+  if (status.isToday) parts.push(calendarStatusLabels.today);
+  if (status.isNonWorking) parts.push(calendarStatusLabels.nonWorking);
+  if (status.hasSecularHoliday) parts.push(calendarStatusLabels.secularHoliday);
+  if (status.hasReligiousHoliday) parts.push(calendarStatusLabels.religiousHoliday);
+  if (status.isWorkingWeekend) parts.push(calendarStatusLabels.workingWeekend);
+  return parts.join(", ");
+}
+
 function getCalendarMarkers(date) {
   const markers = [...(markerMap[date.getDate()] || [])];
-  getHolidayEventsForDate(date).forEach(event => {
-    markers.push(event.color);
-  });
   if (getBirthdaysForDate(date).length) {
     markers.push("#D96B5F");
   }

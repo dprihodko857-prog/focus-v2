@@ -102,6 +102,7 @@ Status: DRAFT
 - TASK-089 is implemented and committed locally: the RU-2026 holiday catalog adds readonly calendar events, safe server preferences, local-only religious selections, admin validation/dry-run, and tests; service worker cache was `focus-pwa-v110`.
 - TASK-090 is implemented and committed locally: the topbar Focus mark now uses the calmer `brand-breathe 4.2s` animation instead of shimmer/glint, and service worker cache is `focus-pwa-v113`.
 - TASK-091 is implemented and committed locally: ordinary separators now stop masked profanity matching instead of acting as masks, explicit mask characters still work, and a local production quote seed helper plus tests can summarize/import 6300 generated quotes across 14 categories.
+- TASK-092 is implemented and committed locally: the main calendar grid now separates today, non-working days, secular holidays, religious holidays, and working weekends into independent semantic classes and status markers; service worker cache is `focus-pwa-v114`.
 - Runtime through local commit `c975205` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-29; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v69`, and CORS preflight included `DELETE`.
 - Runtime through local commit `2362d05` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-31; remote backup is `/opt/focus-v2/deploy-backups/backup-20260731-134936-pre-2362d05`; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v87`, and public requisites/subscription/privacy pages returned `200`.
 - Runtime through local commit `8a2795c` was deployed to `https://focus-v2.dmnao83.ru` on 2026-08-03; remote backup is `/opt/focus-v2/deploy-backups/backup-20260803-122215-pre-8a2795c.tgz`; backend `focus-v2-sync` was active, public app, prices, subscription, offer, requisites, service worker, and API health checks passed; service worker cache is `focus-pwa-v104`.
@@ -125,7 +126,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-091 checks passed locally on 2026-08-04 (`node --check public/service-worker.js`; focused static/seed tests 54/54; `node --check scripts/seed-production-quotes.mjs`; seed summary 6300 quotes across 14 categories; focused server tests 81/81; `npm.cmd run test` 222/222; `git diff --check`). Production deploy on 2026-08-03 uploaded runtime through commit `8a2795c`; app, API health, service worker, prices, subscription, offer, and requisites checks passed; backend service is active.
+- Current result: local Git repository exists; TASK-092 checks passed locally on 2026-08-04 (`node --check public/js/app.js`; `node --check public/service-worker.js`; focused static tests 53/53; `npm.cmd run test` 224/224; `git diff --check`). Production deploy on 2026-08-03 uploaded runtime through commit `8a2795c`; app, API health, service worker, prices, subscription, offer, and requisites checks passed; backend service is active.
 
 ## Open Questions
 

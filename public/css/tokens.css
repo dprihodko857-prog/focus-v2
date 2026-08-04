@@ -12,6 +12,11 @@
   --lavender: #8c7ae6;
   --rose: #c96a87;
   --cyan: #47a7b8;
+  --calendar-today: #3f6ff4;
+  --calendar-non-working-day: #d96b5f;
+  --calendar-secular-holiday: #f97316;
+  --calendar-religious-holiday: #5f9073;
+  --calendar-working-weekend: #4c433a;
   --glass-1: rgba(255, 252, 244, .34);
   --glass-2: rgba(255, 252, 244, .48);
   --glass-strong: rgba(255, 252, 244, .64);

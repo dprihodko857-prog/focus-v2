@@ -57,7 +57,33 @@ test("desktop dashboard uses the full width with a logo-triggered app menu", () 
 });
 
 test("service worker cache is bumped after desktop layout CSS changes", () => {
-  assert.match(serviceWorker, /focus-pwa-v113/);
+  assert.match(serviceWorker, /focus-pwa-v114/);
+});
+
+test("main calendar exposes independent semantic date statuses", () => {
+  assert.match(tokenCss, /--calendar-today:\s*#3f6ff4;/);
+  assert.match(tokenCss, /--calendar-non-working-day:\s*#d96b5f;/);
+  assert.match(tokenCss, /--calendar-secular-holiday:\s*#f97316;/);
+  assert.match(tokenCss, /--calendar-religious-holiday:\s*#5f9073;/);
+  assert.match(tokenCss, /--calendar-working-weekend:\s*#4c433a;/);
+  assert.match(appJs, /function getCalendarDateStatus/);
+  assert.match(appJs, /event\.eventType === "working_weekend"/);
+  assert.match(appJs, /event\.isOfficialNonWorkingDay === true/);
+  assert.match(appJs, /"public_holiday",\s*"commemorative_date",\s*"professional_holiday"/);
+  assert.match(appJs, /event\.eventType === "religious_holiday"/);
+  assert.match(appJs, /getCalendarDateAriaLabel/);
+  assert.match(appJs, /day-cell--non-working/);
+  assert.match(appJs, /day-cell--secular-holiday/);
+  assert.match(appJs, /day-cell--religious-holiday/);
+  assert.match(appJs, /calendar-status-dot--secular/);
+  assert.match(appJs, /calendar-status-dot--religious/);
+  assert.match(appJs, /calendar-status-dot--working/);
+  assert.doesNotMatch(appJs, /getHolidayEventsForDate\(date\)\.forEach\(event => \{\s*markers\.push\(event\.color\);/);
+  assert.match(appCss, /\.day-cell--non-working\s*{[\s\S]*?var\(--calendar-non-working-day\)/);
+  assert.match(appCss, /\.day-cell--current \.day-cell__num\s*{[\s\S]*?var\(--calendar-today\)/);
+  assert.match(appCss, /\.calendar-status-dot--secular\s*{[\s\S]*?var\(--calendar-secular-holiday\)/);
+  assert.match(appCss, /\.calendar-status-dot--religious\s*{[\s\S]*?var\(--calendar-religious-holiday\)/);
+  assert.match(appCss, /\.calendar-status-dot--working\s*{[\s\S]*?var\(--calendar-working-weekend\)/);
 });
 
 test("warm glass summary keeps text contrast above the seasonal background", () => {

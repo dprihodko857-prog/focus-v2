@@ -5118,3 +5118,63 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Ordinary separators now stop masked profanity matching instead of acting as masks, explicit mask characters still work, and the seed helper can summarize/import 6300 generated quotes across 14 categories.
 - commit_status: committed
 - notes: Recovered in Project Maestro memory on 2026-08-04 from local commit `638969a`. `node --check scripts/seed-production-quotes.mjs` passed, seed summary reported 6300 quotes across 14 categories, focused server tests passed 81/81, focused production seed tests passed 2/2, and `npm.cmd run test` passed 222/222. No seed import, deployment, or push.
+
+## TASK-092
+
+- title: Add semantic calendar date statuses
+- status: DONE
+- owner_gate: owner_continue_after_quote_catalog
+- task_type: design_runtime
+- priority: medium
+- source: owner asked to continue after quote catalog work on 2026-08-04; local working tree already contained the calendar status slice
+- spec_reference: `docs/specs/calendar-semantic-date-statuses.md`
+- spec_status: implemented_local_committed
+- goal: make the main month grid distinguish today, official non-working days, secular holidays, religious holidays, and official working weekends without reusing generic user event dots for holiday status.
+- out_of_scope:
+  - changing holiday catalog data
+  - changing server APIs or holiday preference persistence
+  - redesigning the full calendar layout
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - today uses its own date-number treatment independent of holiday/weekend status
+  - official non-working days use a non-working token and class
+  - secular holidays render an independent status dot
+  - religious holidays render an independent status dot
+  - official working weekends render a compact working-day marker and do not look like non-working weekends
+  - user event markers no longer receive holiday colors from `getHolidayEventsForDate`
+  - `aria-label` includes applicable semantic status labels
+  - service worker cache is bumped to `focus-pwa-v114`
+  - existing focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/sync-integration-assets.test.mjs tests/legal-pages.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+  - `git diff --stat`
+- sandbox_level: current_workspace
+- cycle_budget: one small design runtime task
+- file_limit: up to 10 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 91
+- stop_conditions:
+  - implementation requires holiday catalog data changes
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/app.js`
+  - `public/css/app.css`
+  - `public/css/tokens.css`
+  - `public/service-worker.js`
+  - static tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-089 holiday calendar catalog
+  - TASK-090 current service worker cache baseline
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. Calendar cells now compute semantic status from selected holiday events, use independent classes/status markers, and keep user event dots separate from holiday status.
+- commit_status: committed
+- notes: `node --check public/js/app.js` passed, `node --check public/service-worker.js` passed, focused static tests passed 53/53, `npm.cmd run test` passed 224/224, and `git diff --check` passed on 2026-08-04. No deployment or push.

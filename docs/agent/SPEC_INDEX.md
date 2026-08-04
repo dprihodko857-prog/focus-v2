@@ -97,4 +97,5 @@ Status: DRAFT
 | HOLIDAY-CALENDAR-CATALOG-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/holiday-calendar-catalog.md` | TASK-089 adds the RU-2026 holiday catalog, readonly holiday events, safe server preferences, and local-only religious selections. |
 | FOCUS-BRAND-TOPBAR-BREATHING-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/focus-brand-topbar-breathing.md` | TASK-090 replaces the topbar brand shimmer/glint with a restrained breathing animation. |
 | QUOTE-CATALOG-SEED-SEPARATOR-BOUNDARIES-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/quote-catalog-seed-and-separator-boundaries.md` | TASK-091 adds a production quote seed helper and treats ordinary separators as profanity word boundaries rather than masks. |
+| CALENDAR-SEMANTIC-DATE-STATUSES-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/calendar-semantic-date-statuses.md` | TASK-092 gives today, non-working days, secular holidays, religious holidays, and working weekends separate calendar grid treatments. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |
