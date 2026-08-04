@@ -110,6 +110,7 @@ Status: DRAFT
 - Runtime through local commit `2362d05` was deployed to `https://focus-v2.dmnao83.ru` on 2026-07-31; remote backup is `/opt/focus-v2/deploy-backups/backup-20260731-134936-pre-2362d05`; backend `focus-v2-sync` was active, public app returned `200`, API health returned `{"ok":true,"service":"focus-sync"}`, service worker returned `focus-pwa-v87`, and public requisites/subscription/privacy pages returned `200`.
 - Runtime through local commit `8a2795c` was deployed to `https://focus-v2.dmnao83.ru` on 2026-08-03; remote backup is `/opt/focus-v2/deploy-backups/backup-20260803-122215-pre-8a2795c.tgz`; backend `focus-v2-sync` was active, public app, prices, subscription, offer, requisites, service worker, and API health checks passed; service worker cache is `focus-pwa-v104`.
 - Runtime through local commit `eb4d600` was deployed to `https://focus-v2.dmnao83.ru` on 2026-08-04; remote backup is `/opt/focus-v2/deploy-backups/backup-20260804-113353-pre-eb4d600.tgz`; backend `focus-v2-sync` was active, public app, prices, subscription, offer, requisites, privacy, API health, quote audit, quote today API, and holiday catalog endpoints passed; service worker cache is `focus-pwa-v115`.
+- Runtime through local commit `23ffea1` was deployed to `https://focus-v2.dmnao83.ru` on 2026-08-04; remote backup is `/opt/focus-v2/deploy-backups/backup-20260804-145306-pre-23ffea1.tgz`; backend `focus-v2-sync` was active, public app, prices, subscription, offer, requisites, privacy, API health, quote audit, quote today API, and holiday catalog endpoints passed; service worker cache is `focus-pwa-v116`.
 
 ## In Progress
 
@@ -130,7 +131,7 @@ Status: DRAFT
   - `git rev-parse --show-toplevel`
   - `npm.cmd test`
 - Result: Git reported that `focus-v2` was not a repository before baseline initialization.
-- Current result: local Git repository exists; TASK-095 checks passed locally on 2026-08-04 (`node --check public/js/app.js`; `node --check public/service-worker.js`; focused static/PWA tests 53/53; `npm.cmd run test` 225/225; browser sanity check; `git diff --check`). Production deploy on 2026-08-04 uploaded runtime through commit `eb4d600`; app, API health, service worker `focus-pwa-v115`, quote catalog audit, quote today API, holiday catalog endpoints, prices, subscription, offer, privacy, and requisites checks passed; backend service is active.
+- Current result: local Git repository exists; TASK-095 checks passed locally on 2026-08-04 (`node --check public/js/app.js`; `node --check public/service-worker.js`; focused static/PWA tests 53/53; `npm.cmd run test` 225/225; browser sanity check; `git diff --check`). Production deploy on 2026-08-04 uploaded runtime through commit `23ffea1`; app, API health, service worker `focus-pwa-v116`, quote catalog audit, quote today API, holiday catalog endpoints, prices, subscription, offer, privacy, and requisites checks passed; backend service is active.
 
 ## Open Questions
 

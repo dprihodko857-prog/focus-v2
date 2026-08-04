@@ -5351,4 +5351,4 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - security_review_required: false
 - outcome: Implemented locally. Semantic calendar statuses now use layered cell backgrounds while ordinary user markers stay as event dots.
 - commit_status: committed
-- notes: `node --check public/js/app.js` passed, `node --check public/service-worker.js` passed, focused static/PWA tests passed 53/53, `npm.cmd run test` passed 225/225, browser sanity confirmed 42 cells, 13 status backgrounds, and 0 status-dot elements, and `git diff --check` passed on 2026-08-04. No deployment or push.
+- notes: `node --check public/js/app.js` passed, `node --check public/service-worker.js` passed, focused static/PWA tests passed 53/53, `npm.cmd run test` passed 225/225, browser sanity confirmed 42 cells, 13 status backgrounds, and 0 status-dot elements, and `git diff --check` passed on 2026-08-04. Production deploy through commit `23ffea1` completed on 2026-08-04 with service worker `focus-pwa-v116`; no git push.
