@@ -458,6 +458,7 @@ export function createPersonalSchedulePlannerUi({
         selectedVariantId: variant.id,
         includeTasks: state.importOptions.includeTasks,
         includeReminders: state.importOptions.includeReminders,
+        existingIntervals: getExistingIntervals(),
         now: now(),
       })
       : { ok: false, batch: null };
@@ -471,7 +472,7 @@ export function createPersonalSchedulePlannerUi({
           <li>Задачи: ${entities.tasks.length}</li>
           <li>Напоминания: ${entities.reminders.length}</li>
         </ul>
-        ${batchPreview.ok ? "" : `<div class="voice-status voice-status--bad">${escape((batchPreview.errors || ["validation_failed"]).join(", "))}</div>`}
+        ${batchPreview.ok ? "" : renderValidationErrors(batchPreview.errors || ["validation_failed"])}
       </div>
       <div class="personal-schedule-consent">
         ${renderImportCheckbox("Создать задачи из блоков", "includeTasks", state.importOptions.includeTasks)}
@@ -525,10 +526,12 @@ export function createPersonalSchedulePlannerUi({
     }
     if (currentStep === "draft") {
       const hasDraft = Boolean(getSelectedDraft());
+      const validation = getSelectedDraftValidation();
+      const canImport = hasDraft && validation?.ok;
       return `
         <button class="secondary-button" type="button" data-ps-action="back">Назад</button>
         <button class="secondary-button" type="button" data-ps-action="regenerate">Сгенерировать заново</button>
-        <button class="primary-button" type="button" data-ps-action="confirm-import" ${hasDraft ? "" : "disabled"}>Добавить в Focus</button>
+        <button class="primary-button" type="button" data-ps-action="confirm-import" ${canImport ? "" : "disabled"}>Добавить в Focus</button>
       `;
     }
     if (currentStep === "confirm-import") {
@@ -738,8 +741,22 @@ export function createPersonalSchedulePlannerUi({
     if (action === "generate") generateDraft();
     if (action === "regenerate") generateDraft({ revision: true });
     if (action === "confirm-import") {
+      const validation = getSelectedDraftValidation();
+      if (!validation?.ok) {
+        state.status = "validation_failed";
+        state.lastError = {
+          code: "validation_failed",
+          message: getValidationSummary(validation),
+          createdAt: now().toISOString(),
+        };
+        save();
+        showStatus(state.lastError.message);
+        render();
+        return;
+      }
       currentStep = "confirm-import";
       state.status = "ready_to_import";
+      state.lastError = null;
       save();
       render();
     }
@@ -875,13 +892,14 @@ export function createPersonalSchedulePlannerUi({
       selectedVariantId: variant.id,
       includeTasks: state.importOptions.includeTasks,
       includeReminders: state.importOptions.includeReminders,
+      existingIntervals: getExistingIntervals(),
       now: now(),
     });
     if (!batchResult.ok) {
       state.status = "validation_failed";
       state.lastError = {
         code: "validation_failed",
-        message: batchResult.errors.join(", "),
+        message: getValidationErrorsSummary(batchResult.errors),
         createdAt: now().toISOString(),
       };
       await save();
@@ -1149,11 +1167,66 @@ export function createPersonalSchedulePlannerUi({
   }
 
   function renderValidationIssues(validation) {
+    const messages = getValidationMessages(validation);
     return `
       <div class="voice-status voice-status--bad">
-        ${validation.blockingConflicts.map(conflict => escape(conflict.code)).join(", ")}
+        ${messages.map(message => `<div>${escape(message)}</div>`).join("")}
       </div>
     `;
+  }
+
+  function renderValidationErrors(errors) {
+    const messages = getValidationMessages({ blockingConflicts: (errors || []).map(code => ({ code })) });
+    return `
+      <div class="voice-status voice-status--bad">
+        ${messages.map(message => `<div>${escape(message)}</div>`).join("")}
+      </div>
+    `;
+  }
+
+  function getSelectedDraftValidation() {
+    const draft = getSelectedDraft();
+    const variant = getSelectedVariant(draft);
+    if (!draft || !variant) return null;
+    const validation = validatePersonalScheduleDraft({
+      draft: { blocks: variant.blocks },
+      intake: draft.intake,
+      existingIntervals: getExistingIntervals(),
+    });
+    variant.validation = validation;
+    return validation;
+  }
+
+  function getValidationSummary(validation) {
+    return getValidationMessages(validation).join(" ");
+  }
+
+  function getValidationErrorsSummary(errors) {
+    return getValidationMessages({ blockingConflicts: (errors || []).map(code => ({ code })) }).join(" ");
+  }
+
+  function getValidationMessages(validation) {
+    const conflicts = Array.isArray(validation?.blockingConflicts) ? validation.blockingConflicts : [];
+    if (!conflicts.length) return ["Проверьте черновик расписания перед импортом."];
+    return conflicts.map(getValidationMessage);
+  }
+
+  function getValidationMessage(conflict) {
+    const code = typeof conflict === "string" ? conflict : conflict?.code;
+    if (code === "invalid_time") return "Проверьте время блока: окончание должно быть позже начала.";
+    if (code === "fixed_conflict") return "Блок пересекается с фиксированным событием Focus. Сдвиньте его перед импортом.";
+    if (code === "draft_overlap") return "Два блока черновика пересекаются. Разведите их по времени перед импортом.";
+    if (code === "sleep_below_minimum") {
+      const sleep = Number.isFinite(conflict.sleepMinutes) ? conflict.sleepMinutes : null;
+      const minimum = Number.isFinite(conflict.minimumSleepMinutes) ? conflict.minimumSleepMinutes : null;
+      if (sleep !== null && minimum !== null) {
+        return `Сон ниже заданного минимума: ${formatMinutesDuration(sleep)} из ${formatMinutesDuration(minimum)}.`;
+      }
+      return "Сон ниже заданного минимума. Измените время подъема или отбоя.";
+    }
+    if (code === "variant_missing") return "Выберите вариант расписания перед импортом.";
+    if (code === "validation_failed") return "Черновик не прошел проверку. Вернитесь к расписанию и поправьте конфликтные блоки.";
+    return "Проверьте черновик расписания перед импортом.";
   }
 
   function syncChoiceStates(root) {
@@ -1309,6 +1382,15 @@ function addDaysIso(isoDate, days) {
   if (!Number.isFinite(date.getTime())) return isoDate;
   date.setDate(date.getDate() + days);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatMinutesDuration(value) {
+  const minutes = Math.max(0, Number(value) || 0);
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (!hours) return `${rest} мин.`;
+  if (!rest) return `${hours} ч.`;
+  return `${hours} ч. ${rest} мин.`;
 }
 
 function formatDateTime(value) {

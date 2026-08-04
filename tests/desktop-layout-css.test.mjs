@@ -57,7 +57,7 @@ test("desktop dashboard uses the full width with a logo-triggered app menu", () 
 });
 
 test("service worker cache is bumped after desktop layout CSS changes", () => {
-  assert.match(serviceWorker, /focus-pwa-v121/);
+  assert.match(serviceWorker, /focus-pwa-v122/);
 });
 
 test("main calendar exposes independent semantic date statuses", () => {
@@ -90,6 +90,20 @@ test("main calendar exposes independent semantic date statuses", () => {
   assert.match(appCss, /\.day-cell:hover\s*{[\s\S]*?background:\s*var\(--calendar-status-bg, transparent\), var\(--calendar-cell-hover-bg\);/);
   assert.match(appCss, /\.day-cell__num\s*{[\s\S]*?display:\s*block;/);
   assert.doesNotMatch(appCss, /\.day-cell--current \.day-cell__num|\.calendar-status-markers|\.calendar-status-dot/);
+});
+
+test("past day cards show readonly history from planned Focus entities", () => {
+  assert.match(appJs, /function isPastCalendarDate\(date\)/);
+  assert.match(appJs, /function getDayHistoryItems\(date\)/);
+  assert.match(appJs, /function getTaskHistoryItems\(dateKey\)/);
+  assert.match(appJs, /function getReminderHistoryItems\(dateKey\)/);
+  assert.match(appJs, /function getScheduleHistoryItems\(date, weekday\)/);
+  assert.match(appJs, /const events = isPastDate \? getDayHistoryItems\(date\) : getEventsForDate\(date\);/);
+  assert.match(appJs, /История запланированных дел/);
+  assert.match(appJs, /История запланированных дел отсутствует/);
+  assert.match(appJs, /function formatPlural\(count, forms\)/);
+  assert.match(appJs, /item\.isReadOnly \?/);
+  assert.match(appJs, /sort\(compareDayHistoryItems\)/);
 });
 
 test("warm glass summary keeps text contrast above the seasonal background", () => {

@@ -1785,20 +1785,246 @@ function getEventsForDate(date) {
   return events;
 }
 
+function isPastCalendarDate(date) {
+  const selected = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  return selected < todayStart;
+}
+
+function getDayHistoryItems(date) {
+  const dateKey = toIsoDate(date);
+  const weekday = getIsoWeekdayNumber(date);
+
+  return [
+    ...getTaskHistoryItems(dateKey),
+    ...getReminderHistoryItems(dateKey),
+    ...getScheduleHistoryItems(date, weekday),
+  ].sort(compareDayHistoryItems);
+}
+
+function getTaskHistoryItems(dateKey) {
+  return savedTasks
+    .filter(task => task.dateKey === dateKey)
+    .map(task => ({
+      time: task.done ? "Выполнено" : "Не выполнено",
+      title: task.title,
+      subtitle: `Дело · ${task.label || "Личное"}`,
+      color: task.done ? "#5F9073" : "#D89A3D",
+      sortValue: task.done ? 2200 : 2100,
+      isReadOnly: true,
+    }));
+}
+
+function getReminderHistoryItems(dateKey) {
+  return localReminders
+    .filter(reminder => getReminderDateKey(reminder) === dateKey)
+    .map(reminder => ({
+      time: reminder.time || formatHistoryTime(reminder.scheduledAt) || "Без времени",
+      title: reminder.title,
+      subtitle: reminder.deliveredAt ? "Напоминание доставлено" : "Напоминание было запланировано",
+      color: "#5678F5",
+      sortValue: getHistoryTimeSortValue(reminder.time || reminder.scheduledAt, 1200),
+      isReadOnly: true,
+    }));
+}
+
+function getScheduleHistoryItems(date, weekday) {
+  return savedSchedules
+    .filter(schedule => isScheduleActiveOnDate(schedule, date))
+    .flatMap(schedule => [
+      ...getScheduleLessonHistoryItems(schedule, weekday),
+      ...getScheduleDayTimeHistoryItems(schedule, weekday),
+    ]);
+}
+
+function getScheduleLessonHistoryItems(schedule, weekday) {
+  return (Array.isArray(schedule.schoolLessonRows) ? schedule.schoolLessonRows : [])
+    .filter(day => normalizeScheduleWeekday(day.day) === weekday)
+    .flatMap(day => (Array.isArray(day.lessons) ? day.lessons : []).map(lesson => ({
+      time: lesson.time || "Без времени",
+      title: `${lesson.order || ""}${lesson.order ? ". " : ""}${lesson.subject || schedule.title}`,
+      subtitle: [schedule.title, lesson.teacher ? `Преподаватель: ${lesson.teacher}` : "", schedule.typeLabel]
+        .filter(Boolean)
+        .join(" · "),
+      color: schedule.color || "#5F9073",
+      sortValue: getHistoryTimeSortValue(lesson.time, 1400),
+      isReadOnly: true,
+    })));
+}
+
+function getScheduleDayTimeHistoryItems(schedule, weekday) {
+  return (Array.isArray(schedule.dayTimes) ? schedule.dayTimes : [])
+    .filter(day => normalizeScheduleWeekday(day.day) === weekday)
+    .flatMap(day => (Array.isArray(day.times) ? day.times : []).map(time => {
+      const item = parseScheduleTimeText(time, schedule);
+      return {
+        ...item,
+        color: schedule.color || "#47A7B8",
+        sortValue: getHistoryTimeSortValue(item.time, 1500),
+        isReadOnly: true,
+      };
+    }));
+}
+
+function isScheduleActiveOnDate(schedule, date) {
+  if (schedule?.isActive === false) return false;
+
+  const period = schedule?.period || {};
+  const start = parseHistoryDateValue(period["Действует с"] || period.startDate || period["Начало"]);
+  const end = parseHistoryDateValue(period["Действует до"] || period.endDate || period["Конец"]);
+  const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+
+  if (start && dayStart < start.getTime()) return false;
+  if (end && dayStart > end.getTime()) return false;
+  return true;
+}
+
+function parseScheduleTimeText(value, schedule) {
+  const text = String(value || "").trim();
+  const parts = text.split(/\s+[·•]\s+/).filter(Boolean);
+  const firstPart = parts[0] || "";
+  const hasTime = /\d{1,2}:\d{2}/.test(firstPart);
+  const detail = hasTime ? parts.slice(1).join(" · ") : text;
+
+  return {
+    time: hasTime ? firstPart : "Без времени",
+    title: detail || schedule.title,
+    subtitle: schedule.typeLabel || schedule.title || "Расписание",
+  };
+}
+
+function normalizeScheduleWeekday(value) {
+  if (Number.isInteger(Number(value)) && Number(value) >= 1 && Number(value) <= 7) {
+    return Number(value);
+  }
+
+  const text = String(value || "").trim().toLowerCase();
+  const labels = {
+    monday: 1,
+    mon: 1,
+    "пн": 1,
+    "понедельник": 1,
+    tuesday: 2,
+    tue: 2,
+    "вт": 2,
+    "вторник": 2,
+    wednesday: 3,
+    wed: 3,
+    "ср": 3,
+    "среда": 3,
+    thursday: 4,
+    thu: 4,
+    "чт": 4,
+    "четверг": 4,
+    friday: 5,
+    fri: 5,
+    "пт": 5,
+    "пятница": 5,
+    saturday: 6,
+    sat: 6,
+    "сб": 6,
+    "суббота": 6,
+    sunday: 7,
+    sun: 7,
+    "вс": 7,
+    "воскресенье": 7,
+  };
+
+  return labels[text] || labels[text.slice(0, 2)] || 0;
+}
+
+function getIsoWeekdayNumber(date) {
+  const weekday = date.getDay();
+  return weekday === 0 ? 7 : weekday;
+}
+
+function getReminderDateKey(reminder) {
+  const scheduled = new Date(reminder?.scheduledAt || "");
+  if (Number.isFinite(scheduled.getTime())) {
+    return toIsoDate(scheduled);
+  }
+
+  const parsed = parseHistoryDateValue(reminder?.date);
+  return parsed ? toIsoDate(parsed) : "";
+}
+
+function parseHistoryDateValue(value) {
+  const text = String(value || "").trim();
+  const localMatch = text.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  const parts = localMatch
+    ? { day: Number(localMatch[1]), month: Number(localMatch[2]), year: Number(localMatch[3]) }
+    : isoMatch
+      ? { day: Number(isoMatch[3]), month: Number(isoMatch[2]), year: Number(isoMatch[1]) }
+      : null;
+
+  if (!parts) return null;
+
+  const date = new Date(parts.year, parts.month - 1, parts.day);
+  if (
+    date.getFullYear() !== parts.year ||
+    date.getMonth() !== parts.month - 1 ||
+    date.getDate() !== parts.day
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+function formatHistoryTime(value) {
+  const date = new Date(value || "");
+  if (!Number.isFinite(date.getTime())) return "";
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function getHistoryTimeSortValue(value, fallback) {
+  const text = String(value || "");
+  const match = text.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return fallback;
+  return (Number(match[1]) * 60) + Number(match[2]);
+}
+
+function compareDayHistoryItems(first, second) {
+  return first.sortValue - second.sortValue || first.title.localeCompare(second.title, "ru");
+}
+
+function formatPlural(count, forms) {
+  const lastTwo = count % 100;
+  const last = count % 10;
+  if (lastTwo >= 11 && lastTwo <= 14) return forms[2];
+  if (last === 1) return forms[0];
+  if (last >= 2 && last <= 4) return forms[1];
+  return forms[2];
+}
+
 function renderDayCard(date) {
   selectedDayCardDate = new Date(date);
   const title = document.querySelector("#dayCardTitle");
   const body = document.querySelector("#dayCardBody");
   if (!title || !body) return;
 
-  const events = getEventsForDate(date);
+  const isPastDate = isPastCalendarDate(date);
+  const events = isPastDate ? getDayHistoryItems(date) : getEventsForDate(date);
+  const panelLabel = isPastDate ? "История запланированных дел" : "События рядом с этой датой";
+  const panelStatus = events.length
+    ? `${events.length} ${formatPlural(events.length, isPastDate ? ["запись", "записи", "записей"] : ["событие", "события", "событий"])}`
+    : isPastDate ? "История пуста" : "Пока спокойно";
+  const emptyTitle = isPastDate
+    ? "История запланированных дел отсутствует."
+    : "На эту дату пока ничего не запланировано.";
+  const emptySubtitle = isPastDate
+    ? "В этот день не найдено дел, напоминаний или расписаний."
+    : "Можно добавить напоминание или просто оставить день свободным.";
+
   title.textContent = formatDayTitle(date);
   body.innerHTML = `
     <div class="day-card-panel">
       <div class="day-card-panel__head">
         <div>
-          <span>События рядом с этой датой</span>
-          <strong>${events.length ? `${events.length} события` : "Пока спокойно"}</strong>
+          <span>${panelLabel}</span>
+          <strong>${panelStatus}</strong>
         </div>
         <button class="primary-button primary-button--compact" type="button" data-open-week-view>
           Открыть неделю
@@ -1816,6 +2042,7 @@ function renderDayCard(date) {
               <button class="secondary-button secondary-button--compact" type="button" data-open-holiday-event="${escapeHtml(item.id)}">
                 Подробнее
               </button>
+            ` : item.isReadOnly ? `
             ` : `
               <button class="icon-button icon-button--tiny" type="button" aria-label="Удалить">
                 <span class="icon icon-trash"></span>
@@ -1824,8 +2051,8 @@ function renderDayCard(date) {
           </article>
         `).join("") : `
           <div class="day-card-empty">
-            <strong>На эту дату пока ничего не запланировано.</strong>
-            <span>Можно добавить напоминание или просто оставить день свободным.</span>
+            <strong>${emptyTitle}</strong>
+            <span>${emptySubtitle}</span>
           </div>
         `}
       </div>

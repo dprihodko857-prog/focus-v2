@@ -164,6 +164,51 @@ test("draft validation blocks overlapping generated blocks", () => {
   assert.equal(overlap.blockingConflicts.some(item => item.code === "draft_overlap"), true);
 });
 
+test("import batch rejects selected variants that conflict with existing fixed intervals", () => {
+  const intake = createDefaultPersonalScheduleIntake();
+  const draft = {
+    id: "draft-conflict",
+    intake,
+    selectedVariantId: "variant-conflict",
+    variants: [{
+      id: "variant-conflict",
+      title: "Conflict",
+      blocks: [{
+        id: "generated",
+        title: "Goal",
+        category: "focus",
+        weekday: "Понедельник",
+        weekdayLabel: "Понедельник",
+        startTime: "09:30",
+        endTime: "10:30",
+        startMinute: 570,
+        endMinute: 630,
+        flexibility: "semi_flexible",
+      }],
+    }],
+  };
+  const batchResult = createPersonalScheduleImportBatch({
+    draft,
+    selectedVariantId: "variant-conflict",
+    existingIntervals: [{
+      id: "fixed",
+      sourceId: "fixed",
+      weekday: 1,
+      titleCategory: "work",
+      category: "work",
+      startTime: "09:00",
+      endTime: "10:00",
+      startMinute: 540,
+      endMinute: 600,
+      flexibility: "fixed",
+    }],
+  });
+
+  assert.equal(batchResult.ok, false);
+  assert.deepEqual(batchResult.errors, ["fixed_conflict"]);
+  assert.equal(batchResult.batch, null);
+});
+
 test("import batch writes existing Focus entities and rollback removes only imported ids", () => {
   const draft = createDeterministicScheduleDraft({
     intake: createDefaultPersonalScheduleIntake(),

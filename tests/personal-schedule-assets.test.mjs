@@ -6,6 +6,8 @@ const indexHtml = readFileSync("public/index.html", "utf8");
 const appJs = readFileSync("public/js/app.js", "utf8");
 const appCss = readFileSync("public/css/app.css", "utf8");
 const syncJs = readFileSync("public/js/sync.js", "utf8");
+const plannerJs = readFileSync("public/js/personal-schedule-planner.js", "utf8");
+const plannerUiJs = readFileSync("public/js/personal-schedule-ui.js", "utf8");
 const serverJs = readFileSync("server/sync-server.mjs", "utf8");
 const serviceWorker = readFileSync("public/service-worker.js", "utf8");
 
@@ -32,6 +34,17 @@ test("Personal Schedule Planner uses existing Focus collections for import and r
   assert.doesNotMatch(indexHtml, /id="personalScheduleCalendar"/);
 });
 
+test("Personal Schedule Planner blocks import when existing Focus intervals conflict", () => {
+  assert.match(plannerJs, /existingIntervals = \[\]/);
+  assert.match(plannerJs, /validatePersonalScheduleDraft\(\{[\s\S]*?existingIntervals,/);
+  assert.match(plannerUiJs, /existingIntervals: getExistingIntervals\(\)/);
+  assert.match(plannerUiJs, /function getSelectedDraftValidation\(\)/);
+  assert.match(plannerUiJs, /const canImport = hasDraft && validation\?\.ok;/);
+  assert.match(plannerUiJs, /data-ps-action="confirm-import" \$\{canImport \? "" : "disabled"\}/);
+  assert.match(plannerUiJs, /Блок пересекается с фиксированным событием Focus/);
+  assert.match(plannerUiJs, /Два блока черновика пересекаются/);
+});
+
 test("Personal Schedule Planner backend endpoints and prompt version are wired", () => {
   assert.match(syncJs, /async getPersonalScheduleStatus\(\)/);
   assert.match(syncJs, /async generatePersonalSchedule\(requestBody = \{\}\)/);
@@ -54,7 +67,7 @@ test("Personal Schedule Planner CSS supports wizard, variants, editor, and mobil
 });
 
 test("service worker caches Personal Schedule Planner modules", () => {
-  assert.match(serviceWorker, /focus-pwa-v121/);
+  assert.match(serviceWorker, /focus-pwa-v122/);
   assert.match(serviceWorker, /"\/js\/personal-schedule-planner\.js"/);
   assert.match(serviceWorker, /"\/js\/personal-schedule-ui\.js"/);
 });

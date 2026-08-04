@@ -5720,3 +5720,113 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Draft validation now blocks generated-block overlaps, weekday labels are normalized in overlap checks, and deterministic focus blocks move away from fixed work windows before the work block is added.
 - commit_status: committed
 - notes: Planner and service-worker syntax checks passed; focused planner/static tests passed 65/65; `npm.cmd run test` passed 245/245; `git diff --check` passed on 2026-08-04. No deployment or git push.
+
+## TASK-102
+
+- title: Guard Personal Schedule Planner import confirmation validation
+- status: DONE
+- owner_gate: owner_continue_after_task_101
+- task_type: schedule_planner_quality_guard
+- priority: high
+- source: continuing the next local planner hardening slice after TASK-101
+- spec_reference: `docs/specs/personal-schedule-import-validation-guard.md`
+- spec_status: implemented_local_committed
+- goal: prevent invalid Personal Schedule Planner variants from reaching import confirmation or creating import batches when they conflict with existing fixed Focus intervals.
+- out_of_scope:
+  - live AI provider credentials or provider routing
+  - planner layout redesign
+  - conflict auto-resolution
+  - backend API contract changes
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - selected variants that overlap existing fixed Focus intervals cannot produce an import batch
+  - fixed conflicts are detected when generated blocks use Russian weekday labels
+  - the draft screen disables the "Add to Focus" transition while validation is not OK
+  - validation messages explain blocking conflicts in Russian instead of exposing raw codes as primary UI
+  - PWA cache is bumped to `focus-pwa-v122`
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/personal-schedule-planner.js`
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/personal-schedule-planner.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small planner quality task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 102
+- stop_conditions:
+  - implementation requires live AI provider credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/personal-schedule-planner.js`
+  - `public/js/personal-schedule-ui.js`
+  - `public/service-worker.js`
+  - `tests/personal-schedule-planner.test.mjs`
+  - `tests/personal-schedule-assets.test.mjs`
+  - static PWA contract tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-097 Personal Schedule Planner scaffold
+  - TASK-101 Personal Schedule Planner overlap guard
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Planner import batch creation now receives existing fixed Focus intervals, fixed-conflict checks normalize weekday labels, the UI disables import confirmation for invalid variants, and validation messages are user-readable.
+- commit_status: committed
+- notes: Planner/UI/service-worker syntax checks passed; focused planner/static tests passed 68/68; `npm.cmd run test` passed 248/248; `git diff --check` passed on 2026-08-04. No deployment or git push.
+
+## TASK-103
+
+- title: Show readonly history in past calendar day cards
+- status: DONE
+- owner_gate: owner_continue_after_task_102
+- task_type: calendar_history_quality
+- priority: medium
+- source: continuing the next local calendar usability slice after planner import hardening
+- spec_reference: `docs/specs/past-day-calendar-history.md`
+- spec_status: implemented_local_committed
+- goal: make past calendar day cards useful by showing readonly planned Focus task, reminder, and schedule history instead of future-planning empty-state copy.
+- out_of_scope:
+  - editing historical records from the day card
+  - changing storage contracts
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - past day cards use history-specific labels and empty-state copy
+  - task, reminder, and schedule items appear as readonly history entries
+  - history entries sort by planned time
+  - readonly history entries do not expose delete controls
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check tests/desktop-layout-css.test.mjs`
+  - `node --test tests/desktop-layout-css.test.mjs tests/personal-schedule-assets.test.mjs tests/personal-schedule-planner.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small local calendar UX task
+- file_limit: up to 6 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 103
+- stop_conditions:
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/app.js`
+  - `tests/desktop-layout-css.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - existing calendar day card
+  - existing task/reminder/schedule storage
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. Past day cards now render readonly task, reminder, and schedule history with history-specific labels, empty states, pluralization, and sorting.
+- commit_status: committed
+- notes: App/test syntax passed, focused static/planner tests passed 68/68, `npm.cmd run test` passed 248/248, and `git diff --check` passed on 2026-08-04. No deployment or git push.

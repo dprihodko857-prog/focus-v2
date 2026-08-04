@@ -513,18 +513,19 @@ export function validatePersonalScheduleDraft({ draft, intake = createDefaultPer
   blocks.forEach((block, index) => {
     const startMinute = Number.isFinite(block.startMinute) ? block.startMinute : parseTimeToMinutes(block.startTime);
     const endMinute = Number.isFinite(block.endMinute) ? block.endMinute : parseTimeToMinutes(block.endTime);
+    const weekday = normalizeWeekdayLabel(block.weekday) || Number(block.weekday) || 1;
     if (!Number.isFinite(startMinute) || !Number.isFinite(endMinute) || endMinute <= startMinute) {
       blockingConflicts.push({ code: "invalid_time", blockId: block.id || `block-${index}` });
     } else {
       validBlocks.push({
         id: block.id || `block-${index}`,
-        weekday: normalizeWeekdayLabel(block.weekday) || Number(block.weekday) || 1,
+        weekday,
         startMinute,
         endMinute,
       });
     }
     for (const interval of normalizeExistingIntervals(existingIntervals)) {
-      if (interval.weekday !== Number(block.weekday)) continue;
+      if (interval.weekday !== weekday) continue;
       if (interval.flexibility !== "fixed") continue;
       if (rangesOverlap(startMinute, endMinute, interval.startMinute, interval.endMinute)) {
         blockingConflicts.push({
@@ -569,6 +570,7 @@ export function createPersonalScheduleImportBatch({
   selectedVariantId = "",
   includeTasks = true,
   includeReminders = false,
+  existingIntervals = [],
   now = new Date(),
   createId = defaultCreateId,
 } = {}) {
@@ -579,6 +581,7 @@ export function createPersonalScheduleImportBatch({
   const validation = validatePersonalScheduleDraft({
     draft: { blocks: variant.blocks },
     intake: draft.intake,
+    existingIntervals,
   });
   if (!validation.ok) {
     return { ok: false, errors: validation.blockingConflicts.map(conflict => conflict.code), batch: null };
