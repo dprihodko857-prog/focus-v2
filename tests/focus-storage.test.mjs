@@ -10,6 +10,7 @@ import {
   LEGACY_TASKS_KEY,
   DIARY_PIN_KEY,
   parseScheduleList,
+  QUOTE_CACHE_KEY,
   REMINDERS_KEY,
 } from "../public/js/storage.js";
 
@@ -221,6 +222,23 @@ test("saveDiaryPinSettings persists and clears diary PIN settings", async () => 
   assert.equal(await storage.loadDiaryPinSettings(), null);
 });
 
+test("daily quotes cache persists the current server set for offline display", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const storage = createFocusStorage({ indexedDB, localStorage: createMemoryLocalStorage() });
+  const cache = {
+    localDate: "2026-08-04",
+    timezone: "Europe/Moscow",
+    quotes: [{ id: "quote-1", text: "Focus quote" }],
+    savedAt: "2026-08-04T09:00:00.000Z",
+  };
+
+  await storage.saveDailyQuotesCache(cache);
+  assert.deepEqual(await storage.loadDailyQuotesCache(), cache);
+
+  await storage.saveDailyQuotesCache(null);
+  assert.equal(await storage.loadDailyQuotesCache(), null);
+});
+
 test("successful IndexedDB saves remove stale legacy fallback keys", async () => {
   const indexedDB = createFakeIndexedDB();
   const localStorage = createMemoryLocalStorage({
@@ -231,6 +249,7 @@ test("successful IndexedDB saves remove stale legacy fallback keys", async () =>
     [LEGACY_BIRTHDAYS_KEY]: JSON.stringify([{ id: "legacy-birthday" }]),
     [LEGACY_DIARY_KEY]: JSON.stringify([{ id: "legacy-diary" }]),
     [DIARY_PIN_KEY]: JSON.stringify({ salt: "old", hash: "old", iterations: 1 }),
+    [QUOTE_CACHE_KEY]: JSON.stringify({ localDate: "legacy" }),
   });
   const storage = createFocusStorage({ indexedDB, localStorage });
 

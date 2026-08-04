@@ -14,6 +14,8 @@ const PENDING_SUBSCRIPTION_CHECKOUT_KEY = "focus-sync-pending-subscription-check
 const ACCOUNT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
 const DEVICE_ID_PATTERN = /^[a-zA-Z0-9_.:-]{4,160}$/;
 const PAYMENT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
+const QUOTE_ID_PATTERN = /^[a-zA-Z0-9_.:-]{1,160}$/;
+const QUOTE_CATEGORY_PATTERN = /^[a-z][a-z0-9_]{1,80}$/;
 const COLLECTION_KEYS = new Set(["schedules", "reminders", "tasks", "notes", "birthdays", "diary"]);
 const ENTITLEMENT_SOURCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
 const VOICE_TRANSCRIPTION_FEATURE_KEY = "voiceTranscription";
@@ -148,6 +150,17 @@ export function createFocusSyncClient({
   const normalizePaymentId = paymentId => {
     const normalizedPaymentId = String(paymentId || "").trim();
     return PAYMENT_ID_PATTERN.test(normalizedPaymentId) ? normalizedPaymentId : "";
+  };
+  const normalizeQuoteId = quoteId => {
+    const normalizedQuoteId = String(quoteId || "").trim();
+    return QUOTE_ID_PATTERN.test(normalizedQuoteId) ? normalizedQuoteId : "";
+  };
+  const getCurrentTimezone = () => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    } catch {
+      return "UTC";
+    }
   };
   const normalizeSubscriptionCheckoutStatus = status => {
     const normalizedStatus = String(status || "").trim().replace(/_/g, "-");
@@ -1244,6 +1257,172 @@ export function createFocusSyncClient({
       });
     },
 
+    async getQuoteCategories() {
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/quotes/categories"));
+        if (!response.ok) {
+          throw new Error("Focus quote categories load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          selectionModes: Array.isArray(result.selectionModes) ? result.selectionModes : [],
+          categories: normalizeQuoteCategories(result.categories),
+        };
+      } catch {
+        return {
+          status: "offline",
+          selectionModes: [{ code: "any", titleRu: "Любые" }],
+          categories: [],
+        };
+      }
+    },
+
+    async getTodayQuotes({ timezone = getCurrentTimezone() } = {}) {
+      const normalizedTimezone = normalizeTimezone(timezone);
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, `/quotes/today?timezone=${encodeURIComponent(normalizedTimezone)}`), {
+          headers: await withHeaders(),
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (response.status === 503 && result?.error === "quote_catalog_unavailable") {
+          return {
+            status: "catalog-unavailable",
+            ...normalizeTodayQuotesResponse(result, normalizedTimezone),
+          };
+        }
+
+        if (!response.ok) {
+          throw new Error("Focus daily quotes load failed.");
+        }
+
+        return {
+          status: "ok",
+          ...normalizeTodayQuotesResponse(result, normalizedTimezone),
+        };
+      } catch {
+        return {
+          status: "offline",
+          ...createEmptyTodayQuotes(normalizedTimezone),
+        };
+      }
+    },
+
+    async getQuotePreferences({ timezone = getCurrentTimezone() } = {}) {
+      const normalizedTimezone = normalizeTimezone(timezone);
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, `/quotes/preferences?timezone=${encodeURIComponent(normalizedTimezone)}`), {
+          headers: await withHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Focus quote preferences load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          preferences: normalizeQuotePreferences(result.preferences, normalizedTimezone),
+          checkedAt: normalizeTimestamp(result.checkedAt),
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          preferences: createDefaultQuotePreferences(normalizedTimezone),
+          checkedAt: null,
+        };
+      }
+    },
+
+    async updateQuotePreferences(preferences = {}) {
+      const normalizedPreferences = normalizeQuotePreferences(preferences, getCurrentTimezone());
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/quotes/preferences"), {
+          method: "PUT",
+          headers: await withHeaders(),
+          body: JSON.stringify(normalizedPreferences),
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          return {
+            status: "invalid",
+            error: result.error || "invalid_quote_preferences",
+          };
+        }
+
+        return {
+          status: "saved",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          preferences: normalizeQuotePreferences(result.preferences, normalizedPreferences.timezone),
+          effectiveFromLocalDate: normalizeLocalDate(result.effectiveFromLocalDate),
+          message: typeof result.message === "string" ? result.message : "",
+          checkedAt: normalizeTimestamp(result.checkedAt),
+        };
+      } catch {
+        return {
+          status: "offline",
+          error: "offline",
+        };
+      }
+    },
+
+    async favoriteQuote(quoteId) {
+      const normalizedQuoteId = normalizeQuoteId(quoteId);
+      if (!normalizedQuoteId) {
+        return { status: "invalid", quoteId: "", isFavorite: false };
+      }
+
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, `/quotes/${encodeURIComponent(normalizedQuoteId)}/favorite`), {
+          method: "POST",
+          headers: await withHeaders(),
+          body: "{}",
+        });
+        if (!response.ok) {
+          throw new Error("Focus quote favorite save failed.");
+        }
+        const result = await response.json();
+        return {
+          status: "saved",
+          quoteId: result.quoteId || normalizedQuoteId,
+          isFavorite: result.isFavorite === true,
+          createdAt: normalizeTimestamp(result.createdAt),
+        };
+      } catch {
+        return { status: "offline", quoteId: normalizedQuoteId, isFavorite: false };
+      }
+    },
+
+    async unfavoriteQuote(quoteId) {
+      const normalizedQuoteId = normalizeQuoteId(quoteId);
+      if (!normalizedQuoteId) {
+        return { status: "invalid", quoteId: "", isFavorite: false };
+      }
+
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, `/quotes/${encodeURIComponent(normalizedQuoteId)}/favorite`), {
+          method: "DELETE",
+          headers: await withHeaders(),
+        });
+        if (!response.ok) {
+          throw new Error("Focus quote favorite removal failed.");
+        }
+        const result = await response.json();
+        return {
+          status: "saved",
+          quoteId: result.quoteId || normalizedQuoteId,
+          isFavorite: result.isFavorite === true,
+        };
+      } catch {
+        return { status: "offline", quoteId: normalizedQuoteId, isFavorite: true };
+      }
+    },
+
     async getPushConfig() {
       try {
         const response = await fetchImpl(apiUrl(apiBaseUrl, "/push/config"));
@@ -1472,6 +1651,180 @@ function normalizeFeatureEntitlement(entitlement) {
     expiresAt: normalizeTimestamp(entitlement.expiresAt),
     paymentId: normalizePaymentId(entitlement.paymentId) || null,
   };
+}
+
+function normalizeTodayQuotesResponse(result, timezone = "UTC") {
+  const source = result && typeof result === "object" && !Array.isArray(result) ? result : {};
+  return {
+    localDate: normalizeLocalDate(source.localDate),
+    timezone: normalizeTimezone(source.timezone || timezone),
+    validFromUtc: normalizeTimestamp(source.validFromUtc),
+    validUntilUtc: normalizeTimestamp(source.validUntilUtc),
+    generationReason: normalizeQuoteGenerationReason(source.generationReason),
+    quotes: normalizeDailyQuotes(source.quotes),
+  };
+}
+
+function createEmptyTodayQuotes(timezone = "UTC") {
+  return {
+    localDate: "",
+    timezone: normalizeTimezone(timezone),
+    validFromUtc: null,
+    validUntilUtc: null,
+    generationReason: "",
+    quotes: [],
+  };
+}
+
+function normalizeDailyQuotes(quotes) {
+  return Array.isArray(quotes)
+    ? quotes.map(normalizeDailyQuote).filter(Boolean).sort((first, second) => first.position - second.position).slice(0, 5)
+    : [];
+}
+
+function normalizeDailyQuote(quote) {
+  if (!quote || typeof quote !== "object" || Array.isArray(quote)) {
+    return null;
+  }
+
+  const id = normalizeQuoteIdValue(quote.id);
+  const text = sanitizeText(quote.text, 2000);
+  const authorName = sanitizeText(quote.authorName, 160);
+  const sourceTitle = sanitizeText(quote.sourceTitle, 500);
+  const sourceReference = sanitizeText(quote.sourceReference, 500);
+  if (!id || !text || !authorName || !sourceTitle || !sourceReference) {
+    return null;
+  }
+
+  return {
+    id,
+    position: Math.max(1, Math.min(5, Math.floor(Number(quote.position) || 1))),
+    text,
+    authorName,
+    sourceTitle,
+    sourceType: sanitizeQuoteSourceType(quote.sourceType),
+    sourceReference,
+    sourceUrl: typeof quote.sourceUrl === "string" ? quote.sourceUrl : "",
+    categoryCodes: normalizeQuoteCategoryCodes(quote.categoryCodes),
+    isFavorite: quote.isFavorite === true,
+  };
+}
+
+function normalizeQuoteCategories(categories) {
+  return Array.isArray(categories)
+    ? categories.map(normalizeQuoteCategory).filter(Boolean)
+    : [];
+}
+
+function normalizeQuoteCategory(category) {
+  if (!category || typeof category !== "object" || Array.isArray(category)) {
+    return null;
+  }
+
+  const code = normalizeQuoteCategoryCode(category.code);
+  const titleRu = sanitizeText(category.titleRu, 120);
+  if (!code || !titleRu) {
+    return null;
+  }
+
+  return {
+    id: normalizeQuoteIdValue(category.id) || `quote-category-${code}`,
+    code,
+    titleRu,
+    descriptionRu: sanitizeText(category.descriptionRu, 500),
+    sortOrder: Number(category.sortOrder) || 0,
+    isActive: category.isActive !== false,
+    minimumCatalogSize: Math.max(0, Math.floor(Number(category.minimumCatalogSize) || 0)),
+    activeVerifiedCount: Math.max(0, Math.floor(Number(category.activeVerifiedCount) || 0)),
+    available: category.available === true,
+  };
+}
+
+function normalizeQuotePreferences(preferences, timezone = "UTC") {
+  const source = preferences && typeof preferences === "object" && !Array.isArray(preferences)
+    ? preferences
+    : {};
+  const selectedCategoryCodes = normalizeQuoteCategoryCodes(source.selectedCategoryCodes).slice(0, 3);
+  const selectionMode = source.selectionMode === "selected_categories" && selectedCategoryCodes.length
+    ? "selected_categories"
+    : "any";
+
+  return {
+    selectionMode,
+    selectedCategoryCodes: selectionMode === "selected_categories" ? selectedCategoryCodes : [],
+    timezone: normalizeTimezone(source.timezone || timezone),
+    language: "ru",
+    excludeReligiousQuotes: source.excludeReligiousQuotes === true,
+    excludePoliticalQuotes: source.excludePoliticalQuotes === true,
+    excludeSadQuotes: source.excludeSadQuotes === true,
+    effectiveFromLocalDate: normalizeLocalDate(source.effectiveFromLocalDate),
+  };
+}
+
+function createDefaultQuotePreferences(timezone = "UTC") {
+  return {
+    selectionMode: "any",
+    selectedCategoryCodes: [],
+    timezone: normalizeTimezone(timezone),
+    language: "ru",
+    excludeReligiousQuotes: false,
+    excludePoliticalQuotes: false,
+    excludeSadQuotes: false,
+    effectiveFromLocalDate: "",
+  };
+}
+
+function normalizeQuoteCategoryCodes(value) {
+  const seen = new Set();
+  return Array.isArray(value)
+    ? value.map(normalizeQuoteCategoryCode).filter(code => code && !seen.has(code) && seen.add(code))
+    : [];
+}
+
+function normalizeQuoteCategoryCode(value) {
+  const code = String(value || "").trim();
+  return QUOTE_CATEGORY_PATTERN.test(code) ? code : "";
+}
+
+function normalizeQuoteIdValue(value) {
+  const quoteId = String(value || "").trim();
+  return QUOTE_ID_PATTERN.test(quoteId) ? quoteId : "";
+}
+
+function sanitizeQuoteSourceType(value) {
+  return [
+    "book",
+    "article",
+    "speech",
+    "interview",
+    "letter",
+    "diary",
+    "other",
+  ].includes(value) ? value : "other";
+}
+
+function normalizeQuoteGenerationReason(value) {
+  const reason = String(value || "").trim();
+  return ["scheduled_midnight", "recovery_fallback", "admin_rebuild"].includes(reason) ? reason : "";
+}
+
+function normalizeLocalDate(value) {
+  const date = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "";
+}
+
+function normalizeTimezone(value) {
+  const timezone = String(value || "UTC").trim();
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date());
+    return timezone;
+  } catch {
+    return "UTC";
+  }
+}
+
+function sanitizeText(value, maxLength = 500) {
+  return typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, maxLength) : "";
 }
 
 function normalizeTimestamp(value) {

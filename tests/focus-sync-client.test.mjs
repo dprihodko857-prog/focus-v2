@@ -629,6 +629,142 @@ test("sendTestPushNotification requests a server push for the current device", a
   assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
 });
 
+test("daily quotes client loads today's server set with account headers", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        localDate: "2026-08-04",
+        timezone: "Europe/Moscow",
+        validFromUtc: "2026-08-03T21:00:00.000Z",
+        validUntilUtc: "2026-08-04T21:00:00.000Z",
+        generationReason: "recovery_fallback",
+        quotes: [{
+          id: "quote-1",
+          position: 1,
+          text: "Focus quote",
+          authorName: "Author",
+          sourceTitle: "Book",
+          sourceType: "book",
+          sourceReference: "chapter 1",
+          categoryCodes: ["life_wisdom"],
+          isFavorite: false,
+        }],
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.getTodayQuotes({ timezone: "Europe/Moscow" });
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.localDate, "2026-08-04");
+  assert.equal(result.quotes.length, 1);
+  assert.equal(result.quotes[0].id, "quote-1");
+  assert.equal(calls[0].url, "/api/quotes/today?timezone=Europe%2FMoscow");
+  assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
+  assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
+});
+
+test("daily quotes client reports catalog unavailable without clearing local UI state", async () => {
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async () => jsonResponse({
+      error: "quote_catalog_unavailable",
+      localDate: "2026-08-04",
+      timezone: "Europe/Moscow",
+      quotes: [],
+    }, 503),
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.getTodayQuotes({ timezone: "Europe/Moscow" });
+
+  assert.equal(result.status, "catalog-unavailable");
+  assert.equal(result.localDate, "2026-08-04");
+  assert.deepEqual(result.quotes, []);
+});
+
+test("daily quotes preferences save selected categories for the next local day", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        accountId: "account-1",
+        effectiveFromLocalDate: "2026-08-05",
+        message: "Новые настройки начнут действовать завтра в 00:00.",
+        checkedAt: "2026-08-04T09:00:00.000Z",
+        preferences: JSON.parse(options.body),
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.updateQuotePreferences({
+    selectionMode: "selected_categories",
+    selectedCategoryCodes: ["life_wisdom", "business", "family_children"],
+    timezone: "Europe/Moscow",
+  });
+
+  assert.equal(result.status, "saved");
+  assert.equal(result.effectiveFromLocalDate, "2026-08-05");
+  assert.deepEqual(result.preferences.selectedCategoryCodes, ["life_wisdom", "business", "family_children"]);
+  assert.equal(calls[0].url, "/api/quotes/preferences");
+  assert.equal(calls[0].options.method, "PUT");
+  assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
+});
+
+test("daily quotes client toggles favorite quotes", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        quoteId: "quote-1",
+        isFavorite: options.method === "POST",
+        createdAt: "2026-08-04T09:00:00.000Z",
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  assert.deepEqual(await client.favoriteQuote("quote-1"), {
+    status: "saved",
+    quoteId: "quote-1",
+    isFavorite: true,
+    createdAt: "2026-08-04T09:00:00.000Z",
+  });
+  assert.deepEqual(await client.unfavoriteQuote("quote-1"), {
+    status: "saved",
+    quoteId: "quote-1",
+    isFavorite: false,
+  });
+  assert.equal(calls[0].url, "/api/quotes/quote-1/favorite");
+  assert.equal(calls[0].options.method, "POST");
+  assert.equal(calls[1].options.method, "DELETE");
+});
+
 test("account profile loads and updates device metadata", async () => {
   const calls = [];
   const storage = createMemoryLocalStorage({

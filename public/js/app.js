@@ -1,4 +1,4 @@
-import { createFocusStorage, DIARY_PIN_KEY, LEGACY_BIRTHDAYS_KEY, LEGACY_DIARY_KEY, LEGACY_NOTES_KEY, LEGACY_SCHEDULES_KEY, LEGACY_TASKS_KEY, parseScheduleList, REMINDERS_KEY } from "./storage.js";
+import { createFocusStorage, DIARY_PIN_KEY, LEGACY_BIRTHDAYS_KEY, LEGACY_DIARY_KEY, LEGACY_NOTES_KEY, LEGACY_SCHEDULES_KEY, LEGACY_TASKS_KEY, parseScheduleList, QUOTE_CACHE_KEY, REMINDERS_KEY } from "./storage.js";
 import { createFocusAuthClient } from "./auth.js";
 import { createFocusSyncClient } from "./sync.js";
 import { createFocusNotifications, createLocalReminder } from "./notifications.js";
@@ -654,6 +654,22 @@ const monthImageSlugs = [
 ];
 
 let quoteIndex = 0;
+let dailyQuotesState = {
+  status: "idle",
+  localDate: "",
+  timezone: "",
+  validFromUtc: null,
+  validUntilUtc: null,
+  generationReason: "",
+  quotes: [],
+};
+let quoteCategoriesState = [];
+let quotePreferencesState = {
+  selectionMode: "any",
+  selectedCategoryCodes: [],
+  timezone: "",
+  effectiveFromLocalDate: "",
+};
 let currentCalendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedDayCardDate = new Date();
 
@@ -671,7 +687,293 @@ function formatDate() {
 }
 
 function renderQuote() {
-  document.querySelector("#quoteText").textContent = quotes[quoteIndex];
+  const quoteText = document.querySelector("#quoteText");
+  if (quoteText) {
+    const quote = getActiveDailyQuote();
+    const text = quote ? formatQuoteMarqueeText(quote) : quotes[quoteIndex % quotes.length];
+    quoteText.textContent = text;
+    quoteText.dataset.quoteCopy = text;
+  }
+}
+
+function getActiveDailyQuote() {
+  const dailyQuotes = Array.isArray(dailyQuotesState.quotes) ? dailyQuotesState.quotes : [];
+  return dailyQuotes.length ? dailyQuotes[quoteIndex % dailyQuotes.length] : null;
+}
+
+function formatQuoteMarqueeText(quote) {
+  const author = quote?.authorName ? ` — ${quote.authorName}` : "";
+  return `${quote?.text || ""}${author}`.trim();
+}
+
+function getCurrentTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
+async function loadDailyQuotes({ force = false } = {}) {
+  const timezone = getCurrentTimezone();
+  const cached = await loadDailyQuotesFromCache();
+  if (cached && !force) {
+    dailyQuotesState = {
+      ...dailyQuotesState,
+      ...cached,
+      status: "cached",
+    };
+    quoteIndex = Math.min(quoteIndex, Math.max(0, dailyQuotesState.quotes.length - 1));
+    renderQuote();
+    renderDailyQuotesModal();
+  }
+
+  const result = await scheduleSync.getTodayQuotes({ timezone });
+  if (result.status === "ok" && result.quotes.length) {
+    dailyQuotesState = {
+      ...result,
+      status: "ok",
+    };
+    quoteIndex = Math.min(quoteIndex, Math.max(0, dailyQuotesState.quotes.length - 1));
+    await saveDailyQuotesToCache(dailyQuotesState);
+  } else if (!cached) {
+    dailyQuotesState = {
+      ...dailyQuotesState,
+      ...result,
+      timezone,
+      status: result.status,
+      quotes: [],
+    };
+  } else {
+    dailyQuotesState = {
+      ...dailyQuotesState,
+      status: result.status === "catalog-unavailable" ? "catalog-unavailable-cached" : "offline-cached",
+    };
+  }
+
+  renderQuote();
+  renderDailyQuotesModal();
+}
+
+async function loadDailyQuotesFromCache() {
+  try {
+    const cache = await scheduleStorage.loadDailyQuotesCache();
+    return normalizeDailyQuotesCache(cache);
+  } catch {
+    return null;
+  }
+}
+
+async function saveDailyQuotesToCache(quotesState) {
+  try {
+    await scheduleStorage.saveDailyQuotesCache({
+      localDate: quotesState.localDate,
+      timezone: quotesState.timezone,
+      validFromUtc: quotesState.validFromUtc,
+      validUntilUtc: quotesState.validUntilUtc,
+      generationReason: quotesState.generationReason,
+      quotes: quotesState.quotes,
+      savedAt: new Date().toISOString(),
+      storageKey: QUOTE_CACHE_KEY,
+    });
+  } catch {
+    // Кэш цитат не должен мешать основному экрану.
+  }
+}
+
+function normalizeDailyQuotesCache(cache) {
+  if (!cache || typeof cache !== "object" || Array.isArray(cache)) {
+    return null;
+  }
+
+  const quotes = Array.isArray(cache.quotes) ? cache.quotes.filter(quote => quote?.id && quote?.text) : [];
+  if (!quotes.length) {
+    return null;
+  }
+
+  return {
+    localDate: String(cache.localDate || ""),
+    timezone: String(cache.timezone || ""),
+    validFromUtc: cache.validFromUtc || null,
+    validUntilUtc: cache.validUntilUtc || null,
+    generationReason: String(cache.generationReason || ""),
+    quotes,
+  };
+}
+
+function renderDailyQuotesModal() {
+  const list = document.querySelector("#dailyQuotesList");
+  const status = document.querySelector("#quotesStatus");
+  if (!list || !status) return;
+
+  const quotesList = Array.isArray(dailyQuotesState.quotes) ? dailyQuotesState.quotes : [];
+  status.textContent = getDailyQuotesStatusText();
+
+  if (!quotesList.length) {
+    list.innerHTML = `
+      <article class="empty-state">
+        <strong>Подборка пока недоступна</strong>
+        <span>Серверный каталог цитат ещё не наполнен проверенными записями.</span>
+      </article>
+    `;
+    return;
+  }
+
+  list.innerHTML = quotesList.map(quote => `
+    <article class="daily-quote-card" data-quote-id="${escapeHtml(quote.id)}">
+      <span class="daily-quote-card__position">${quote.position || ""}</span>
+      <div>
+        <blockquote>${escapeHtml(quote.text)}</blockquote>
+        <cite>${escapeHtml(quote.authorName)} · ${escapeHtml(quote.sourceTitle)}${quote.sourceReference ? `, ${escapeHtml(quote.sourceReference)}` : ""}</cite>
+      </div>
+      <div class="daily-quote-card__actions">
+        <button class="icon-button icon-button--tiny ${quote.isFavorite ? "is-active" : ""}" type="button" aria-label="${quote.isFavorite ? "Убрать из избранного" : "Добавить в избранное"}" data-toggle-quote-favorite="${escapeHtml(quote.id)}">
+          <span class="icon icon-sparkles"></span>
+        </button>
+        <button class="icon-button icon-button--tiny" type="button" aria-label="Поделиться цитатой" data-share-quote="${escapeHtml(quote.id)}">
+          <span class="icon icon-more"></span>
+        </button>
+      </div>
+    </article>
+  `).join("");
+}
+
+function getDailyQuotesStatusText() {
+  if (dailyQuotesState.status === "ok") {
+    return `Подборка на ${dailyQuotesState.localDate || "сегодня"} загружена с сервера.`;
+  }
+  if (dailyQuotesState.status === "cached") {
+    return "Показана сохранённая локальная подборка.";
+  }
+  if (dailyQuotesState.status === "offline-cached") {
+    return "Нет соединения. Показываем сохранённую локальную подборку.";
+  }
+  if (dailyQuotesState.status === "catalog-unavailable-cached") {
+    return "Серверный каталог пока не готов. Показываем сохранённую подборку.";
+  }
+  if (dailyQuotesState.status === "catalog-unavailable") {
+    return "Серверный каталог пока не наполнен проверенными цитатами.";
+  }
+  if (dailyQuotesState.status === "offline") {
+    return "Нет соединения с сервером цитат.";
+  }
+  return "Загружаем сегодняшнюю подборку.";
+}
+
+async function loadQuotePreferencesUi() {
+  const [categories, preferences] = await Promise.all([
+    scheduleSync.getQuoteCategories(),
+    scheduleSync.getQuotePreferences({ timezone: getCurrentTimezone() }),
+  ]);
+  quoteCategoriesState = categories.categories || [];
+  quotePreferencesState = preferences.preferences || quotePreferencesState;
+  renderQuotePreferencesUi();
+}
+
+function renderQuotePreferencesUi() {
+  const options = document.querySelector("#quoteCategoryOptions");
+  const status = document.querySelector("#quotePreferencesStatus");
+  const anyModeInput = document.querySelector("input[name='quoteSelectionMode'][value='any']");
+  if (!options || !status || !anyModeInput) return;
+
+  const selectedCodes = new Set(quotePreferencesState.selectedCategoryCodes || []);
+  anyModeInput.checked = quotePreferencesState.selectionMode !== "selected_categories";
+  status.textContent = quotePreferencesState.effectiveFromLocalDate
+    ? `Текущие настройки действуют с ${quotePreferencesState.effectiveFromLocalDate}. Новые изменения применятся завтра.`
+    : "Изменения начнут действовать со следующего дня.";
+
+  options.innerHTML = quoteCategoriesState.map(category => `
+    <label class="quote-category-option ${category.available ? "" : "is-disabled"}">
+      <input type="checkbox" value="${escapeHtml(category.code)}" ${selectedCodes.has(category.code) ? "checked" : ""} />
+      <span>${escapeHtml(category.titleRu)}</span>
+    </label>
+  `).join("");
+}
+
+function readQuotePreferencesDraft() {
+  const anyModeInput = document.querySelector("input[name='quoteSelectionMode'][value='any']");
+  const selectedCategoryCodes = [...document.querySelectorAll("#quoteCategoryOptions input[type='checkbox']:checked")]
+    .map(input => input.value)
+    .filter(Boolean)
+    .slice(0, 3);
+  const selectionMode = anyModeInput?.checked || !selectedCategoryCodes.length ? "any" : "selected_categories";
+  return {
+    selectionMode,
+    selectedCategoryCodes: selectionMode === "selected_categories" ? selectedCategoryCodes : [],
+    timezone: getCurrentTimezone(),
+  };
+}
+
+function syncQuotePreferenceControls(changedInput = null) {
+  const status = document.querySelector("#quotePreferencesStatus");
+  const anyModeInput = document.querySelector("input[name='quoteSelectionMode'][value='any']");
+  const categoryInputs = [...document.querySelectorAll("#quoteCategoryOptions input[type='checkbox']")];
+
+  if (!anyModeInput || !categoryInputs.length) return;
+
+  if (changedInput === anyModeInput && anyModeInput.checked) {
+    categoryInputs.forEach(input => {
+      input.checked = false;
+    });
+    return;
+  }
+
+  let selectedInputs = categoryInputs.filter(input => input.checked);
+  if (changedInput?.type === "checkbox" && selectedInputs.length > 3) {
+    changedInput.checked = false;
+    selectedInputs = categoryInputs.filter(input => input.checked);
+    if (status) {
+      status.textContent = "Можно выбрать не больше трёх тематик. Изменения начнут действовать завтра.";
+    }
+  }
+
+  anyModeInput.checked = selectedInputs.length === 0;
+}
+
+async function saveQuotePreferencesUi() {
+  const status = document.querySelector("#quotePreferencesStatus");
+  const result = await scheduleSync.updateQuotePreferences(readQuotePreferencesDraft());
+  if (result.status === "saved") {
+    quotePreferencesState = result.preferences;
+    if (status) status.textContent = result.message || "Новые настройки начнут действовать завтра в 00:00.";
+    renderQuotePreferencesUi();
+    return;
+  }
+
+  if (status) {
+    status.textContent = result.error === "invalid_quote_category_count"
+      ? "Можно выбрать от одной до трёх тематик."
+      : "Не удалось сохранить настройки цитат.";
+  }
+}
+
+async function toggleQuoteFavorite(quoteId) {
+  const quote = dailyQuotesState.quotes.find(item => item.id === quoteId);
+  if (!quote) return;
+  const result = quote.isFavorite
+    ? await scheduleSync.unfavoriteQuote(quoteId)
+    : await scheduleSync.favoriteQuote(quoteId);
+  if (result.status === "saved") {
+    quote.isFavorite = result.isFavorite;
+    await saveDailyQuotesToCache(dailyQuotesState);
+    renderDailyQuotesModal();
+    renderQuote();
+  }
+}
+
+async function shareQuote(quoteId) {
+  const quote = dailyQuotesState.quotes.find(item => item.id === quoteId);
+  if (!quote) return;
+  const text = formatQuoteMarqueeText(quote);
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: "Цитата дня Focus", text });
+      return;
+    }
+    await navigator.clipboard?.writeText(text);
+  } catch {
+    // Ошибка шаринга не должна менять состояние цитаты.
+  }
 }
 
 function renderCalendar() {
@@ -7298,6 +7600,7 @@ function bindControls(initialLaunchTarget = "") {
     sync: document.querySelector("#syncModal"),
     useful: document.querySelector("#usefulModal"),
     reminders: document.querySelector("#remindersModal"),
+    quotes: document.querySelector("#quotesModal"),
     schedules: document.querySelector("#schedulesModal"),
     scheduleDetail: document.querySelector("#scheduleDetailModal"),
     dayCard: document.querySelector("#dayCardModal"),
@@ -7362,6 +7665,15 @@ function bindControls(initialLaunchTarget = "") {
       });
       syncSavedReminders().catch(() => {
         renderReminderList();
+      });
+    }
+    if (name === "quotes") {
+      renderDailyQuotesModal();
+      loadDailyQuotes().catch(() => {
+        renderDailyQuotesModal();
+      });
+      loadQuotePreferencesUi().catch(() => {
+        renderQuotePreferencesUi();
       });
     }
     if (name === "notes") {
@@ -7516,22 +7828,84 @@ function bindControls(initialLaunchTarget = "") {
     renderDiaryEditorState();
   }
 
-  document.querySelector("#quotePrev").addEventListener("click", () => {
-    quoteIndex = (quoteIndex - 1 + quotes.length) % quotes.length;
+  document.querySelector("#quotePrev")?.addEventListener("click", () => {
+    const quoteCount = Math.max(1, dailyQuotesState.quotes.length || quotes.length);
+    quoteIndex = (quoteIndex - 1 + quoteCount) % quoteCount;
     renderQuote();
   });
 
-  document.querySelector("#quoteNext").addEventListener("click", () => {
-    quoteIndex = (quoteIndex + 1) % quotes.length;
+  document.querySelector("#quoteNext")?.addEventListener("click", () => {
+    const quoteCount = Math.max(1, dailyQuotesState.quotes.length || quotes.length);
+    quoteIndex = (quoteIndex + 1) % quoteCount;
     renderQuote();
+  });
+
+  document.querySelector(".quote-card")?.addEventListener("click", event => {
+    if (event.target.closest("#quotePrev, #quoteNext")) return;
+    openModal("quotes");
+  });
+
+  document.querySelector("#quotesRefreshButton")?.addEventListener("click", () => {
+    loadDailyQuotes({ force: true }).catch(() => {
+      renderDailyQuotesModal();
+    });
+  });
+
+  document.querySelector("#quotePreferencesSaveButton")?.addEventListener("click", saveQuotePreferencesUi);
+
+  document.querySelector("input[name='quoteSelectionMode'][value='any']")?.addEventListener("change", event => {
+    syncQuotePreferenceControls(event.currentTarget);
+  });
+
+  document.querySelector("#quoteCategoryOptions")?.addEventListener("change", event => {
+    const input = event.target.closest("input[type='checkbox']");
+    if (!input) return;
+    syncQuotePreferenceControls(input);
+  });
+
+  document.querySelector("#dailyQuotesList")?.addEventListener("click", event => {
+    const favoriteButton = event.target.closest("[data-toggle-quote-favorite]");
+    if (favoriteButton) {
+      toggleQuoteFavorite(favoriteButton.dataset.toggleQuoteFavorite);
+      return;
+    }
+
+    const shareButton = event.target.closest("[data-share-quote]");
+    if (shareButton) {
+      shareQuote(shareButton.dataset.shareQuote);
+    }
   });
 
   const addButton = document.querySelector("#addButton");
   const addMenu = document.querySelector("#addMenu");
+  const brandMenuButton = document.querySelector("#brandMenuButton");
+  const appMenu = document.querySelector("#appMenu");
+  const sidebarBackdrop = document.querySelector("#sidebarBackdrop");
+  const sidebarCloseButton = document.querySelector("#sidebarCloseButton");
 
   function closeAddMenu() {
     addMenu.hidden = true;
     addButton.setAttribute("aria-expanded", "false");
+  }
+
+  function openAppMenu() {
+    if (!appMenu || !sidebarBackdrop || !brandMenuButton) return;
+    closeAddMenu();
+    appMenu.hidden = false;
+    sidebarBackdrop.hidden = false;
+    document.body.classList.add("app-menu-open");
+    brandMenuButton.setAttribute("aria-expanded", "true");
+    requestAnimationFrame(() => {
+      appMenu.querySelector(".nav-item, button")?.focus();
+    });
+  }
+
+  function closeAppMenu() {
+    if (!appMenu || !sidebarBackdrop || !brandMenuButton) return;
+    appMenu.hidden = true;
+    sidebarBackdrop.hidden = true;
+    document.body.classList.remove("app-menu-open");
+    brandMenuButton.setAttribute("aria-expanded", "false");
   }
 
   addButton.addEventListener("click", () => {
@@ -7539,6 +7913,21 @@ function bindControls(initialLaunchTarget = "") {
     addMenu.hidden = !nextState;
     addButton.setAttribute("aria-expanded", String(nextState));
   });
+
+  brandMenuButton?.addEventListener("click", () => {
+    if (appMenu?.hidden) {
+      openAppMenu();
+    } else {
+      closeAppMenu();
+    }
+  });
+
+  sidebarCloseButton?.addEventListener("click", () => {
+    closeAppMenu();
+    brandMenuButton?.focus();
+  });
+
+  sidebarBackdrop?.addEventListener("click", closeAppMenu);
 
   addMenu.querySelectorAll("button").forEach(button => {
     button.addEventListener("click", closeAddMenu);
@@ -7873,6 +8262,7 @@ function bindControls(initialLaunchTarget = "") {
     button.addEventListener("click", () => {
       closeAddMenu();
       openModal(button.dataset.openModal);
+      closeAppMenu();
     });
   });
 
@@ -8126,6 +8516,7 @@ function bindControls(initialLaunchTarget = "") {
   document.addEventListener("keydown", event => {
     if (event.key === "Escape") {
       closeAddMenu();
+      closeAppMenu();
       closeModal();
     }
   });
@@ -8138,6 +8529,7 @@ function bindControls(initialLaunchTarget = "") {
     const target = initialLaunchTarget || getInitialLaunchTarget();
     if (!target) return;
     closeAddMenu();
+    closeAppMenu();
     openModal(target);
     clearInitialLaunchTarget();
   }
@@ -8149,6 +8541,9 @@ bindCompactWindowMode();
 lockViewportScale();
 formatDate();
 renderQuote();
+loadDailyQuotes().catch(() => {
+  renderDailyQuotesModal();
+});
 renderCalendar();
 renderSummary();
 renderTasks();
@@ -8206,6 +8601,7 @@ function runOnlineRecoverySync() {
     syncSavedReminders(),
     registerServerPushSubscription(),
     refreshReminderPushStatus(),
+    loadDailyQuotes(),
     checkPendingSubscriptionCheckout({ silent: true }),
     refreshAccountEntitlements({ silent: true }),
     refreshEntitlementEvents({ silent: true }),

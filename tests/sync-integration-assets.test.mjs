@@ -23,7 +23,7 @@ test("app connects schedule persistence to the sync client", () => {
 });
 
 test("service worker caches sync client as part of the PWA shell", () => {
-  assert.match(serviceWorker, /focus-pwa-v104/);
+  assert.match(serviceWorker, /focus-pwa-v109/);
   assert.match(serviceWorker, /"\/subscription\.html"/);
   assert.match(serviceWorker, /"\/offer\.html"/);
   assert.match(serviceWorker, /"\/privacy\.html"/);
@@ -32,6 +32,26 @@ test("service worker caches sync client as part of the PWA shell", () => {
   assert.match(serviceWorker, /"\/js\/sync\.js"/);
   assert.match(serviceWorker, /"\/js\/notifications\.js"/);
   assert.match(serviceWorker, /addEventListener\("push"/);
+});
+
+test("app shell exposes daily quotes sync and preferences UI", () => {
+  assert.match(indexHtml, /id="quotesModal"/);
+  assert.match(indexHtml, /id="quotesRefreshButton"/);
+  assert.match(indexHtml, /id="quotePreferencesSaveButton"/);
+  assert.match(indexHtml, /id="quoteCategoryOptions"/);
+  assert.match(appJs, /async function loadDailyQuotes/);
+  assert.match(appJs, /async function loadQuotePreferencesUi/);
+  assert.match(appJs, /function syncQuotePreferenceControls/);
+  assert.match(appJs, /function toggleQuoteFavorite/);
+  assert.match(syncJs, /async getQuoteCategories\(\)/);
+  assert.match(syncJs, /async getTodayQuotes/);
+  assert.match(syncJs, /async getQuotePreferences/);
+  assert.match(syncJs, /async updateQuotePreferences/);
+  assert.match(syncJs, /async favoriteQuote/);
+  assert.match(syncJs, /async unfavoriteQuote/);
+  assert.match(serverJs, /\/api\/quotes\/categories/);
+  assert.match(serverJs, /\/api\/quotes\/today/);
+  assert.match(serverJs, /\/api\/quotes\/preferences/);
 });
 
 test("service worker does not cache sync API responses", () => {
@@ -346,7 +366,7 @@ test("app guards legacy localStorage fallback reads", () => {
   assert.doesNotMatch(appJs, /parseScheduleList\(localStorage\.getItem/);
 });
 
-test("sidebar exposes the useful services hub", () => {
+test("app menu exposes the useful services hub", () => {
   assert.match(indexHtml, /data-open-modal="useful"/);
   assert.match(indexHtml, /id="usefulModal"/);
   assert.match(indexHtml, /Шаблоны дня/);

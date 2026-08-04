@@ -27,12 +27,15 @@ test("mobile viewport supports installed PWA safe areas", () => {
   assert.match(appJs, /event\.touches\?\.length > 1/);
 });
 
-test("mobile bottom navigation has safe-area spacing and an opaque surface", () => {
-  assert.match(appCss, /padding-bottom:\s*calc\(120px \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(appCss, /bottom:\s*max\(12px, env\(safe-area-inset-bottom\)\)/);
-  assert.match(appCss, /background:\s*rgba\(31,\s*41,\s*55,\s*\.9\)/);
-  assert.match(appCss, /grid-template-columns:\s*repeat\(7,\s*minmax\(0,\s*1fr\)\)/);
-  assert.doesNotMatch(appCss, /\.sidebar__nav \.nav-item:nth-child\(n\+6\)/);
+test("mobile chrome keeps navigation behind the logo menu", () => {
+  assert.match(indexHtml, /id="brandMenuButton"[\s\S]*?aria-controls="appMenu"/);
+  assert.match(indexHtml, /id="sidebarBackdrop"/);
+  assert.match(appCss, /@media \(max-width:\s*760px\)[\s\S]*?\.app-shell\s*{[\s\S]*?padding-bottom:\s*12px\s*!important;/);
+  assert.match(appCss, /@media \(max-width:\s*760px\)[\s\S]*?\.app-shell \.top-dock\s*{[\s\S]*?grid-template-columns:\s*54px minmax\(0, 1fr\) minmax\(76px, \.42fr\)\s*!important;/);
+  assert.match(appCss, /\.app-shell \.sidebar\[hidden\],\s*\.app-shell \.sidebar-backdrop\[hidden\]\s*{[\s\S]*?display:\s*none\s*!important;/);
+  assert.match(appCss, /\.app-shell \.sidebar\[hidden\],\s*\.app-shell\.app-shell--compact-window \.sidebar\[hidden\],[\s\S]*?pointer-events:\s*none\s*!important;/);
+  assert.match(appCss, /\.app-shell \.sidebar__brand span,\s*\.app-shell\.app-shell--compact-window \.sidebar__brand span\s*{[\s\S]*?display:\s*inline\s*!important;/);
+  assert.match(appCss, /\.app-shell \.sidebar__nav\s*{[\s\S]*?grid-template-columns:\s*1fr\s*!important;/);
   assert.doesNotMatch(indexHtml, /aria-label="Фокус"[\s\S]*?icon-home/);
   assert.doesNotMatch(appCss, /\.icon-home/);
 });
@@ -88,18 +91,20 @@ test("desktop app switches to mobile chrome in compact windows", () => {
   assert.match(appCss, /@media \(min-width:\s*761px\) and \(max-width:\s*1720px\)/);
   assert.match(appCss, /@media \(min-width:\s*761px\) and \(max-width:\s*1720px\)[\s\S]*?\.app-shell\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*min\(100%,\s*960px\)\)\s*!important;/);
   assert.match(appCss, /\.app-shell\.app-shell--compact-window\s*{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*min\(100%,\s*960px\)\)\s*!important;/);
-  assert.match(appCss, /\.app-shell\.app-shell--compact-window \.sidebar\s*{[\s\S]*?position:\s*fixed\s*!important;[\s\S]*?bottom:\s*max\(12px,\s*env\(safe-area-inset-bottom\)\)\s*!important;/);
-  assert.match(appCss, /\.app-shell\.app-shell--compact-window \.sidebar__nav\s*{[\s\S]*?grid-template-columns:\s*repeat\(7,\s*minmax\(0,\s*1fr\)\)\s*!important;/);
+  assert.match(appCss, /\.app-shell\.app-shell--compact-window\s*{[\s\S]*?padding-bottom:\s*12px\s*!important;/);
+  assert.match(appCss, /\.app-shell\.app-shell--compact-window \.top-dock\s*{[\s\S]*?grid-template-columns:\s*64px minmax\(0, 1fr\) minmax\(96px, \.45fr\)\s*!important;/);
+  assert.match(appCss, /\.app-shell \.sidebar\s*{[\s\S]*?position:\s*fixed\s*!important;[\s\S]*?width:\s*min\(304px, calc\(100vw - 28px\)\)\s*!important;/);
+  assert.match(appCss, /\.app-shell \.sidebar__nav\s*{[\s\S]*?grid-template-columns:\s*1fr\s*!important;/);
   assert.match(appCss, /\.app-shell\.app-shell--compact-window \.dashboard-grid,\s*\.app-shell\.app-shell--compact-window \.main-stack,\s*\.app-shell\.app-shell--compact-window \.side-stack\s*{[\s\S]*?display:\s*contents\s*!important;/);
 });
 
 test("iphone layout resets desktop grid positions into one mobile column", () => {
   assert.match(appCss, /@media \(max-width:\s*760px\)\s*{[\s\S]*?\.app-shell\s*{[\s\S]*?display:\s*grid;/);
-  assert.match(appCss, /\.top-dock,\s*\.dashboard-grid,\s*\.main-stack,\s*\.side-stack,\s*\.interesting\s*{[\s\S]*?grid-column:\s*1;[\s\S]*?grid-row:\s*auto;[\s\S]*?width:\s*100%;/);
+  assert.match(appCss, /\.top-dock,\s*\.quote-card,\s*\.dashboard-grid,\s*\.main-stack,\s*\.side-stack,\s*\.interesting\s*{[\s\S]*?grid-column:\s*1;[\s\S]*?grid-row:\s*auto;[\s\S]*?width:\s*100%;/);
   assert.match(appCss, /@media \(max-width:\s*760px\)[\s\S]*?\.dashboard-grid\s*{[\s\S]*?display:\s*contents;/);
   assert.match(appCss, /@media \(max-width:\s*760px\)[\s\S]*?\.calendar-card\s*{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;/);
   assert.match(appCss, /min-height:\s*clamp\(42px,\s*11\.2vw,\s*54px\)/);
-  assert.match(appCss, /@media \(max-width:\s*760px\)[\s\S]*?\.labels-row\s*{[\s\S]*?margin-bottom:\s*96px;/);
+  assert.match(appCss, /@media \(max-width:\s*760px\)[\s\S]*?\.app-shell \.labels-row\s*{[\s\S]*?margin-bottom:\s*0\s*!important;/);
 });
 
 test("ios install experience includes startup images and full app icon master", () => {
@@ -168,7 +173,7 @@ test("settings include install quality diagnostics and PWA update controls", () 
   assert.match(appJs, /focus-pwa-state-change/);
   assert.match(pwaJs, /focusPwaCheckForUpdate/);
   assert.match(pwaJs, /focusPwaApplyUpdate/);
-  assert.match(serviceWorker, /focus-pwa-v104/);
+  assert.match(serviceWorker, /focus-pwa-v109/);
   assert.match(serviceWorker, /SKIP_WAITING/);
 });
 
@@ -187,7 +192,7 @@ test("settings include device verification checklist", () => {
   assert.match(appJs, /deviceCheckPushTestState/);
 });
 
-test("sidebar exposes useful services hub", () => {
+test("app menu exposes useful services hub", () => {
   assert.match(indexHtml, /data-open-modal="useful"/);
   assert.match(indexHtml, /id="usefulModal"/);
   assert.match(indexHtml, /Полезное/);

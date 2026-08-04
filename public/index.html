@@ -29,14 +29,20 @@
 </head>
 <body>
   <div class="app-shell" data-theme="warm">
-    <aside class="sidebar" aria-label="Навигация">
+    <aside class="sidebar" id="appMenu" aria-label="Навигация" hidden>
       <div class="sidebar__brand">
         <div class="brand-mark">F</div>
         <span>Фокус</span>
+        <button class="sidebar__close icon-button" id="sidebarCloseButton" type="button" aria-label="Закрыть меню">
+          <span class="icon icon-close"></span>
+        </button>
       </div>
       <nav class="sidebar__nav" aria-label="Разделы">
         <button class="nav-item" type="button" aria-label="Мои напоминания" data-open-modal="reminders">
           <span class="icon icon-bell"></span><span>Напоминания</span>
+        </button>
+        <button class="nav-item" type="button" aria-label="Цитаты дня" data-open-modal="quotes">
+          <span class="icon icon-sparkles"></span><span>Цитаты дня</span>
         </button>
         <button class="nav-item" type="button" aria-label="Мои расписания" data-open-modal="schedules">
           <span class="icon icon-calendar"></span><span>Мои расписания</span>
@@ -63,21 +69,16 @@
         </button>
       </div>
     </aside>
+    <div class="sidebar-backdrop" id="sidebarBackdrop" hidden></div>
 
     <main class="focus-page">
       <section class="top-dock" aria-label="Верхняя панель">
+        <button class="brand-menu-button" id="brandMenuButton" type="button" aria-label="Открыть меню приложения" aria-controls="appMenu" aria-expanded="false">
+          <span class="brand-mark brand-mark--topbar">F</span>
+        </button>
         <div class="date-card glass-panel">
           <span class="date-card__day" id="currentDay">Сегодня</span>
           <strong id="currentDate">28 мая 2026</strong>
-        </div>
-        <div class="quote-card glass-panel">
-          <button class="icon-button" id="quotePrev" type="button" aria-label="Предыдущая цитата">
-            <span class="icon icon-arrow-left"></span>
-          </button>
-          <p id="quoteText">Делай сегодня то, что приблизит тебя к завтра.</p>
-          <button class="icon-button" id="quoteNext" type="button" aria-label="Следующая цитата">
-            <span class="icon icon-arrow-right"></span>
-          </button>
         </div>
         <div class="add-wrap">
           <button class="add-button" id="addButton" type="button" aria-label="Добавить" aria-expanded="false">
@@ -92,6 +93,19 @@
             <button type="button" data-open-modal="schedule"><span class="icon icon-calendar"></span>Добавить расписание</button>
           </div>
         </div>
+      </section>
+
+      <section class="quote-card glass-panel" aria-label="Цитата дня">
+        <button class="icon-button" id="quotePrev" type="button" aria-label="Предыдущая цитата">
+          <span class="icon icon-arrow-left"></span>
+        </button>
+        <span class="quote-card__label">Цитата дня</span>
+        <div class="quote-marquee" aria-live="polite">
+          <p id="quoteText" data-quote-copy="Делай сегодня то, что приблизит тебя к завтра.">Делай сегодня то, что приблизит тебя к завтра.</p>
+        </div>
+        <button class="icon-button" id="quoteNext" type="button" aria-label="Следующая цитата">
+          <span class="icon icon-arrow-right"></span>
+        </button>
       </section>
 
       <section class="dashboard-grid">
@@ -267,6 +281,44 @@
             <button class="schedule-filter-chip" type="button" data-reminder-filter="all" aria-pressed="false">Все <span class="schedule-filter-count">0</span></button>
           </div>
           <div class="saved-reminders-list" id="savedRemindersList" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="quotesModal" role="dialog" aria-modal="true" aria-labelledby="quotesTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Цитаты дня</span>
+            <h2 id="quotesTitle">Пять мыслей на сегодня</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <div class="quotes-panel">
+            <div class="quotes-panel__head">
+              <p id="quotesStatus">Загружаем сегодняшнюю подборку.</p>
+              <button class="secondary-button secondary-button--compact" type="button" id="quotesRefreshButton">Обновить</button>
+            </div>
+            <div class="daily-quotes-list" id="dailyQuotesList" aria-live="polite"></div>
+          </div>
+
+          <div class="quote-preferences-panel">
+            <div class="quote-preferences-panel__head">
+              <div>
+                <span class="modal-kicker">Настройки</span>
+                <h3>Тематика цитат</h3>
+              </div>
+              <button class="primary-button primary-button--compact" type="button" id="quotePreferencesSaveButton">Сохранить</button>
+            </div>
+            <p id="quotePreferencesStatus">Изменения начнут действовать со следующего дня.</p>
+            <label class="quote-mode-option">
+              <input type="radio" name="quoteSelectionMode" value="any" checked />
+              <span>Любые</span>
+            </label>
+            <div class="quote-category-options" id="quoteCategoryOptions" aria-label="Тематики цитат"></div>
+          </div>
         </div>
       </section>
 

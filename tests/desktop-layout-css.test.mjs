@@ -5,16 +5,46 @@ import { test } from "node:test";
 const appCss = readFileSync("public/css/app.css", "utf8");
 const tokenCss = readFileSync("public/css/tokens.css", "utf8");
 const indexHtml = readFileSync("public/index.html", "utf8");
+const appJs = readFileSync("public/js/app.js", "utf8");
 const serviceWorker = readFileSync("public/service-worker.js", "utf8");
 
-test("desktop dashboard keeps sections compact without squeezing today's tasks", () => {
+test("desktop dashboard uses the full width with a logo-triggered app menu", () => {
   assert.match(appCss, /\.app-shell\s*{[\s\S]*?align-content:\s*start;/);
+  assert.match(appCss, /\.app-shell\s*{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) minmax\(360px, 500px\);/);
+  assert.match(appCss, /\.top-dock\s*{[\s\S]*?grid-column:\s*1 \/ 3;[\s\S]*?grid-template-columns:\s*72px minmax\(220px, 1fr\) minmax\(120px, \.62fr\);/);
+  assert.match(indexHtml, /<\/section>\s*<section class="quote-card glass-panel" aria-label="Цитата дня">[\s\S]*?<section class="dashboard-grid">/);
+  assert.match(appCss, /\.quote-card\s*{[\s\S]*?grid-column:\s*1 \/ 3;[\s\S]*?grid-row:\s*2;[\s\S]*?grid-template-columns:\s*40px auto minmax\(0, 1fr\) 40px;/);
+  assert.match(appCss, /\.quote-marquee\s*{[\s\S]*?overflow:\s*hidden;/);
+  assert.match(appCss, /\.quote-card p\s*{[\s\S]*?animation:\s*quote-marquee 26s linear infinite;/);
+  assert.match(appCss, /\.quote-card p::after\s*{[\s\S]*?content:\s*attr\(data-quote-copy\);/);
+  assert.match(appCss, /@keyframes quote-marquee/);
+  assert.match(appJs, /quoteText\.dataset\.quoteCopy = text;/);
+  assert.match(indexHtml, /id="quotesModal"/);
+  assert.match(indexHtml, /id="dailyQuotesList"/);
+  assert.match(indexHtml, /id="quoteCategoryOptions"/);
+  assert.match(indexHtml, /data-open-modal="quotes"/);
+  assert.match(appJs, /quotes:\s*document\.querySelector\("#quotesModal"\)/);
+  assert.match(appJs, /document\.querySelector\("\.quote-card"\)\?\.addEventListener\("click"/);
+  assert.match(appJs, /scheduleSync\.getTodayQuotes/);
+  assert.match(appJs, /scheduleStorage\.loadDailyQuotesCache/);
+  assert.match(appJs, /scheduleStorage\.saveDailyQuotesCache/);
+  assert.match(appCss, /\.date-card,\s*\.quote-card\s*{[\s\S]*?height:\s*var\(--top-dock-height\);[\s\S]*?box-sizing:\s*border-box;/);
+  assert.match(appCss, /\.add-wrap\s*{[\s\S]*?height:\s*var\(--top-dock-height\);/);
+  assert.match(appCss, /\.add-button\s*{[\s\S]*?height:\s*var\(--top-dock-height\);/);
+  assert.match(indexHtml, /id="brandMenuButton"[\s\S]*?aria-controls="appMenu"/);
+  assert.match(indexHtml, /<aside class="sidebar" id="appMenu"[\s\S]*?hidden>/);
+  assert.match(appCss, /\.brand-mark--topbar\s*{[\s\S]*?animation:\s*brand-shimmer 2\.8s ease-in-out infinite;/);
+  assert.match(appCss, /\.brand-mark--topbar::after\s*{[\s\S]*?linear-gradient\(112deg[\s\S]*?animation:\s*brand-glint 2\.8s ease-in-out infinite;/);
+  assert.match(appCss, /@keyframes brand-glint/);
+  assert.match(appCss, /\.app-shell \.sidebar\s*{[\s\S]*?position:\s*fixed\s*!important;[\s\S]*?width:\s*min\(304px, calc\(100vw - 28px\)\)\s*!important;/);
+  assert.match(appCss, /\.app-shell \.sidebar__nav\s*{[\s\S]*?grid-template-columns:\s*1fr\s*!important;/);
+  assert.match(appJs, /function openAppMenu\(\)/);
+  assert.match(appJs, /function closeAppMenu\(\)/);
   assert.match(appCss, /\.main-stack\s*{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
   assert.match(appCss, /\.calendar-card\s*{[\s\S]*?grid-column:\s*1;[\s\S]*?width:\s*100%;/);
   assert.match(appCss, /\.labels-row\s*{[\s\S]*?grid-column:\s*1;[\s\S]*?width:\s*100%;/);
   assert.match(appCss, /\.interesting\s*{[\s\S]*?grid-column:\s*1;[\s\S]*?width:\s*100%;/);
-  assert.match(appCss, /\.sidebar\s*{[\s\S]*?grid-row:\s*1 \/ 3;/);
-  assert.match(appCss, /\.side-stack\s*{[\s\S]*?grid-row:\s*2;/);
+  assert.match(appCss, /\.side-stack\s*{[\s\S]*?grid-row:\s*3;/);
   assert.match(appCss, /\.side-stack\s*{[\s\S]*?grid-template-rows:\s*auto minmax\(220px, 1fr\);/);
   assert.match(appCss, /\.tasks-card\s*{[\s\S]*?min-height:\s*220px;/);
   assert.match(indexHtml, /<div class="main-stack">[\s\S]*?<section class="labels-row[\s\S]*?<section class="interesting glass-panel">[\s\S]*?<\/div>\s*<aside class="side-stack">/);
@@ -23,7 +53,7 @@ test("desktop dashboard keeps sections compact without squeezing today's tasks",
 });
 
 test("service worker cache is bumped after desktop layout CSS changes", () => {
-  assert.match(serviceWorker, /focus-pwa-v104/);
+  assert.match(serviceWorker, /focus-pwa-v109/);
 });
 
 test("warm glass summary keeps text contrast above the seasonal background", () => {
