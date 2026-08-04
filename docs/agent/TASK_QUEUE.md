@@ -5492,3 +5492,62 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Useful now exposes Personal Schedule Planner; the scaffold includes the modal flow, reusable domain module, IndexedDB state persistence, sync client status/generation helpers, backend mock-provider routes, import, and rollback handling.
 - commit_status: committed
 - notes: Syntax checks passed, focused planner/static/storage/client/server tests passed 217/217, `npm.cmd run test` passed 244/244, and `git diff --check` passed on 2026-08-04 after updating the Useful static-contract expectation for the Personal Schedule Planner entry. No deployment or git push.
+
+## TASK-098
+
+- title: Polish Personal Schedule Planner UI shell
+- status: DONE
+- owner_gate: owner_continue_after_task_097
+- task_type: schedule_planner_ui_polish
+- priority: high
+- source: owner asked to continue after TASK-097; local working tree contained the cache-busted v119 planner shell layer
+- spec_reference: `docs/specs/personal-schedule-planner-ui-polish.md`
+- spec_status: implemented_local_committed
+- goal: make the Personal Schedule Planner shell Russian-first and verify the current browser layout without changing backend/provider behavior.
+- out_of_scope:
+  - live AI provider credentials or provider routing
+  - entitlement gating changes
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - Useful card and planner modal use "Идеальное расписание" as the visible feature name
+  - wizard labels, actions, statuses, review rows, import preview, history controls, and Big Five answer labels are localized
+  - review rows show Russian labels for mode, period, planning style, and privacy fields instead of raw internal enum values
+  - planner weekday picker uses `Пн`, `Вт`, `Ср`, `Чт`, `Пт`, `Сб`, `Вс`
+  - app import/rollback status messages no longer mix English feature naming into Russian text
+  - static service worker/app-shell tests still pass for the v119 shell
+  - browser QA verifies Useful card, planner modal review step, desktop/mobile screenshots, and no mobile horizontal overflow
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/js/personal-schedule-planner.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/personal-schedule-sync.test.mjs tests/focus-storage.test.mjs tests/focus-sync-client.test.mjs tests/focus-sync-server.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - Playwright browser QA at `http://127.0.0.1:5177/`
+  - `git diff --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small UI polish task
+- file_limit: up to 12 files
+- command_limit: up to 12 meaningful commands
+- chain_position: 98
+- stop_conditions:
+  - implementation requires live AI provider credentials
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/index.html`
+  - `public/js/app.js`
+  - `public/js/personal-schedule-ui.js`
+  - `public/service-worker.js`
+  - static PWA contract tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-097 Personal Schedule Planner scaffold
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. The Personal Schedule Planner shell is localized and polished; review privacy language remains explicit; weekday picker labels are conventional Russian abbreviations; browser QA captured current desktop/mobile evidence.
+- commit_status: committed
+- notes: Syntax checks passed, focused planner/static checks passed, `npm.cmd run test` passed 244/244, Browser QA captured `output/playwright/personal-schedule-v119-desktop.png` and `output/playwright/personal-schedule-v119-mobile.png`, and mobile overflow was false at 390px. No deployment or git push.

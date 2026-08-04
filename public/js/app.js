@@ -3706,10 +3706,10 @@ function applyPersonalScheduleCollections({ schedules, tasks: nextTasks, reminde
   renderCalendar();
   renderSummary();
   if (reason === "personal_schedule_import") {
-    setSyncStatus("Personal Schedule Planner добавил черновик в существующие расписания Focus.");
+    setSyncStatus("Идеальное расписание добавило черновик в существующие расписания Focus.");
   }
   if (reason === "personal_schedule_rollback") {
-    setSyncStatus("Personal Schedule Planner откатил последний импорт.");
+    setSyncStatus("Идеальное расписание откатило последний импорт.");
   }
 }
 

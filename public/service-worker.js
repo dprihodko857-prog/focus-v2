@@ -1,4 +1,4 @@
-const CACHE_NAME = "focus-pwa-v118";
+const CACHE_NAME = "focus-pwa-v119";
 const NAVIGATION_TIMEOUT_MS = 8000;
 
 const APP_SHELL = [
@@ -12,8 +12,11 @@ const APP_SHELL = [
   "/manifest.webmanifest",
   "/manifest.webmanifest?v=focus-logo-v2",
   "/css/tokens.css",
+  "/css/tokens.css?v=focus-20260804-2",
   "/css/app.css",
+  "/css/app.css?v=focus-20260804-2",
   "/js/pwa.js",
+  "/js/pwa.js?v=focus-20260804-2",
   "/js/auth.js",
   "/js/sync.js",
   "/js/holiday-catalog.js",
@@ -22,6 +25,7 @@ const APP_SHELL = [
   "/js/personal-schedule-ui.js",
   "/js/storage.js",
   "/js/app.js",
+  "/js/app.js?v=focus-20260804-2",
   "/assets/focus-logo-v2.png",
   "/assets/brand/focus-app-icon-reference.png",
   "/assets/brand/focus-app-icon-reference-v2.png",

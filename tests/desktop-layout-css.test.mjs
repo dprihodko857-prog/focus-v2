@@ -57,7 +57,7 @@ test("desktop dashboard uses the full width with a logo-triggered app menu", () 
 });
 
 test("service worker cache is bumped after desktop layout CSS changes", () => {
-  assert.match(serviceWorker, /focus-pwa-v118/);
+  assert.match(serviceWorker, /focus-pwa-v119/);
 });
 
 test("main calendar exposes independent semantic date statuses", () => {

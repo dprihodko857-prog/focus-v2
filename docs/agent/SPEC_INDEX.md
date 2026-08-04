@@ -103,4 +103,5 @@ Status: DRAFT
 | CALENDAR-STATUS-BACKGROUNDS-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/calendar-status-backgrounds.md` | TASK-095 renders semantic calendar statuses as layered date-cell backgrounds instead of separate status dots. |
 | CALENDAR-STATUS-BACKGROUND-CONTRAST-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/calendar-status-background-contrast.md` | TASK-096 increases layered calendar status background opacity for quicker scanning while preserving the v116 rendering model. |
 | PERSONAL-SCHEDULE-PLANNER-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/personal-schedule-planner.md` | TASK-097 adds the Personal Schedule Planner Useful UI, domain model, storage, client, backend mock-provider route, import, and rollback foundation. |
+| PERSONAL-SCHEDULE-PLANNER-UI-POLISH-001 | IMPLEMENTED_LOCAL_COMMITTED | `docs/specs/personal-schedule-planner-ui-polish.md` | TASK-098 localizes and polishes the Personal Schedule Planner shell, review labels, weekday picker, and browser QA evidence. |
 | Diary PIN | INFERRED | Owner conversation and implemented files | Privacy-sensitive changes require security/privacy review. |
