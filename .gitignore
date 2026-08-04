@@ -1,6 +1,7 @@
 node_modules/
 output/
 test-results/
+data/
 
 .env
 .env.*
@@ -14,4 +15,4 @@ Thumbs.db
 /baseline-*.png
 /visual-*.png
 /tmp-*.js
-
+/.codex-smoke-*.mjs
