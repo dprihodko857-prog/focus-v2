@@ -218,6 +218,22 @@ test("quotes API only serves verified active quotes and tracks favorites", async
     });
     assert.equal(favoriteResponse.status, 200);
     assert.equal((await favoriteResponse.json()).isFavorite, true);
+    db.saveFavoriteQuote({
+      accountId,
+      quoteId: "quote-inactive",
+      createdAt: "2026-08-04T09:01:00.000Z",
+    });
+
+    const favoritesResponse = await fetch(`${baseUrl}/api/quotes/favorites`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(favoritesResponse.status, 200);
+    const favorites = await favoritesResponse.json();
+    assert.ok(favorites.quotes.some(quote => quote.id === favoriteId && quote.isFavorite === true));
+    assert.ok(!favorites.quotes.some(quote => quote.id === "quote-inactive"));
 
     const refreshedResponse = await fetch(`${baseUrl}/api/quotes/today?timezone=Europe%2FMoscow`, {
       headers: {
@@ -237,6 +253,15 @@ test("quotes API only serves verified active quotes and tracks favorites", async
     });
     assert.equal(unfavoriteResponse.status, 200);
     assert.equal((await unfavoriteResponse.json()).isFavorite, false);
+
+    const emptyFavoritesResponse = await fetch(`${baseUrl}/api/quotes/favorites`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    const emptyFavorites = await emptyFavoritesResponse.json();
+    assert.ok(!emptyFavorites.quotes.some(quote => quote.id === favoriteId));
   } finally {
     await close(server);
     db.close();

@@ -1601,6 +1601,33 @@ export function createFocusSyncClient({
       }
     },
 
+    async getFavoriteQuotes() {
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/quotes/favorites"), {
+          headers: await withHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Focus favorite quotes load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          quotes: normalizeFavoriteQuotes(result.quotes),
+          checkedAt: normalizeTimestamp(result.checkedAt),
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          quotes: [],
+          checkedAt: null,
+        };
+      }
+    },
+
     async favoriteQuote(quoteId) {
       const normalizedQuoteId = normalizeQuoteId(quoteId);
       if (!normalizedQuoteId) {
@@ -2028,6 +2055,41 @@ function normalizeDailyQuote(quote) {
     sourceUrl: typeof quote.sourceUrl === "string" ? quote.sourceUrl : "",
     categoryCodes: normalizeQuoteCategoryCodes(quote.categoryCodes),
     isFavorite: quote.isFavorite === true,
+  };
+}
+
+function normalizeFavoriteQuotes(quotes) {
+  return Array.isArray(quotes)
+    ? quotes.map(normalizeFavoriteQuote).filter(Boolean)
+    : [];
+}
+
+function normalizeFavoriteQuote(quote) {
+  if (!quote || typeof quote !== "object" || Array.isArray(quote)) {
+    return null;
+  }
+
+  const id = normalizeQuoteIdValue(quote.id);
+  const text = sanitizeText(quote.text, 2000);
+  const authorName = sanitizeText(quote.authorName, 160);
+  const sourceTitle = sanitizeText(quote.sourceTitle, 500);
+  const sourceReference = sanitizeText(quote.sourceReference, 500);
+  if (!id || !text || !authorName || !sourceTitle || !sourceReference) {
+    return null;
+  }
+
+  return {
+    id,
+    position: Math.max(1, Math.floor(Number(quote.position) || 1)),
+    text,
+    authorName,
+    sourceTitle,
+    sourceType: sanitizeQuoteSourceType(quote.sourceType),
+    sourceReference,
+    sourceUrl: typeof quote.sourceUrl === "string" ? quote.sourceUrl : "",
+    categoryCodes: normalizeQuoteCategoryCodes(quote.categoryCodes),
+    favoritedAt: normalizeTimestamp(quote.favoritedAt),
+    isFavorite: true,
   };
 }
 

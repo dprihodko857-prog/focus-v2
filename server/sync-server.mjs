@@ -701,6 +701,18 @@ class JsonSyncDatabase {
     return existed;
   }
 
+    listFavoriteQuotes(accountId) {
+    return Object.values(this.state.favoriteQuotes[accountId] || {})
+      .filter(isPlainObject)
+      .map(item => ({
+        accountId: item.accountId || accountId,
+        quoteId: sanitizeQuoteId(item.quoteId),
+        createdAt: normalizeTimestamp(item.createdAt),
+      }))
+      .filter(item => item.quoteId)
+      .sort((first, second) => second.createdAt.localeCompare(first.createdAt) || first.quoteId.localeCompare(second.quoteId));
+  }
+
   saveQuoteEvent({
     accountId,
     eventType,
@@ -3963,6 +3975,23 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     sendJson(response, result.statusCode, result.body);
     return;
   }
+
+  if (url.pathname === "/api/quotes/favorites") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    sendJson(response, 200, getFavoriteQuotesResponse(db, {
+      accountId: accountContext.accountId,
+      checkedAt: accountContext.checkedAt,
+    }));
+    return;
+  }
+
 
   const quoteFavoriteMatch = url.pathname.match(/^\/api\/quotes\/([^/]+)\/favorite$/);
   if (quoteFavoriteMatch) {

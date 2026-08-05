@@ -86,6 +86,25 @@ test("daily quote cards expose explicit favorite and copy actions", () => {
   assert.doesNotMatch(modalRenderer, /icon-more/);
 });
 
+test("daily quotes modal exposes favorite quotes view", () => {
+  const modalRenderer = getFunctionBody(appJs, "renderDailyQuotesModal");
+  const favoriteLoader = getFunctionBody(appJs, "loadFavoriteQuotes");
+  const favoriteAction = getFunctionBody(appJs, "toggleQuoteFavorite");
+  const quoteFinder = getFunctionBody(appJs, "findQuoteForAction");
+
+  assert.match(appJs, /favoriteQuotesState/);
+  assert.match(appJs, /function renderDailyQuoteTabs/);
+  assert.match(appJs, /data-quote-view="favorites"/);
+  assert.match(modalRenderer, /quoteModalView === "favorites"/);
+  assert.match(modalRenderer, /Избранных цитат пока нет/);
+  assert.match(favoriteLoader, /scheduleSync\.getFavoriteQuotes/);
+  assert.match(favoriteAction, /favoriteQuotesState\.quotes/);
+  assert.match(quoteFinder, /dailyQuotesState\.quotes/);
+  assert.match(quoteFinder, /favoriteQuotesState\.quotes/);
+  assert.match(appCss, /\.daily-quotes-tabs\s*\{/);
+  assert.match(appCss, /\.daily-quotes-tab\.is-active\s*\{/);
+});
+
 test("daily quote actions report favorite and copy status", () => {
   const favoriteAction = getFunctionBody(appJs, "toggleQuoteFavorite");
   const shareAction = getFunctionBody(appJs, "shareQuote");

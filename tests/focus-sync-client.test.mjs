@@ -770,6 +770,47 @@ test("daily quotes preferences prefer pending settings for the settings UI", asy
   assert.equal(calls[0].url, "/api/quotes/preferences?timezone=Europe%2FMoscow");
 });
 
+test("daily quotes client loads favorite quotes", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        accountId: "account-1",
+        checkedAt: "2026-08-04T09:00:00.000Z",
+        quotes: [{
+          id: "quote-1",
+          position: 1,
+          text: "Clean favorite quote.",
+          authorName: "Known Author",
+          sourceTitle: "Known Book",
+          sourceReference: "chapter 1",
+          sourceType: "book",
+          categoryCodes: ["life_wisdom"],
+          favoritedAt: "2026-08-04T09:00:00.000Z",
+          isFavorite: true,
+        }],
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.getFavoriteQuotes();
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.quotes.length, 1);
+  assert.equal(result.quotes[0].id, "quote-1");
+  assert.equal(result.quotes[0].isFavorite, true);
+  assert.equal(result.quotes[0].favoritedAt, "2026-08-04T09:00:00.000Z");
+  assert.equal(calls[0].url, "/api/quotes/favorites");
+  assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
+});
+
 test("daily quotes client toggles favorite quotes", async () => {
   const calls = [];
   const storage = createMemoryLocalStorage({

@@ -744,6 +744,12 @@ let dailyQuotesState = {
   generationReason: "",
   quotes: [],
 };
+let quoteModalView = "today";
+let favoriteQuotesState = {
+  status: "idle",
+  quotes: [],
+  checkedAt: null,
+};
 let quoteCategoriesState = [];
 let quotePreferencesState = {
   selectionMode: "any",
@@ -844,6 +850,26 @@ async function loadDailyQuotes({ force = false } = {}) {
   renderDailyQuotesModal();
 }
 
+async function loadFavoriteQuotes() {
+  favoriteQuotesState = {
+    ...favoriteQuotesState,
+    status: "loading",
+  };
+  renderDailyQuotesModal();
+  const result = await scheduleSync.getFavoriteQuotes();
+  favoriteQuotesState = result.status === "ok"
+    ? {
+      status: "ok",
+      quotes: result.quotes || [],
+      checkedAt: result.checkedAt || null,
+    }
+    : {
+      ...favoriteQuotesState,
+      status: "offline",
+    };
+  renderDailyQuotesModal();
+}
+
 async function loadDailyQuotesFromCache() {
   try {
     const cache = await scheduleStorage.loadDailyQuotesCache();
@@ -895,22 +921,29 @@ function renderDailyQuotesModal() {
   const status = document.querySelector("#quotesStatus");
   if (!list || !status) return;
 
-  const quotesList = Array.isArray(dailyQuotesState.quotes) ? dailyQuotesState.quotes : [];
-  status.textContent = getDailyQuotesStatusText();
+  const todayQuotes = Array.isArray(dailyQuotesState.quotes) ? dailyQuotesState.quotes : [];
+  const favoriteQuotes = Array.isArray(favoriteQuotesState.quotes) ? favoriteQuotesState.quotes : [];
+  const isFavoritesView = quoteModalView === "favorites";
+  const quotesList = isFavoritesView ? favoriteQuotes : todayQuotes;
+  status.textContent = isFavoritesView ? getFavoriteQuotesStatusText() : getDailyQuotesStatusText();
+  const tabs = renderDailyQuoteTabs({ todayCount: todayQuotes.length, favoriteCount: favoriteQuotes.length });
 
   if (!quotesList.length) {
     list.innerHTML = `
+      ${tabs}
       <article class="empty-state">
-        <strong>Подборка пока недоступна</strong>
-        <span>Серверный каталог цитат ещё не наполнен проверенными записями.</span>
+        <strong>${isFavoritesView ? "Избранных цитат пока нет" : "Подборка пока недоступна"}</strong>
+        <span>${isFavoritesView ? "Нажмите звезду у цитаты, чтобы сохранить её здесь." : "Серверный каталог цитат ещё не наполнен проверенными записями."}</span>
       </article>
     `;
     return;
   }
 
-  list.innerHTML = quotesList.map(quote => `
+  list.innerHTML = `
+    ${tabs}
+    ${quotesList.map((quote, index) => `
     <article class="daily-quote-card" data-quote-id="${escapeHtml(quote.id)}">
-      <span class="daily-quote-card__position">${quote.position || ""}</span>
+      <span class="daily-quote-card__position">${quote.position || index + 1}</span>
       <div>
         <blockquote>${escapeHtml(quote.text)}</blockquote>
         <cite>${escapeHtml(quote.authorName)}</cite>
@@ -924,7 +957,23 @@ function renderDailyQuotesModal() {
         </button>
       </div>
     </article>
-  `).join("");
+  `).join("")}
+  `;
+}
+
+function renderDailyQuoteTabs({ todayCount, favoriteCount }) {
+  return `
+    <div class="daily-quotes-tabs" role="tablist" aria-label="Разделы цитат">
+      <button class="daily-quotes-tab ${quoteModalView === "today" ? "is-active" : ""}" type="button" aria-pressed="${quoteModalView === "today" ? "true" : "false"}" data-quote-view="today">
+        <span>Сегодня</span>
+        <strong>${todayCount}</strong>
+      </button>
+      <button class="daily-quotes-tab ${quoteModalView === "favorites" ? "is-active" : ""}" type="button" aria-pressed="${quoteModalView === "favorites" ? "true" : "false"}" data-quote-view="favorites">
+        <span>Избранное</span>
+        <strong>${favoriteCount}</strong>
+      </button>
+    </div>
+  `;
 }
 
 function getDailyQuotesStatusText() {
@@ -947,6 +996,23 @@ function getDailyQuotesStatusText() {
     return "Нет соединения с сервером цитат.";
   }
   return "Загружаем сегодняшнюю подборку.";
+}
+
+function getFavoriteQuotesStatusText() {
+  const count = favoriteQuotesState.quotes.length;
+  if (favoriteQuotesState.status === "loading") {
+    return "Загружаем избранные цитаты.";
+  }
+  if (favoriteQuotesState.status === "offline" && count > 0) {
+    return "Нет соединения. Показываем ранее загруженное избранное.";
+  }
+  if (favoriteQuotesState.status === "offline") {
+    return "Не удалось загрузить избранные цитаты.";
+  }
+  if (!count) {
+    return "В избранном пока нет цитат.";
+  }
+  return `В избранном ${count} ${formatPlural(count, ["цитата", "цитаты", "цитат"])}.`;
 }
 
 function setQuoteActionStatus(message) {
@@ -1696,13 +1762,29 @@ function shouldOpenHolidayInitialSetup() {
 }
 
 async function toggleQuoteFavorite(quoteId) {
-  const quote = dailyQuotesState.quotes.find(item => item.id === quoteId);
+  const quote = findQuoteForAction(quoteId);
   if (!quote) return;
   const result = quote.isFavorite
     ? await scheduleSync.unfavoriteQuote(quoteId)
     : await scheduleSync.favoriteQuote(quoteId);
   if (result.status === "saved") {
     quote.isFavorite = result.isFavorite;
+    dailyQuotesState.quotes = dailyQuotesState.quotes.map(item => item.id === quoteId
+      ? { ...item, isFavorite: result.isFavorite }
+      : item);
+    favoriteQuotesState.quotes = result.isFavorite
+      ? [
+        {
+          ...quote,
+          isFavorite: true,
+          favoritedAt: result.createdAt || new Date().toISOString(),
+        },
+        ...favoriteQuotesState.quotes.filter(item => item.id !== quoteId),
+      ]
+      : favoriteQuotesState.quotes.filter(item => item.id !== quoteId);
+    if (favoriteQuotesState.status === "idle") {
+      favoriteQuotesState.status = "ok";
+    }
     await saveDailyQuotesToCache(dailyQuotesState);
     renderDailyQuotesModal();
     renderQuote();
@@ -1711,7 +1793,7 @@ async function toggleQuoteFavorite(quoteId) {
 }
 
 async function shareQuote(quoteId) {
-  const quote = dailyQuotesState.quotes.find(item => item.id === quoteId);
+  const quote = findQuoteForAction(quoteId);
   if (!quote) return;
   const text = formatQuoteMarqueeText(quote);
   try {
@@ -1730,6 +1812,12 @@ async function shareQuote(quoteId) {
     setQuoteActionStatus("Не удалось скопировать цитату.");
     // Ошибка шаринга не должна менять состояние цитаты.
   }
+}
+
+function findQuoteForAction(quoteId) {
+  return dailyQuotesState.quotes.find(item => item.id === quoteId)
+    || favoriteQuotesState.quotes.find(item => item.id === quoteId)
+    || null;
 }
 
 function renderCalendar() {
@@ -8773,6 +8861,9 @@ function bindControls(initialLaunchTarget = "") {
       loadDailyQuotes().catch(() => {
         renderDailyQuotesModal();
       });
+      loadFavoriteQuotes().catch(() => {
+        renderDailyQuotesModal();
+      });
       loadQuotePreferencesUi().catch(() => {
         renderQuotePreferencesUi();
       });
@@ -8951,7 +9042,10 @@ function bindControls(initialLaunchTarget = "") {
   });
 
   document.querySelector("#quotesRefreshButton")?.addEventListener("click", () => {
-    loadDailyQuotes({ force: true }).catch(() => {
+    const loader = quoteModalView === "favorites"
+      ? loadFavoriteQuotes()
+      : loadDailyQuotes({ force: true });
+    loader.catch(() => {
       renderDailyQuotesModal();
     });
   });
@@ -8969,6 +9063,18 @@ function bindControls(initialLaunchTarget = "") {
   });
 
   document.querySelector("#dailyQuotesList")?.addEventListener("click", event => {
+    const quoteViewButton = event.target.closest("[data-quote-view]");
+    if (quoteViewButton) {
+      quoteModalView = quoteViewButton.dataset.quoteView === "favorites" ? "favorites" : "today";
+      renderDailyQuotesModal();
+      if (quoteModalView === "favorites") {
+        loadFavoriteQuotes().catch(() => {
+          renderDailyQuotesModal();
+        });
+      }
+      return;
+    }
+
     const favoriteButton = event.target.closest("[data-toggle-quote-favorite]");
     if (favoriteButton) {
       toggleQuoteFavorite(favoriteButton.dataset.toggleQuoteFavorite);
