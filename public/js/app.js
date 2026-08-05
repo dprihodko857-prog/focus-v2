@@ -911,7 +911,7 @@ function renderDailyQuotesModal() {
       <span class="daily-quote-card__position">${quote.position || ""}</span>
       <div>
         <blockquote>${escapeHtml(quote.text)}</blockquote>
-        <cite>${escapeHtml(quote.authorName)} · ${escapeHtml(quote.sourceTitle)}${quote.sourceReference ? `, ${escapeHtml(quote.sourceReference)}` : ""}</cite>
+        <cite>${escapeHtml(quote.authorName)}</cite>
       </div>
       <div class="daily-quote-card__actions">
         <button class="icon-button icon-button--tiny ${quote.isFavorite ? "is-active" : ""}" type="button" aria-label="${quote.isFavorite ? "Убрать из избранного" : "Добавить в избранное"}" data-toggle-quote-favorite="${escapeHtml(quote.id)}">

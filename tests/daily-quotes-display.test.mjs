@@ -1,0 +1,44 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { test } from "node:test";
+
+const appJs = readFileSync("public/js/app.js", "utf8");
+
+test("daily quotes modal renders only quote text and author", () => {
+  const modalRenderer = getFunctionBody(appJs, "renderDailyQuotesModal");
+
+  assert.match(modalRenderer, /<blockquote>\$\{escapeHtml\(quote\.text\)\}<\/blockquote>/);
+  assert.match(modalRenderer, /<cite>\$\{escapeHtml\(quote\.authorName\)\}<\/cite>/);
+  assert.doesNotMatch(modalRenderer, /sourceTitle|sourceReference/);
+});
+
+test("daily quotes marquee renders only quote text and author", () => {
+  const marqueeFormatter = getFunctionBody(appJs, "formatQuoteMarqueeText");
+
+  assert.match(marqueeFormatter, /quote\?\.text/);
+  assert.match(marqueeFormatter, /quote\?\.authorName/);
+  assert.doesNotMatch(marqueeFormatter, /sourceTitle|sourceReference/);
+});
+
+function getFunctionBody(source, functionName) {
+  const start = source.indexOf(`function ${functionName}(`);
+  assert.notEqual(start, -1, `Function ${functionName} not found.`);
+
+  const openBrace = source.indexOf("{", start);
+  assert.notEqual(openBrace, -1, `Function ${functionName} body not found.`);
+
+  let depth = 0;
+  for (let index = openBrace; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(openBrace + 1, index);
+      }
+    }
+  }
+
+  assert.fail(`Function ${functionName} body is not closed.`);
+}
