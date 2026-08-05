@@ -272,6 +272,7 @@ test("production quote raw audit reports duplicates and incomplete records by sa
     duplicateIds: false,
     duplicateTextHashes: false,
     incompleteQuotes: false,
+    disallowedContentQuotes: false,
   });
 });
 

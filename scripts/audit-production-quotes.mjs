@@ -15,6 +15,10 @@ const QUOTE_RIGHTS_BLOCKED_STATUS = "review_required";
 const DUPLICATE_GROUP_LIMIT = 20;
 const SAMPLE_ID_LIMIT = 5;
 const REQUIRED_RAW_QUOTE_FIELDS = ["id", "text", "authorName", "sourceTitle", "sourceReference"];
+const DISALLOWED_RAW_QUOTE_ID_PREFIXES = ["focus-seed-"];
+const DISALLOWED_RAW_QUOTE_TEXT_PREFIXES = ["в теме "];
+const DISALLOWED_RAW_QUOTE_ATTRIBUTIONS = new Set(["редакция focus", "focus editorial"]);
+const DISALLOWED_RAW_QUOTE_SOURCE_TITLES = new Set(["редакционный каталог focus 2026"]);
 
 export function auditProductionQuotes(
   dbPath = DEFAULT_PRODUCTION_QUOTE_DB_PATH,
@@ -118,6 +122,7 @@ export function inspectRawQuoteCatalog(quotes = []) {
   const idGroups = new Map();
   const textHashGroups = new Map();
   const incompleteQuotes = [];
+  const disallowedContentQuotes = [];
 
   rawQuotes.forEach((quote, index) => {
     const id = sanitizeReportValue(quote?.id);
@@ -144,6 +149,15 @@ export function inspectRawQuoteCatalog(quotes = []) {
         fields: missingFields,
       });
     }
+
+    const disallowedReasons = getDisallowedRawQuoteReasons(quote);
+    if (disallowedReasons.length > 0) {
+      disallowedContentQuotes.push({
+        index,
+        id: id || null,
+        reasons: disallowedReasons,
+      });
+    }
   });
 
   const duplicateIds = [...idGroups.entries()]
@@ -160,10 +174,13 @@ export function inspectRawQuoteCatalog(quotes = []) {
     duplicateTextHashes: duplicateTextHashes.slice(0, DUPLICATE_GROUP_LIMIT),
     incompleteQuoteCount: incompleteQuotes.length,
     incompleteQuotes: incompleteQuotes.slice(0, DUPLICATE_GROUP_LIMIT),
+    disallowedContentQuoteCount: disallowedContentQuotes.length,
+    disallowedContentQuotes: disallowedContentQuotes.slice(0, DUPLICATE_GROUP_LIMIT),
     truncated: {
       duplicateIds: duplicateIds.length > DUPLICATE_GROUP_LIMIT,
       duplicateTextHashes: duplicateTextHashes.length > DUPLICATE_GROUP_LIMIT,
       incompleteQuotes: incompleteQuotes.length > DUPLICATE_GROUP_LIMIT,
+      disallowedContentQuotes: disallowedContentQuotes.length > DUPLICATE_GROUP_LIMIT,
     },
   };
 }
@@ -214,6 +231,7 @@ function createQualityWarnings({
     rawIntegrity.duplicateIdCount > 0 ? "raw_duplicate_quote_ids_present" : "",
     rawIntegrity.duplicateTextHashCount > 0 ? "raw_duplicate_quote_texts_present" : "",
     rawIntegrity.incompleteQuoteCount > 0 ? "raw_incomplete_quotes_present" : "",
+    rawIntegrity.disallowedContentQuoteCount > 0 ? "raw_disallowed_quote_content_present" : "",
     underfilledCategories.length > 0 ? "categories_below_minimum_catalog_size" : "",
     dailySetGaps.length > 0 ? "categories_below_daily_set_size" : "",
     unknownCategoryCodes.length > 0 ? "unknown_category_codes_present" : "",
@@ -259,7 +277,43 @@ function getMissingRawQuoteFields(quote) {
   return missingFields;
 }
 
+function getDisallowedRawQuoteReasons(quote) {
+  if (!quote || typeof quote !== "object" || Array.isArray(quote)) {
+    return [];
+  }
+
+  const reasons = [];
+  const id = sanitizeReportValue(quote.id);
+  const normalizedText = normalizeAuditTextValue(quote.text);
+  const normalizedSourceTitle = normalizeAuditTextValue(quote.sourceTitle);
+  const attributionFields = ["authorName", "authorNameOriginal", "verifiedBy"];
+
+  if (DISALLOWED_RAW_QUOTE_ID_PREFIXES.some(prefix => id.startsWith(prefix))) {
+    reasons.push("generated_focus_seed_id");
+  }
+
+  if (DISALLOWED_RAW_QUOTE_TEXT_PREFIXES.some(prefix => normalizedText.startsWith(prefix))) {
+    reasons.push("generated_topic_template_text");
+  }
+
+  if (DISALLOWED_RAW_QUOTE_SOURCE_TITLES.has(normalizedSourceTitle)) {
+    reasons.push("generated_focus_source_title");
+  }
+
+  attributionFields.forEach(field => {
+    if (DISALLOWED_RAW_QUOTE_ATTRIBUTIONS.has(normalizeAuditTextValue(quote[field]))) {
+      reasons.push(`generated_focus_${field}`);
+    }
+  });
+
+  return reasons;
+}
+
 function normalizeQuoteTextForAudit(value) {
+  return normalizeAuditTextValue(value);
+}
+
+function normalizeAuditTextValue(value) {
   return sanitizeReportValue(value).toLocaleLowerCase("ru-RU").replace(/\s+/g, " ");
 }
 
