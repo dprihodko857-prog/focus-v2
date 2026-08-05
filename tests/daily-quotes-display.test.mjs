@@ -20,6 +20,18 @@ test("daily quotes marquee renders only quote text and author", () => {
   assert.doesNotMatch(marqueeFormatter, /sourceTitle|sourceReference/);
 });
 
+test("quote preferences disable unavailable categories before saving", () => {
+  const preferencesRenderer = getFunctionBody(appJs, "renderQuotePreferencesUi");
+  const preferencesReader = getFunctionBody(appJs, "readQuotePreferencesDraft");
+  const categoryCodeSet = getFunctionBody(appJs, "getAvailableQuoteCategoryCodeSet");
+
+  assert.match(categoryCodeSet, /category\.available === true/);
+  assert.match(preferencesRenderer, /aria-disabled/);
+  assert.match(preferencesRenderer, /disabled/);
+  assert.match(preferencesReader, /getAvailableQuoteCategoryCodeSet/);
+  assert.match(preferencesReader, /availableCategoryCodes\.has\(input\.value\)/);
+});
+
 function getFunctionBody(source, functionName) {
   const start = source.indexOf(`function ${functionName}(`);
   assert.notEqual(start, -1, `Function ${functionName} not found.`);

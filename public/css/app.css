@@ -558,6 +558,7 @@
   color: var(--text);
   font-weight: 780;
   background: rgba(248, 250, 252, .22);
+  cursor: pointer;
 }
 
 .quote-category-option input,
@@ -567,6 +568,11 @@
 
 .quote-category-option.is-disabled {
   opacity: .58;
+  cursor: not-allowed;
+}
+
+.quote-category-option.is-disabled input {
+  cursor: not-allowed;
 }
 
 .holiday-settings-panel {

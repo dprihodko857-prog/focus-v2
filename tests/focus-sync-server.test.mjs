@@ -423,6 +423,7 @@ test("quotes API rebuilds a daily set when catalog validation blocks an existing
 test("quotes preferences validate selected categories and apply tomorrow", async () => {
   const db = createSyncDatabase(":memory:");
   db.replaceQuoteCatalog({ quotes: createTestQuoteCatalog() });
+  lowerQuoteCategoryMinimum(db, 1);
   const accountId = "account-quotes-preferences";
   createTestAccount(db, accountId);
   const server = createFocusSyncServer({
@@ -477,6 +478,40 @@ test("quotes preferences validate selected categories and apply tomorrow", async
     const current = await getResponse.json();
     assert.equal(current.preferences.selectionMode, "any");
     assert.equal(current.preferences.effectiveFromLocalDate, "2026-08-04");
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("quotes preferences reject unavailable selected categories", async () => {
+  const db = createSyncDatabase(":memory:");
+  db.replaceQuoteCatalog({ quotes: createTestQuoteCatalog() });
+  const accountId = "account-quotes-preferences-unavailable";
+  createTestAccount(db, accountId);
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-04T09:00:00.000Z",
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/quotes/preferences`, {
+      method: "PUT",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({
+        selectionMode: "selected_categories",
+        selectedCategoryCodes: ["life_wisdom"],
+        timezone: "Europe/Moscow",
+      }),
+    });
+
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).error, "quote_category_unavailable");
   } finally {
     await close(server);
     db.close();
@@ -4724,6 +4759,14 @@ function createTestQuoteCatalog() {
       sourceReference: "глава о ранних годах",
     }),
   ];
+}
+
+function lowerQuoteCategoryMinimum(db, minimumCatalogSize = 1) {
+  const categories = db.getQuoteCategories().map(category => ({
+    ...category,
+    minimumCatalogSize,
+  }));
+  db.replaceQuoteCatalog({ quotes: db.getQuoteCatalog(), categories });
 }
 
 function createSafeProfanityMarkerVariants() {

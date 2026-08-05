@@ -957,31 +957,43 @@ async function loadQuotePreferencesUi() {
   renderQuotePreferencesUi();
 }
 
+function getAvailableQuoteCategoryCodeSet() {
+  return new Set(quoteCategoriesState
+    .filter(category => category.available === true)
+    .map(category => category.code));
+}
+
 function renderQuotePreferencesUi() {
   const options = document.querySelector("#quoteCategoryOptions");
   const status = document.querySelector("#quotePreferencesStatus");
   const anyModeInput = document.querySelector("input[name='quoteSelectionMode'][value='any']");
   if (!options || !status || !anyModeInput) return;
 
-  const selectedCodes = new Set(quotePreferencesState.selectedCategoryCodes || []);
-  anyModeInput.checked = quotePreferencesState.selectionMode !== "selected_categories";
+  const availableCategoryCodes = getAvailableQuoteCategoryCodeSet();
+  const selectedCodes = new Set((quotePreferencesState.selectedCategoryCodes || [])
+    .filter(code => availableCategoryCodes.has(code)));
+  anyModeInput.checked = quotePreferencesState.selectionMode !== "selected_categories" || selectedCodes.size === 0;
   status.textContent = quotePreferencesState.effectiveFromLocalDate
     ? `Текущие настройки действуют с ${quotePreferencesState.effectiveFromLocalDate}. Новые изменения применятся завтра.`
     : "Изменения начнут действовать со следующего дня.";
 
-  options.innerHTML = quoteCategoriesState.map(category => `
-    <label class="quote-category-option ${category.available ? "" : "is-disabled"}">
-      <input type="checkbox" value="${escapeHtml(category.code)}" ${selectedCodes.has(category.code) ? "checked" : ""} />
+  options.innerHTML = quoteCategoriesState.map(category => {
+    const isAvailable = category.available === true;
+    return `
+    <label class="quote-category-option ${isAvailable ? "" : "is-disabled"}" aria-disabled="${isAvailable ? "false" : "true"}">
+      <input type="checkbox" value="${escapeHtml(category.code)}" ${isAvailable && selectedCodes.has(category.code) ? "checked" : ""} ${isAvailable ? "" : "disabled"} />
       <span>${escapeHtml(category.titleRu)}</span>
     </label>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function readQuotePreferencesDraft() {
   const anyModeInput = document.querySelector("input[name='quoteSelectionMode'][value='any']");
+  const availableCategoryCodes = getAvailableQuoteCategoryCodeSet();
   const selectedCategoryCodes = [...document.querySelectorAll("#quoteCategoryOptions input[type='checkbox']:checked")]
+    .filter(input => !input.disabled && availableCategoryCodes.has(input.value))
     .map(input => input.value)
-    .filter(Boolean)
     .slice(0, 3);
   const selectionMode = anyModeInput?.checked || !selectedCategoryCodes.length ? "any" : "selected_categories";
   return {
@@ -998,6 +1010,12 @@ function syncQuotePreferenceControls(changedInput = null) {
 
   if (!anyModeInput || !categoryInputs.length) return;
 
+  categoryInputs.forEach(input => {
+    if (input.disabled) {
+      input.checked = false;
+    }
+  });
+
   if (changedInput === anyModeInput && anyModeInput.checked) {
     categoryInputs.forEach(input => {
       input.checked = false;
@@ -1005,10 +1023,10 @@ function syncQuotePreferenceControls(changedInput = null) {
     return;
   }
 
-  let selectedInputs = categoryInputs.filter(input => input.checked);
+  let selectedInputs = categoryInputs.filter(input => input.checked && !input.disabled);
   if (changedInput?.type === "checkbox" && selectedInputs.length > 3) {
     changedInput.checked = false;
-    selectedInputs = categoryInputs.filter(input => input.checked);
+    selectedInputs = categoryInputs.filter(input => input.checked && !input.disabled);
     if (status) {
       status.textContent = "Можно выбрать не больше трёх тематик. Изменения начнут действовать завтра.";
     }
@@ -1030,7 +1048,9 @@ async function saveQuotePreferencesUi() {
   if (status) {
     status.textContent = result.error === "invalid_quote_category_count"
       ? "Можно выбрать от одной до трёх тематик."
-      : "Не удалось сохранить настройки цитат.";
+      : result.error === "quote_category_unavailable"
+        ? "Выбранная тематика пока недоступна для цитат."
+        : "Не удалось сохранить настройки цитат.";
   }
 }
 

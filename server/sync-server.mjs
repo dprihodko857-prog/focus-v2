@@ -5185,8 +5185,20 @@ function isAuthorizedYooKassaWebhookRequest({ request, url, yookassaWebhookToken
 }
 
 function getQuoteCategoriesResponse(db) {
+  return {
+    selectionModes: [
+      {
+        code: QUOTE_CATEGORY_ANY_CODE,
+        titleRu: "Любые",
+      },
+    ],
+    categories: getQuoteCategoriesWithAvailability(db),
+  };
+}
+
+function getQuoteCategoriesWithAvailability(db) {
   const catalog = db.getQuoteCatalog();
-  const categories = db.getQuoteCategories().map(category => {
+  return db.getQuoteCategories().map(category => {
     const activeVerifiedCount = catalog.filter(quote => isQuoteEligibleForProduction(quote)
       && quote.categoryCodes.includes(category.code)).length;
     return {
@@ -5195,16 +5207,6 @@ function getQuoteCategoriesResponse(db) {
       available: activeVerifiedCount >= category.minimumCatalogSize,
     };
   });
-
-  return {
-    selectionModes: [
-      {
-        code: QUOTE_CATEGORY_ANY_CODE,
-        titleRu: "Любые",
-      },
-    ],
-    categories,
-  };
 }
 
 function getQuotePreferencesResponse(db, { accountId, timezone, checkedAt }) {
@@ -5232,8 +5234,12 @@ function saveQuotePreferencesFromRequest(db, { accountId, body, timezone, checke
     return { statusCode: 400, body: { error: "invalid_quote_selection_mode" } };
   }
 
-  const activeCategoryCodes = new Set(db.getQuoteCategories()
+  const quoteCategories = getQuoteCategoriesWithAvailability(db);
+  const activeCategoryCodes = new Set(quoteCategories
     .filter(category => category.isActive)
+    .map(category => category.code));
+  const availableCategoryCodes = new Set(quoteCategories
+    .filter(category => category.isActive && category.available)
     .map(category => category.code));
   const selectedCategoryCodes = Array.isArray(body.selectedCategoryCodes)
     ? body.selectedCategoryCodes.map(sanitizeQuoteCategoryCode).filter(Boolean)
@@ -5251,6 +5257,10 @@ function saveQuotePreferencesFromRequest(db, { accountId, body, timezone, checke
 
     if (uniqueSelectedCodes.some(code => !activeCategoryCodes.has(code))) {
       return { statusCode: 400, body: { error: "invalid_quote_category" } };
+    }
+
+    if (uniqueSelectedCodes.some(code => !availableCategoryCodes.has(code))) {
+      return { statusCode: 400, body: { error: "quote_category_unavailable" } };
     }
   }
 
@@ -5451,8 +5461,8 @@ function selectDailyQuotes(db, { accountId, localDate, preferences }) {
     return { quotes: [], categoryCodes: [], reason: "not_enough_verified_quotes" };
   }
 
-  const activeCategoryCodes = db.getQuoteCategories()
-    .filter(category => category.isActive)
+  const activeCategoryCodes = getQuoteCategoriesWithAvailability(db)
+    .filter(category => category.isActive && category.available)
     .map(category => category.code);
   const selectedCategoryCodes = preferences.selectionMode === "selected_categories"
     ? preferences.selectedCategoryCodes.filter(code => activeCategoryCodes.includes(code))
