@@ -1628,6 +1628,41 @@ export function createFocusSyncClient({
       }
     },
 
+    async getQuoteHistory({ timezone = getCurrentTimezone(), days = 14 } = {}) {
+      const normalizedTimezone = normalizeTimezone(timezone);
+      const normalizedDays = normalizeQuoteHistoryDays(days);
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, `/quotes/history?timezone=${encodeURIComponent(normalizedTimezone)}&days=${encodeURIComponent(String(normalizedDays))}`), {
+          headers: await withHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Focus quote history load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          localDate: normalizeLocalDate(result.localDate),
+          timezone: normalizeTimezone(result.timezone || normalizedTimezone),
+          days: normalizeQuoteHistoryDays(result.days || normalizedDays),
+          sets: normalizeQuoteHistorySets(result.sets),
+          checkedAt: normalizeTimestamp(result.checkedAt),
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          localDate: "",
+          timezone: normalizedTimezone,
+          days: normalizedDays,
+          sets: [],
+          checkedAt: null,
+        };
+      }
+    },
+
     async favoriteQuote(quoteId) {
       const normalizedQuoteId = normalizeQuoteId(quoteId);
       if (!normalizedQuoteId) {
@@ -2090,6 +2125,37 @@ function normalizeFavoriteQuote(quote) {
     categoryCodes: normalizeQuoteCategoryCodes(quote.categoryCodes),
     favoritedAt: normalizeTimestamp(quote.favoritedAt),
     isFavorite: true,
+  };
+}
+
+function normalizeQuoteHistoryDays(value) {
+  return Math.max(1, Math.min(90, Math.floor(Number(value) || 14)));
+}
+
+function normalizeQuoteHistorySets(sets) {
+  return Array.isArray(sets)
+    ? sets.map(normalizeQuoteHistorySet).filter(Boolean).sort((first, second) => second.localDate.localeCompare(first.localDate)).slice(0, 14)
+    : [];
+}
+
+function normalizeQuoteHistorySet(set) {
+  if (!set || typeof set !== "object" || Array.isArray(set)) {
+    return null;
+  }
+
+  const localDate = normalizeLocalDate(set.localDate);
+  const quotes = normalizeDailyQuotes(set.quotes);
+  if (!localDate || !quotes.length) {
+    return null;
+  }
+
+  return {
+    localDate,
+    timezone: normalizeTimezone(set.timezone || "UTC"),
+    validFromUtc: normalizeTimestamp(set.validFromUtc),
+    validUntilUtc: normalizeTimestamp(set.validUntilUtc),
+    generationReason: normalizeQuoteGenerationReason(set.generationReason),
+    quotes,
   };
 }
 

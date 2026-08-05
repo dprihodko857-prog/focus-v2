@@ -811,6 +811,56 @@ test("daily quotes client loads favorite quotes", async () => {
   assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
 });
 
+test("daily quotes client loads quote history", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        accountId: "account-1",
+        localDate: "2026-08-05",
+        timezone: "Europe/Moscow",
+        days: 14,
+        checkedAt: "2026-08-05T09:00:00.000Z",
+        sets: [{
+          localDate: "2026-08-04",
+          timezone: "Europe/Moscow",
+          validFromUtc: "2026-08-03T21:00:00.000Z",
+          validUntilUtc: "2026-08-04T21:00:00.000Z",
+          generationReason: "scheduled_midnight",
+          quotes: [{
+            id: "quote-1",
+            position: 1,
+            text: "Clean history quote.",
+            authorName: "Known Author",
+            sourceTitle: "Known Book",
+            sourceReference: "chapter 1",
+            sourceType: "book",
+            categoryCodes: ["life_wisdom"],
+            isFavorite: true,
+          }],
+        }],
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.getQuoteHistory({ timezone: "Europe/Moscow", days: 14 });
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.sets.length, 1);
+  assert.equal(result.sets[0].localDate, "2026-08-04");
+  assert.equal(result.sets[0].quotes[0].id, "quote-1");
+  assert.equal(result.sets[0].quotes[0].isFavorite, true);
+  assert.equal(calls[0].url, "/api/quotes/history?timezone=Europe%2FMoscow&days=14");
+  assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
+});
+
 test("daily quotes client toggles favorite quotes", async () => {
   const calls = [];
   const storage = createMemoryLocalStorage({

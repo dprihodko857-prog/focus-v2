@@ -750,6 +750,12 @@ let favoriteQuotesState = {
   quotes: [],
   checkedAt: null,
 };
+let quoteHistoryState = {
+  status: "idle",
+  sets: [],
+  checkedAt: null,
+  days: 14,
+};
 let quoteCategoriesState = [];
 let quotePreferencesState = {
   selectionMode: "any",
@@ -870,6 +876,28 @@ async function loadFavoriteQuotes() {
   renderDailyQuotesModal();
 }
 
+async function loadQuoteHistory() {
+  const timezone = getCurrentTimezone();
+  quoteHistoryState = {
+    ...quoteHistoryState,
+    status: "loading",
+  };
+  renderDailyQuotesModal();
+  const result = await scheduleSync.getQuoteHistory({ timezone, days: quoteHistoryState.days });
+  quoteHistoryState = result.status === "ok"
+    ? {
+      status: "ok",
+      sets: result.sets || [],
+      checkedAt: result.checkedAt || null,
+      days: result.days || quoteHistoryState.days,
+    }
+    : {
+      ...quoteHistoryState,
+      status: "offline",
+    };
+  renderDailyQuotesModal();
+}
+
 async function loadDailyQuotesFromCache() {
   try {
     const cache = await scheduleStorage.loadDailyQuotesCache();
@@ -923,17 +951,28 @@ function renderDailyQuotesModal() {
 
   const todayQuotes = Array.isArray(dailyQuotesState.quotes) ? dailyQuotesState.quotes : [];
   const favoriteQuotes = Array.isArray(favoriteQuotesState.quotes) ? favoriteQuotesState.quotes : [];
+  const historySets = Array.isArray(quoteHistoryState.sets) ? quoteHistoryState.sets : [];
+  const historyQuotes = getQuoteHistoryQuotes();
   const isFavoritesView = quoteModalView === "favorites";
-  const quotesList = isFavoritesView ? favoriteQuotes : todayQuotes;
-  status.textContent = isFavoritesView ? getFavoriteQuotesStatusText() : getDailyQuotesStatusText();
-  const tabs = renderDailyQuoteTabs({ todayCount: todayQuotes.length, favoriteCount: favoriteQuotes.length });
+  const isHistoryView = quoteModalView === "history";
+  const quotesList = isFavoritesView ? favoriteQuotes : isHistoryView ? historyQuotes : todayQuotes;
+  status.textContent = isFavoritesView
+    ? getFavoriteQuotesStatusText()
+    : isHistoryView
+      ? getQuoteHistoryStatusText()
+      : getDailyQuotesStatusText();
+  const tabs = renderDailyQuoteTabs({
+    todayCount: todayQuotes.length,
+    favoriteCount: favoriteQuotes.length,
+    historyCount: historyQuotes.length,
+  });
 
   if (!quotesList.length) {
     list.innerHTML = `
       ${tabs}
       <article class="empty-state">
-        <strong>${isFavoritesView ? "Избранных цитат пока нет" : "Подборка пока недоступна"}</strong>
-        <span>${isFavoritesView ? "Нажмите звезду у цитаты, чтобы сохранить её здесь." : "Серверный каталог цитат ещё не наполнен проверенными записями."}</span>
+        <strong>${isFavoritesView ? "Избранных цитат пока нет" : isHistoryView ? "Истории пока нет" : "Подборка пока недоступна"}</strong>
+        <span>${isFavoritesView ? "Нажмите звезду у цитаты, чтобы сохранить её здесь." : isHistoryView ? "Откройте цитаты в разные дни, чтобы здесь появились прошлые подборки." : "Серверный каталог цитат ещё не наполнен проверенными записями."}</span>
       </article>
     `;
     return;
@@ -941,7 +980,17 @@ function renderDailyQuotesModal() {
 
   list.innerHTML = `
     ${tabs}
-    ${quotesList.map((quote, index) => `
+    ${isHistoryView ? renderQuoteHistorySets(historySets) : renderDailyQuoteCards(quotesList)}
+  `;
+}
+
+function getQuoteHistoryQuotes() {
+  return (Array.isArray(quoteHistoryState.sets) ? quoteHistoryState.sets : [])
+    .flatMap(set => Array.isArray(set.quotes) ? set.quotes : []);
+}
+
+function renderDailyQuoteCards(quotesList) {
+  return quotesList.map((quote, index) => `
     <article class="daily-quote-card" data-quote-id="${escapeHtml(quote.id)}">
       <span class="daily-quote-card__position">${quote.position || index + 1}</span>
       <div>
@@ -957,11 +1006,39 @@ function renderDailyQuotesModal() {
         </button>
       </div>
     </article>
-  `).join("")}
-  `;
+  `).join("");
 }
 
-function renderDailyQuoteTabs({ todayCount, favoriteCount }) {
+function renderQuoteHistorySets(historySets) {
+  return historySets.map(set => `
+    <section class="daily-quotes-history-day" aria-label="Подборка цитат на ${escapeHtml(formatQuoteHistoryDate(set.localDate))}">
+      <div class="daily-quotes-history-day__head">
+        <strong>${escapeHtml(formatQuoteHistoryDate(set.localDate))}</strong>
+        <span>${set.quotes.length} ${formatPlural(set.quotes.length, ["цитата", "цитаты", "цитат"])}</span>
+      </div>
+      ${renderDailyQuoteCards(set.quotes)}
+    </section>
+  `).join("");
+}
+
+function formatQuoteHistoryDate(localDate) {
+  const [year, month, day] = String(localDate || "").split("-").map(Number);
+  if (!year || !month || !day) {
+    return String(localDate || "");
+  }
+
+  try {
+    return new Intl.DateTimeFormat("ru-RU", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(new Date(year, month - 1, day));
+  } catch {
+    return String(localDate || "");
+  }
+}
+
+function renderDailyQuoteTabs({ todayCount, favoriteCount, historyCount }) {
   return `
     <div class="daily-quotes-tabs" role="tablist" aria-label="Разделы цитат">
       <button class="daily-quotes-tab ${quoteModalView === "today" ? "is-active" : ""}" type="button" aria-pressed="${quoteModalView === "today" ? "true" : "false"}" data-quote-view="today">
@@ -971,6 +1048,10 @@ function renderDailyQuoteTabs({ todayCount, favoriteCount }) {
       <button class="daily-quotes-tab ${quoteModalView === "favorites" ? "is-active" : ""}" type="button" aria-pressed="${quoteModalView === "favorites" ? "true" : "false"}" data-quote-view="favorites">
         <span>Избранное</span>
         <strong>${favoriteCount}</strong>
+      </button>
+      <button class="daily-quotes-tab ${quoteModalView === "history" ? "is-active" : ""}" type="button" aria-pressed="${quoteModalView === "history" ? "true" : "false"}" data-quote-view="history">
+        <span>История</span>
+        <strong>${historyCount}</strong>
       </button>
     </div>
   `;
@@ -1013,6 +1094,23 @@ function getFavoriteQuotesStatusText() {
     return "В избранном пока нет цитат.";
   }
   return `В избранном ${count} ${formatPlural(count, ["цитата", "цитаты", "цитат"])}.`;
+}
+
+function getQuoteHistoryStatusText() {
+  const count = getQuoteHistoryQuotes().length;
+  if (quoteHistoryState.status === "loading") {
+    return "Загружаем историю цитат.";
+  }
+  if (quoteHistoryState.status === "offline" && count > 0) {
+    return "Нет соединения. Показываем ранее загруженную историю.";
+  }
+  if (quoteHistoryState.status === "offline") {
+    return "Не удалось загрузить историю цитат.";
+  }
+  if (!count) {
+    return "В истории пока нет прошлых подборок.";
+  }
+  return `В истории ${count} ${formatPlural(count, ["цитата", "цитаты", "цитат"])}.`;
 }
 
 function setQuoteActionStatus(message) {
@@ -1772,6 +1870,12 @@ async function toggleQuoteFavorite(quoteId) {
     dailyQuotesState.quotes = dailyQuotesState.quotes.map(item => item.id === quoteId
       ? { ...item, isFavorite: result.isFavorite }
       : item);
+    quoteHistoryState.sets = quoteHistoryState.sets.map(set => ({
+      ...set,
+      quotes: set.quotes.map(item => item.id === quoteId
+        ? { ...item, isFavorite: result.isFavorite }
+        : item),
+    }));
     favoriteQuotesState.quotes = result.isFavorite
       ? [
         {
@@ -1817,6 +1921,7 @@ async function shareQuote(quoteId) {
 function findQuoteForAction(quoteId) {
   return dailyQuotesState.quotes.find(item => item.id === quoteId)
     || favoriteQuotesState.quotes.find(item => item.id === quoteId)
+    || getQuoteHistoryQuotes().find(item => item.id === quoteId)
     || null;
 }
 
@@ -8864,6 +8969,9 @@ function bindControls(initialLaunchTarget = "") {
       loadFavoriteQuotes().catch(() => {
         renderDailyQuotesModal();
       });
+      loadQuoteHistory().catch(() => {
+        renderDailyQuotesModal();
+      });
       loadQuotePreferencesUi().catch(() => {
         renderQuotePreferencesUi();
       });
@@ -9044,7 +9152,9 @@ function bindControls(initialLaunchTarget = "") {
   document.querySelector("#quotesRefreshButton")?.addEventListener("click", () => {
     const loader = quoteModalView === "favorites"
       ? loadFavoriteQuotes()
-      : loadDailyQuotes({ force: true });
+      : quoteModalView === "history"
+        ? loadQuoteHistory()
+        : loadDailyQuotes({ force: true });
     loader.catch(() => {
       renderDailyQuotesModal();
     });
@@ -9065,10 +9175,17 @@ function bindControls(initialLaunchTarget = "") {
   document.querySelector("#dailyQuotesList")?.addEventListener("click", event => {
     const quoteViewButton = event.target.closest("[data-quote-view]");
     if (quoteViewButton) {
-      quoteModalView = quoteViewButton.dataset.quoteView === "favorites" ? "favorites" : "today";
+      quoteModalView = ["favorites", "history"].includes(quoteViewButton.dataset.quoteView)
+        ? quoteViewButton.dataset.quoteView
+        : "today";
       renderDailyQuotesModal();
       if (quoteModalView === "favorites") {
         loadFavoriteQuotes().catch(() => {
+          renderDailyQuotesModal();
+        });
+      }
+      if (quoteModalView === "history") {
+        loadQuoteHistory().catch(() => {
           renderDailyQuotesModal();
         });
       }

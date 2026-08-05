@@ -173,6 +173,87 @@ test("quotes API creates one stable five quote set for the local day", async () 
   }
 });
 
+test("quotes API lists recent quote history sets", async () => {
+  const db = createSyncDatabase(":memory:");
+  const catalog = createTestQuoteCatalog();
+  db.replaceQuoteCatalog({ quotes: catalog });
+  const accountId = "account-quotes-history";
+  createTestAccount(db, accountId);
+  const quoteIds = catalog.slice(0, 5).map(quote => quote.id);
+  db.saveDailyQuoteSet({
+    set: {
+      id: "quote-set-history-recent",
+      accountId,
+      localDate: "2026-08-04",
+      timezone: "Europe/Moscow",
+      validFromUtc: "2026-08-03T21:00:00.000Z",
+      validUntilUtc: "2026-08-04T21:00:00.000Z",
+      generationReason: "scheduled_midnight",
+      status: "ready",
+      createdAt: "2026-08-03T21:00:00.000Z",
+    },
+    items: quoteIds.map((quoteId, index) => ({
+      setId: "quote-set-history-recent",
+      quoteId,
+      position: index + 1,
+      selectedCategoryCode: "life_wisdom",
+      createdAt: "2026-08-03T21:00:00.000Z",
+    })),
+  });
+  db.saveDailyQuoteSet({
+    set: {
+      id: "quote-set-history-old",
+      accountId,
+      localDate: "2026-07-01",
+      timezone: "Europe/Moscow",
+      validFromUtc: "2026-06-30T21:00:00.000Z",
+      validUntilUtc: "2026-07-01T21:00:00.000Z",
+      generationReason: "scheduled_midnight",
+      status: "ready",
+      createdAt: "2026-06-30T21:00:00.000Z",
+    },
+    items: quoteIds.map((quoteId, index) => ({
+      setId: "quote-set-history-old",
+      quoteId,
+      position: index + 1,
+      selectedCategoryCode: "life_wisdom",
+      createdAt: "2026-06-30T21:00:00.000Z",
+    })),
+  });
+  db.saveFavoriteQuote({
+    accountId,
+    quoteId: quoteIds[0],
+    createdAt: "2026-08-04T09:00:00.000Z",
+  });
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-05T09:00:00.000Z",
+    createId: () => "quote-set-history-today",
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const response = await fetch(`${baseUrl}/api/quotes/history?timezone=Europe%2FMoscow&days=7`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(response.status, 200);
+    const history = await response.json();
+    assert.equal(history.localDate, "2026-08-05");
+    assert.equal(history.days, 7);
+    assert.equal(history.sets.length, 1);
+    assert.equal(history.sets[0].localDate, "2026-08-04");
+    assert.equal(history.sets[0].quotes.length, 5);
+    assert.equal(history.sets[0].quotes[0].isFavorite, true);
+    assert.ok(!history.sets.some(set => set.localDate === "2026-07-01"));
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("quotes API only serves verified active quotes and tracks favorites", async () => {
   const db = createSyncDatabase(":memory:");
   db.replaceQuoteCatalog({

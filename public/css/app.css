@@ -487,7 +487,7 @@
 
 .daily-quotes-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   min-width: 0;
 }
@@ -506,6 +506,13 @@
   font-weight: 820;
   background: rgba(255, 252, 244, .22);
   cursor: pointer;
+}
+
+.daily-quotes-tab span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .daily-quotes-tab strong {
@@ -572,6 +579,29 @@
   background: rgba(249, 115, 22, .28);
   color: var(--brand-strong);
 }
+
+.daily-quotes-history-day {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.daily-quotes-history-day__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 4px;
+  color: var(--muted-strong);
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.daily-quotes-history-day__head strong,
+.daily-quotes-history-day__head span {
+  min-width: 0;
+}
+
 
 .quote-mode-option {
   display: inline-flex;
@@ -5677,6 +5707,10 @@ body.app-menu-open {
   .quote-preferences-panel__head {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .daily-quotes-tabs {
+    grid-template-columns: 1fr;
   }
 
   .daily-quote-card {

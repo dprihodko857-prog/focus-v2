@@ -674,6 +674,25 @@ class JsonSyncDatabase {
       .flatMap(set => this.getDailyQuoteSetItems(set.id));
   }
 
+  listRecentDailyQuoteSets({ accountId, beforeLocalDate, days = 14, limit = 14 }) {
+    const beforeTime = Date.parse(`${beforeLocalDate}T00:00:00.000Z`);
+    if (!Number.isFinite(beforeTime)) {
+      return [];
+    }
+
+    const normalizedDays = Math.max(1, Math.min(90, Math.floor(Number(days) || 14)));
+    const normalizedLimit = Math.max(1, Math.min(30, Math.floor(Number(limit) || 14)));
+    const cutoffTime = beforeTime - normalizedDays * 24 * 60 * 60 * 1000;
+    return Object.values(this.state.dailyQuoteSets)
+      .filter(set => isPlainObject(set) && set.accountId === accountId)
+      .filter(set => {
+        const localTime = Date.parse(`${set.localDate}T00:00:00.000Z`);
+        return Number.isFinite(localTime) && localTime < beforeTime && localTime >= cutoffTime;
+      })
+      .sort((first, second) => second.localDate.localeCompare(first.localDate) || second.createdAt.localeCompare(first.createdAt))
+      .slice(0, normalizedLimit);
+  }
+
   isFavoriteQuote({ accountId, quoteId }) {
     return Boolean(this.state.favoriteQuotes[accountId]?.[quoteId]);
   }
@@ -3992,6 +4011,23 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     return;
   }
 
+  if (url.pathname === "/api/quotes/history") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    sendJson(response, 200, getQuoteHistoryResponse(db, {
+      accountId: accountContext.accountId,
+      timezone: url.searchParams.get("timezone") || request.headers["x-focus-timezone"],
+      days: url.searchParams.get("days"),
+      checkedAt: accountContext.checkedAt,
+    }));
+    return;
+  }
 
   const quoteFavoriteMatch = url.pathname.match(/^\/api\/quotes\/([^/]+)\/favorite$/);
   if (quoteFavoriteMatch) {
@@ -5682,6 +5718,67 @@ function formatTodayQuotesResponse(db, { accountId, set }) {
       })
       .filter(Boolean)
       .sort((first, second) => first.position - second.position),
+  };
+}
+
+function getFavoriteQuotesResponse(db, { accountId, checkedAt }) {
+  const catalogById = new Map(db.getQuoteCatalog().map(quote => [quote.id, quote]));
+  const favorites = db.listFavoriteQuotes(accountId);
+  return {
+    accountId,
+    checkedAt,
+    quotes: favorites
+      .map((favorite, index) => {
+        const quote = catalogById.get(favorite.quoteId);
+        if (!quote || !isQuoteEligibleForProduction(quote)) {
+          return null;
+        }
+
+        return {
+          id: quote.id,
+          position: index + 1,
+          text: quote.text,
+          authorName: quote.authorName,
+          sourceTitle: quote.sourceTitle,
+          sourceType: quote.sourceType,
+          sourceReference: quote.sourceReference,
+          sourceUrl: quote.sourceUrl || undefined,
+          categoryCodes: quote.categoryCodes,
+          favoritedAt: favorite.createdAt,
+          isFavorite: true,
+        };
+      })
+      .filter(Boolean),
+  };
+}
+
+function getQuoteHistoryResponse(db, { accountId, timezone, days, checkedAt }) {
+  const normalizedTimezone = normalizeTimezone(timezone);
+  const localDate = getLocalDateString(checkedAt, normalizedTimezone);
+  const normalizedDays = Math.max(1, Math.min(90, Math.floor(Number(days) || 14)));
+  const sets = db.listRecentDailyQuoteSets({
+    accountId,
+    beforeLocalDate: localDate,
+    days: normalizedDays,
+    limit: 14,
+  });
+
+  return {
+    accountId,
+    localDate,
+    timezone: normalizedTimezone,
+    days: normalizedDays,
+    checkedAt,
+    sets: sets
+      .map(set => ({
+        ...formatTodayQuotesResponse(db, { accountId, set }),
+        localDate: set.localDate,
+        timezone: set.timezone,
+        validFromUtc: set.validFromUtc,
+        validUntilUtc: set.validUntilUtc,
+        generationReason: set.generationReason,
+      }))
+      .filter(set => set.quotes.length > 0),
   };
 }
 

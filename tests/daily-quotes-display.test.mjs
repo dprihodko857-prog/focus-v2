@@ -6,11 +6,11 @@ const appJs = readFileSync("public/js/app.js", "utf8");
 const appCss = readFileSync("public/css/app.css", "utf8");
 
 test("daily quotes modal renders only quote text and author", () => {
-  const modalRenderer = getFunctionBody(appJs, "renderDailyQuotesModal");
+  const cardRenderer = getFunctionBody(appJs, "renderDailyQuoteCards");
 
-  assert.match(modalRenderer, /<blockquote>\$\{escapeHtml\(quote\.text\)\}<\/blockquote>/);
-  assert.match(modalRenderer, /<cite>\$\{escapeHtml\(quote\.authorName\)\}<\/cite>/);
-  assert.doesNotMatch(modalRenderer, /sourceTitle|sourceReference/);
+  assert.match(cardRenderer, /<blockquote>\$\{escapeHtml\(quote\.text\)\}<\/blockquote>/);
+  assert.match(cardRenderer, /<cite>\$\{escapeHtml\(quote\.authorName\)\}<\/cite>/);
+  assert.doesNotMatch(cardRenderer, /sourceTitle|sourceReference/);
 });
 
 test("daily quotes marquee renders only quote text and author", () => {
@@ -74,16 +74,16 @@ test("quote preferences save button reflects saved and dirty states", () => {
 });
 
 test("daily quote cards expose explicit favorite and copy actions", () => {
-  const modalRenderer = getFunctionBody(appJs, "renderDailyQuotesModal");
+  const cardRenderer = getFunctionBody(appJs, "renderDailyQuoteCards");
 
-  assert.match(modalRenderer, /data-toggle-quote-favorite/);
-  assert.match(modalRenderer, /data-share-quote/);
-  assert.match(modalRenderer, /icon-star/);
-  assert.match(modalRenderer, /icon-copy/);
-  assert.match(modalRenderer, /Скопировать или поделиться цитатой/);
+  assert.match(cardRenderer, /data-toggle-quote-favorite/);
+  assert.match(cardRenderer, /data-share-quote/);
+  assert.match(cardRenderer, /icon-star/);
+  assert.match(cardRenderer, /icon-copy/);
+  assert.match(cardRenderer, /Скопировать или поделиться цитатой/);
   assert.match(appCss, /\.icon-star\s*\{/);
   assert.match(appCss, /\.icon-copy\s*\{/);
-  assert.doesNotMatch(modalRenderer, /icon-more/);
+  assert.doesNotMatch(cardRenderer, /icon-more/);
 });
 
 test("daily quotes modal exposes favorite quotes view", () => {
@@ -103,6 +103,26 @@ test("daily quotes modal exposes favorite quotes view", () => {
   assert.match(quoteFinder, /favoriteQuotesState\.quotes/);
   assert.match(appCss, /\.daily-quotes-tabs\s*\{/);
   assert.match(appCss, /\.daily-quotes-tab\.is-active\s*\{/);
+});
+
+test("daily quotes modal exposes quote history view", () => {
+  const modalRenderer = getFunctionBody(appJs, "renderDailyQuotesModal");
+  const historyLoader = getFunctionBody(appJs, "loadQuoteHistory");
+  const historyRenderer = getFunctionBody(appJs, "renderQuoteHistorySets");
+  const quoteFinder = getFunctionBody(appJs, "findQuoteForAction");
+  const favoriteAction = getFunctionBody(appJs, "toggleQuoteFavorite");
+
+  assert.match(appJs, /quoteHistoryState/);
+  assert.match(appJs, /function getQuoteHistoryQuotes/);
+  assert.match(appJs, /data-quote-view="history"/);
+  assert.match(modalRenderer, /quoteModalView === "history"/);
+  assert.match(modalRenderer, /Истории пока нет/);
+  assert.match(historyLoader, /scheduleSync\.getQuoteHistory/);
+  assert.match(historyRenderer, /renderDailyQuoteCards\(set\.quotes\)/);
+  assert.match(favoriteAction, /quoteHistoryState\.sets/);
+  assert.match(quoteFinder, /getQuoteHistoryQuotes/);
+  assert.match(appCss, /\.daily-quotes-history-day\s*\{/);
+  assert.match(appCss, /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
 });
 
 test("daily quote actions report favorite and copy status", () => {
