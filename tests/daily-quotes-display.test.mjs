@@ -73,16 +73,16 @@ test("quote preferences save button reflects saved and dirty states", () => {
   assert.match(appCss, /\.quote-preferences-panel__head \.primary-button\.is-saved\s*\{/);
 });
 
-test("daily quote cards expose explicit favorite and copy actions", () => {
+test("daily quote cards expose explicit favorite and share actions", () => {
   const cardRenderer = getFunctionBody(appJs, "renderDailyQuoteCards");
 
   assert.match(cardRenderer, /data-toggle-quote-favorite/);
   assert.match(cardRenderer, /data-share-quote/);
   assert.match(cardRenderer, /icon-star/);
-  assert.match(cardRenderer, /icon-copy/);
-  assert.match(cardRenderer, /Скопировать или поделиться цитатой/);
+  assert.match(cardRenderer, /icon-share/);
+  assert.match(cardRenderer, /Поделиться цитатой/);
   assert.match(appCss, /\.icon-star\s*\{/);
-  assert.match(appCss, /\.icon-copy\s*\{/);
+  assert.match(appCss, /\.icon-share\s*\{/);
   assert.doesNotMatch(cardRenderer, /icon-more/);
 });
 

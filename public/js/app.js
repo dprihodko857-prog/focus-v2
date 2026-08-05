@@ -1001,8 +1001,8 @@ function renderDailyQuoteCards(quotesList) {
         <button class="icon-button icon-button--tiny ${quote.isFavorite ? "is-active" : ""}" type="button" aria-label="${quote.isFavorite ? "Убрать из избранного" : "Добавить в избранное"}" title="${quote.isFavorite ? "Убрать из избранного" : "Добавить в избранное"}" data-toggle-quote-favorite="${escapeHtml(quote.id)}">
           <span class="icon icon-star"></span>
         </button>
-        <button class="icon-button icon-button--tiny" type="button" aria-label="Скопировать или поделиться цитатой" title="Скопировать или поделиться цитатой" data-share-quote="${escapeHtml(quote.id)}">
-          <span class="icon icon-copy"></span>
+        <button class="icon-button icon-button--tiny" type="button" aria-label="Поделиться цитатой" title="Поделиться цитатой" data-share-quote="${escapeHtml(quote.id)}">
+          <span class="icon icon-share"></span>
         </button>
       </div>
     </article>
