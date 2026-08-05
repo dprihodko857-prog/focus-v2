@@ -730,6 +730,46 @@ test("daily quotes preferences save selected categories for the next local day",
   assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
 });
 
+test("daily quotes preferences prefer pending settings for the settings UI", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        accountId: "account-1",
+        checkedAt: "2026-08-04T09:00:00.000Z",
+        preferences: {
+          selectionMode: "any",
+          selectedCategoryCodes: [],
+          timezone: "Europe/Moscow",
+          effectiveFromLocalDate: "2026-08-04",
+        },
+        pendingPreferences: {
+          selectionMode: "selected_categories",
+          selectedCategoryCodes: ["life_wisdom", "business", "family_children"],
+          timezone: "Europe/Moscow",
+          effectiveFromLocalDate: "2026-08-05",
+        },
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.getQuotePreferences({ timezone: "Europe/Moscow" });
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.preferences.selectionMode, "selected_categories");
+  assert.deepEqual(result.preferences.selectedCategoryCodes, ["life_wisdom", "business", "family_children"]);
+  assert.equal(result.activePreferences.selectionMode, "any");
+  assert.equal(result.pendingPreferences.effectiveFromLocalDate, "2026-08-05");
+  assert.equal(calls[0].url, "/api/quotes/preferences?timezone=Europe%2FMoscow");
+});
+
 test("daily quotes client toggles favorite quotes", async () => {
   const calls = [];
   const storage = createMemoryLocalStorage({

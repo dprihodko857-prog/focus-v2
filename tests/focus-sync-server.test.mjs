@@ -478,6 +478,9 @@ test("quotes preferences validate selected categories and apply tomorrow", async
     const current = await getResponse.json();
     assert.equal(current.preferences.selectionMode, "any");
     assert.equal(current.preferences.effectiveFromLocalDate, "2026-08-04");
+    assert.equal(current.pendingPreferences.selectionMode, "selected_categories");
+    assert.deepEqual(current.pendingPreferences.selectedCategoryCodes, ["life_wisdom", "business", "family_children"]);
+    assert.equal(current.pendingPreferences.effectiveFromLocalDate, "2026-08-05");
   } finally {
     await close(server);
     db.close();

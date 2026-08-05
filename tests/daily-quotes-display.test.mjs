@@ -52,6 +52,27 @@ test("quote preferences explain category availability", () => {
   assert.match(appCss, /\.quote-category-option__meta\s*\{/);
 });
 
+test("quote preferences save button reflects saved and dirty states", () => {
+  const loadPreferences = getFunctionBody(appJs, "loadQuotePreferencesUi");
+  const saveStateRenderer = getFunctionBody(appJs, "renderQuotePreferencesSaveState");
+  const resetSaveState = getFunctionBody(appJs, "resetQuotePreferencesSaveState");
+  const preferenceSync = getFunctionBody(appJs, "syncQuotePreferenceControls");
+  const savePreferences = getFunctionBody(appJs, "saveQuotePreferencesUi");
+
+  assert.match(loadPreferences, /quotePreferencesSaveState = "idle"/);
+  assert.match(saveStateRenderer, /#quotePreferencesSaveButton/);
+  assert.match(saveStateRenderer, /Сохраняем\.\.\./);
+  assert.match(saveStateRenderer, /Сохранено/);
+  assert.match(saveStateRenderer, /Сохранить/);
+  assert.match(saveStateRenderer, /is-saved/);
+  assert.match(resetSaveState, /quotePreferencesSaveState = "idle"/);
+  assert.match(preferenceSync, /resetQuotePreferencesSaveState/);
+  assert.match(savePreferences, /quotePreferencesSaveState = "saving"/);
+  assert.match(savePreferences, /quotePreferencesSaveState = "saved"/);
+  assert.match(savePreferences, /quotePreferencesSaveMessage/);
+  assert.match(appCss, /\.quote-preferences-panel__head \.primary-button\.is-saved\s*\{/);
+});
+
 test("daily quote cards expose explicit favorite and copy actions", () => {
   const modalRenderer = getFunctionBody(appJs, "renderDailyQuotesModal");
 

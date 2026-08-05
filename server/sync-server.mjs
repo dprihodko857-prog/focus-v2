@@ -5210,15 +5210,26 @@ function getQuoteCategoriesWithAvailability(db) {
 }
 
 function getQuotePreferencesResponse(db, { accountId, timezone, checkedAt }) {
+  const localDate = getLocalDateString(checkedAt, timezone);
   const preferences = getEffectiveQuotePreferences(db, {
     accountId,
     timezone,
-    localDate: getLocalDateString(checkedAt, timezone),
+    localDate,
     checkedAt,
   });
+  const storedPreferences = db.getUserQuotePreferences(accountId);
+  const pendingPreferences = storedPreferences?.accountId
+    && normalizeLocalDate(storedPreferences.effectiveFromLocalDate) > localDate
+    ? normalizeUserQuotePreferences(storedPreferences, {
+      accountId,
+      timezone: storedPreferences.timezone || timezone,
+      checkedAt,
+    })
+    : null;
   return {
     accountId,
     preferences,
+    pendingPreferences,
     checkedAt,
   };
 }

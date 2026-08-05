@@ -1551,7 +1551,11 @@ export function createFocusSyncClient({
         return {
           status: "ok",
           accountId: result.accountId || getStored(ACCOUNT_KEY),
-          preferences: normalizeQuotePreferences(result.preferences, normalizedTimezone),
+          preferences: normalizeQuotePreferences(result.pendingPreferences || result.preferences, normalizedTimezone),
+          activePreferences: normalizeQuotePreferences(result.preferences, normalizedTimezone),
+          pendingPreferences: result.pendingPreferences
+            ? normalizeQuotePreferences(result.pendingPreferences, normalizedTimezone)
+            : null,
           checkedAt: normalizeTimestamp(result.checkedAt),
         };
       } catch {

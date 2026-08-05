@@ -467,6 +467,12 @@
   margin-bottom: 16px;
 }
 
+.quote-preferences-panel__head .primary-button.is-saved {
+  color: #f8fff9;
+  background: linear-gradient(135deg, #5f9073, #47a7b8);
+  box-shadow: 0 16px 36px rgba(71, 167, 184, .22);
+}
+
 .quotes-panel__head p,
 .quote-preferences-panel p {
   margin: 0;

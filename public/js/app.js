@@ -751,6 +751,8 @@ let quotePreferencesState = {
   timezone: "",
   effectiveFromLocalDate: "",
 };
+let quotePreferencesSaveState = "idle";
+let quotePreferencesSaveMessage = "";
 let holidayCatalogState = {
   status: "idle",
   catalog: getBundledPublishedHolidayCatalog({ countryCode: "RU", year: 2026 }),
@@ -961,6 +963,8 @@ async function loadQuotePreferencesUi() {
   ]);
   quoteCategoriesState = categories.categories || [];
   quotePreferencesState = preferences.preferences || quotePreferencesState;
+  quotePreferencesSaveState = "idle";
+  quotePreferencesSaveMessage = "";
   renderQuotePreferencesUi();
 }
 
@@ -1011,6 +1015,29 @@ function getSelectedQuoteCategoriesStatusText(selectedCount) {
   return `${selectedText} Изменения начнут действовать со следующего дня.`;
 }
 
+function renderQuotePreferencesSaveState() {
+  const button = document.querySelector("#quotePreferencesSaveButton");
+  const status = document.querySelector("#quotePreferencesStatus");
+  if (button) {
+    button.textContent = quotePreferencesSaveState === "saving"
+      ? "Сохраняем..."
+      : quotePreferencesSaveState === "saved"
+        ? "Сохранено"
+        : "Сохранить";
+    button.disabled = quotePreferencesSaveState === "saving";
+    button.classList.toggle("is-saved", quotePreferencesSaveState === "saved");
+  }
+  if (status && quotePreferencesSaveMessage) {
+    status.textContent = quotePreferencesSaveMessage;
+  }
+}
+
+function resetQuotePreferencesSaveState() {
+  quotePreferencesSaveState = "idle";
+  quotePreferencesSaveMessage = "";
+  renderQuotePreferencesSaveState();
+}
+
 function renderQuotePreferencesUi() {
   const options = document.querySelector("#quoteCategoryOptions");
   const status = document.querySelector("#quotePreferencesStatus");
@@ -1043,6 +1070,7 @@ function renderQuotePreferencesUi() {
     <div class="quote-category-summary">${escapeHtml(getQuoteCategorySummaryText())}</div>
     ${categoryMarkup}
   `;
+  renderQuotePreferencesSaveState();
 }
 
 function readQuotePreferencesDraft() {
@@ -1066,6 +1094,7 @@ function syncQuotePreferenceControls(changedInput = null) {
   const categoryInputs = [...document.querySelectorAll("#quoteCategoryOptions input[type='checkbox']")];
 
   if (!anyModeInput || !categoryInputs.length) return;
+  resetQuotePreferencesSaveState();
 
   categoryInputs.forEach(input => {
     if (input.disabled) {
@@ -1100,14 +1129,24 @@ function syncQuotePreferenceControls(changedInput = null) {
 
 async function saveQuotePreferencesUi() {
   const status = document.querySelector("#quotePreferencesStatus");
+  if (quotePreferencesSaveState === "saving") return;
+
+  quotePreferencesSaveState = "saving";
+  quotePreferencesSaveMessage = "";
+  renderQuotePreferencesSaveState();
+
   const result = await scheduleSync.updateQuotePreferences(readQuotePreferencesDraft());
   if (result.status === "saved") {
     quotePreferencesState = result.preferences;
-    if (status) status.textContent = result.message || "Новые настройки начнут действовать завтра в 00:00.";
+    quotePreferencesSaveState = "saved";
+    quotePreferencesSaveMessage = result.message || "Сохранено. Новые настройки начнут действовать завтра в 00:00.";
     renderQuotePreferencesUi();
     return;
   }
 
+  quotePreferencesSaveState = "idle";
+  quotePreferencesSaveMessage = "";
+  renderQuotePreferencesSaveState();
   if (status) {
     status.textContent = result.error === "invalid_quote_category_count"
       ? "Можно выбрать от одной до трёх тематик."
