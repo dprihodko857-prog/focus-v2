@@ -970,6 +970,47 @@ function getAvailableQuoteCategoryCodeSet() {
     .map(category => category.code));
 }
 
+function getQuoteCategorySummaryText() {
+  const totalCount = quoteCategoriesState.length;
+  if (!totalCount) {
+    return "Тематики загружаются.";
+  }
+  const availableCount = quoteCategoriesState.filter(category => category.available === true).length;
+  if (availableCount === totalCount) {
+    return `Доступны все ${totalCount} ${formatPlural(totalCount, ["тематика", "тематики", "тематик"])}. Можно выбрать до трёх.`;
+  }
+  return `Доступно ${availableCount} из ${totalCount} тематик. Серые тематики откроются после проверки каталога.`;
+}
+
+function getQuoteCategoryReadinessText(category) {
+  const source = category || {};
+  if (source.available === true) {
+    return "Доступно";
+  }
+  const activeVerifiedCount = Math.max(0, Math.floor(Number(source.activeVerifiedCount) || 0));
+  const minimumCatalogSize = Math.max(0, Math.floor(Number(source.minimumCatalogSize) || 0));
+  if (minimumCatalogSize > 0) {
+    return `Недоступно · ${activeVerifiedCount}/${minimumCatalogSize} проверено`;
+  }
+  return "Недоступно";
+}
+
+function getQuotePreferencesTimingText() {
+  return quotePreferencesState.effectiveFromLocalDate
+    ? `Текущие настройки действуют с ${quotePreferencesState.effectiveFromLocalDate}. Новые изменения применятся завтра.`
+    : "Изменения начнут действовать со следующего дня.";
+}
+
+function getSelectedQuoteCategoriesStatusText(selectedCount) {
+  if (!selectedCount) {
+    return getQuotePreferencesTimingText();
+  }
+  const selectedText = selectedCount === 1
+    ? "Выбрана 1 тематика."
+    : `Выбрано ${selectedCount} ${formatPlural(selectedCount, ["тематика", "тематики", "тематик"])}.`;
+  return `${selectedText} Изменения начнут действовать со следующего дня.`;
+}
+
 function renderQuotePreferencesUi() {
   const options = document.querySelector("#quoteCategoryOptions");
   const status = document.querySelector("#quotePreferencesStatus");
@@ -980,19 +1021,28 @@ function renderQuotePreferencesUi() {
   const selectedCodes = new Set((quotePreferencesState.selectedCategoryCodes || [])
     .filter(code => availableCategoryCodes.has(code)));
   anyModeInput.checked = quotePreferencesState.selectionMode !== "selected_categories" || selectedCodes.size === 0;
-  status.textContent = quotePreferencesState.effectiveFromLocalDate
-    ? `Текущие настройки действуют с ${quotePreferencesState.effectiveFromLocalDate}. Новые изменения применятся завтра.`
-    : "Изменения начнут действовать со следующего дня.";
+  status.textContent = getSelectedQuoteCategoriesStatusText(selectedCodes.size);
 
-  options.innerHTML = quoteCategoriesState.map(category => {
+  const categoryMarkup = quoteCategoriesState.map(category => {
     const isAvailable = category.available === true;
+    const readinessText = getQuoteCategoryReadinessText(category);
+    const titleText = isAvailable
+      ? `${category.titleRu}: доступно для выбора`
+      : `${category.titleRu}: пока недоступно, в каталоге недостаточно проверенных цитат`;
     return `
-    <label class="quote-category-option ${isAvailable ? "" : "is-disabled"}" aria-disabled="${isAvailable ? "false" : "true"}">
+    <label class="quote-category-option ${isAvailable ? "" : "is-disabled"}" aria-disabled="${isAvailable ? "false" : "true"}" title="${escapeHtml(titleText)}">
       <input type="checkbox" value="${escapeHtml(category.code)}" ${isAvailable && selectedCodes.has(category.code) ? "checked" : ""} ${isAvailable ? "" : "disabled"} />
-      <span>${escapeHtml(category.titleRu)}</span>
+      <span class="quote-category-option__body">
+        <span class="quote-category-option__title">${escapeHtml(category.titleRu)}</span>
+        <span class="quote-category-option__meta">${escapeHtml(readinessText)}</span>
+      </span>
     </label>
   `;
   }).join("");
+  options.innerHTML = `
+    <div class="quote-category-summary">${escapeHtml(getQuoteCategorySummaryText())}</div>
+    ${categoryMarkup}
+  `;
 }
 
 function readQuotePreferencesDraft() {
@@ -1027,6 +1077,9 @@ function syncQuotePreferenceControls(changedInput = null) {
     categoryInputs.forEach(input => {
       input.checked = false;
     });
+    if (status) {
+      status.textContent = getSelectedQuoteCategoriesStatusText(0);
+    }
     return;
   }
 
@@ -1040,6 +1093,9 @@ function syncQuotePreferenceControls(changedInput = null) {
   }
 
   anyModeInput.checked = selectedInputs.length === 0;
+  if (status && selectedInputs.length <= 3) {
+    status.textContent = getSelectedQuoteCategoriesStatusText(selectedInputs.length);
+  }
 }
 
 async function saveQuotePreferencesUi() {

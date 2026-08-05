@@ -33,6 +33,25 @@ test("quote preferences disable unavailable categories before saving", () => {
   assert.match(preferencesReader, /availableCategoryCodes\.has\(input\.value\)/);
 });
 
+test("quote preferences explain category availability", () => {
+  const preferencesRenderer = getFunctionBody(appJs, "renderQuotePreferencesUi");
+  const categorySummary = getFunctionBody(appJs, "getQuoteCategorySummaryText");
+  const categoryReadiness = getFunctionBody(appJs, "getQuoteCategoryReadinessText");
+  const preferenceSync = getFunctionBody(appJs, "syncQuotePreferenceControls");
+
+  assert.match(preferencesRenderer, /quote-category-summary/);
+  assert.match(preferencesRenderer, /quote-category-option__meta/);
+  assert.match(preferencesRenderer, /getQuoteCategoryReadinessText/);
+  assert.match(preferencesRenderer, /title=/);
+  assert.match(categorySummary, /availableCount/);
+  assert.match(categorySummary, /formatPlural/);
+  assert.match(categoryReadiness, /activeVerifiedCount/);
+  assert.match(categoryReadiness, /minimumCatalogSize/);
+  assert.match(preferenceSync, /getSelectedQuoteCategoriesStatusText/);
+  assert.match(appCss, /\.quote-category-summary\s*\{/);
+  assert.match(appCss, /\.quote-category-option__meta\s*\{/);
+});
+
 test("daily quote cards expose explicit favorite and copy actions", () => {
   const modalRenderer = getFunctionBody(appJs, "renderDailyQuotesModal");
 
