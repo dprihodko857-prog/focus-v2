@@ -4,6 +4,7 @@ import { createSyncDatabase } from "../server/sync-server.mjs";
 
 export const CURATED_QUOTE_ID_PREFIX = "curated-quote";
 export const CURATED_QUOTE_CREATED_AT = "2026-08-05T00:00:00.000Z";
+export const CURATED_QUOTE_PREVIEW_CATEGORY_MINIMUM = 5;
 export const RETIRED_GENERATED_QUOTE_ID_PREFIXES = ["focus-seed"];
 
 const WIKISOURCE_URLS = {
@@ -17,10 +18,12 @@ const WIKISOURCE_URLS = {
   korolenkoParadox: "https://ru.wikisource.org/wiki/%D0%9F%D0%B0%D1%80%D0%B0%D0%B4%D0%BE%D0%BA%D1%81_(%D0%9A%D0%BE%D1%80%D0%BE%D0%BB%D0%B5%D0%BD%D0%BA%D0%BE)/%D0%9F%D0%A1%D0%A1_1914_(%D0%92%D0%A2:%D0%81)",
   prutkovThoughts: "https://ru.wikisource.org/wiki/%D0%9F%D0%BB%D0%BE%D0%B4%D1%8B_%D1%80%D0%B0%D0%B7%D0%B4%D1%83%D0%BC%D1%8C%D1%8F_(%D0%9F%D1%80%D1%83%D1%82%D0%BA%D0%BE%D0%B2)",
   prutkovThoughts1: "https://ru.wikisource.org/wiki/%D0%9C%D1%8B%D1%81%D0%BB%D0%B8_%D0%B8_%D0%B0%D1%84%D0%BE%D1%80%D0%B8%D0%B7%D0%BC%D1%8B_I_(%D0%9F%D1%80%D1%83%D1%82%D0%BA%D0%BE%D0%B2)",
+  prutkovThoughts2: "https://ru.wikisource.org/wiki/%D0%9C%D1%8B%D1%81%D0%BB%D0%B8_%D0%B8_%D0%B0%D1%84%D0%BE%D1%80%D0%B8%D0%B7%D0%BC%D1%8B_II_(%D0%9F%D1%80%D1%83%D1%82%D0%BA%D0%BE%D0%B2)",
   tolstoyAnna1: "https://ru.wikisource.org/wiki/%D0%90%D0%BD%D0%BD%D0%B0_%D0%9A%D0%B0%D1%80%D0%B5%D0%BD%D0%B8%D0%BD%D0%B0_(%D0%A2%D0%BE%D0%BB%D1%81%D1%82%D0%BE%D0%B9)/%D0%A7%D0%B0%D1%81%D1%82%D1%8C_I/%D0%93%D0%BB%D0%B0%D0%B2%D0%B0_I",
   krylovCasket: "https://ru.wikisource.org/wiki/%D0%9B%D0%B0%D1%80%D1%87%D0%B8%D0%BA_(%D0%9A%D1%80%D1%8B%D0%BB%D0%BE%D0%B2)",
   krylovCurious: "https://ru.wikisource.org/wiki/%D0%9B%D1%8E%D0%B1%D0%BE%D0%BF%D1%8B%D1%82%D0%BD%D1%8B%D0%B9_(%D0%9A%D1%80%D1%8B%D0%BB%D0%BE%D0%B2)",
   krylovSwan: "https://ru.wikisource.org/wiki/%D0%9B%D0%B5%D0%B1%D0%B5%D0%B4%D1%8C,_%D0%A9%D1%83%D0%BA%D0%B0_%D0%B8_%D0%A0%D0%B0%D0%BA_(%D0%9A%D1%80%D1%8B%D0%BB%D0%BE%D0%B2)",
+  krylovQuartet: "https://ru.wikisource.org/wiki/%D0%9A%D0%B2%D0%B0%D1%80%D1%82%D0%B5%D1%82_(%D0%9A%D1%80%D1%8B%D0%BB%D0%BE%D0%B2)",
 };
 
 export const CURATED_PRODUCTION_QUOTES = [
@@ -146,6 +149,50 @@ export const CURATED_PRODUCTION_QUOTES = [
     categoryCodes: ["work_vocation", "goals_success", "business"],
   }),
   quote({
+    slug: "prutkov-health-strength",
+    text: "Здоровье без силы — то же, что твердость без упругости.",
+    authorName: "Козьма Прутков",
+    sourceTitle: "Плоды раздумья",
+    sourceType: "book",
+    sourceReference: "Мысли и афоризмы I, №47",
+    sourceUrl: WIKISOURCE_URLS.prutkovThoughts1,
+    publicationYear: 1854,
+    categoryCodes: ["health_self_care", "work_vocation", "life_wisdom"],
+  }),
+  quote({
+    slug: "prutkov-health-care",
+    text: "Все говорят, что здоровье дороже всего; но никто этого не соблюдает.",
+    authorName: "Козьма Прутков",
+    sourceTitle: "Плоды раздумья",
+    sourceType: "book",
+    sourceReference: "Мысли и афоризмы I, №48",
+    sourceUrl: WIKISOURCE_URLS.prutkovThoughts1,
+    publicationYear: 1854,
+    categoryCodes: ["health_self_care", "self_development", "life_wisdom"],
+  }),
+  quote({
+    slug: "prutkov-do-not-fear",
+    text: "Не робей перед врагом: лютейший враг человека — он сам.",
+    authorName: "Козьма Прутков",
+    sourceTitle: "Плоды раздумья",
+    sourceType: "book",
+    sourceReference: "Мысли и афоризмы I, №59",
+    sourceUrl: WIKISOURCE_URLS.prutkovThoughts1,
+    publicationYear: 1854,
+    categoryCodes: ["motivation", "self_development", "calm_balance"],
+  }),
+  quote({
+    slug: "prutkov-time-life",
+    text: "Часами измеряется время, а временем жизнь человеческая.",
+    authorName: "Козьма Прутков",
+    sourceTitle: "Плоды раздумья",
+    sourceType: "book",
+    sourceReference: "Мысли и афоризмы I, №62",
+    sourceUrl: WIKISOURCE_URLS.prutkovThoughts1,
+    publicationYear: 1854,
+    categoryCodes: ["time_productivity", "life_wisdom", "self_development"],
+  }),
+  quote({
     slug: "prutkov-cannot-embrace",
     text: "Никто не обнимет необъятного.",
     authorName: "Козьма Прутков",
@@ -177,6 +224,50 @@ export const CURATED_PRODUCTION_QUOTES = [
     sourceUrl: WIKISOURCE_URLS.prutkovThoughts,
     publicationYear: 1854,
     categoryCodes: ["motivation", "work_vocation", "goals_success"],
+  }),
+  quote({
+    slug: "prutkov-friendship-warms",
+    text: "Дружба согревает душу, платье — тело, а солнце и печка — воздух.",
+    authorName: "Козьма Прутков",
+    sourceTitle: "Плоды раздумья",
+    sourceType: "book",
+    sourceReference: "Мысли и афоризмы II, №59",
+    sourceUrl: WIKISOURCE_URLS.prutkovThoughts2,
+    publicationYear: 1854,
+    categoryCodes: ["friendship_people", "family_children", "calm_balance"],
+  }),
+  quote({
+    slug: "prutkov-love-window",
+    text: "Гони любовь хоть в дверь, она влетит в окно.",
+    authorName: "Козьма Прутков",
+    sourceTitle: "Плоды раздумья",
+    sourceType: "book",
+    sourceReference: "Мысли и афоризмы II, №44",
+    sourceUrl: WIKISOURCE_URLS.prutkovThoughts2,
+    publicationYear: 1854,
+    categoryCodes: ["love_relationships", "friendship_people", "humor"],
+  }),
+  quote({
+    slug: "prutkov-do-not-grieve",
+    text: "Не печалуйся в скорбях, — уныние само наводит скорби.",
+    authorName: "Козьма Прутков",
+    sourceTitle: "Плоды раздумья",
+    sourceType: "book",
+    sourceReference: "Мысли и афоризмы II, №66",
+    sourceUrl: WIKISOURCE_URLS.prutkovThoughts2,
+    publicationYear: 1854,
+    categoryCodes: ["health_self_care", "calm_balance", "life_wisdom"],
+  }),
+  quote({
+    slug: "prutkov-be-calm",
+    text: "Если хочешь быть покоен, не принимай горя и неприятностей на свой счет.",
+    authorName: "Козьма Прутков",
+    sourceTitle: "Плоды раздумья",
+    sourceType: "book",
+    sourceReference: "Мысли и афоризмы II, №86",
+    sourceUrl: WIKISOURCE_URLS.prutkovThoughts2,
+    publicationYear: 1854,
+    categoryCodes: ["health_self_care", "calm_balance", "life_wisdom"],
   }),
   quote({
     slug: "prutkov-happy",
@@ -234,6 +325,28 @@ export const CURATED_PRODUCTION_QUOTES = [
     categoryCodes: ["family_children", "life_wisdom", "love_relationships"],
   }),
   quote({
+    slug: "tolstoy-unhappy-families",
+    text: "Каждая несчастливая семья несчастлива по-своему.",
+    authorName: "Лев Толстой",
+    sourceTitle: "Анна Каренина",
+    sourceType: "book",
+    sourceReference: "часть I, глава I",
+    sourceUrl: WIKISOURCE_URLS.tolstoyAnna1,
+    publicationYear: 1875,
+    categoryCodes: ["family_children", "life_wisdom", "love_relationships"],
+  }),
+  quote({
+    slug: "pushkin-dreams-years",
+    text: "Мечтам и годам нет возврата.",
+    authorName: "Александр Пушкин",
+    sourceTitle: "Евгений Онегин",
+    sourceType: "book",
+    sourceReference: "глава IV, строфа XVI",
+    sourceUrl: WIKISOURCE_URLS.oneginChapter4,
+    publicationYear: 1828,
+    categoryCodes: ["time_productivity", "life_wisdom", "calm_balance"],
+  }),
+  quote({
     slug: "pushkin-nails",
     text: "Быть можно дельным человеком и думать о красе ногтей.",
     authorName: "Александр Пушкин",
@@ -277,6 +390,17 @@ export const CURATED_PRODUCTION_QUOTES = [
     publicationYear: 1814,
     categoryCodes: ["friendship_people", "business", "work_vocation"],
   }),
+  quote({
+    slug: "krylov-quartet",
+    text: "А вы, друзья, как ни садитесь, всё в музыканты не годитесь.",
+    authorName: "Иван Крылов",
+    sourceTitle: "Квартет",
+    sourceType: "book",
+    sourceReference: "басня, 1811",
+    sourceUrl: WIKISOURCE_URLS.krylovQuartet,
+    publicationYear: 1811,
+    categoryCodes: ["friendship_people", "work_vocation", "humor"],
+  }),
 ];
 
 export function createCuratedProductionQuotes() {
@@ -307,7 +431,10 @@ export function getCuratedProductionQuoteSummary(quotes = createCuratedProductio
   };
 }
 
-export function importCuratedProductionQuotes(dbPath, { replaceGenerated = true } = {}) {
+export function importCuratedProductionQuotes(
+  dbPath,
+  { replaceGenerated = true, categoryMinimumCatalogSize = 0 } = {},
+) {
   if (!dbPath) {
     throw new Error("dbPath is required.");
   }
@@ -329,7 +456,11 @@ export function importCuratedProductionQuotes(dbPath, { replaceGenerated = true 
       }
       return true;
     });
-    const saved = db.replaceQuoteCatalog({ quotes: [...preservedQuotes, ...curatedQuotes] });
+    const normalizedCategoryMinimum = normalizeCategoryMinimumCatalogSize(categoryMinimumCatalogSize);
+    const categories = normalizedCategoryMinimum
+      ? createCuratedQuoteCategoryOverrides(db.getQuoteCategories(), { minimumCatalogSize: normalizedCategoryMinimum })
+      : undefined;
+    const saved = db.replaceQuoteCatalog({ quotes: [...preservedQuotes, ...curatedQuotes], categories });
     const audit = db.auditQuoteCatalogForProduction({ checkedAt: new Date().toISOString() });
     const importedCuratedQuotes = saved.quotes.filter(isCuratedQuote);
 
@@ -343,12 +474,27 @@ export function importCuratedProductionQuotes(dbPath, { replaceGenerated = true 
       curatedQuoteCount: curatedQuotes.length,
       importedCuratedQuoteCount: importedCuratedQuotes.length,
       totalQuoteCount: saved.quotes.length,
+      categoryMinimumCatalogSize: normalizedCategoryMinimum || null,
       audit,
       summary: getCuratedProductionQuoteSummary(importedCuratedQuotes),
     };
   } finally {
     db.close();
   }
+}
+
+export function createCuratedQuoteCategoryOverrides(
+  categories = [],
+  { minimumCatalogSize = CURATED_QUOTE_PREVIEW_CATEGORY_MINIMUM } = {},
+) {
+  const categoryMinimum = (
+    normalizeCategoryMinimumCatalogSize(minimumCatalogSize)
+    || CURATED_QUOTE_PREVIEW_CATEGORY_MINIMUM
+  );
+  return (Array.isArray(categories) ? categories : []).map(category => ({
+    ...category,
+    minimumCatalogSize: categoryMinimum,
+  }));
 }
 
 function quote({
@@ -396,6 +542,11 @@ function isRetiredGeneratedQuote(quoteRecord) {
   return RETIRED_GENERATED_QUOTE_ID_PREFIXES.some(prefix => id.startsWith(`${prefix}-`));
 }
 
+function normalizeCategoryMinimumCatalogSize(value) {
+  const parsed = Math.floor(Number(value) || 0);
+  return parsed > 0 ? parsed : 0;
+}
+
 function printJson(value) {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
@@ -403,6 +554,12 @@ function printJson(value) {
 function runCli() {
   const [command = "summary", dbPath = "", ...flags] = process.argv.slice(2);
   const replaceGenerated = !flags.includes("--preserve-generated");
+  const minimumFlag = flags.find(flag => flag.startsWith("--category-minimum="));
+  const categoryMinimumCatalogSize = flags.includes("--local-preview")
+    ? CURATED_QUOTE_PREVIEW_CATEGORY_MINIMUM
+    : minimumFlag
+      ? minimumFlag.split("=").slice(1).join("=")
+      : 0;
 
   if (command === "summary") {
     printJson(getCuratedProductionQuoteSummary());
@@ -410,14 +567,14 @@ function runCli() {
   }
 
   if (command === "import") {
-    printJson(importCuratedProductionQuotes(dbPath, { replaceGenerated }));
+    printJson(importCuratedProductionQuotes(dbPath, { replaceGenerated, categoryMinimumCatalogSize }));
     return;
   }
 
   printJson({
     status: "failed",
     error: "unknown_command",
-    usage: "node scripts/curated-production-quotes.mjs summary | import <dbPath> [--preserve-generated]",
+    usage: "node scripts/curated-production-quotes.mjs summary | import <dbPath> [--preserve-generated] [--local-preview|--category-minimum=5]",
   });
   process.exitCode = 1;
 }
