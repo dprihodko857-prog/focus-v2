@@ -914,11 +914,11 @@ function renderDailyQuotesModal() {
         <cite>${escapeHtml(quote.authorName)}</cite>
       </div>
       <div class="daily-quote-card__actions">
-        <button class="icon-button icon-button--tiny ${quote.isFavorite ? "is-active" : ""}" type="button" aria-label="${quote.isFavorite ? "Убрать из избранного" : "Добавить в избранное"}" data-toggle-quote-favorite="${escapeHtml(quote.id)}">
-          <span class="icon icon-sparkles"></span>
+        <button class="icon-button icon-button--tiny ${quote.isFavorite ? "is-active" : ""}" type="button" aria-label="${quote.isFavorite ? "Убрать из избранного" : "Добавить в избранное"}" title="${quote.isFavorite ? "Убрать из избранного" : "Добавить в избранное"}" data-toggle-quote-favorite="${escapeHtml(quote.id)}">
+          <span class="icon icon-star"></span>
         </button>
-        <button class="icon-button icon-button--tiny" type="button" aria-label="Поделиться цитатой" data-share-quote="${escapeHtml(quote.id)}">
-          <span class="icon icon-more"></span>
+        <button class="icon-button icon-button--tiny" type="button" aria-label="Скопировать или поделиться цитатой" title="Скопировать или поделиться цитатой" data-share-quote="${escapeHtml(quote.id)}">
+          <span class="icon icon-copy"></span>
         </button>
       </div>
     </article>
@@ -945,6 +945,13 @@ function getDailyQuotesStatusText() {
     return "Нет соединения с сервером цитат.";
   }
   return "Загружаем сегодняшнюю подборку.";
+}
+
+function setQuoteActionStatus(message) {
+  const status = document.querySelector("#quotesStatus");
+  if (status) {
+    status.textContent = message;
+  }
 }
 
 async function loadQuotePreferencesUi() {
@@ -1604,6 +1611,7 @@ async function toggleQuoteFavorite(quoteId) {
     await saveDailyQuotesToCache(dailyQuotesState);
     renderDailyQuotesModal();
     renderQuote();
+    setQuoteActionStatus(result.isFavorite ? "Цитата добавлена в избранное." : "Цитата убрана из избранного.");
   }
 }
 
@@ -1614,10 +1622,17 @@ async function shareQuote(quoteId) {
   try {
     if (navigator.share) {
       await navigator.share({ title: "Цитаты дня Focus", text });
+      setQuoteActionStatus("Цитата отправлена.");
       return;
     }
-    await navigator.clipboard?.writeText(text);
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      setQuoteActionStatus("Цитата скопирована.");
+    } else {
+      setQuoteActionStatus("Копирование недоступно в этом браузере.");
+    }
   } catch {
+    setQuoteActionStatus("Не удалось скопировать цитату.");
     // Ошибка шаринга не должна менять состояние цитаты.
   }
 }

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const appJs = readFileSync("public/js/app.js", "utf8");
+const appCss = readFileSync("public/css/app.css", "utf8");
 
 test("daily quotes modal renders only quote text and author", () => {
   const modalRenderer = getFunctionBody(appJs, "renderDailyQuotesModal");
@@ -30,6 +31,30 @@ test("quote preferences disable unavailable categories before saving", () => {
   assert.match(preferencesRenderer, /disabled/);
   assert.match(preferencesReader, /getAvailableQuoteCategoryCodeSet/);
   assert.match(preferencesReader, /availableCategoryCodes\.has\(input\.value\)/);
+});
+
+test("daily quote cards expose explicit favorite and copy actions", () => {
+  const modalRenderer = getFunctionBody(appJs, "renderDailyQuotesModal");
+
+  assert.match(modalRenderer, /data-toggle-quote-favorite/);
+  assert.match(modalRenderer, /data-share-quote/);
+  assert.match(modalRenderer, /icon-star/);
+  assert.match(modalRenderer, /icon-copy/);
+  assert.match(modalRenderer, /Скопировать или поделиться цитатой/);
+  assert.match(appCss, /\.icon-star\s*\{/);
+  assert.match(appCss, /\.icon-copy\s*\{/);
+  assert.doesNotMatch(modalRenderer, /icon-more/);
+});
+
+test("daily quote actions report favorite and copy status", () => {
+  const favoriteAction = getFunctionBody(appJs, "toggleQuoteFavorite");
+  const shareAction = getFunctionBody(appJs, "shareQuote");
+
+  assert.match(favoriteAction, /setQuoteActionStatus/);
+  assert.match(shareAction, /Цитата отправлена\./);
+  assert.match(shareAction, /Цитата скопирована\./);
+  assert.match(shareAction, /Копирование недоступно в этом браузере\./);
+  assert.match(shareAction, /Не удалось скопировать цитату\./);
 });
 
 function getFunctionBody(source, functionName) {
