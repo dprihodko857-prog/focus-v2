@@ -92,6 +92,9 @@ test("daily quote cards expose explicit favorite, share and copy actions", () =>
   assert.match(shareMenu, /https:\/\/wa\.me\/\?text=/);
   assert.match(shareMenu, /type="button" role="menuitem" data-quote-share-target="telegram"/);
   assert.match(shareMenu, /href="mailto:\?subject=\$\{subject\}&amp;body=\$\{encodedText\}"/);
+  assert.match(shareMenu, /https:\/\/outlook\.office\.com\/mail\/deeplink\/compose/);
+  assert.match(shareMenu, /https:\/\/mail\.google\.com\/mail\/\?view=cm/);
+  assert.match(shareMenu, /data-copy-quote-before-open/);
   assert.doesNotMatch(shareMenu, /https:\/\/t\.me\/share\/url/);
   assert.match(appCss, /\.icon-star\s*\{/);
   assert.match(appCss, /\.icon-share\s*\{/);
@@ -144,6 +147,7 @@ test("daily quote actions report favorite and copy status", () => {
   const favoriteAction = getFunctionBody(appJs, "toggleQuoteFavorite");
   const shareAction = getFunctionBody(appJs, "shareQuote");
   const copyAction = getFunctionBody(appJs, "copyQuoteToClipboard");
+  const externalCopyAction = getFunctionBody(appJs, "copyQuoteBeforeExternalOpen");
   const telegramAction = getFunctionBody(appJs, "shareQuoteToTelegram");
   const telegramUrl = getFunctionBody(appJs, "getTelegramQuoteShareUrl");
   const menuToggle = getFunctionBody(appJs, "toggleQuoteShareMenu");
@@ -151,7 +155,10 @@ test("daily quote actions report favorite and copy status", () => {
   assert.match(favoriteAction, /setQuoteActionStatus/);
   assert.match(menuToggle, /quoteShareMenuQuoteId/);
   assert.match(appJs, /data-copy-quote/);
+  assert.match(appJs, /data-copy-quote-before-open/);
   assert.match(copyAction, /navigator\.clipboard/);
+  assert.match(externalCopyAction, /navigator\.clipboard\.writeText/);
+  assert.match(externalCopyAction, /Открываем почту/);
   assert.match(telegramAction, /navigator\.clipboard\.writeText/);
   assert.match(telegramAction, /window\.location\.href/);
   assert.match(telegramUrl, /tg:\/\/msg_url\?url=/);

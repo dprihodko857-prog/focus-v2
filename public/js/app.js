@@ -1032,9 +1032,17 @@ function renderQuoteShareMenu(quote) {
         <span>TG</span>
         <span>Telegram</span>
       </button>
-      <a class="daily-quote-share-menu__item" role="menuitem" href="mailto:?subject=${subject}&amp;body=${encodedText}">
+      <a class="daily-quote-share-menu__item" role="menuitem" href="mailto:?subject=${subject}&amp;body=${encodedText}" data-copy-quote-before-open="${escapeHtml(quote.id)}">
         <span>@</span>
         <span>Email</span>
+      </a>
+      <a class="daily-quote-share-menu__item" role="menuitem" href="https://outlook.office.com/mail/deeplink/compose?subject=${subject}&amp;body=${encodedText}" target="_blank" rel="noopener noreferrer" data-copy-quote-before-open="${escapeHtml(quote.id)}">
+        <span>OL</span>
+        <span>Outlook</span>
+      </a>
+      <a class="daily-quote-share-menu__item" role="menuitem" href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;su=${subject}&amp;body=${encodedText}" target="_blank" rel="noopener noreferrer" data-copy-quote-before-open="${escapeHtml(quote.id)}">
+        <span>GM</span>
+        <span>Gmail</span>
       </a>
       <button class="daily-quote-share-menu__item" type="button" role="menuitem" data-quote-share-target="copy" data-quote-share-id="${escapeHtml(quote.id)}">
         <span class="icon icon-copy"></span>
@@ -1966,6 +1974,20 @@ async function copyQuoteToClipboard(quoteId) {
     }
   } catch {
     setQuoteActionStatus("Не удалось скопировать цитату.");
+  }
+}
+
+function copyQuoteBeforeExternalOpen(quoteId) {
+  const quote = findQuoteForAction(quoteId);
+  if (!quote) return;
+  const text = formatQuoteMarqueeText(quote);
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text)
+      .then(() => setQuoteActionStatus("Текст письма скопирован. Открываем почту."))
+      .catch(() => setQuoteActionStatus("Открываем почту. Если текст не вставился, используйте кнопку «Копировать»."));
+  } else {
+    setQuoteActionStatus("Открываем почту. Копирование недоступно в этом браузере.");
   }
 }
 
@@ -9284,6 +9306,11 @@ function bindControls(initialLaunchTarget = "") {
       renderDailyQuotesModal();
       copyQuoteToClipboard(copyButton.dataset.copyQuote);
       return;
+    }
+
+    const copyBeforeOpenLink = event.target.closest("[data-copy-quote-before-open]");
+    if (copyBeforeOpenLink) {
+      copyQuoteBeforeExternalOpen(copyBeforeOpenLink.dataset.copyQuoteBeforeOpen);
     }
 
     const shareTargetButton = event.target.closest("[data-quote-share-target]");
