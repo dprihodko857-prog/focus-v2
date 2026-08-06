@@ -1017,8 +1017,6 @@ function renderDailyQuoteCards(quotesList) {
 function renderQuoteShareMenu(quote) {
   const text = formatQuoteMarqueeText(quote);
   const encodedText = encodeURIComponent(text);
-  const encodedTelegramUrl = encodeURIComponent(globalThis.location?.origin || "https://focus.local");
-  const subject = encodeURIComponent("Цитаты дня Focus");
   return `
     <div class="daily-quote-share-menu" role="menu" aria-label="Варианты отправки цитаты">
       <button class="daily-quote-share-menu__item" type="button" role="menuitem" data-quote-share-target="system" data-quote-share-id="${escapeHtml(quote.id)}">
@@ -1029,14 +1027,14 @@ function renderQuoteShareMenu(quote) {
         <span>WA</span>
         <span>WhatsApp</span>
       </a>
-      <a class="daily-quote-share-menu__item" role="menuitem" href="tg://msg_url?url=${encodedTelegramUrl}&amp;text=${encodedText}">
+      <button class="daily-quote-share-menu__item" type="button" role="menuitem" data-quote-share-target="telegram" data-quote-share-id="${escapeHtml(quote.id)}">
         <span>TG</span>
         <span>Telegram</span>
-      </a>
-      <a class="daily-quote-share-menu__item" role="menuitem" href="mailto:?subject=${subject}&amp;body=${encodedText}">
+      </button>
+      <button class="daily-quote-share-menu__item" type="button" role="menuitem" data-quote-share-target="email" data-quote-share-id="${escapeHtml(quote.id)}">
         <span>@</span>
         <span>Email</span>
-      </a>
+      </button>
       <button class="daily-quote-share-menu__item" type="button" role="menuitem" data-quote-share-target="copy" data-quote-share-id="${escapeHtml(quote.id)}">
         <span class="icon icon-copy"></span>
         <span>Копировать</span>
@@ -1968,6 +1966,39 @@ async function copyQuoteToClipboard(quoteId) {
   } catch {
     setQuoteActionStatus("Не удалось скопировать цитату.");
   }
+}
+
+function getTelegramQuoteShareUrl(text) {
+  const encodedTelegramUrl = encodeURIComponent(globalThis.location?.origin || "https://focus.local");
+  return `tg://msg_url?url=${encodedTelegramUrl}&text=${encodeURIComponent(text)}`;
+}
+
+function getEmailQuoteShareUrl(text) {
+  const subject = encodeURIComponent("Цитаты дня Focus");
+  return `mailto:?subject=${subject}&body=${encodeURIComponent(text)}`;
+}
+
+function shareQuoteToTelegram(quoteId) {
+  const quote = findQuoteForAction(quoteId);
+  if (!quote) return;
+  const text = formatQuoteMarqueeText(quote);
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text)
+      .then(() => setQuoteActionStatus("Цитата скопирована. Открываем Telegram."))
+      .catch(() => setQuoteActionStatus("Открываем Telegram. Если текст не вставился, используйте кнопку «Копировать»."));
+  } else {
+    setQuoteActionStatus("Открываем Telegram. Копирование недоступно в этом браузере.");
+  }
+
+  window.location.href = getTelegramQuoteShareUrl(text);
+}
+
+function shareQuoteByEmail(quoteId) {
+  const quote = findQuoteForAction(quoteId);
+  if (!quote) return;
+  window.location.href = getEmailQuoteShareUrl(formatQuoteMarqueeText(quote));
+  setQuoteActionStatus("Открываем email.");
 }
 
 function toggleQuoteShareMenu(quoteId) {
@@ -9269,10 +9300,15 @@ function bindControls(initialLaunchTarget = "") {
     const shareTargetButton = event.target.closest("[data-quote-share-target]");
     if (shareTargetButton) {
       const quoteId = shareTargetButton.dataset.quoteShareId;
+      const shareTarget = shareTargetButton.dataset.quoteShareTarget;
       quoteShareMenuQuoteId = "";
       renderDailyQuotesModal();
-      if (shareTargetButton.dataset.quoteShareTarget === "copy") {
+      if (shareTarget === "copy") {
         copyQuoteToClipboard(quoteId);
+      } else if (shareTarget === "telegram") {
+        shareQuoteToTelegram(quoteId);
+      } else if (shareTarget === "email") {
+        shareQuoteByEmail(quoteId);
       } else {
         shareQuote(quoteId);
       }
