@@ -131,6 +131,9 @@ test("daily quotes modal exposes quote history view", () => {
   const historySaver = getFunctionBody(appJs, "saveDailyQuotesToHistory");
   const historyMerger = getFunctionBody(appJs, "mergeQuoteHistorySets");
   const historyRenderer = getFunctionBody(appJs, "renderQuoteHistorySets");
+  const historyToolbar = getFunctionBody(appJs, "renderQuoteHistoryToolbar");
+  const historyDelete = getFunctionBody(appJs, "deleteQuoteHistorySet");
+  const historyClear = getFunctionBody(appJs, "clearQuoteHistory");
   const quoteSetFormatter = getFunctionBody(appJs, "formatQuoteSetShareText");
   const quoteFinder = getFunctionBody(appJs, "findQuoteForAction");
   const favoriteAction = getFunctionBody(appJs, "toggleQuoteFavorite");
@@ -152,6 +155,13 @@ test("daily quotes modal exposes quote history view", () => {
   assert.match(historyRenderer, /renderDailyQuoteCards\(set\.quotes\)/);
   assert.match(historyRenderer, /data-copy-quote-set/);
   assert.match(historyRenderer, /data-share-quote-set/);
+  assert.match(historyRenderer, /data-delete-quote-set/);
+  assert.match(historyToolbar, /data-clear-quote-history/);
+  assert.match(historyDelete, /window\.confirm/);
+  assert.match(historyDelete, /saveQuoteHistoryToCache/);
+  assert.match(historyClear, /window\.confirm/);
+  assert.match(historyClear, /sets: \[\]/);
+  assert.match(historyCacheSaver, /saveDailyQuoteHistoryCache\(null\)/);
   assert.match(quoteSetFormatter, /formatQuoteMarqueeText/);
   assert.doesNotMatch(quoteSetFormatter, /sourceTitle|sourceReference/);
   assert.match(favoriteAction, /quoteHistoryState\.sets/);
@@ -178,6 +188,8 @@ test("daily quote actions report favorite and copy status", () => {
   assert.match(appJs, /data-copy-quote/);
   assert.match(appJs, /data-copy-quote-set/);
   assert.match(appJs, /data-share-quote-set/);
+  assert.match(appJs, /data-delete-quote-set/);
+  assert.match(appJs, /data-clear-quote-history/);
   assert.match(appJs, /data-copy-quote-before-open/);
   assert.match(copyAction, /navigator\.clipboard/);
   assert.match(copySetAction, /navigator\.clipboard/);

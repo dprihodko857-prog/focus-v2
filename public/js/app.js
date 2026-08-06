@@ -1691,7 +1691,10 @@ async function saveDailyQuotesToHistory(quotesState) {
 
 async function saveQuoteHistoryToCache(historyState) {
   const sets = mergeQuoteHistorySets(historyState.sets || []);
-  if (!sets.length) return;
+  if (!sets.length) {
+    await scheduleStorage.saveDailyQuoteHistoryCache(null);
+    return;
+  }
 
   const savedAt = new Date().toISOString();
   await scheduleStorage.saveDailyQuoteHistoryCache({
@@ -1848,7 +1851,7 @@ function renderDailyQuotesModal() {
 
   list.innerHTML = `
     ${tabs}
-    ${isHistoryView ? renderQuoteHistorySets(historySets) : renderDailyQuoteCards(quotesList)}
+    ${isHistoryView ? `${renderQuoteHistoryToolbar(historySets.length)}${renderQuoteHistorySets(historySets)}` : renderDailyQuoteCards(quotesList)}
   `;
 }
 
@@ -1934,11 +1937,27 @@ function renderQuoteHistorySets(historySets) {
           <button class="icon-button icon-button--tiny" type="button" aria-label="Поделиться подборкой" title="Поделиться подборкой" data-share-quote-set="${escapeHtml(set.localDate)}">
             <span class="icon icon-share"></span>
           </button>
+          <button class="icon-button icon-button--tiny" type="button" aria-label="Удалить дату из истории" title="Удалить дату из истории" data-delete-quote-set="${escapeHtml(set.localDate)}">
+            <span class="icon icon-trash"></span>
+          </button>
         </div>
       </div>
       ${renderDailyQuoteCards(set.quotes)}
     </section>
   `).join("");
+}
+
+function renderQuoteHistoryToolbar(historySetCount) {
+  if (!historySetCount) return "";
+
+  return `
+    <div class="daily-quotes-history-day__head">
+      <strong>Сохранено дней: ${historySetCount}</strong>
+      <button class="icon-button icon-button--tiny" type="button" aria-label="Очистить историю" title="Очистить историю" data-clear-quote-history>
+        <span class="icon icon-trash"></span>
+      </button>
+    </div>
+  `;
 }
 
 function formatQuoteHistoryDate(localDate) {
@@ -3550,6 +3569,44 @@ async function copyQuoteSetToClipboard(localDate) {
   } catch {
     setQuoteActionStatus("Не удалось скопировать подборку.");
   }
+}
+
+async function deleteQuoteHistorySet(localDate) {
+  const set = findQuoteHistorySetForAction(localDate);
+  if (!set) return;
+  const label = formatQuoteHistoryDate(localDate);
+  const confirmed = typeof window.confirm !== "function"
+    || window.confirm(`Удалить подборку за ${label} из истории?`);
+  if (!confirmed) return;
+
+  quoteHistoryState = {
+    ...quoteHistoryState,
+    status: "ok",
+    sets: quoteHistoryState.sets.filter(item => item.localDate !== localDate),
+    checkedAt: new Date().toISOString(),
+  };
+  await saveQuoteHistoryToCache(quoteHistoryState);
+  quoteShareMenuQuoteId = "";
+  renderDailyQuotesModal();
+  setQuoteActionStatus(`Подборка за ${label} удалена из истории.`);
+}
+
+async function clearQuoteHistory() {
+  if (!quoteHistoryState.sets.length) return;
+  const confirmed = typeof window.confirm !== "function"
+    || window.confirm("Очистить историю цитат? Сегодняшняя подборка и избранное останутся.");
+  if (!confirmed) return;
+
+  quoteHistoryState = {
+    ...quoteHistoryState,
+    status: "ok",
+    sets: [],
+    checkedAt: new Date().toISOString(),
+  };
+  await saveQuoteHistoryToCache(quoteHistoryState);
+  quoteShareMenuQuoteId = "";
+  renderDailyQuotesModal();
+  setQuoteActionStatus("История цитат очищена.");
 }
 
 function copyQuoteBeforeExternalOpen(quoteId) {
@@ -11783,6 +11840,18 @@ function bindControls(initialLaunchTarget = "") {
     const favoriteButton = event.target.closest("[data-toggle-quote-favorite]");
     if (favoriteButton) {
       toggleQuoteFavorite(favoriteButton.dataset.toggleQuoteFavorite);
+      return;
+    }
+
+    const clearHistoryButton = event.target.closest("[data-clear-quote-history]");
+    if (clearHistoryButton) {
+      clearQuoteHistory();
+      return;
+    }
+
+    const deleteSetButton = event.target.closest("[data-delete-quote-set]");
+    if (deleteSetButton) {
+      deleteQuoteHistorySet(deleteSetButton.dataset.deleteQuoteSet);
       return;
     }
 
