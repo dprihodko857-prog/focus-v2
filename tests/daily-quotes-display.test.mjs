@@ -131,6 +131,7 @@ test("daily quotes modal exposes quote history view", () => {
   const historySaver = getFunctionBody(appJs, "saveDailyQuotesToHistory");
   const historyMerger = getFunctionBody(appJs, "mergeQuoteHistorySets");
   const historyRenderer = getFunctionBody(appJs, "renderQuoteHistorySets");
+  const quoteSetFormatter = getFunctionBody(appJs, "formatQuoteSetShareText");
   const quoteFinder = getFunctionBody(appJs, "findQuoteForAction");
   const favoriteAction = getFunctionBody(appJs, "toggleQuoteFavorite");
 
@@ -149,17 +150,24 @@ test("daily quotes modal exposes quote history view", () => {
   assert.match(historySaver, /mergeQuoteHistorySets/);
   assert.match(historyMerger, /byDate\.has\(set\.localDate\)/);
   assert.match(historyRenderer, /renderDailyQuoteCards\(set\.quotes\)/);
+  assert.match(historyRenderer, /data-copy-quote-set/);
+  assert.match(historyRenderer, /data-share-quote-set/);
+  assert.match(quoteSetFormatter, /formatQuoteMarqueeText/);
+  assert.doesNotMatch(quoteSetFormatter, /sourceTitle|sourceReference/);
   assert.match(favoriteAction, /quoteHistoryState\.sets/);
   assert.match(favoriteAction, /saveQuoteHistoryToCache/);
   assert.match(quoteFinder, /getQuoteHistoryQuotes/);
   assert.match(appCss, /\.daily-quotes-history-day\s*\{/);
+  assert.match(appCss, /\.daily-quotes-history-day__actions\s*\{/);
   assert.match(appCss, /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
 });
 
 test("daily quote actions report favorite and copy status", () => {
   const favoriteAction = getFunctionBody(appJs, "toggleQuoteFavorite");
   const shareAction = getFunctionBody(appJs, "shareQuote");
+  const shareSetAction = getFunctionBody(appJs, "shareQuoteSet");
   const copyAction = getFunctionBody(appJs, "copyQuoteToClipboard");
+  const copySetAction = getFunctionBody(appJs, "copyQuoteSetToClipboard");
   const externalCopyAction = getFunctionBody(appJs, "copyQuoteBeforeExternalOpen");
   const telegramAction = getFunctionBody(appJs, "shareQuoteToTelegram");
   const telegramUrl = getFunctionBody(appJs, "getTelegramQuoteShareUrl");
@@ -168,8 +176,14 @@ test("daily quote actions report favorite and copy status", () => {
   assert.match(favoriteAction, /setQuoteActionStatus/);
   assert.match(menuToggle, /quoteShareMenuQuoteId/);
   assert.match(appJs, /data-copy-quote/);
+  assert.match(appJs, /data-copy-quote-set/);
+  assert.match(appJs, /data-share-quote-set/);
   assert.match(appJs, /data-copy-quote-before-open/);
   assert.match(copyAction, /navigator\.clipboard/);
+  assert.match(copySetAction, /navigator\.clipboard/);
+  assert.match(copySetAction, /Подборка скопирована\./);
+  assert.match(shareSetAction, /navigator\.share/);
+  assert.match(shareSetAction, /Подборка отправлена\./);
   assert.match(externalCopyAction, /navigator\.clipboard\.writeText/);
   assert.match(externalCopyAction, /Открываем почту/);
   assert.match(telegramAction, /navigator\.clipboard\.writeText/);

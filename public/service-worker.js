@@ -1,4 +1,4 @@
-const CACHE_NAME = "focus-pwa-v167";
+const CACHE_NAME = "focus-pwa-v168";
 const NAVIGATION_TIMEOUT_MS = 8000;
 
 const APP_SHELL = [
@@ -14,7 +14,7 @@ const APP_SHELL = [
   "/css/tokens.css",
   "/css/tokens.css?v=focus-20260805-interesting-scroll",
   "/css/app.css",
-  "/css/app.css?v=focus-20260806-holiday-save-state-merge",
+  "/css/app.css?v=focus-20260806-quote-history-actions",
   "/js/pwa.js",
   "/js/pwa.js?v=focus-20260804-3",
   "/js/auth.js",
@@ -25,7 +25,7 @@ const APP_SHELL = [
   "/js/personal-schedule-ui.js",
   "/js/storage.js",
   "/js/app.js",
-  "/js/app.js?v=focus-20260806-quote-history-local",
+  "/js/app.js?v=focus-20260806-quote-history-actions",
   "/assets/focus-logo-v2.png",
   "/assets/brand/focus-app-icon-reference.png",
   "/assets/brand/focus-app-icon-reference-v2.png",

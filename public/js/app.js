@@ -1923,8 +1923,18 @@ function renderQuoteHistorySets(historySets) {
   return historySets.map(set => `
     <section class="daily-quotes-history-day" aria-label="Подборка цитат на ${escapeHtml(formatQuoteHistoryDate(set.localDate))}">
       <div class="daily-quotes-history-day__head">
-        <strong>${escapeHtml(formatQuoteHistoryDate(set.localDate))}</strong>
-        <span>${set.quotes.length} ${formatPlural(set.quotes.length, ["цитата", "цитаты", "цитат"])}</span>
+        <div class="daily-quotes-history-day__title">
+          <strong>${escapeHtml(formatQuoteHistoryDate(set.localDate))}</strong>
+          <span>${set.quotes.length} ${formatPlural(set.quotes.length, ["цитата", "цитаты", "цитат"])}</span>
+        </div>
+        <div class="daily-quotes-history-day__actions" aria-label="Действия с подборкой">
+          <button class="icon-button icon-button--tiny" type="button" aria-label="Копировать подборку" title="Копировать подборку" data-copy-quote-set="${escapeHtml(set.localDate)}">
+            <span class="icon icon-copy"></span>
+          </button>
+          <button class="icon-button icon-button--tiny" type="button" aria-label="Поделиться подборкой" title="Поделиться подборкой" data-share-quote-set="${escapeHtml(set.localDate)}">
+            <span class="icon icon-share"></span>
+          </button>
+        </div>
       </div>
       ${renderDailyQuoteCards(set.quotes)}
     </section>
@@ -3480,6 +3490,35 @@ async function shareQuote(quoteId) {
   }
 }
 
+function formatQuoteSetShareText(set) {
+  return (Array.isArray(set?.quotes) ? set.quotes : [])
+    .map(formatQuoteMarqueeText)
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function shareQuoteSet(localDate) {
+  const set = findQuoteHistorySetForAction(localDate);
+  if (!set) return;
+  const text = formatQuoteSetShareText(set);
+  if (!text) return;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: "Цитаты дня Focus", text });
+      setQuoteActionStatus("Подборка отправлена.");
+      return;
+    }
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      setQuoteActionStatus("Подборка скопирована.");
+    } else {
+      setQuoteActionStatus("Копирование недоступно в этом браузере.");
+    }
+  } catch {
+    setQuoteActionStatus("Не удалось отправить подборку.");
+  }
+}
+
 async function copyQuoteToClipboard(quoteId) {
   const quote = findQuoteForAction(quoteId);
   if (!quote) return;
@@ -3493,6 +3532,23 @@ async function copyQuoteToClipboard(quoteId) {
     }
   } catch {
     setQuoteActionStatus("Не удалось скопировать цитату.");
+  }
+}
+
+async function copyQuoteSetToClipboard(localDate) {
+  const set = findQuoteHistorySetForAction(localDate);
+  if (!set) return;
+  const text = formatQuoteSetShareText(set);
+  if (!text) return;
+  try {
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      setQuoteActionStatus("Подборка скопирована.");
+    } else {
+      setQuoteActionStatus("Копирование недоступно в этом браузере.");
+    }
+  } catch {
+    setQuoteActionStatus("Не удалось скопировать подборку.");
   }
 }
 
@@ -3544,6 +3600,10 @@ function findQuoteForAction(quoteId) {
     || favoriteQuotesState.quotes.find(item => item.id === quoteId)
     || getQuoteHistoryQuotes().find(item => item.id === quoteId)
     || null;
+}
+
+function findQuoteHistorySetForAction(localDate) {
+  return quoteHistoryState.sets.find(set => set.localDate === localDate) || null;
 }
 
 function renderCalendar() {
@@ -11723,6 +11783,22 @@ function bindControls(initialLaunchTarget = "") {
     const favoriteButton = event.target.closest("[data-toggle-quote-favorite]");
     if (favoriteButton) {
       toggleQuoteFavorite(favoriteButton.dataset.toggleQuoteFavorite);
+      return;
+    }
+
+    const copySetButton = event.target.closest("[data-copy-quote-set]");
+    if (copySetButton) {
+      quoteShareMenuQuoteId = "";
+      renderDailyQuotesModal();
+      copyQuoteSetToClipboard(copySetButton.dataset.copyQuoteSet);
+      return;
+    }
+
+    const shareSetButton = event.target.closest("[data-share-quote-set]");
+    if (shareSetButton) {
+      quoteShareMenuQuoteId = "";
+      renderDailyQuotesModal();
+      shareQuoteSet(shareSetButton.dataset.shareQuoteSet);
       return;
     }
 

@@ -663,6 +663,7 @@ body.is-right-drag-scroll * {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 2px 4px;
   color: var(--muted-strong);
@@ -670,9 +671,22 @@ body.is-right-drag-scroll * {
   font-weight: 780;
 }
 
-.daily-quotes-history-day__head strong,
-.daily-quotes-history-day__head span {
+.daily-quotes-history-day__title {
+  display: grid;
+  gap: 2px;
   min-width: 0;
+}
+
+.daily-quotes-history-day__title strong,
+.daily-quotes-history-day__title span {
+  min-width: 0;
+}
+
+.daily-quotes-history-day__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
 }
 
 .interesting-modal-panel,
