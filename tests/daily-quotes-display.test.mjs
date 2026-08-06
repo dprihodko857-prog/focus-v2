@@ -93,6 +93,8 @@ test("daily quote cards expose explicit favorite, share and copy actions", () =>
   assert.match(shareMenu, /mailto:\?subject=/);
   assert.match(appCss, /\.icon-star\s*\{/);
   assert.match(appCss, /\.icon-share\s*\{/);
+  assert.match(appCss, /M11 5H7a3/);
+  assert.doesNotMatch(appCss, /M5 7H4/);
   assert.match(appCss, /\.daily-quote-share-menu\s*\{/);
   assert.doesNotMatch(cardRenderer, /icon-more/);
 });
