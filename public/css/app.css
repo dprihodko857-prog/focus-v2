@@ -580,6 +580,54 @@
   color: var(--brand-strong);
 }
 
+.daily-quote-card.is-share-open {
+  border-color: rgba(249, 115, 22, .34);
+}
+
+.daily-quote-share-menu {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.daily-quote-share-menu__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, .42);
+  border-radius: 12px;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 820;
+  line-height: 1;
+  text-decoration: none;
+  background: rgba(255, 252, 244, .24);
+  cursor: pointer;
+}
+
+.daily-quote-share-menu__item:hover {
+  color: var(--text);
+  background: rgba(255, 252, 244, .44);
+}
+
+.daily-quote-share-menu__item > span:first-child:not(.icon) {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  color: var(--brand-strong);
+  background: rgba(249, 115, 22, .14);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+
 .daily-quotes-history-day {
   display: grid;
   gap: 10px;
@@ -5728,6 +5776,10 @@ body.app-menu-open {
 
   .daily-quote-card__actions {
     grid-column: 2;
+  }
+
+  .daily-quote-share-menu {
+    grid-column: 1 / -1;
   }
 
   .holiday-settings-panel {

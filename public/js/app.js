@@ -745,6 +745,7 @@ let dailyQuotesState = {
   quotes: [],
 };
 let quoteModalView = "today";
+let quoteShareMenuQuoteId = "";
 let favoriteQuotesState = {
   status: "idle",
   quotes: [],
@@ -991,7 +992,7 @@ function getQuoteHistoryQuotes() {
 
 function renderDailyQuoteCards(quotesList) {
   return quotesList.map((quote, index) => `
-    <article class="daily-quote-card" data-quote-id="${escapeHtml(quote.id)}">
+    <article class="daily-quote-card ${quoteShareMenuQuoteId === quote.id ? "is-share-open" : ""}" data-quote-id="${escapeHtml(quote.id)}">
       <span class="daily-quote-card__position">${quote.position || index + 1}</span>
       <div>
         <blockquote>${escapeHtml(quote.text)}</blockquote>
@@ -1005,8 +1006,39 @@ function renderDailyQuoteCards(quotesList) {
           <span class="icon icon-share"></span>
         </button>
       </div>
+      ${quoteShareMenuQuoteId === quote.id ? renderQuoteShareMenu(quote) : ""}
     </article>
   `).join("");
+}
+
+function renderQuoteShareMenu(quote) {
+  const text = formatQuoteMarqueeText(quote);
+  const encodedText = encodeURIComponent(text);
+  const subject = encodeURIComponent("Цитаты дня Focus");
+  return `
+    <div class="daily-quote-share-menu" role="menu" aria-label="Варианты отправки цитаты">
+      <button class="daily-quote-share-menu__item" type="button" role="menuitem" data-quote-share-target="system" data-quote-share-id="${escapeHtml(quote.id)}">
+        <span class="icon icon-share"></span>
+        <span>Ещё</span>
+      </button>
+      <a class="daily-quote-share-menu__item" role="menuitem" href="https://wa.me/?text=${encodedText}" target="_blank" rel="noopener noreferrer">
+        <span>WA</span>
+        <span>WhatsApp</span>
+      </a>
+      <a class="daily-quote-share-menu__item" role="menuitem" href="https://t.me/share/url?url=&amp;text=${encodedText}" target="_blank" rel="noopener noreferrer">
+        <span>TG</span>
+        <span>Telegram</span>
+      </a>
+      <a class="daily-quote-share-menu__item" role="menuitem" href="mailto:?subject=${subject}&amp;body=${encodedText}">
+        <span>@</span>
+        <span>Email</span>
+      </a>
+      <button class="daily-quote-share-menu__item" type="button" role="menuitem" data-quote-share-target="copy" data-quote-share-id="${escapeHtml(quote.id)}">
+        <span class="icon icon-copy"></span>
+        <span>Копировать</span>
+      </button>
+    </div>
+  `;
 }
 
 function renderQuoteHistorySets(historySets) {
@@ -1915,6 +1947,30 @@ async function shareQuote(quoteId) {
   } catch {
     setQuoteActionStatus("Не удалось скопировать цитату.");
     // Ошибка шаринга не должна менять состояние цитаты.
+  }
+}
+
+async function copyQuoteToClipboard(quoteId) {
+  const quote = findQuoteForAction(quoteId);
+  if (!quote) return;
+  const text = formatQuoteMarqueeText(quote);
+  try {
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      setQuoteActionStatus("Цитата скопирована.");
+    } else {
+      setQuoteActionStatus("Копирование недоступно в этом браузере.");
+    }
+  } catch {
+    setQuoteActionStatus("Не удалось скопировать цитату.");
+  }
+}
+
+function toggleQuoteShareMenu(quoteId) {
+  quoteShareMenuQuoteId = quoteShareMenuQuoteId === quoteId ? "" : quoteId;
+  renderDailyQuotesModal();
+  if (quoteShareMenuQuoteId) {
+    setQuoteActionStatus("Выберите способ отправки цитаты.");
   }
 }
 
@@ -9198,9 +9254,22 @@ function bindControls(initialLaunchTarget = "") {
       return;
     }
 
+    const shareTargetButton = event.target.closest("[data-quote-share-target]");
+    if (shareTargetButton) {
+      const quoteId = shareTargetButton.dataset.quoteShareId;
+      quoteShareMenuQuoteId = "";
+      renderDailyQuotesModal();
+      if (shareTargetButton.dataset.quoteShareTarget === "copy") {
+        copyQuoteToClipboard(quoteId);
+      } else {
+        shareQuote(quoteId);
+      }
+      return;
+    }
+
     const shareButton = event.target.closest("[data-share-quote]");
     if (shareButton) {
-      shareQuote(shareButton.dataset.shareQuote);
+      toggleQuoteShareMenu(shareButton.dataset.shareQuote);
     }
   });
 

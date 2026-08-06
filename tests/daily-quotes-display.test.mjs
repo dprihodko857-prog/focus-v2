@@ -75,14 +75,22 @@ test("quote preferences save button reflects saved and dirty states", () => {
 
 test("daily quote cards expose explicit favorite and share actions", () => {
   const cardRenderer = getFunctionBody(appJs, "renderDailyQuoteCards");
+  const shareMenu = getFunctionBody(appJs, "renderQuoteShareMenu");
 
   assert.match(cardRenderer, /data-toggle-quote-favorite/);
   assert.match(cardRenderer, /data-share-quote/);
+  assert.match(cardRenderer, /renderQuoteShareMenu/);
   assert.match(cardRenderer, /icon-star/);
   assert.match(cardRenderer, /icon-share/);
   assert.match(cardRenderer, /Поделиться цитатой/);
+  assert.match(shareMenu, /data-quote-share-target="system"/);
+  assert.match(shareMenu, /data-quote-share-target="copy"/);
+  assert.match(shareMenu, /https:\/\/wa\.me\/\?text=/);
+  assert.match(shareMenu, /https:\/\/t\.me\/share\/url/);
+  assert.match(shareMenu, /mailto:\?subject=/);
   assert.match(appCss, /\.icon-star\s*\{/);
   assert.match(appCss, /\.icon-share\s*\{/);
+  assert.match(appCss, /\.daily-quote-share-menu\s*\{/);
   assert.doesNotMatch(cardRenderer, /icon-more/);
 });
 
@@ -128,12 +136,16 @@ test("daily quotes modal exposes quote history view", () => {
 test("daily quote actions report favorite and copy status", () => {
   const favoriteAction = getFunctionBody(appJs, "toggleQuoteFavorite");
   const shareAction = getFunctionBody(appJs, "shareQuote");
+  const copyAction = getFunctionBody(appJs, "copyQuoteToClipboard");
+  const menuToggle = getFunctionBody(appJs, "toggleQuoteShareMenu");
 
   assert.match(favoriteAction, /setQuoteActionStatus/);
+  assert.match(menuToggle, /quoteShareMenuQuoteId/);
+  assert.match(copyAction, /navigator\.clipboard/);
   assert.match(shareAction, /Цитата отправлена\./);
-  assert.match(shareAction, /Цитата скопирована\./);
-  assert.match(shareAction, /Копирование недоступно в этом браузере\./);
-  assert.match(shareAction, /Не удалось скопировать цитату\./);
+  assert.match(copyAction, /Цитата скопирована\./);
+  assert.match(copyAction, /Копирование недоступно в этом браузере\./);
+  assert.match(copyAction, /Не удалось скопировать цитату\./);
 });
 
 function getFunctionBody(source, functionName) {
