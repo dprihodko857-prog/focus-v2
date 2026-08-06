@@ -88,11 +88,10 @@ test("daily quote cards expose explicit favorite, share and copy actions", () =>
   assert.match(cardRenderer, /Поделиться цитатой/);
   assert.match(shareMenu, /data-quote-share-target="system"/);
   assert.match(shareMenu, /data-quote-share-target="telegram"/);
-  assert.match(shareMenu, /data-quote-share-target="email"/);
   assert.match(shareMenu, /data-quote-share-target="copy"/);
   assert.match(shareMenu, /https:\/\/wa\.me\/\?text=/);
   assert.match(shareMenu, /type="button" role="menuitem" data-quote-share-target="telegram"/);
-  assert.match(shareMenu, /type="button" role="menuitem" data-quote-share-target="email"/);
+  assert.match(shareMenu, /href="mailto:\?subject=\$\{subject\}&amp;body=\$\{encodedText\}"/);
   assert.doesNotMatch(shareMenu, /https:\/\/t\.me\/share\/url/);
   assert.match(appCss, /\.icon-star\s*\{/);
   assert.match(appCss, /\.icon-share\s*\{/);
@@ -147,8 +146,6 @@ test("daily quote actions report favorite and copy status", () => {
   const copyAction = getFunctionBody(appJs, "copyQuoteToClipboard");
   const telegramAction = getFunctionBody(appJs, "shareQuoteToTelegram");
   const telegramUrl = getFunctionBody(appJs, "getTelegramQuoteShareUrl");
-  const emailAction = getFunctionBody(appJs, "shareQuoteByEmail");
-  const emailUrl = getFunctionBody(appJs, "getEmailQuoteShareUrl");
   const menuToggle = getFunctionBody(appJs, "toggleQuoteShareMenu");
 
   assert.match(favoriteAction, /setQuoteActionStatus/);
@@ -158,8 +155,7 @@ test("daily quote actions report favorite and copy status", () => {
   assert.match(telegramAction, /navigator\.clipboard\.writeText/);
   assert.match(telegramAction, /window\.location\.href/);
   assert.match(telegramUrl, /tg:\/\/msg_url\?url=/);
-  assert.match(emailAction, /window\.location\.href/);
-  assert.match(emailUrl, /mailto:\?subject=/);
+  assert.doesNotMatch(appJs, /shareQuoteByEmail/);
   assert.match(shareAction, /Цитата отправлена\./);
   assert.match(copyAction, /Цитата скопирована\./);
   assert.match(copyAction, /Копирование недоступно в этом браузере\./);

@@ -1017,6 +1017,7 @@ function renderDailyQuoteCards(quotesList) {
 function renderQuoteShareMenu(quote) {
   const text = formatQuoteMarqueeText(quote);
   const encodedText = encodeURIComponent(text);
+  const subject = encodeURIComponent("Цитаты дня Focus");
   return `
     <div class="daily-quote-share-menu" role="menu" aria-label="Варианты отправки цитаты">
       <button class="daily-quote-share-menu__item" type="button" role="menuitem" data-quote-share-target="system" data-quote-share-id="${escapeHtml(quote.id)}">
@@ -1031,10 +1032,10 @@ function renderQuoteShareMenu(quote) {
         <span>TG</span>
         <span>Telegram</span>
       </button>
-      <button class="daily-quote-share-menu__item" type="button" role="menuitem" data-quote-share-target="email" data-quote-share-id="${escapeHtml(quote.id)}">
+      <a class="daily-quote-share-menu__item" role="menuitem" href="mailto:?subject=${subject}&amp;body=${encodedText}">
         <span>@</span>
         <span>Email</span>
-      </button>
+      </a>
       <button class="daily-quote-share-menu__item" type="button" role="menuitem" data-quote-share-target="copy" data-quote-share-id="${escapeHtml(quote.id)}">
         <span class="icon icon-copy"></span>
         <span>Копировать</span>
@@ -1973,11 +1974,6 @@ function getTelegramQuoteShareUrl(text) {
   return `tg://msg_url?url=${encodedTelegramUrl}&text=${encodeURIComponent(text)}`;
 }
 
-function getEmailQuoteShareUrl(text) {
-  const subject = encodeURIComponent("Цитаты дня Focus");
-  return `mailto:?subject=${subject}&body=${encodeURIComponent(text)}`;
-}
-
 function shareQuoteToTelegram(quoteId) {
   const quote = findQuoteForAction(quoteId);
   if (!quote) return;
@@ -1992,13 +1988,6 @@ function shareQuoteToTelegram(quoteId) {
   }
 
   window.location.href = getTelegramQuoteShareUrl(text);
-}
-
-function shareQuoteByEmail(quoteId) {
-  const quote = findQuoteForAction(quoteId);
-  if (!quote) return;
-  window.location.href = getEmailQuoteShareUrl(formatQuoteMarqueeText(quote));
-  setQuoteActionStatus("Открываем email.");
 }
 
 function toggleQuoteShareMenu(quoteId) {
@@ -9307,8 +9296,6 @@ function bindControls(initialLaunchTarget = "") {
         copyQuoteToClipboard(quoteId);
       } else if (shareTarget === "telegram") {
         shareQuoteToTelegram(quoteId);
-      } else if (shareTarget === "email") {
-        shareQuoteByEmail(quoteId);
       } else {
         shareQuote(quoteId);
       }
