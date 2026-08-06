@@ -5993,7 +5993,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally and deployed from a runtime archive. Diary PIN setup/change labels are explicit, the unlock modal can open the change-PIN flow, and Settings waits for loaded PIN state before rendering the summary.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: App/test syntax passed; focused static tests passed 60/60; `npm.cmd run test` passed 248/248; `git diff --ignore-cr-at-eol --check` passed on 2026-08-04 with LF-to-CRLF warnings only. Deployed to production on 2026-08-04 from archive `focus-v2-runtime-20260804-184712.tgz`; remote backup is `/opt/focus-v2/deploy-backups/backup-20260804-184712-pre-daead9-worktree.tgz`. No commit or git push.
 
 ## TASK-107
@@ -6057,7 +6057,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. The former Personal Schedule Planner visible feature name is now `Персональный ритм дня`, import artifacts/status messages use the new name, internal source ids stay stable, and PWA cache is `focus-pwa-v126`.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: Syntax checks passed; focused Personal Schedule/PWA static tests passed 68/68; `npm.cmd run test` passed 248/248; `git diff --ignore-cr-at-eol --check` passed on 2026-08-04 with LF-to-CRLF warnings only. Deployed to production on 2026-08-04 as part of isolated Personal Rhythm payload `focus-v2-personal-rhythm-v128-20260804-192328.tgz`; remote backup is `/opt/focus-v2/deploy-backups/backup-20260804-192328-pre-personal-rhythm-v128.tgz`. No commit or git push.
 
 ## TASK-108
@@ -6113,7 +6113,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented and deployed. All current professional holidays have configured audience/recurrence descriptions, and non-professional holiday detail descriptions now receive structured timing/status context.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: App/service-worker/test syntax passed; focused static/client tests passed 108/108; `npm.cmd run test` passed 248/248; `git diff --check` passed on 2026-08-04 with LF-to-CRLF warnings only; coverage script found 21 professional titles and no missing descriptions. Deployed to production on 2026-08-05 as part of isolated Holidays payload `focus-pwa-v131`; remote backup is `/opt/focus-v2/deploy-backups/backup-20260805-100547-pre-holiday-v131.tgz`. No commit or git push.
 
 ## TASK-109
@@ -6177,7 +6177,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. The draft review now has a scannable day overview and quick per-block edits before import while preserving import confirmation and internal ids.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: Syntax checks passed; focused Personal Schedule/PWA static tests passed 69/69; `npm.cmd run test` passed 252/252; preview curl confirmed service worker `focus-pwa-v128` and draft overview/CSS hooks; `git diff --ignore-cr-at-eol --check` passed on 2026-08-04 with LF-to-CRLF warnings only. Deployed to production on 2026-08-04 as part of isolated Personal Rhythm payload `focus-v2-personal-rhythm-v128-20260804-192328.tgz`; public verification confirmed app 200, API health, service worker `focus-pwa-v128`, draft overview, CSS hooks, and quick block actions. No commit or git push.
 
 ## TASK-110
@@ -6238,7 +6238,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented and deployed. The RU-2026 professional calendar now includes military, force-agency, and broader federal sector dates with configured holiday-detail descriptions.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: Syntax checks passed; focused holiday/PWA static tests passed 70/70; `npm.cmd run test` passed 253/253; coverage script found 119 professional titles, 28 military-source events, and 0 missing descriptions; `git diff --ignore-cr-at-eol --check` passed on 2026-08-04 with LF-to-CRLF warnings only. Deployed to production on 2026-08-05 as part of isolated Holidays payload `focus-pwa-v131`; production static/API checks verified `military_security`, Navy Day, and Airborne Forces Day. No commit or git push.
 
 ## TASK-111
@@ -6295,7 +6295,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented and deployed. Professional holiday settings now show per-category counts and examples from the current catalog.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: Syntax checks passed; focused holiday/PWA static tests passed 70/70; `npm.cmd run test` passed 253/253; `git diff --ignore-cr-at-eol --check` passed on 2026-08-04 with LF-to-CRLF warnings only. Deployed to production on 2026-08-05 as part of isolated Holidays payload `focus-pwa-v131`; production HTML/CSS/app checks verified the category count/example hooks. No commit or git push.
 
 ## TASK-112
@@ -6357,7 +6357,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented and deployed. Holidays settings now preview the professional dates produced by the current all/selected/none choice.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: Syntax checks passed; focused holiday/PWA static tests passed 70/70; `npm.cmd run test` passed 254/254; `git diff --ignore-cr-at-eol --check` passed on 2026-08-05 with LF-to-CRLF warnings only. Deployed to production on 2026-08-05 as part of isolated Holidays payload `focus-pwa-v131`; production checks verified `holidayProfessionalPreview`, service worker `focus-pwa-v131`, public app 200, and API health. No commit or git push.
 
 ## TASK-113
@@ -6416,7 +6416,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented and deployed. Default Personal Rhythm import now adds the schedule without task clutter; optional generated tasks include date, time range, category, and Personal Rhythm context.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: Syntax checks passed; focused Personal Schedule/PWA static tests passed 71/71; `npm.cmd run test` passed 257/257. Deployed on 2026-08-05 as isolated Personal Rhythm payload `focus-v2-personal-rhythm-task-context-v133-20260805-103707.tgz`; remote backup is `/opt/focus-v2/deploy-backups/backup-20260805-103707-pre-personal-rhythm-task-context-v133.tgz`. Production app returned 200, API health returned `{"ok":true,"service":"focus-sync"}`, backend was active, service worker returned `focus-pwa-v133`, public UI exposed opt-in task creation, and downloaded production planner generated labeled dated tasks. Example generated tasks now look like `2026-08-05 | 09:00-18:00 · Рабочий блок | Ср, 05.08 · Работа · Персональный ритм`. No commit or git push.
 
 ## TASK-114
@@ -6472,7 +6472,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented and deployed. The professional holiday preview card is gone, the three mode choices remain, and the final deployed PWA cache is `focus-pwa-v136` with refreshed app/CSS asset URLs.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: Focused static tests passed 43/43; `git diff --ignore-cr-at-eol --check` passed with LF-to-CRLF warnings only. Deployed on 2026-08-05 as isolated static payload; remote backup is `/opt/focus-v2/deploy-backups/backup-20260805-103004-pre-holiday-no-preview-v132.tgz`. After the owner still saw stale cached assets, a second isolated cache-bust correction deployed `focus-pwa-v136` plus `focus-20260805-holiday-no-preview-2` app/CSS URLs; backup is `/opt/focus-v2/deploy-backups/backup-20260805-1042-pre-cache-bust-v136.tgz`. Final production app returned 200, UTF-8 markers were intact, backend stayed active, preview markers were absent from HTML/CSS/JS, and all three `holidayProfessionalMode` values remained in production HTML. No commit or git push.
 
 ## TASK-115
@@ -6536,7 +6536,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. Personal Rhythm history can remove old imported task clutter while leaving schedules, reminders, and user tasks intact.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: Syntax checks passed for touched JS/test files; focused Personal Rhythm tests passed 19/19; full `npm.cmd run test` passed 271/271 on the current working copy. No server deploy, commit, or git push.
 
 ## TASK-116
@@ -6597,7 +6597,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. Professional holiday directions are now a simple one-column checkbox list with no count/example card UI and no nested scroll area, and the `Выбрать направления` mode can be entered before selecting the first category.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: App/service-worker/test syntax passed; focused holiday/static tests passed 43/43; full `npm.cmd run test` passed 273/273; `git diff --ignore-cr-at-eol --check` passed with LF-to-CRLF warnings only. No server deploy, commit, or git push.
 
 ## TASK-117
@@ -6659,7 +6659,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. The Personal Rhythm draft result now starts with a readable result brief, rhythm metrics, warnings, import impact, then keeps the week overview and quick block editor below.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: UI/service-worker/test syntax passed; focused Personal Rhythm tests passed 19/19; full `npm.cmd run test` passed 273/273; local `http://127.0.0.1:8091/service-worker.js` returned `focus-pwa-v140`. No server deploy, commit, or git push.
 
 ## TASK-118
@@ -6715,7 +6715,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. The local app now serves `holiday-simple-categories-3`, `focus-pwa-v141`, and browser verification confirms `Выбрать направления` leaves the mode selected with all 19 category checkboxes enabled.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: App/service-worker/test syntax passed; focused holiday/static tests passed 43/43; full `npm.cmd run test` passed 273/273; local curl verified updated assets and service worker; in-app browser click verification passed. No server deploy, commit, or git push.
 
 ## TASK-119
@@ -6774,7 +6774,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. The `Приоритетные цели` step now uses editable goal cards, the old semicolon textarea is gone, modal status copy no longer mentions backend/provider, and current local PWA cache is `focus-pwa-v146`.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: UI/service-worker/test syntax passed; focused Personal Rhythm tests passed 20/20; full `npm.cmd run test` passed 277/277; local `http://127.0.0.1:8091/service-worker.js` returned `focus-pwa-v146`; in-app browser verification confirmed four goal cards and no old technical UI. No server deploy, commit, or git push.
 
 ## TASK-120
@@ -6832,7 +6832,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. Holiday hydration now keeps cached local preferences when offline; detail timing text is capitalized after complete base descriptions; browser QA verified save/reload persistence, restored `Не показывать`, and red/green/orange holiday detail accents.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: App/service-worker/test syntax passed; focused Holidays tests passed 41/41; local curl served `holiday-preferences-cache-2` and `focus-pwa-v145` before later Personal Rhythm cache-bust work superseded it with `focus-pwa-v146`; `git diff --ignore-cr-at-eol --check` passed with LF-to-CRLF warnings only. The broader desktop layout test still fails on an unrelated dirty-worktree CSS expectation. No server deploy, commit, or git push.
 
 ## TASK-121
@@ -6892,7 +6892,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. The energy step now uses clear tempo labels and hints; Big Five scores affect local draft style and timing; current local PWA cache is `focus-pwa-v148`.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: UI/planner/test syntax passed; focused Personal Rhythm tests passed 23/23; full `npm.cmd run test` passed 283/283; local `8091` served `focus-pwa-v148`; browser verified six energy fields, four explanation items, and no backend/provider copy. No server deploy, commit, or git push.
 
 ## TASK-122
@@ -6951,7 +6951,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. The draft result now includes a "Почему так составлено" panel, the default primary goal is "Главный приоритет дня", and current local cache is `focus-pwa-v151`.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: UI/planner/service-worker/test syntax passed; focused Personal Rhythm tests passed 23/23 before and after the cache sync; full `npm.cmd run test` passed 285/285; local `8091` served `focus-pwa-v151`. In-app browser generation did not reach the result screen because the local generation service returned a failure, so the result panel was verified by source/static contracts rather than an end-to-end browser result. No server deploy, commit, or git push.
 
 ## TASK-123
@@ -7011,7 +7011,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. Personal Rhythm now falls back to a local deterministic draft when the generation service is unavailable; the result explains "Локальный черновик", the modal status is local-fallback-aware, and current local cache is `focus-pwa-v155`.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: UI/service-worker/test syntax passed; focused Personal Rhythm tests passed 24/24; expanded affected tests passed 78/78; browser fallback verification with a simulated generation 503 reached `Черновик расписания`, showed `Почему так составлено` and `Локальный черновик`, exposed the import button, and had no generation-dead-end or Backend text. Full `npm.cmd run test` passed 286/288 and failed only two unrelated Daily Quotes display tests in `tests/daily-quotes-display.test.mjs`. No server deploy, commit, or git push.
 
 ## TASK-124
@@ -7070,7 +7070,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. Personal Rhythm draft blocks now render as cards with day/time stamps, a prominent editable title, metadata chips, labeled start/end time fields, quick actions, category accents, and mobile-safe layout; current local cache is `focus-pwa-v156`.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: UI/service-worker/test syntax passed; focused Personal Rhythm tests passed 24/24; expanded affected tests passed 78/78; browser verification showed local fallback status, `Почему так составлено`, `Локальный черновик`, import availability, readable block rows, `Начало`/`Конец` labels, no Backend wording, and no mobile horizontal overflow at 390px. Full `npm.cmd run test` passed 290/291 and failed only the unrelated Daily Quotes `icon-copy` expectation in `tests/daily-quotes-display.test.mjs`. No server deploy, commit, or git push.
 
 ## TASK-125
@@ -7133,7 +7133,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. The final Personal Rhythm import confirmation now shows selected variant/source, block/day/duration summary, decision cards for schedule/tasks/reminders, examples of blocks inside the schedule, rollback copy, and mobile-safe layout; current local cache is `focus-pwa-v157`.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: UI/service-worker/test syntax passed; focused Personal Rhythm tests passed 24/24; expanded affected tests passed 78/78; browser verification showed `Подтверждение импорта`, `Перед добавлением`, `Внутри расписания`, 3 decision cards, 3 block examples, the import button, no Backend wording, and no mobile horizontal overflow at 390px. Full `npm.cmd run test` passed 291/291; local `8091` served `focus-pwa-v157`; diff-check passed with LF-to-CRLF warnings only. No server deploy, commit, or git push.
 
 ## TASK-126
@@ -7194,7 +7194,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. The Personal Rhythm history screen now opens with a latest-import result card, visible object counts, destination cards for schedules/tasks/reminders, rollback action, distinct import history rows, and the title `История ритма дня`; current local cache is `focus-pwa-v159`.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: UI/test syntax passed; focused Personal Rhythm tests passed 25/25; expanded affected tests passed 79/79; browser verification showed `История ритма дня`, `Добавлено в Focus`, visible `Где искать добавленное`, `Раздел расписаний Focus`, 3 destination cards, 3 import-impact counters, rollback action, no Backend wording, and no mobile horizontal overflow at 390px. Full `npm.cmd run test` passed 292/292; local `8093` served `focus-pwa-v159`; diff-check passed with LF-to-CRLF warnings only. No server deploy, commit, or git push.
 
 ## TASK-127
@@ -7257,7 +7257,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: false
 - security_review_required: false
 - outcome: Implemented locally. The Personal Rhythm history result now shows the imported schedule contents with a `Что внутри расписания` snapshot, day/block totals, first day/block lines, hidden-item summaries, compact import row summaries, and current local cache `focus-pwa-v163`.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: UI/service-worker syntax passed; focused Personal Rhythm tests passed 25/25; expanded affected tests passed 80/80; browser verification showed `История ритма дня`, `Что внутри расписания`, imported schedule day/block content, `Расписание: 4 дня · 7 блоков · первый день: Четверг`, no `первый блок` wording, and no mobile horizontal overflow at 390px. Full `npm.cmd run test` passed 297/297; local `8093` served `focus-pwa-v163`; diff-check passed with LF-to-CRLF warnings only. No server deploy, commit, or git push.
 
 ## TASK-128
@@ -7328,7 +7328,7 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: true
 - security_review_required: true
 - outcome: Implemented locally. Greeting Assistant now uses Focus backend routes and a provider-neutral server contract; mock and disabled flows are browser-verified; GigaChat production adapter is scaffolded with server-only auth/token handling, structured output, retries, timeout, rate limiting, and shared validation; current local cache is `focus-pwa-v166`.
-- commit_status: pending
+- commit_status: committed_local_checkpoint_6287f31
 - notes: No real credentials were requested or added and no live provider calls were performed. Official GigaChat REST/structured-output docs were checked before implementing the adapter headers/payload shape. Mock browser smoke passed with 3 distinct variants, revision, copy, save, restore, and no provider secrets in `localStorage`; disabled mobile smoke passed with the controlled unavailable message and disabled generation action. Syntax checks passed; focused server/static tests passed 159/159; full `npm.cmd run test` passed 297/297; `git diff --ignore-cr-at-eol --check` passed with LF-to-CRLF warnings only. No server deploy, commit, or git push.
 
 ## TASK-129
@@ -7387,5 +7387,5 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - design_review_required: true
 - security_review_required: false
 - outcome: Implemented locally. Personal Rhythm history can open a full read-only imported rhythm detail with every saved day/block, metrics, footer counts, and rollback for applied batches; current local cache is `focus-pwa-v167`.
-- commit_status: pending
-- notes: Focused Personal Rhythm tests passed 25/25; expanded affected tests passed 80/80; isolated Playwright smoke passed on desktop and 390px mobile with 4 days, 12 blocks, and no horizontal overflow. Full `npm.cmd run test` currently reports 296/297 due to one unrelated Daily Quotes history empty-state text expectation in the dirty worktree. No server deploy, commit, or git push.
+- commit_status: committed_local_checkpoint_6287f31
+- notes: Focused Personal Rhythm tests passed 25/25; expanded affected tests passed 80/80; isolated Playwright smoke passed on desktop and 390px mobile with 4 days, 12 blocks, and no horizontal overflow. Full `npm.cmd run test` passed 298/298. Later committed locally in checkpoint `6287f31`; no server deploy or git push.
