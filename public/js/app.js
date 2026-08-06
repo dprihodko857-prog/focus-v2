@@ -1005,6 +1005,9 @@ function renderDailyQuoteCards(quotesList) {
         <button class="icon-button icon-button--tiny" type="button" aria-label="Поделиться цитатой" title="Поделиться цитатой" data-share-quote="${escapeHtml(quote.id)}">
           <span class="icon icon-share"></span>
         </button>
+        <button class="icon-button icon-button--tiny" type="button" aria-label="Копировать цитату" title="Копировать цитату" data-copy-quote="${escapeHtml(quote.id)}">
+          <span class="icon icon-copy"></span>
+        </button>
       </div>
       ${quoteShareMenuQuoteId === quote.id ? renderQuoteShareMenu(quote) : ""}
     </article>
@@ -9251,6 +9254,14 @@ function bindControls(initialLaunchTarget = "") {
     const favoriteButton = event.target.closest("[data-toggle-quote-favorite]");
     if (favoriteButton) {
       toggleQuoteFavorite(favoriteButton.dataset.toggleQuoteFavorite);
+      return;
+    }
+
+    const copyButton = event.target.closest("[data-copy-quote]");
+    if (copyButton) {
+      quoteShareMenuQuoteId = "";
+      renderDailyQuotesModal();
+      copyQuoteToClipboard(copyButton.dataset.copyQuote);
       return;
     }
 

@@ -73,15 +73,18 @@ test("quote preferences save button reflects saved and dirty states", () => {
   assert.match(appCss, /\.quote-preferences-panel__head \.primary-button\.is-saved\s*\{/);
 });
 
-test("daily quote cards expose explicit favorite and share actions", () => {
+test("daily quote cards expose explicit favorite, share and copy actions", () => {
   const cardRenderer = getFunctionBody(appJs, "renderDailyQuoteCards");
   const shareMenu = getFunctionBody(appJs, "renderQuoteShareMenu");
 
   assert.match(cardRenderer, /data-toggle-quote-favorite/);
   assert.match(cardRenderer, /data-share-quote/);
+  assert.match(cardRenderer, /data-copy-quote/);
   assert.match(cardRenderer, /renderQuoteShareMenu/);
   assert.match(cardRenderer, /icon-star/);
   assert.match(cardRenderer, /icon-share/);
+  assert.match(cardRenderer, /icon-copy/);
+  assert.match(cardRenderer, /\u041a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0446\u0438\u0442\u0430\u0442\u0443/);
   assert.match(cardRenderer, /Поделиться цитатой/);
   assert.match(shareMenu, /data-quote-share-target="system"/);
   assert.match(shareMenu, /data-quote-share-target="copy"/);
@@ -141,6 +144,7 @@ test("daily quote actions report favorite and copy status", () => {
 
   assert.match(favoriteAction, /setQuoteActionStatus/);
   assert.match(menuToggle, /quoteShareMenuQuoteId/);
+  assert.match(appJs, /data-copy-quote/);
   assert.match(copyAction, /navigator\.clipboard/);
   assert.match(shareAction, /Цитата отправлена\./);
   assert.match(copyAction, /Цитата скопирована\./);
