@@ -1017,6 +1017,7 @@ function renderDailyQuoteCards(quotesList) {
 function renderQuoteShareMenu(quote) {
   const text = formatQuoteMarqueeText(quote);
   const encodedText = encodeURIComponent(text);
+  const encodedTelegramUrl = encodeURIComponent(globalThis.location?.origin || "https://focus.local");
   const subject = encodeURIComponent("Цитаты дня Focus");
   return `
     <div class="daily-quote-share-menu" role="menu" aria-label="Варианты отправки цитаты">
@@ -1028,7 +1029,7 @@ function renderQuoteShareMenu(quote) {
         <span>WA</span>
         <span>WhatsApp</span>
       </a>
-      <a class="daily-quote-share-menu__item" role="menuitem" href="tg://msg_url?text=${encodedText}">
+      <a class="daily-quote-share-menu__item" role="menuitem" href="tg://msg_url?url=${encodedTelegramUrl}&amp;text=${encodedText}">
         <span>TG</span>
         <span>Telegram</span>
       </a>

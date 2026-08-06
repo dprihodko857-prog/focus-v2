@@ -89,7 +89,8 @@ test("daily quote cards expose explicit favorite, share and copy actions", () =>
   assert.match(shareMenu, /data-quote-share-target="system"/);
   assert.match(shareMenu, /data-quote-share-target="copy"/);
   assert.match(shareMenu, /https:\/\/wa\.me\/\?text=/);
-  assert.match(shareMenu, /tg:\/\/msg_url\?text=/);
+  assert.match(shareMenu, /encodedTelegramUrl/);
+  assert.match(shareMenu, /tg:\/\/msg_url\?url=\$\{encodedTelegramUrl\}&amp;text=/);
   assert.doesNotMatch(shareMenu, /https:\/\/t\.me\/share\/url/);
   assert.match(shareMenu, /mailto:\?subject=/);
   assert.match(appCss, /\.icon-star\s*\{/);
