@@ -1028,7 +1028,7 @@ function renderQuoteShareMenu(quote) {
         <span>WA</span>
         <span>WhatsApp</span>
       </a>
-      <a class="daily-quote-share-menu__item" role="menuitem" href="https://t.me/share/url?url=&amp;text=${encodedText}" target="_blank" rel="noopener noreferrer">
+      <a class="daily-quote-share-menu__item" role="menuitem" href="tg://msg_url?text=${encodedText}">
         <span>TG</span>
         <span>Telegram</span>
       </a>
