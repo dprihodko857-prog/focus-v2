@@ -172,6 +172,36 @@ test("daily quotes modal exposes quote history view", () => {
   assert.match(appCss, /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
 });
 
+test("daily quotes modal filters quotes by text and author", () => {
+  const modalRenderer = getFunctionBody(appJs, "renderDailyQuotesModal");
+  const searchControl = getFunctionBody(appJs, "renderQuoteSearchControl");
+  const quoteMatcher = getFunctionBody(appJs, "quoteMatchesSearch");
+  const quoteListFilter = getFunctionBody(appJs, "filterQuoteListBySearch");
+  const historyFilter = getFunctionBody(appJs, "filterQuoteHistorySetsBySearch");
+  const historySetFinder = getFunctionBody(appJs, "findQuoteHistorySetForAction");
+
+  assert.match(appJs, /quoteSearchQuery/);
+  assert.match(modalRenderer, /normalizeQuoteSearchQuery\(quoteSearchQuery\)/);
+  assert.match(modalRenderer, /filterQuoteListBySearch/);
+  assert.match(modalRenderer, /filterQuoteHistorySetsBySearch/);
+  assert.match(searchControl, /type="search"/);
+  assert.match(searchControl, /data-quote-search/);
+  assert.match(searchControl, /data-clear-quote-search/);
+  assert.match(searchControl, /Найти цитату или автора/);
+  assert.match(quoteMatcher, /quote\?\.text/);
+  assert.match(quoteMatcher, /quote\?\.authorName/);
+  assert.doesNotMatch(quoteMatcher, /sourceTitle|sourceReference/);
+  assert.match(quoteListFilter, /quoteMatchesSearch/);
+  assert.match(historyFilter, /filterQuoteListBySearch/);
+  assert.match(historySetFinder, /applySearch/);
+  assert.match(historySetFinder, /filterQuoteListBySearch/);
+  assert.match(appJs, /addEventListener\("input"[\s\S]*data-quote-search/);
+  assert.match(appJs, /data-clear-quote-search/);
+  assert.match(appJs, /renderDailyQuotesModal\(\{ preserveSearchFocus: true \}\)/);
+  assert.match(appCss, /\.daily-quotes-search\s*\{/);
+  assert.match(appCss, /\.daily-quotes-search input\s*\{/);
+});
+
 test("daily quote actions report favorite and copy status", () => {
   const favoriteAction = getFunctionBody(appJs, "toggleQuoteFavorite");
   const shareAction = getFunctionBody(appJs, "shareQuote");

@@ -558,6 +558,44 @@ body.is-right-drag-scroll * {
   background: rgba(249, 115, 22, .14);
 }
 
+.daily-quotes-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.daily-quotes-search__field {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.daily-quotes-search input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, .44);
+  border-radius: 14px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 760;
+  background: rgba(255, 252, 244, .24);
+  outline: none;
+}
+
+.daily-quotes-search input:focus {
+  border-color: rgba(249, 115, 22, .42);
+  background: rgba(255, 252, 244, .36);
+}
+
+.daily-quotes-search__meta {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--muted-strong);
+  font-size: 12px;
+  font-weight: 780;
+}
+
 .daily-quote-card {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) auto;
@@ -7546,6 +7584,15 @@ body.app-menu-open .app-shell {
 
   .daily-quotes-tabs {
     grid-template-columns: 1fr;
+  }
+
+  .daily-quotes-search {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .daily-quotes-search__field {
+    flex-basis: 100%;
   }
 
   .daily-quote-card {

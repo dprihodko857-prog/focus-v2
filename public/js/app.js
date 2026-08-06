@@ -1429,6 +1429,7 @@ let dailyQuotesState = {
 };
 let quoteModalView = "today";
 let quoteShareMenuQuoteId = "";
+let quoteSearchQuery = "";
 let favoriteQuotesState = {
   status: "idle",
   quotes: [],
@@ -1815,48 +1816,139 @@ function normalizeQuoteHistoryQuote(quote, index) {
   };
 }
 
-function renderDailyQuotesModal() {
+function renderDailyQuotesModal(options) {
+  const preserveSearchFocus = options?.preserveSearchFocus === true;
   const list = document.querySelector("#dailyQuotesList");
   const status = document.querySelector("#quotesStatus");
   if (!list || !status) return;
 
-  const todayQuotes = Array.isArray(dailyQuotesState.quotes) ? dailyQuotesState.quotes : [];
-  const favoriteQuotes = Array.isArray(favoriteQuotesState.quotes) ? favoriteQuotesState.quotes : [];
-  const historySets = Array.isArray(quoteHistoryState.sets) ? quoteHistoryState.sets : [];
-  const historyQuotes = getQuoteHistoryQuotes();
+  const searchQuery = normalizeQuoteSearchQuery(quoteSearchQuery);
+  const todayQuotesSource = Array.isArray(dailyQuotesState.quotes) ? dailyQuotesState.quotes : [];
+  const favoriteQuotesSource = Array.isArray(favoriteQuotesState.quotes) ? favoriteQuotesState.quotes : [];
+  const historySetsSource = Array.isArray(quoteHistoryState.sets) ? quoteHistoryState.sets : [];
+  const todayQuotes = filterQuoteListBySearch(todayQuotesSource, searchQuery);
+  const favoriteQuotes = filterQuoteListBySearch(favoriteQuotesSource, searchQuery);
+  const historySets = filterQuoteHistorySetsBySearch(historySetsSource, searchQuery);
+  const historyQuotesSource = getQuoteHistoryQuotes(historySetsSource);
+  const historyQuotes = getQuoteHistoryQuotes(historySets);
   const isFavoritesView = quoteModalView === "favorites";
   const isHistoryView = quoteModalView === "history";
+  const sourceCount = isFavoritesView
+    ? favoriteQuotesSource.length
+    : isHistoryView
+      ? historyQuotesSource.length
+      : todayQuotesSource.length;
   const quotesList = isFavoritesView ? favoriteQuotes : isHistoryView ? historyQuotes : todayQuotes;
-  status.textContent = isFavoritesView
+  const statusText = isFavoritesView
     ? getFavoriteQuotesStatusText()
     : isHistoryView
       ? getQuoteHistoryStatusText()
       : getDailyQuotesStatusText();
+  status.textContent = searchQuery && sourceCount
+    ? `${statusText} ${getQuoteSearchStatusText(quotesList.length)}`
+    : statusText;
   const tabs = renderDailyQuoteTabs({
-    todayCount: todayQuotes.length,
-    favoriteCount: favoriteQuotes.length,
-    historyCount: historyQuotes.length,
+    todayCount: todayQuotesSource.length,
+    favoriteCount: favoriteQuotesSource.length,
+    historyCount: historyQuotesSource.length,
+  });
+  const searchControl = renderQuoteSearchControl({
+    query: quoteSearchQuery,
+    sourceCount,
+    resultCount: quotesList.length,
   });
 
   if (!quotesList.length) {
     list.innerHTML = `
       ${tabs}
+      ${searchControl}
       <article class="empty-state">
-        <strong>${isFavoritesView ? "Избранных цитат пока нет" : isHistoryView ? "История пока пуста" : "Подборка пока недоступна"}</strong>
-        <span>${isFavoritesView ? "Нажмите звезду у цитаты, чтобы сохранить её здесь." : isHistoryView ? "Откройте дневную подборку, чтобы она сохранилась здесь по дате." : "Серверный каталог цитат ещё не наполнен проверенными записями."}</span>
+        <strong>${searchQuery && sourceCount ? "Ничего не найдено" : isFavoritesView ? "Избранных цитат пока нет" : isHistoryView ? "История пока пуста" : "Подборка пока недоступна"}</strong>
+        <span>${searchQuery && sourceCount ? "Измените запрос или очистите поиск." : isFavoritesView ? "Нажмите звезду у цитаты, чтобы сохранить её здесь." : isHistoryView ? "Откройте дневную подборку, чтобы она сохранилась здесь по дате." : "Серверный каталог цитат ещё не наполнен проверенными записями."}</span>
       </article>
     `;
+    if (preserveSearchFocus) {
+      restoreQuoteSearchFocus();
+    }
     return;
   }
 
   list.innerHTML = `
     ${tabs}
+    ${searchControl}
     ${isHistoryView ? `${renderQuoteHistoryToolbar(historySets.length)}${renderQuoteHistorySets(historySets)}` : renderDailyQuoteCards(quotesList)}
+  `;
+  if (preserveSearchFocus) {
+    restoreQuoteSearchFocus();
+  }
+}
+
+function normalizeQuoteSearchQuery(value) {
+  return String(value || "").trim().toLocaleLowerCase("ru-RU");
+}
+
+function quoteMatchesSearch(quote, searchQuery) {
+  if (!searchQuery) return true;
+  const text = `${quote?.text || ""} ${quote?.authorName || ""}`.toLocaleLowerCase("ru-RU");
+  return text.includes(searchQuery);
+}
+
+function filterQuoteListBySearch(quotesList, searchQuery) {
+  return Array.isArray(quotesList)
+    ? quotesList.filter(quote => quoteMatchesSearch(quote, searchQuery))
+    : [];
+}
+
+function filterQuoteHistorySetsBySearch(historySets, searchQuery) {
+  return Array.isArray(historySets)
+    ? historySets.map(set => ({
+      ...set,
+      quotes: filterQuoteListBySearch(set.quotes, searchQuery),
+    })).filter(set => set.quotes.length)
+    : [];
+}
+
+function getQuoteSearchStatusText(resultCount) {
+  return `Найдено: ${resultCount} ${formatPlural(resultCount, ["цитата", "цитаты", "цитат"])}.`;
+}
+
+function renderQuoteSearchControl(options) {
+  const query = options?.query || "";
+  const sourceCount = options?.sourceCount || 0;
+  const resultCount = options?.resultCount || 0;
+  if (!sourceCount && !query) return "";
+  const normalizedQuery = normalizeQuoteSearchQuery(query);
+  const metaText = normalizedQuery
+    ? `Найдено: ${resultCount}`
+    : "Поиск по цитате и автору";
+
+  return `
+    <div class="daily-quotes-search">
+      <label class="daily-quotes-search__field">
+        <input id="quoteSearchInput" type="search" value="${escapeHtml(query)}" placeholder="Найти цитату или автора" aria-label="Найти цитату или автора" autocomplete="off" data-quote-search>
+      </label>
+      <span class="daily-quotes-search__meta">${escapeHtml(metaText)}</span>
+      ${normalizedQuery ? `
+        <button class="icon-button icon-button--tiny" type="button" aria-label="Очистить поиск" title="Очистить поиск" data-clear-quote-search>
+          <span class="icon icon-close"></span>
+        </button>
+      ` : ""}
+    </div>
   `;
 }
 
-function getQuoteHistoryQuotes() {
-  return (Array.isArray(quoteHistoryState.sets) ? quoteHistoryState.sets : [])
+function restoreQuoteSearchFocus() {
+  requestAnimationFrame(() => {
+    const input = document.querySelector("#quoteSearchInput");
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    const cursorPosition = input.value.length;
+    input.setSelectionRange(cursorPosition, cursorPosition);
+  });
+}
+
+function getQuoteHistoryQuotes(historySets = quoteHistoryState.sets) {
+  return (Array.isArray(historySets) ? historySets : [])
     .flatMap(set => Array.isArray(set.quotes) ? set.quotes : []);
 }
 
@@ -3517,19 +3609,20 @@ function formatQuoteSetShareText(set) {
 }
 
 async function shareQuoteSet(localDate) {
-  const set = findQuoteHistorySetForAction(localDate);
+  const set = findQuoteHistorySetForAction(localDate, { applySearch: true });
   if (!set) return;
   const text = formatQuoteSetShareText(set);
   if (!text) return;
+  const hasSearch = Boolean(normalizeQuoteSearchQuery(quoteSearchQuery));
   try {
     if (navigator.share) {
       await navigator.share({ title: "Цитаты дня Focus", text });
-      setQuoteActionStatus("Подборка отправлена.");
+      setQuoteActionStatus(hasSearch ? "Найденные цитаты отправлены." : "Подборка отправлена.");
       return;
     }
     if (navigator.clipboard) {
       await navigator.clipboard.writeText(text);
-      setQuoteActionStatus("Подборка скопирована.");
+      setQuoteActionStatus(hasSearch ? "Найденные цитаты скопированы." : "Подборка скопирована.");
     } else {
       setQuoteActionStatus("Копирование недоступно в этом браузере.");
     }
@@ -3555,14 +3648,15 @@ async function copyQuoteToClipboard(quoteId) {
 }
 
 async function copyQuoteSetToClipboard(localDate) {
-  const set = findQuoteHistorySetForAction(localDate);
+  const set = findQuoteHistorySetForAction(localDate, { applySearch: true });
   if (!set) return;
   const text = formatQuoteSetShareText(set);
   if (!text) return;
+  const hasSearch = Boolean(normalizeQuoteSearchQuery(quoteSearchQuery));
   try {
     if (navigator.clipboard) {
       await navigator.clipboard.writeText(text);
-      setQuoteActionStatus("Подборка скопирована.");
+      setQuoteActionStatus(hasSearch ? "Найденные цитаты скопированы." : "Подборка скопирована.");
     } else {
       setQuoteActionStatus("Копирование недоступно в этом браузере.");
     }
@@ -3659,8 +3753,14 @@ function findQuoteForAction(quoteId) {
     || null;
 }
 
-function findQuoteHistorySetForAction(localDate) {
-  return quoteHistoryState.sets.find(set => set.localDate === localDate) || null;
+function findQuoteHistorySetForAction(localDate, options) {
+  const applySearch = options?.applySearch === true;
+  const set = quoteHistoryState.sets.find(item => item.localDate === localDate) || null;
+  if (!set || !applySearch) return set;
+  const searchQuery = normalizeQuoteSearchQuery(quoteSearchQuery);
+  if (!searchQuery) return set;
+  const quotes = filterQuoteListBySearch(set.quotes, searchQuery);
+  return quotes.length ? { ...set, quotes } : null;
 }
 
 function renderCalendar() {
@@ -11817,6 +11917,14 @@ function bindControls(initialLaunchTarget = "") {
     syncQuotePreferenceControls(input);
   });
 
+  document.querySelector("#dailyQuotesList")?.addEventListener("input", event => {
+    const searchInput = event.target.closest("[data-quote-search]");
+    if (!searchInput) return;
+    quoteSearchQuery = searchInput.value;
+    quoteShareMenuQuoteId = "";
+    renderDailyQuotesModal({ preserveSearchFocus: true });
+  });
+
   document.querySelector("#dailyQuotesList")?.addEventListener("click", event => {
     const quoteViewButton = event.target.closest("[data-quote-view]");
     if (quoteViewButton) {
@@ -11834,6 +11942,14 @@ function bindControls(initialLaunchTarget = "") {
           renderDailyQuotesModal();
         });
       }
+      return;
+    }
+
+    const clearSearchButton = event.target.closest("[data-clear-quote-search]");
+    if (clearSearchButton) {
+      quoteSearchQuery = "";
+      quoteShareMenuQuoteId = "";
+      renderDailyQuotesModal({ preserveSearchFocus: true });
       return;
     }
 
