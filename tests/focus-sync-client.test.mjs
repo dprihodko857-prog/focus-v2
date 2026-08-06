@@ -770,6 +770,117 @@ test("daily quotes preferences prefer pending settings for the settings UI", asy
   assert.equal(calls[0].url, "/api/quotes/preferences?timezone=Europe%2FMoscow");
 });
 
+test("interesting today client loads today's server set with account headers", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        localDate: "2026-08-05",
+        timezone: "Europe/Moscow",
+        countryCode: "RU",
+        language: "ru",
+        catalogVersion: "interesting-today-ru@2026-10-14.v1",
+        validFromUtc: "2026-08-04T21:00:00.000Z",
+        validUntilUtc: "2026-08-05T21:00:00.000Z",
+        generationReason: "recovery_fallback",
+        availableEvents: 1,
+        availablePeople: 1,
+        preferences: { countryCode: "RU", language: "ru", showEvents: true, showPeople: true },
+        events: [{
+          id: "it-event-1",
+          type: "event",
+          position: 1,
+          month: 8,
+          day: 5,
+          year: 1963,
+          title: "В Москве подписан договор",
+          summary: "Краткое описание",
+          description: "Полное описание",
+          primaryCountryCode: "RU",
+          countryCodes: ["RU"],
+          themeCodes: ["diplomacy"],
+          themeLabels: ["Дипломатия"],
+          sources: [{ id: "source-1", title: "Source", publisher: "Publisher", url: "https://example.com" }],
+        }],
+        people: [{
+          id: "it-person-1",
+          type: "person",
+          position: 1,
+          month: 8,
+          day: 5,
+          year: 1844,
+          title: "Илья Репин",
+          name: "Илья Репин",
+          summary: "художник",
+          description: "Полное описание",
+          primaryCountryCode: "RU",
+          countryCodes: ["RU"],
+          themeCodes: ["art"],
+          themeLabels: ["Искусство"],
+          birthYear: 1844,
+          deathYear: 1930,
+          lifeYears: "1844-1930",
+          sources: [{ id: "source-2", title: "Source", publisher: "Publisher", url: "https://example.com" }],
+        }],
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.getTodayInterestingToday({ timezone: "Europe/Moscow" });
+
+  assert.equal(result.status, "ok");
+  assert.equal(result.localDate, "2026-08-05");
+  assert.equal(result.events[0].id, "it-event-1");
+  assert.equal(result.people[0].lifeYears, "1844-1930");
+  assert.equal(calls[0].url, "/api/interesting-today/today?timezone=Europe%2FMoscow");
+  assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
+  assert.equal(calls[0].options.headers["x-focus-device"], "device-1");
+});
+
+test("interesting today preferences save visible sections", async () => {
+  const calls = [];
+  const storage = createMemoryLocalStorage({
+    "focus-sync-account-id": "account-1",
+    "focus-sync-device-id": "device-1",
+  });
+  const client = createFocusSyncClient({
+    fetch: async (url, options = {}) => {
+      calls.push({ url, options });
+      return jsonResponse({
+        accountId: "account-1",
+        checkedAt: "2026-08-05T09:00:00.000Z",
+        preferences: JSON.parse(options.body),
+      });
+    },
+    localStorage: storage,
+    randomUUID: () => "device-1",
+  });
+
+  const result = await client.updateInterestingTodayPreferences({
+    countryCode: "RU",
+    showEvents: true,
+    showPeople: false,
+  });
+
+  assert.equal(result.status, "saved");
+  assert.deepEqual(result.preferences, {
+    countryCode: "RU",
+    language: "ru",
+    showEvents: true,
+    showPeople: false,
+  });
+  assert.equal(calls[0].url, "/api/interesting-today/preferences");
+  assert.equal(calls[0].options.method, "PUT");
+  assert.equal(calls[0].options.headers["x-focus-account"], "account-1");
+});
+
 test("daily quotes client loads favorite quotes", async () => {
   const calls = [];
   const storage = createMemoryLocalStorage({

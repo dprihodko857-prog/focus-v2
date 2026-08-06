@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   getHolidayDateStatusMessage,
   getHolidayCatalogVersion,
+  getHolidayEventTypeLabel,
   getPublishedHolidayCatalog,
   normalizeHolidayPreferences,
   normalizeHolidayReligiousPreferences,
@@ -111,6 +112,37 @@ test("professional holidays support none, all, and selected category modes", () 
     date: "2026-09-13",
   });
   assert.ok(!unrelated.some(event => event.id === "ru-2026-prof-programmer"));
+});
+
+test("military professional dates are selectable through their own category", () => {
+  assert.ok(catalog.professionalCategories.some(category => category.code === "military_security"));
+
+  const navy = selectHolidayEvents({
+    catalog,
+    preferences: normalizeHolidayPreferences({
+      professionalMode: "selected",
+      professionalCategoryCodes: ["military_security"],
+    }),
+    religiousPreferences: normalizeHolidayReligiousPreferences(),
+    date: "2026-07-26",
+  }).find(event => event.id === "ru-2026-prof-navy");
+
+  assert.ok(navy);
+  assert.equal(navy.sourceId, "ru-military-presidential-decree-549");
+  assert.equal(getHolidayEventTypeLabel(navy), "Памятный день");
+
+  const airborneDay = selectHolidayEvents({
+    catalog,
+    preferences: normalizeHolidayPreferences({
+      professionalMode: "selected",
+      professionalCategoryCodes: ["military_security"],
+    }),
+    religiousPreferences: normalizeHolidayReligiousPreferences(),
+    date: "2026-08-02",
+  });
+
+  assert.ok(airborneDay.some(event => event.id === "ru-2026-prof-airborne-troops"));
+  assert.ok(!airborneDay.some(event => event.id === "ru-2026-prof-railway"));
 });
 
 test("multiple religious calendars can be selected locally", () => {

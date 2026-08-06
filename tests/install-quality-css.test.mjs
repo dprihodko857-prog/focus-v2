@@ -17,14 +17,16 @@ test("mobile viewport supports installed PWA safe areas", () => {
   assert.match(indexHtml, /minimum-scale=1/);
   assert.match(indexHtml, /maximum-scale=1/);
   assert.match(indexHtml, /user-scalable=no/);
-  assert.match(tokensCss, /scrollbar-width:\s*none/);
-  assert.match(tokensCss, /-ms-overflow-style:\s*none/);
+  assert.match(tokensCss, /overflow-y:\s*auto/);
+  assert.match(tokensCss, /scrollbar-width:\s*auto/);
+  assert.match(tokensCss, /-ms-overflow-style:\s*auto/);
   assert.match(tokensCss, /html::-webkit-scrollbar,\s*body::-webkit-scrollbar/);
   assert.match(tokensCss, /touch-action:\s*pan-x pan-y/);
   assert.match(appJs, /function lockViewportScale/);
   assert.match(appJs, /gesturestart/);
-  assert.match(appJs, /touchmove/);
-  assert.match(appJs, /event\.touches\?\.length > 1/);
+  assert.doesNotMatch(appJs, /document\.addEventListener\("touchmove"/);
+  assert.match(appCss, /overscroll-behavior-y:\s*contain/);
+  assert.match(appCss, /-webkit-overflow-scrolling:\s*touch/);
 });
 
 test("mobile chrome keeps navigation behind the logo menu", () => {
@@ -85,6 +87,9 @@ test("desktop app switches to mobile chrome in compact windows", () => {
   assert.match(appJs, /const COMPACT_WINDOW_WIDTH = 1720;/);
   assert.match(appJs, /const RESTORED_WINDOW_TOLERANCE = 24;/);
   assert.match(appJs, /function syncCompactWindowMode/);
+  assert.match(appJs, /function scheduleCompactWindowModeSync/);
+  assert.match(appJs, /requestAnimationFrame/);
+  assert.match(appJs, /currentWindowMode === nextWindowMode/);
   assert.match(appJs, /isRestoredDesktopWindow/);
   assert.match(appJs, /app-shell--compact-window/);
   assert.match(appJs, /dataset\.windowMode/);
@@ -173,7 +178,7 @@ test("settings include install quality diagnostics and PWA update controls", () 
   assert.match(appJs, /focus-pwa-state-change/);
   assert.match(pwaJs, /focusPwaCheckForUpdate/);
   assert.match(pwaJs, /focusPwaApplyUpdate/);
-  assert.match(serviceWorker, /focus-pwa-v125/);
+  assert.match(serviceWorker, /focus-pwa-v167/);
   assert.match(serviceWorker, /SKIP_WAITING/);
 });
 

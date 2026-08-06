@@ -23,6 +23,9 @@ const DEVICE_ID_PATTERN = /^[a-zA-Z0-9_.:-]{4,160}$/;
 const PAYMENT_ID_PATTERN = /^[a-zA-Z0-9_.:-]{8,160}$/;
 const QUOTE_ID_PATTERN = /^[a-zA-Z0-9_.:-]{1,160}$/;
 const QUOTE_CATEGORY_PATTERN = /^[a-z][a-z0-9_]{1,80}$/;
+const INTERESTING_TODAY_ID_PATTERN = /^[a-zA-Z0-9_.:-]{1,180}$/;
+const INTERESTING_TODAY_COUNTRY_PATTERN = /^[A-Z]{2,8}$/;
+const INTERESTING_TODAY_THEME_PATTERN = /^[a-z][a-z0-9_]{1,60}$/;
 const COLLECTION_KEYS = new Set(["schedules", "reminders", "tasks", "notes", "birthdays", "diary"]);
 const ENTITLEMENT_SOURCE_PATTERN = /^[a-zA-Z0-9_.:-]{1,80}$/;
 const VOICE_TRANSCRIPTION_FEATURE_KEY = "voiceTranscription";
@@ -31,6 +34,9 @@ const MAX_TRANSCRIPTION_AUDIO_BASE64_LENGTH = 768 * 1024;
 const MAX_TRANSCRIPTION_DURATION_MS = 60 * 1000;
 const PERSONAL_SCHEDULE_PROMPT_VERSION = "personal-schedule-planner@2026-08-04.v1";
 const MAX_PERSONAL_SCHEDULE_REQUEST_LENGTH = 96 * 1024;
+const GREETING_PROMPT_VERSION = "greeting-assistant@2026-08-06.v1";
+const GREETING_DISABLED_MESSAGE = "Генерация поздравлений пока недоступна. Анкету можно сохранить и продолжить позднее.";
+const MAX_GREETING_REQUEST_LENGTH = 32 * 1024;
 const TRANSCRIPTION_MIME_TYPES = new Set([
   "audio/aac",
   "audio/mp4",
@@ -962,6 +968,161 @@ export function createFocusSyncClient({
       }
     },
 
+    async getGreetingStatus() {
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/greetings/status"), {
+          headers: await withHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Focus greeting status load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          providerConfigured: result.providerConfigured === true,
+          provider: result.providerConfigured === true && typeof result.provider === "string" ? result.provider : null,
+          promptVersion: typeof result.promptVersion === "string" ? result.promptVersion : GREETING_PROMPT_VERSION,
+          disabledMessage: typeof result.disabledMessage === "string" && result.disabledMessage.trim()
+            ? result.disabledMessage.trim()
+            : GREETING_DISABLED_MESSAGE,
+          checkedAt: normalizeIsoTimestamp(result.checkedAt),
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          providerConfigured: false,
+          provider: null,
+          promptVersion: GREETING_PROMPT_VERSION,
+          disabledMessage: GREETING_DISABLED_MESSAGE,
+          checkedAt: null,
+        };
+      }
+    },
+
+    async generateGreeting(requestBody = {}) {
+      const serializedBody = serializeGreetingRequest(requestBody);
+      if (!serializedBody) {
+        return {
+          status: "invalid-request",
+          accountId: getStored(ACCOUNT_KEY),
+          promptVersion: GREETING_PROMPT_VERSION,
+          variants: [],
+        };
+      }
+
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/greetings/generate"), {
+          method: "POST",
+          headers: await withHeaders(),
+          body: serializedBody,
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (response.status === 400) {
+          return {
+            status: "invalid-request",
+            accountId: result.accountId || getStored(ACCOUNT_KEY),
+            promptVersion: result.promptVersion || GREETING_PROMPT_VERSION,
+            errors: Array.isArray(result.errors) ? result.errors : [],
+            variants: [],
+          };
+        }
+
+        if (response.status === 503) {
+          return {
+            status: "provider-not-configured",
+            accountId: result.accountId || getStored(ACCOUNT_KEY),
+            provider: null,
+            promptVersion: result.promptVersion || GREETING_PROMPT_VERSION,
+            disabledMessage: result.disabledMessage || result.message || GREETING_DISABLED_MESSAGE,
+            variants: [],
+          };
+        }
+
+        if (!response.ok) {
+          return normalizeGreetingResult({
+            ...result,
+            status: "failed",
+            reason: result.reason || "provider_error",
+          }, getStored(ACCOUNT_KEY));
+        }
+
+        return normalizeGreetingResult(result, getStored(ACCOUNT_KEY));
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          promptVersion: GREETING_PROMPT_VERSION,
+          disabledMessage: GREETING_DISABLED_MESSAGE,
+          variants: [],
+        };
+      }
+    },
+
+    async reviseGreeting(requestBody = {}) {
+      const serializedBody = serializeGreetingRequest(requestBody);
+      if (!serializedBody) {
+        return {
+          status: "invalid-request",
+          accountId: getStored(ACCOUNT_KEY),
+          promptVersion: GREETING_PROMPT_VERSION,
+          variants: [],
+        };
+      }
+
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/greetings/revise"), {
+          method: "POST",
+          headers: await withHeaders(),
+          body: serializedBody,
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (response.status === 400) {
+          return {
+            status: "invalid-request",
+            accountId: result.accountId || getStored(ACCOUNT_KEY),
+            promptVersion: result.promptVersion || GREETING_PROMPT_VERSION,
+            errors: Array.isArray(result.errors) ? result.errors : [],
+            variants: [],
+          };
+        }
+
+        if (response.status === 503) {
+          return {
+            status: "provider-not-configured",
+            accountId: result.accountId || getStored(ACCOUNT_KEY),
+            provider: null,
+            promptVersion: result.promptVersion || GREETING_PROMPT_VERSION,
+            disabledMessage: result.disabledMessage || result.message || GREETING_DISABLED_MESSAGE,
+            variants: [],
+          };
+        }
+
+        if (!response.ok) {
+          return normalizeGreetingResult({
+            ...result,
+            status: "failed",
+            reason: result.reason || "provider_error",
+          }, getStored(ACCOUNT_KEY));
+        }
+
+        return normalizeGreetingResult(result, getStored(ACCOUNT_KEY));
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          promptVersion: GREETING_PROMPT_VERSION,
+          disabledMessage: GREETING_DISABLED_MESSAGE,
+          variants: [],
+        };
+      }
+    },
+
     async createSubscriptionCheckout({ featureKey } = {}) {
       const normalizedFeatureKey = normalizePaidFeatureKey(featureKey);
       const accountId = getStored(ACCOUNT_KEY);
@@ -1715,6 +1876,157 @@ export function createFocusSyncClient({
       }
     },
 
+    async getInterestingTodayVersion({ countryCode = "RU", language = "ru" } = {}) {
+      const normalizedCountry = normalizeInterestingTodayCountryCode(countryCode) || "RU";
+      const normalizedLanguage = language === "ru" ? "ru" : "ru";
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, `/interesting-today/version?country=${encodeURIComponent(normalizedCountry)}&language=${encodeURIComponent(normalizedLanguage)}`));
+        if (!response.ok) {
+          throw new Error("Focus interesting today version load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          version: sanitizeText(result.version, 120),
+          countryCode: normalizeInterestingTodayCountryCode(result.countryCode) || normalizedCountry,
+          language: result.language === "ru" ? "ru" : "ru",
+          limits: normalizeInterestingTodayLimits(result.limits),
+          report: result.report && typeof result.report === "object" && !Array.isArray(result.report) ? result.report : {},
+          checkedAt: normalizeTimestamp(result.checkedAt),
+        };
+      } catch {
+        return {
+          status: "offline",
+          version: "",
+          countryCode: normalizedCountry,
+          language: normalizedLanguage,
+          limits: { events: 5, people: 6 },
+          report: {},
+          checkedAt: null,
+        };
+      }
+    },
+
+    async getTodayInterestingToday({ timezone = getCurrentTimezone() } = {}) {
+      const normalizedTimezone = normalizeTimezone(timezone);
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, `/interesting-today/today?timezone=${encodeURIComponent(normalizedTimezone)}`), {
+          headers: await withHeaders(),
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (response.status === 503 && result?.error === "interesting_today_catalog_unavailable") {
+          return {
+            status: "catalog-unavailable",
+            ...normalizeTodayInterestingTodayResponse(result, normalizedTimezone),
+          };
+        }
+
+        if (!response.ok) {
+          throw new Error("Focus interesting today load failed.");
+        }
+
+        return {
+          status: "ok",
+          ...normalizeTodayInterestingTodayResponse(result, normalizedTimezone),
+        };
+      } catch {
+        return {
+          status: "offline",
+          ...createEmptyTodayInterestingToday(normalizedTimezone),
+        };
+      }
+    },
+
+    async getInterestingTodayPreferences() {
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/interesting-today/preferences"), {
+          headers: await withHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Focus interesting today preferences load failed.");
+        }
+
+        const result = await response.json();
+        return {
+          status: "ok",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          preferences: normalizeInterestingTodayPreferences(result.preferences),
+          checkedAt: normalizeTimestamp(result.checkedAt),
+        };
+      } catch {
+        return {
+          status: "offline",
+          accountId: getStored(ACCOUNT_KEY),
+          preferences: createDefaultInterestingTodayPreferences(),
+          checkedAt: null,
+        };
+      }
+    },
+
+    async updateInterestingTodayPreferences(preferences = {}) {
+      const normalizedPreferences = normalizeInterestingTodayPreferences(preferences);
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/interesting-today/preferences"), {
+          method: "PUT",
+          headers: await withHeaders(),
+          body: JSON.stringify(normalizedPreferences),
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          return {
+            status: "invalid",
+            error: result.error || "invalid_interesting_today_preferences",
+            preferences: normalizeInterestingTodayPreferences(result.preferences),
+          };
+        }
+
+        return {
+          status: "saved",
+          accountId: result.accountId || getStored(ACCOUNT_KEY),
+          preferences: normalizeInterestingTodayPreferences(result.preferences),
+          checkedAt: normalizeTimestamp(result.checkedAt),
+        };
+      } catch {
+        return {
+          status: "offline",
+          error: "offline",
+          preferences: normalizedPreferences,
+        };
+      }
+    },
+
+    async getInterestingTodayDetail(recordType, recordId) {
+      const normalizedType = recordType === "event" ? "events" : recordType === "person" ? "people" : "";
+      const normalizedId = normalizeInterestingTodayId(recordId);
+      if (!normalizedType || !normalizedId) {
+        return { status: "invalid", record: null };
+      }
+
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, `/interesting-today/${normalizedType}/${encodeURIComponent(normalizedId)}`), {
+          headers: await withHeaders(),
+        });
+        if (!response.ok) {
+          throw new Error("Focus interesting today detail load failed.");
+        }
+        const result = await response.json();
+        return {
+          status: "ok",
+          record: normalizeInterestingTodayRecord(result.record, recordType),
+          checkedAt: normalizeTimestamp(result.checkedAt),
+        };
+      } catch {
+        return {
+          status: "offline",
+          record: null,
+        };
+      }
+    },
+
     async getPushConfig() {
       try {
         const response = await fetchImpl(apiUrl(apiBaseUrl, "/push/config"));
@@ -1884,6 +2196,91 @@ function serializePersonalScheduleRequest(requestBody) {
   }
 
   return serialized.length <= MAX_PERSONAL_SCHEDULE_REQUEST_LENGTH ? serialized : "";
+}
+
+function serializeGreetingRequest(requestBody) {
+  if (!requestBody || typeof requestBody !== "object" || Array.isArray(requestBody)) {
+    return "";
+  }
+
+  const body = {
+    ...requestBody,
+    promptVersion: typeof requestBody.promptVersion === "string"
+      ? requestBody.promptVersion
+      : GREETING_PROMPT_VERSION,
+  };
+  let serialized = "";
+  try {
+    serialized = JSON.stringify(body);
+  } catch {
+    return "";
+  }
+
+  return serialized.length <= MAX_GREETING_REQUEST_LENGTH ? serialized : "";
+}
+
+function normalizeGreetingResult(result = {}, fallbackAccountId = "") {
+  const status = normalizeGreetingResultStatus(result.status);
+  return {
+    status,
+    accountId: result.accountId || fallbackAccountId,
+    provider: typeof result.provider === "string" && result.provider.trim() ? result.provider.trim() : null,
+    promptVersion: typeof result.promptVersion === "string" ? result.promptVersion : GREETING_PROMPT_VERSION,
+    variants: Array.isArray(result.variants) ? result.variants.map(normalizeGreetingVariant).filter(Boolean).slice(0, 3) : [],
+    safety: normalizeGreetingSafety(result.safety),
+    warnings: Array.isArray(result.warnings) ? result.warnings.map(item => sanitizeText(item, 160)).filter(Boolean).slice(0, 12) : [],
+    errors: Array.isArray(result.errors) ? result.errors.map(item => sanitizeText(item, 120)).filter(Boolean).slice(0, 20) : [],
+    reason: typeof result.reason === "string" && result.reason.trim() ? result.reason.trim() : null,
+    disabledMessage: typeof result.disabledMessage === "string" && result.disabledMessage.trim()
+      ? result.disabledMessage.trim()
+      : typeof result.message === "string" && result.message.trim()
+        ? result.message.trim()
+        : GREETING_DISABLED_MESSAGE,
+    usage: normalizeGreetingUsage(result.usage),
+    checkedAt: normalizeIsoTimestamp(result.checkedAt),
+  };
+}
+
+function normalizeGreetingResultStatus(status) {
+  const normalized = String(status || "").trim().replace(/_/g, "-");
+  if (["generated", "provider-not-configured", "invalid-request", "failed", "offline"].includes(normalized)) {
+    return normalized;
+  }
+  return "failed";
+}
+
+function normalizeGreetingVariant(variant = {}, index = 0) {
+  if (!variant || typeof variant !== "object" || Array.isArray(variant)) return null;
+  const text = typeof variant.text === "string"
+    ? variant.text.replace(/\r\n/g, "\n").replace(/\n{4,}/g, "\n\n\n").trim().slice(0, 1800)
+    : "";
+  if (!text) return null;
+  return {
+    id: sanitizeText(variant.id, 120) || `variant-${index + 1}`,
+    title: sanitizeText(variant.title, 120) || `Вариант ${index + 1}`,
+    text,
+    tone: sanitizeText(variant.tone, 80) || "warm",
+    format: sanitizeText(variant.format, 80) || "plain_text",
+  };
+}
+
+function normalizeGreetingSafety(safety) {
+  if (!safety || typeof safety !== "object" || Array.isArray(safety)) {
+    return { validated: false, validationVersion: "" };
+  }
+  return {
+    validated: safety.validated === true,
+    validationVersion: sanitizeText(safety.validationVersion, 120),
+  };
+}
+
+function normalizeGreetingUsage(usage) {
+  if (!usage || typeof usage !== "object" || Array.isArray(usage)) return null;
+  return {
+    promptTokens: normalizeNonNegativeInteger(usage.promptTokens ?? usage.prompt_tokens),
+    completionTokens: normalizeNonNegativeInteger(usage.completionTokens ?? usage.completion_tokens),
+    totalTokens: normalizeNonNegativeInteger(usage.totalTokens ?? usage.total_tokens),
+  };
 }
 
 function normalizePersonalScheduleFeatures(features) {
@@ -2238,6 +2635,202 @@ function normalizeQuoteCategoryCode(value) {
 function normalizeQuoteIdValue(value) {
   const quoteId = String(value || "").trim();
   return QUOTE_ID_PATTERN.test(quoteId) ? quoteId : "";
+}
+
+function normalizeTodayInterestingTodayResponse(result, timezone = "UTC") {
+  const source = result && typeof result === "object" && !Array.isArray(result) ? result : {};
+  return {
+    localDate: normalizeLocalDate(source.localDate),
+    timezone: normalizeTimezone(source.timezone || timezone),
+    countryCode: normalizeInterestingTodayCountryCode(source.countryCode) || "RU",
+    language: source.language === "ru" ? "ru" : "ru",
+    catalogVersion: sanitizeText(source.catalogVersion, 120),
+    validFromUtc: normalizeTimestamp(source.validFromUtc),
+    validUntilUtc: normalizeTimestamp(source.validUntilUtc),
+    generationReason: sanitizeText(source.generationReason, 80),
+    compact: normalizeInterestingTodayCompact(source.compact),
+    limits: normalizeInterestingTodayLimits(source.limits),
+    availableEvents: Math.max(0, Math.floor(Number(source.availableEvents) || 0)),
+    availablePeople: Math.max(0, Math.floor(Number(source.availablePeople) || 0)),
+    preferences: normalizeInterestingTodayPreferences(source.preferences),
+    events: normalizeInterestingTodayRecords(source.events, "event", 5),
+    people: normalizeInterestingTodayRecords(source.people, "person", 6),
+  };
+}
+
+function createEmptyTodayInterestingToday(timezone = "UTC") {
+  return {
+    localDate: "",
+    timezone: normalizeTimezone(timezone),
+    countryCode: "RU",
+    language: "ru",
+    catalogVersion: "",
+    validFromUtc: null,
+    validUntilUtc: null,
+    generationReason: "",
+    compact: { events: 2, people: 2 },
+    limits: { events: 5, people: 6 },
+    availableEvents: 0,
+    availablePeople: 0,
+    preferences: createDefaultInterestingTodayPreferences(),
+    events: [],
+    people: [],
+  };
+}
+
+function normalizeInterestingTodayRecords(records, type, limit) {
+  return Array.isArray(records)
+    ? records.map(record => normalizeInterestingTodayRecord(record, type)).filter(Boolean).sort((first, second) => first.position - second.position).slice(0, limit)
+    : [];
+}
+
+function normalizeInterestingTodayRecord(record, expectedType = "") {
+  if (!record || typeof record !== "object" || Array.isArray(record)) {
+    return null;
+  }
+
+  const type = record.type === "event" || record.type === "person" ? record.type : expectedType;
+  if (expectedType && type !== expectedType) {
+    return null;
+  }
+
+  const id = normalizeInterestingTodayId(record.id);
+  const title = sanitizeText(record.title || record.name, 180);
+  const summary = sanitizeText(record.summary, 320);
+  const description = sanitizeText(record.description, 1600);
+  if (!id || !type || !title || !summary) {
+    return null;
+  }
+
+  const sources = normalizeInterestingTodaySources(record.sources);
+  return {
+    id,
+    type,
+    position: Math.max(1, Math.min(type === "event" ? 5 : 6, Math.floor(Number(record.position) || 1))),
+    month: Math.max(1, Math.min(12, Math.floor(Number(record.month) || 1))),
+    day: Math.max(1, Math.min(31, Math.floor(Number(record.day) || 1))),
+    year: normalizeInterestingTodayYear(record.year),
+    title,
+    name: sanitizeText(record.name, 180) || title,
+    summary,
+    description,
+    primaryCountryCode: normalizeInterestingTodayCountryCode(record.primaryCountryCode) || "WORLD",
+    countryCodes: normalizeInterestingTodayCountryCodes(record.countryCodes),
+    themeCodes: normalizeInterestingTodayThemeCodes(record.themeCodes),
+    themeLabels: normalizeInterestingTodayLabels(record.themeLabels),
+    significance: Math.max(1, Math.min(100, Math.floor(Number(record.significance) || 50))),
+    dateStatus: ["exact", "old_style", "approximate", "disputed"].includes(record.dateStatus) ? record.dateStatus : "exact",
+    sources,
+    birthYear: normalizeInterestingTodayYear(record.birthYear),
+    deathYear: normalizeInterestingTodayYear(record.deathYear),
+    lifeYears: sanitizeText(record.lifeYears, 40),
+  };
+}
+
+function normalizeInterestingTodayPreferences(preferences) {
+  const source = preferences && typeof preferences === "object" && !Array.isArray(preferences)
+    ? preferences
+    : {};
+  return {
+    countryCode: normalizeInterestingTodayCountryCode(source.countryCode) || "RU",
+    language: source.language === "ru" ? "ru" : "ru",
+    showEvents: source.showEvents !== false,
+    showPeople: source.showPeople !== false,
+  };
+}
+
+function createDefaultInterestingTodayPreferences() {
+  return {
+    countryCode: "RU",
+    language: "ru",
+    showEvents: true,
+    showPeople: true,
+  };
+}
+
+function normalizeInterestingTodayCompact(compact) {
+  const source = compact && typeof compact === "object" && !Array.isArray(compact) ? compact : {};
+  return {
+    events: Math.max(1, Math.min(5, Math.floor(Number(source.events) || 2))),
+    people: Math.max(1, Math.min(6, Math.floor(Number(source.people) || 2))),
+  };
+}
+
+function normalizeInterestingTodayLimits(limits) {
+  const source = limits && typeof limits === "object" && !Array.isArray(limits) ? limits : {};
+  return {
+    events: Math.max(1, Math.min(12, Math.floor(Number(source.events) || 5))),
+    people: Math.max(1, Math.min(12, Math.floor(Number(source.people) || 6))),
+  };
+}
+
+function normalizeInterestingTodaySources(sources) {
+  return Array.isArray(sources)
+    ? sources.map(normalizeInterestingTodaySource).filter(Boolean).slice(0, 5)
+    : [];
+}
+
+function normalizeInterestingTodaySource(source) {
+  if (!source || typeof source !== "object" || Array.isArray(source)) {
+    return null;
+  }
+
+  const id = normalizeInterestingTodayId(source.id);
+  const title = sanitizeText(source.title, 180);
+  const publisher = sanitizeText(source.publisher, 160);
+  const url = typeof source.url === "string" ? source.url.trim() : "";
+  if (!id || !title || !publisher || !url) {
+    return null;
+  }
+
+  return {
+    id,
+    title,
+    publisher,
+    url,
+    sourceType: sanitizeText(source.sourceType, 80),
+  };
+}
+
+function normalizeInterestingTodayId(value) {
+  const id = String(value || "").trim();
+  return INTERESTING_TODAY_ID_PATTERN.test(id) ? id : "";
+}
+
+function normalizeInterestingTodayCountryCodes(value) {
+  const seen = new Set();
+  return Array.isArray(value)
+    ? value.map(normalizeInterestingTodayCountryCode).filter(code => code && !seen.has(code) && seen.add(code)).slice(0, 8)
+    : [];
+}
+
+function normalizeInterestingTodayCountryCode(value) {
+  const code = String(value || "").trim().toUpperCase();
+  if (code === "WORLD") return code;
+  return INTERESTING_TODAY_COUNTRY_PATTERN.test(code) ? code : "";
+}
+
+function normalizeInterestingTodayThemeCodes(value) {
+  const seen = new Set();
+  return Array.isArray(value)
+    ? value.map(code => String(code || "").trim()).filter(code => INTERESTING_TODAY_THEME_PATTERN.test(code) && !seen.has(code) && seen.add(code)).slice(0, 6)
+    : [];
+}
+
+function normalizeInterestingTodayLabels(value) {
+  const seen = new Set();
+  return Array.isArray(value)
+    ? value.map(label => sanitizeText(label, 80)).filter(label => label && !seen.has(label) && seen.add(label)).slice(0, 6)
+    : [];
+}
+
+function normalizeInterestingTodayYear(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const year = Math.floor(Number(value));
+  return Number.isFinite(year) && year >= -4000 && year <= 3000 ? year : null;
 }
 
 function sanitizeQuoteSourceType(value) {

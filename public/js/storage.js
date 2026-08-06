@@ -9,6 +9,8 @@ export const BIRTHDAYS_KEY = "focusBirthdays";
 export const DIARY_KEY = "focusDiaryEntries";
 export const DIARY_PIN_KEY = "focusDiaryPin";
 export const QUOTE_CACHE_KEY = "focusDailyQuotesCache";
+export const QUOTE_HISTORY_CACHE_KEY = "focusDailyQuoteHistoryCache";
+export const INTERESTING_TODAY_CACHE_KEY = "focusInterestingTodayCache";
 export const HOLIDAY_CATALOG_CACHE_KEY = "focusHolidayCatalogCache";
 export const HOLIDAY_PREFERENCES_CACHE_KEY = "focusHolidayPreferencesCache";
 export const HOLIDAY_RELIGIOUS_PREFERENCES_KEY = "focusHolidayReligiousPreferences";
@@ -184,6 +186,32 @@ export function createFocusStorage({
         ? cache
         : null;
       await putValue(QUOTE_CACHE_KEY, normalizedCache);
+      return normalizedCache;
+    },
+
+    async loadDailyQuoteHistoryCache() {
+      const cache = await getValue(QUOTE_HISTORY_CACHE_KEY);
+      return cache && typeof cache === "object" && !Array.isArray(cache) ? cache : null;
+    },
+
+    async saveDailyQuoteHistoryCache(cache) {
+      const normalizedCache = cache && typeof cache === "object" && !Array.isArray(cache)
+        ? cache
+        : null;
+      await putValue(QUOTE_HISTORY_CACHE_KEY, normalizedCache);
+      return normalizedCache;
+    },
+
+    async loadInterestingTodayCache() {
+      const cache = await getValue(INTERESTING_TODAY_CACHE_KEY);
+      return cache && typeof cache === "object" && !Array.isArray(cache) ? cache : null;
+    },
+
+    async saveInterestingTodayCache(cache) {
+      const normalizedCache = cache && typeof cache === "object" && !Array.isArray(cache)
+        ? cache
+        : null;
+      await putValue(INTERESTING_TODAY_CACHE_KEY, normalizedCache);
       return normalizedCache;
     },
 

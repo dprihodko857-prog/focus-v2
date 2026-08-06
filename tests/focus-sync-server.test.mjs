@@ -20,6 +20,18 @@ import {
   validateQuoteProfanity,
 } from "../server/sync-server.mjs";
 
+import {
+  DisabledGreetingAIProvider,
+  GigaChatGreetingAIProvider,
+  GREETING_DISABLED_MESSAGE,
+  GREETING_PROMPT_VERSION,
+} from "../server/greeting-ai-provider.mjs";
+
+import {
+  DEFAULT_INTERESTING_TODAY_CATALOG,
+  INTERESTING_TODAY_CATALOG_VERSION,
+} from "../server/interesting-today-catalog.mjs";
+
 const SAFE_PROFANITY_TEST_MARKER = String.fromCodePoint(0x0442, 0x0435, 0x0441, 0x0442, 0x043c, 0x0430, 0x0440, 0x043a, 0x0435, 0x0440);
 const SAFE_PROFANITY_RULES = createQuoteProfanityRulesFromTerms([SAFE_PROFANITY_TEST_MARKER], { idPrefix: "safe-marker" });
 
@@ -248,6 +260,144 @@ test("quotes API lists recent quote history sets", async () => {
     assert.equal(history.sets[0].quotes.length, 5);
     assert.equal(history.sets[0].quotes[0].isFavorite, true);
     assert.ok(!history.sets.some(set => set.localDate === "2026-07-01"));
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("interesting today API creates one stable country date set across accounts", async () => {
+  const db = createSyncDatabase(":memory:");
+  const firstAccountId = "account-interesting-today-1";
+  const secondAccountId = "account-interesting-today-2";
+  createTestAccount(db, firstAccountId);
+  createTestAccount(db, secondAccountId);
+  db.replaceInterestingTodayCatalog(DEFAULT_INTERESTING_TODAY_CATALOG.filter(record => ![
+    "it-event-1943-08-05-orel-belgorod-liberated",
+    "it-event-1858-08-05-first-transatlantic-cable",
+    "it-event-1962-08-05-nelson-mandela-arrested",
+    "it-event-2010-08-05-san-jose-mine-collapse",
+  ].includes(record.id)));
+  db.saveDailyInterestingTodaySet({
+    set: {
+      id: "stale-interesting-set",
+      countryCode: "RU",
+      language: "ru",
+      localDate: "2026-08-05",
+      timezone: "Europe/Moscow",
+      validFromUtc: "2026-08-04T21:00:00.000Z",
+      validUntilUtc: "2026-08-05T21:00:00.000Z",
+      generationReason: "scheduled_midnight",
+      status: "ready",
+      catalogVersion: INTERESTING_TODAY_CATALOG_VERSION,
+      createdAt: "2026-08-04T21:00:00.000Z",
+    },
+    items: [{
+      setId: "stale-interesting-set",
+      recordId: "it-event-1963-08-05-test-ban-treaty",
+      recordType: "event",
+      position: 1,
+      createdAt: "2026-08-04T21:00:00.000Z",
+    }],
+  });
+  let nextId = 0;
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-04T21:05:00.000Z",
+    createId: () => `interesting-set-${nextId += 1}`,
+  });
+  const baseUrl = await listen(server);
+
+  try {
+    const firstResponse = await fetch(`${baseUrl}/api/interesting-today/today?timezone=Europe%2FMoscow`, {
+      headers: {
+        "x-focus-account": firstAccountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(firstResponse.status, 200);
+    const first = await firstResponse.json();
+    assert.equal(first.localDate, "2026-08-05");
+    assert.equal(first.countryCode, "RU");
+    assert.equal(first.catalogVersion, INTERESTING_TODAY_CATALOG_VERSION);
+    assert.equal(first.validFromUtc, "2026-08-04T21:00:00.000Z");
+    assert.equal(first.availableEvents, 5);
+    assert.equal(first.events.length, 5);
+    assert.equal(first.events[0].id, "it-event-1963-08-05-test-ban-treaty");
+    assert.ok(first.events.some(event => event.id === "it-event-1943-08-05-orel-belgorod-liberated"));
+    assert.ok(first.events.some(event => event.id === "it-event-1858-08-05-first-transatlantic-cable"));
+    assert.ok(first.events.some(event => event.id === "it-event-1962-08-05-nelson-mandela-arrested"));
+    assert.ok(first.events.some(event => event.id === "it-event-2010-08-05-san-jose-mine-collapse"));
+    assert.equal(first.people[0].id, "it-person-1844-08-05-ilya-repin");
+    assert.ok(first.events.every(event => event.sources.length > 0));
+    assert.ok(first.people.every(person => person.sources.length > 0));
+
+    const secondResponse = await fetch(`${baseUrl}/api/interesting-today/today?timezone=Europe%2FMoscow`, {
+      headers: {
+        "x-focus-account": secondAccountId,
+        "x-focus-device": "phone",
+      },
+    });
+    assert.equal(secondResponse.status, 200);
+    const second = await secondResponse.json();
+    assert.deepEqual(second.events.map(event => event.id), first.events.map(event => event.id));
+    assert.deepEqual(second.people.map(person => person.id), first.people.map(person => person.id));
+    assert.equal(nextId, 1);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("interesting today preferences hide one section and details expose sources", async () => {
+  const db = createSyncDatabase(":memory:");
+  const accountId = "account-interesting-preferences";
+  createTestAccount(db, accountId);
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-04T21:05:00.000Z",
+    createId: () => "interesting-set-preferences",
+  });
+  const baseUrl = await listen(server);
+  const headers = {
+    "content-type": "application/json",
+    "x-focus-account": accountId,
+    "x-focus-device": "desktop",
+  };
+
+  try {
+    const saveResponse = await fetch(`${baseUrl}/api/interesting-today/preferences`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ countryCode: "RU", showEvents: true, showPeople: false }),
+    });
+    assert.equal(saveResponse.status, 200);
+    assert.equal((await saveResponse.json()).preferences.showPeople, false);
+
+    const invalidResponse = await fetch(`${baseUrl}/api/interesting-today/preferences`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ countryCode: "RU", showEvents: false, showPeople: false }),
+    });
+    assert.equal(invalidResponse.status, 400);
+    assert.equal((await invalidResponse.json()).error, "interesting_today_all_sections_hidden");
+
+    const todayResponse = await fetch(`${baseUrl}/api/interesting-today/today?timezone=Europe%2FMoscow`, {
+      headers,
+    });
+    assert.equal(todayResponse.status, 200);
+    const today = await todayResponse.json();
+    assert.ok(today.events.length > 0);
+    assert.deepEqual(today.people, []);
+
+    const detailResponse = await fetch(`${baseUrl}/api/interesting-today/events/${today.events[0].id}`, {
+      headers,
+    });
+    assert.equal(detailResponse.status, 200);
+    const detail = await detailResponse.json();
+    assert.equal(detail.record.id, today.events[0].id);
+    assert.ok(detail.record.description);
+    assert.ok(detail.record.sources[0].url.startsWith("https://"));
   } finally {
     await close(server);
     db.close();
@@ -1980,6 +2130,200 @@ test("sync personal schedule generation validates request and calls provider", a
     await close(server);
     db.close();
   }
+});
+
+test("sync greeting status reports mock readiness without provider model or secrets", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-06T09:05:00.000Z",
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-greeting-status";
+  createTestAccount(db, accountId, "2026-08-06T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/greetings/status`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.deepEqual(result, {
+      accountId,
+      providerConfigured: true,
+      provider: "mock",
+      promptVersion: GREETING_PROMPT_VERSION,
+      disabledMessage: null,
+      checkedAt: "2026-08-06T09:05:00.000Z",
+    });
+    assert.equal("providerModel" in result, false);
+    assert.equal("authorizationKey" in result, false);
+    assert.equal("accessToken" in result, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync greeting generation validates request and returns server-validated mock variants", async () => {
+  const db = createSyncDatabase(":memory:");
+  let idCounter = 0;
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-06T09:05:00.000Z",
+    createId: () => `greeting-id-${idCounter += 1}`,
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-greeting-generate";
+  createTestAccount(db, accountId, "2026-08-06T08:00:00.000Z");
+
+  try {
+    const invalidResponse = await fetch(`${baseUrl}/api/sync/greetings/generate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify({ scenario: "birthday" }),
+    });
+
+    assert.equal(invalidResponse.status, 400);
+    assert.equal((await invalidResponse.json()).error, "invalid_greeting_request");
+
+    const response = await fetch(`${baseUrl}/api/sync/greetings/generate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createBirthdayGreetingRequest()),
+    });
+
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.accountId, accountId);
+    assert.equal(result.status, "generated");
+    assert.equal(result.provider, "mock");
+    assert.equal(result.promptVersion, GREETING_PROMPT_VERSION);
+    assert.equal(result.variants.length, 3);
+    assert.equal(new Set(result.variants.map(variant => variant.text)).size, 3);
+    assert.equal(result.safety.validated, true);
+    assert.equal("draft" in result, false);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync greeting endpoints expose controlled disabled state when provider is unavailable", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-06T09:05:00.000Z",
+    greetingAIProvider: new DisabledGreetingAIProvider(),
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-greeting-disabled";
+  createTestAccount(db, accountId, "2026-08-06T08:00:00.000Z");
+
+  try {
+    const statusResponse = await fetch(`${baseUrl}/api/sync/greetings/status`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(statusResponse.status, 200);
+    assert.deepEqual(await statusResponse.json(), {
+      accountId,
+      providerConfigured: false,
+      provider: null,
+      promptVersion: GREETING_PROMPT_VERSION,
+      disabledMessage: GREETING_DISABLED_MESSAGE,
+      checkedAt: "2026-08-06T09:05:00.000Z",
+    });
+
+    const generateResponse = await fetch(`${baseUrl}/api/sync/greetings/generate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createBirthdayGreetingRequest()),
+    });
+    assert.equal(generateResponse.status, 503);
+    const disabled = await generateResponse.json();
+    assert.equal(disabled.status, "provider_not_configured");
+    assert.equal(disabled.disabledMessage, GREETING_DISABLED_MESSAGE);
+    assert.deepEqual(disabled.variants, []);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("GigaChat greeting provider uses server token cache and structured chat payload", async () => {
+  const calls = [];
+  const now = new Date("2026-08-06T09:05:00.000Z");
+  const provider = new GigaChatGreetingAIProvider({
+    authorizationKey: "test-authorization-key-with-enough-length",
+    scope: "GIGACHAT_API_PERS",
+    model: "GigaChat-Test",
+    baseUrl: "https://gigachat.test",
+    oauthUrl: "https://gigachat-auth.test/oauth",
+    timeoutMs: 5000,
+    retryAttempts: 0,
+    rateLimitPerMinute: 30,
+    now: () => now,
+    createId: () => `rq-${calls.length + 1}`,
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url, options });
+      if (url === "https://gigachat-auth.test/oauth") {
+        return jsonResponse(200, {
+          access_token: "access-token-with-enough-length",
+          expires_at: now.getTime() + 30 * 60 * 1000,
+        });
+      }
+      return jsonResponse(200, {
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              status: "generated",
+              variants: [
+                { id: "one", title: "One", text: "Мария, поздравляю с днем рождения! Желаю радости и спокойствия.", tone: "warm", format: "plain_text" },
+                { id: "two", title: "Two", text: "Мария, с днем рождения! Пусть рядом будет тепло и поддержка.", tone: "warm", format: "plain_text" },
+                { id: "three", title: "Three", text: "Мария, пусть этот день принесет добрые слова и хорошее настроение.", tone: "warm", format: "plain_text" },
+              ],
+              warnings: [],
+            }),
+          },
+        }],
+        usage: { prompt_tokens: 12, completion_tokens: 24, total_tokens: 36 },
+      });
+    },
+  });
+
+  const first = await provider.generateGreeting(createBirthdayGreetingRequest());
+  const second = await provider.generateGreeting(createBirthdayGreetingRequest({ recipientName: "Анна" }));
+
+  assert.equal(first.status, "generated");
+  assert.equal(second.status, "generated");
+  assert.equal(calls.filter(call => call.url === "https://gigachat-auth.test/oauth").length, 1);
+  assert.equal(calls.filter(call => call.url === "https://gigachat.test/v1/chat/completions").length, 2);
+  assert.equal(calls[0].options.headers.Authorization, "Basic test-authorization-key-with-enough-length");
+  assert.equal(calls[0].options.headers.RqUID, "rq-1");
+  const chatBody = JSON.parse(calls[1].options.body);
+  assert.equal(chatBody.model, "GigaChat-Test");
+  assert.equal(chatBody.response_format.type, "json_schema");
+  assert.equal(chatBody.response_format.strict, true);
+  assert.equal(calls[1].options.headers.Authorization, "Bearer access-token-with-enough-length");
 });
 
 test("sync transcription events endpoint lists diagnostics without audio or text payloads", async () => {
@@ -4951,6 +5295,41 @@ function createYooKassaPaymentNotification({
     type: "notification",
     event,
     object: payment,
+  };
+}
+
+function createBirthdayGreetingRequest({ recipientName = "Мария" } = {}) {
+  return {
+    scenario: "birthday",
+    recipient: {
+      name: recipientName,
+      role: "коллега",
+    },
+    event: {
+      title: "День рождения",
+      date: "2026-08-06",
+    },
+    context: {
+      birthday: {
+        name: recipientName,
+        dateOfBirth: "1990-08-06",
+        age: 36,
+        note: "любит спокойные личные поздравления",
+      },
+      personalNote: "без выдуманных фактов",
+      allowedFacts: ["День рождения", "коллега"],
+    },
+    bans: {
+      mentionAge: true,
+      personalTopics: [],
+    },
+    sender: "команда Focus",
+    addressMode: "vy",
+    tone: "warm",
+    length: "medium",
+    format: "plain_text",
+    variantCount: 3,
+    promptVersion: GREETING_PROMPT_VERSION,
   };
 }
 

@@ -61,8 +61,8 @@ The history needed a clear read-only drill-down with every saved day and block.
 
 ## Result
 
-Implemented locally on 2026-08-06 with service worker `focus-pwa-v166`.
+Implemented locally on 2026-08-06 with service worker `focus-pwa-v167`.
 Focused Personal Rhythm checks passed 25/25, expanded affected checks passed
 80/80, browser smoke verified the full imported rhythm detail on desktop and
 390px mobile with 4 days, 12 blocks, and no horizontal overflow, and full local
-regression passed 297/297. No server deploy, commit, or git push.
+regression passed 298/298. No server deploy, commit, or git push.

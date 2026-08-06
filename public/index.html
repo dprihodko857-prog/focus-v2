@@ -24,8 +24,8 @@
   <link rel="apple-touch-startup-image" href="/assets/splash/iphone-15-pro-max-portrait.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" />
   <link rel="apple-touch-startup-image" href="/assets/splash/ipad-pro-11-portrait.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
   <link rel="apple-touch-startup-image" href="/assets/splash/ipad-pro-12-portrait.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" />
-  <link rel="stylesheet" href="/css/tokens.css?v=focus-20260804-3" />
-  <link rel="stylesheet" href="/css/app.css?v=focus-20260806-quote-share-icon" />
+  <link rel="stylesheet" href="/css/tokens.css?v=focus-20260805-interesting-scroll" />
+  <link rel="stylesheet" href="/css/app.css?v=focus-20260806-holiday-save-state-merge" />
 </head>
 <body>
   <div class="app-shell" data-theme="warm">
@@ -125,41 +125,16 @@
           </article>
 
           <section class="labels-row glass-panel" id="labelsRow" aria-label="Метки"></section>
-          <section class="interesting glass-panel">
-            <div class="section-title">
-              <h2>Интересное сегодня</h2>
-              <button class="icon-button icon-button--tiny" type="button" aria-label="Свернуть"><span class="icon icon-chevron"></span></button>
-            </div>
-            <div class="interesting__grid">
-              <article>
-                <h3>В этот день родились</h3>
-                <ul>
-                  <li><strong>Иосиф Бродский</strong><span>поэт, эссеист</span></li>
-                  <li><strong>Кайли Миноуг</strong><span>певица</span></li>
-                </ul>
-              </article>
-              <article>
-                <h3>События дня</h3>
-                <ul>
-                  <li><strong>1918</strong><span>учреждена пограничная служба</span></li>
-                  <li><strong>1987</strong><span>приземление Матиаса Руста</span></li>
-                </ul>
-              </article>
-            </div>
-          </section>
-        </div>
 
-        <aside class="side-stack">
           <article class="focus-card summary-card">
             <div class="section-title">
               <h2>Сводка на сегодня</h2>
-              <button class="icon-button icon-button--tiny" type="button" aria-label="Свернуть"><span class="icon icon-chevron"></span></button>
             </div>
             <div class="summary-list" id="summaryList"></div>
-            <div class="thought-card">
+            <button class="thought-card" type="button" data-open-modal="notes" aria-label="Открыть заметки">
               <span>Вернуться к мысли</span>
               <strong>Подготовить план поездки в горы</strong>
-            </div>
+            </button>
           </article>
 
           <article class="focus-card tasks-card">
@@ -169,29 +144,20 @@
             </div>
             <div class="task-list" id="taskList"></div>
           </article>
-        </aside>
-      </section>
 
-      <section class="interesting glass-panel interesting--legacy" hidden>
-        <div class="section-title">
-          <h2>Интересное сегодня</h2>
-          <button class="icon-button icon-button--tiny" type="button" aria-label="Свернуть"><span class="icon icon-chevron"></span></button>
-        </div>
-        <div class="interesting__grid">
-          <article>
-            <h3>В этот день родились</h3>
-            <ul>
-              <li><strong>Иосиф Бродский</strong><span>поэт, эссеист</span></li>
-              <li><strong>Кайли Миноуг</strong><span>певица</span></li>
-            </ul>
-          </article>
-          <article>
-            <h3>События дня</h3>
-            <ul>
-              <li><strong>1918</strong><span>учреждена пограничная служба</span></li>
-              <li><strong>1987</strong><span>приземление Матиаса Руста</span></li>
-            </ul>
-          </article>
+          <section class="interesting glass-panel" id="interestingToday">
+            <div class="section-title">
+              <h2>Интересное сегодня</h2>
+              <button class="icon-button icon-button--tiny interesting__toggle" id="interestingToggleButton" type="button" aria-label="Свернуть раздел Интересное сегодня" aria-controls="interestingTodayBody" aria-expanded="true"><span class="icon icon-chevron"></span></button>
+            </div>
+            <p class="interesting__status" id="interestingTodayStatus">Загружаем сегодняшнюю подборку.</p>
+            <div class="interesting__grid" id="interestingTodayBody">
+              <article class="interesting-empty">
+                <strong>Подборка загружается</strong>
+                <span>Focus проверяет серверный каталог и локальный кеш.</span>
+              </article>
+            </div>
+          </section>
         </div>
       </section>
     </main>
@@ -319,6 +285,58 @@
         </div>
       </section>
 
+      <section class="focus-modal focus-modal--wide" id="interestingTodayModal" role="dialog" aria-modal="true" aria-labelledby="interestingTodayTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Интересное сегодня</span>
+            <h2 id="interestingTodayTitle">Исторические события и люди дня</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <div class="interesting-modal-panel">
+            <div class="quotes-panel__head">
+              <p id="interestingTodayModalStatus">Загружаем сегодняшнюю подборку.</p>
+            </div>
+            <div class="interesting-modal-list-root" id="interestingTodayFullList" aria-live="polite"></div>
+          </div>
+
+          <div class="quote-preferences-panel interesting-preferences-panel">
+            <div class="quote-preferences-panel__head">
+              <div>
+                <span class="modal-kicker">Настройки</span>
+                <h3>Видимость блоков</h3>
+              </div>
+              <button class="primary-button primary-button--compact" type="button" id="interestingTodayPreferencesSaveButton">Сохранить</button>
+            </div>
+            <p id="interestingTodayPreferencesStatus">Можно скрыть любой из двух блоков.</p>
+            <div class="interesting-settings" id="interestingTodaySettings"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="focus-modal" id="interestingTodayDetailModal" role="dialog" aria-modal="true" aria-labelledby="interestingTodayDetailTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Подробная карточка</span>
+            <h2 id="interestingTodayDetailTitle">Подробности</h2>
+          </div>
+          <div class="modal-head-actions">
+            <button class="icon-button" type="button" aria-label="Назад к списку интересного сегодня" title="Назад" data-back-to-interesting-today>
+              <span class="icon icon-arrow-left"></span>
+            </button>
+            <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+              <span class="icon icon-close"></span>
+            </button>
+          </div>
+        </header>
+
+        <div class="modal-body" id="interestingTodayDetailBody"></div>
+      </section>
+
       <section class="focus-modal focus-modal--wide" id="holidaysModal" role="dialog" aria-modal="true" aria-labelledby="holidaysTitle" hidden>
         <header class="modal-head">
           <div>
@@ -418,14 +436,14 @@
                 <span class="modal-kicker">Шаг 5</span>
                 <h3>Подтверждение</h3>
               </div>
+              <button class="primary-button primary-button--compact" type="button" id="holidaySettingsSaveButton">Сохранить</button>
             </div>
             <p id="holidaySettingsSummary">Страна календаря: Россия.</p>
           </div>
         </div>
 
-        <footer class="modal-actions">
+        <footer class="modal-actions" id="holidaySettingsActions">
           <button class="secondary-button" type="button" id="holidaySettingsSkipButton">Пропустить</button>
-          <button class="primary-button" type="button" id="holidaySettingsSaveButton">Сохранить</button>
         </footer>
       </section>
 
@@ -663,6 +681,7 @@
         </div>
 
         <footer class="modal-actions">
+          <button class="secondary-button" type="button" id="diaryUnlockChangePinButton">Изменить PIN</button>
           <button class="primary-button" type="button" id="diaryUnlockButton">Открыть дневник</button>
         </footer>
       </section>
@@ -671,7 +690,7 @@
         <header class="modal-head">
           <div>
             <span class="modal-kicker">Защита дневника</span>
-            <h2 id="diaryPinTitle">Установить PIN дневника</h2>
+            <h2 id="diaryPinTitle">Создать PIN дневника</h2>
           </div>
           <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
             <span class="icon icon-close"></span>
@@ -688,18 +707,18 @@
 
           <div class="modal-grid">
             <label class="field-block diary-pin-field">
-              <span>Новый PIN</span>
+              <span id="diaryPinNewLabel">PIN</span>
               <input id="diaryPinNew" type="password" inputmode="numeric" autocomplete="new-password" maxlength="4" pattern="[0-9]{4}" placeholder="••••" />
             </label>
             <label class="field-block diary-pin-field">
-              <span>Повтор PIN</span>
+              <span id="diaryPinConfirmLabel">Повтор PIN</span>
               <input id="diaryPinConfirm" type="password" inputmode="numeric" autocomplete="new-password" maxlength="4" pattern="[0-9]{4}" placeholder="••••" />
             </label>
           </div>
         </div>
 
         <footer class="modal-actions">
-          <button class="primary-button" type="button" id="diaryPinSaveButton">Установить PIN</button>
+          <button class="primary-button" type="button" id="diaryPinSaveButton">Создать PIN</button>
         </footer>
       </section>
 
@@ -817,7 +836,7 @@
               <h3>Личный дневник</h3>
               <p id="diaryPinSummary">PIN пока не установлен. Дневник предложит создать 4-значный код при первом входе.</p>
             </div>
-            <button class="secondary-button" type="button" id="diaryPinSetupButton">Установить PIN</button>
+            <button class="secondary-button" type="button" id="diaryPinSetupButton">Создать PIN</button>
           </div>
 
           <div class="install-quality-panel">
@@ -878,7 +897,7 @@
             <article class="useful-card personal-schedule-feature" id="personalScheduleFeature">
               <span class="icon icon-sparkles" aria-hidden="true"></span>
               <div class="personal-schedule-feature__main">
-                <h3>Идеальное расписание</h3>
+                <h3>Персональный ритм дня</h3>
                 <p>Ответь на несколько вопросов — Focus подготовит удобный план дня или недели с учётом твоих целей, обязанностей и ритма.</p>
               </div>
               <div class="personal-schedule-feature__actions">
@@ -913,8 +932,8 @@
       <section class="focus-modal focus-modal--wide" id="personalScheduleModal" role="dialog" aria-modal="true" aria-labelledby="personalScheduleTitle" hidden>
         <header class="modal-head">
           <div>
-            <span class="modal-kicker">Идеальное расписание</span>
-            <h2 id="personalScheduleTitle">Идеальное расписание</h2>
+            <span class="modal-kicker">Персональный ритм дня</span>
+            <h2 id="personalScheduleTitle">Персональный ритм дня</h2>
           </div>
           <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
             <span class="icon icon-close"></span>
@@ -1006,6 +1025,24 @@
         </header>
 
         <div class="modal-body" id="holidayEventBody"></div>
+      </section>
+
+      <section class="focus-modal focus-modal--wide" id="greetingAssistantModal" role="dialog" aria-modal="true" aria-labelledby="greetingAssistantTitle" hidden>
+        <header class="modal-head">
+          <div>
+            <span class="modal-kicker">Помощник поздравлений</span>
+            <h2 id="greetingAssistantTitle">Поздравление</h2>
+          </div>
+          <button class="modal-close icon-button" type="button" aria-label="Закрыть" data-close-modal>
+            <span class="icon icon-close"></span>
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <p class="modal-hint" id="greetingAssistantStatus">Анкету можно сохранить и продолжить позднее.</p>
+          <div class="greeting-assistant-shell" id="greetingAssistantBody" aria-live="polite"></div>
+        </div>
+        <footer class="modal-actions" id="greetingAssistantActions"></footer>
       </section>
 
       <section class="focus-modal focus-modal--wide focus-modal--week" id="weekViewModal" role="dialog" aria-modal="true" aria-labelledby="weekViewTitle" hidden>
@@ -1186,6 +1223,6 @@
   </div>
 
   <script src="/js/pwa.js?v=focus-20260804-3" defer></script>
-  <script src="/js/app.js?v=focus-20260806-quote-email-fallbacks" type="module"></script>
+  <script src="/js/app.js?v=focus-20260806-quote-history-local" type="module"></script>
 </body>
 </html>

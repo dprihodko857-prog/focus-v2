@@ -5,6 +5,7 @@ import {
   PERSONAL_SCHEDULE_BIG_FIVE_QUESTIONS,
   PERSONAL_SCHEDULE_PROMPT_VERSION,
   calculateBigFiveScores,
+  cleanupPersonalScheduleImportedTasks,
   collectPersonalScheduleExistingIntervals,
   createDefaultPersonalScheduleIntake,
   createDeterministicScheduleDraft,
@@ -82,6 +83,67 @@ test("deterministic engine creates one quick variant and three deep variants", (
   assert.equal(quick.variants[0].validation.ok, true);
   assert.ok(quick.variants[0].blocks.some(block => block.category === "rest"));
   assert.equal(hasOverlappingBlocks(quick.variants[0].blocks), false);
+});
+
+test("energy peak moves the primary focus block toward the selected time", () => {
+  const defaultIntake = createDefaultPersonalScheduleIntake();
+  const base = {
+    ...defaultIntake,
+    work: { ...defaultIntake.work, type: "none" },
+  };
+  const morning = createDeterministicScheduleDraft({
+    intake: { ...base, energy: { ...base.energy, peak: "morning" } },
+    variantCount: 1,
+    createId: prefix => `${prefix}-morning`,
+  });
+  const day = createDeterministicScheduleDraft({
+    intake: { ...base, energy: { ...base.energy, peak: "day" } },
+    variantCount: 1,
+    createId: prefix => `${prefix}-day`,
+  });
+  const morningFocus = morning.variants[0].blocks.find(block => block.category === "focus");
+  const dayFocus = day.variants[0].blocks.find(block => block.category === "focus");
+
+  assert.equal(morningFocus.startTime, "08:30");
+  assert.equal(dayFocus.startTime, "13:00");
+  assert.ok(dayFocus.startMinute > morningFocus.startMinute);
+});
+
+test("Big Five tuning changes the recommended local rhythm style", () => {
+  const defaultIntake = createDefaultPersonalScheduleIntake();
+  const intake = {
+    ...defaultIntake,
+    work: { ...defaultIntake.work, type: "none" },
+    goals: [{
+      title: "Сложная цель",
+      category: "focus",
+      priority: "high",
+      timesPerWeek: 3,
+      minimumMinutes: 30,
+      desiredMinutes: 120,
+      preferredTime: "morning",
+      splittable: false,
+    }],
+  };
+  const recovery = createDeterministicScheduleDraft({
+    intake,
+    bigFiveScores: createTestBigFiveScores({ conscientiousness: 2, emotional_sensitivity: 5 }),
+    variantCount: 1,
+    createId: prefix => `${prefix}-recovery`,
+  });
+  const structured = createDeterministicScheduleDraft({
+    intake,
+    bigFiveScores: createTestBigFiveScores({ conscientiousness: 5, emotional_sensitivity: 2 }),
+    variantCount: 1,
+    createId: prefix => `${prefix}-structured`,
+  });
+  const recoveryFocus = recovery.variants[0].blocks.find(block => block.category === "focus");
+  const structuredFocus = structured.variants[0].blocks.find(block => block.category === "focus");
+
+  assert.equal(recovery.variants[0].title, "Свободнее");
+  assert.equal(structured.variants[0].title, "С фокус-утром");
+  assert.equal(recoveryFocus.endMinute - recoveryFocus.startMinute, 50);
+  assert.equal(structuredFocus.endMinute - structuredFocus.startMinute, 70);
 });
 
 test("draft validation blocks fixed conflicts and sleep below the requested minimum", () => {
@@ -227,11 +289,15 @@ test("import batch writes existing Focus entities and rollback removes only impo
   assert.equal(batchResult.ok, true);
   assert.equal(batchResult.batch.entities.schedules.length, 1);
   assert.ok(batchResult.batch.entities.tasks.length > 0);
-  assert.match(batchResult.batch.entities.schedules[0].note, /Идеальное расписание/);
+  assert.match(batchResult.batch.entities.schedules[0].note, /Персональный ритм дня/);
   assert.doesNotMatch(batchResult.batch.entities.schedules[0].note, /Personal Schedule Planner/);
-  assert.equal(batchResult.batch.entities.schedules[0].details["Источник"], "Идеальное расписание");
+  assert.equal(batchResult.batch.entities.schedules[0].details["Источник"], "Персональный ритм дня");
   assert.equal(batchResult.batch.entities.tasks[0].source, "personal_schedule_planner");
+  assert.match(batchResult.batch.entities.tasks[0].title, /^\d{2}:\d{2}-\d{2}:\d{2} · /);
+  assert.match(batchResult.batch.entities.tasks[0].label, /Персональный ритм/);
+  assert.match(batchResult.batch.entities.tasks[0].dateKey, /^\d{4}-\d{2}-\d{2}$/);
   assert.equal(batchResult.batch.entities.reminders[0].source, "personal_schedule_planner");
+  assert.match(batchResult.batch.entities.reminders[0].title, /^\d{2}:\d{2}-\d{2}:\d{2} · /);
 
   const applied = applyPersonalScheduleImportBatch({
     batch: batchResult.batch,
@@ -254,6 +320,76 @@ test("import batch writes existing Focus entities and rollback removes only impo
   assert.equal(rolledBack.schedules.some(item => item.id === batchResult.batch.entities.schedules[0].id), false);
 });
 
+test("imported Personal Rhythm tasks keep block date, time, and category context", () => {
+  const intake = createDefaultPersonalScheduleIntake(new Date("2026-08-05T09:00:00.000Z"));
+  intake.period = {
+    ...intake.period,
+    type: "full_week",
+    startDate: "2026-08-05",
+    endDate: "2026-08-11",
+  };
+  intake.work = {
+    ...intake.work,
+    type: "fixed",
+    workdays: [1, 2, 3, 4, 5],
+    startTime: "09:00",
+    endTime: "18:00",
+  };
+
+  let nextId = 0;
+  const draft = createDeterministicScheduleDraft({
+    intake,
+    now: new Date("2026-08-05T09:00:00.000Z"),
+    createId: prefix => `${prefix}-${nextId += 1}`,
+  });
+  const batchResult = createPersonalScheduleImportBatch({
+    draft,
+    selectedVariantId: draft.selectedVariantId,
+    includeTasks: true,
+    includeReminders: true,
+    now: new Date("2026-08-05T09:00:00.000Z"),
+    createId: prefix => `${prefix}-${nextId += 1}`,
+  });
+
+  assert.equal(batchResult.ok, true);
+  const tasks = batchResult.batch.entities.tasks;
+  assert.ok(tasks.length > 1);
+  assert.ok(new Set(tasks.map(task => task.dateKey)).size > 1);
+  assert.ok(tasks.some(task => task.dateKey === "2026-08-05" && task.title.includes("Рабочий блок")));
+  assert.ok(tasks.every(task => /^\d{2}:\d{2}-\d{2}:\d{2} · /.test(task.title)));
+  assert.ok(tasks.every(task => task.label.includes("Персональный ритм")));
+  assert.ok(tasks.every(task => task.label !== "Личное"));
+  assert.ok(batchResult.batch.entities.reminders.every(reminder => reminder.scheduledAt.startsWith("2026-")));
+});
+
+test("cleanup removes only tasks created by Personal Rhythm imports", () => {
+  const cleaned = cleanupPersonalScheduleImportedTasks({
+    tasks: [
+      { id: "user-task", title: "User task" },
+      { id: "batch-task", title: "Old imported task" },
+      { id: "source-task", title: "Imported task", source: "personal_schedule_planner", personalScheduleBlockId: "block-1" },
+      { id: "foreign-source", title: "Manual task", source: "personal_schedule_planner" },
+    ],
+    importBatches: [{
+      id: "batch-1",
+      status: "applied",
+      importedIds: {
+        schedules: ["schedule-1"],
+        tasks: ["batch-task"],
+        reminders: [],
+      },
+    }],
+    now: new Date("2026-08-05T12:00:00.000Z"),
+  });
+
+  assert.equal(cleaned.status, "tasks_cleaned");
+  assert.deepEqual(cleaned.removedIds.sort(), ["batch-task", "source-task"]);
+  assert.deepEqual(cleaned.tasks.map(task => task.id), ["user-task", "foreign-source"]);
+  assert.deepEqual(cleaned.importBatches[0].importedIds.tasks, []);
+  assert.deepEqual(cleaned.importBatches[0].cleanedTaskIds, ["batch-task"]);
+  assert.equal(cleaned.cleanedAt, "2026-08-05T12:00:00.000Z");
+});
+
 function hasOverlappingBlocks(blocks) {
   for (let firstIndex = 0; firstIndex < blocks.length; firstIndex += 1) {
     for (let secondIndex = firstIndex + 1; secondIndex < blocks.length; secondIndex += 1) {
@@ -266,4 +402,18 @@ function hasOverlappingBlocks(blocks) {
     }
   }
   return false;
+}
+
+function createTestBigFiveScores(overrides = {}) {
+  const factors = ["openness", "conscientiousness", "extraversion", "agreeableness", "emotional_sensitivity"];
+  return {
+    version: "test",
+    skipped: false,
+    complete: true,
+    answeredCount: 20,
+    scores: Object.fromEntries(factors.map(factor => [
+      factor,
+      { average: Number.isFinite(overrides[factor]) ? overrides[factor] : 3, count: 4 },
+    ])),
+  };
 }

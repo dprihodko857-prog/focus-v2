@@ -40,16 +40,17 @@
 html,
 body {
   overflow-x: hidden;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  overflow-y: auto;
+  scrollbar-width: auto;
+  -ms-overflow-style: auto;
   touch-action: pan-x pan-y;
 }
 
 html::-webkit-scrollbar,
 body::-webkit-scrollbar {
-  width: 0;
+  width: 12px;
   height: 0;
-  display: none;
+  display: initial;
 }
 
 body {

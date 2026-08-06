@@ -10,8 +10,10 @@ import {
   LEGACY_TASKS_KEY,
   PERSONAL_SCHEDULE_PLANNER_KEY,
   DIARY_PIN_KEY,
+  INTERESTING_TODAY_CACHE_KEY,
   parseScheduleList,
   QUOTE_CACHE_KEY,
+  QUOTE_HISTORY_CACHE_KEY,
   REMINDERS_KEY,
 } from "../public/js/storage.js";
 
@@ -238,6 +240,49 @@ test("daily quotes cache persists the current server set for offline display", a
 
   await storage.saveDailyQuotesCache(null);
   assert.equal(await storage.loadDailyQuotesCache(), null);
+});
+
+test("daily quote history cache persists shown quote sets by date", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const storage = createFocusStorage({ indexedDB, localStorage: createMemoryLocalStorage() });
+  const cache = {
+    days: 14,
+    sets: [
+      {
+        localDate: "2026-08-04",
+        timezone: "Europe/Moscow",
+        quotes: [{ id: "quote-1", text: "Focus quote", authorName: "Author" }],
+      },
+    ],
+    savedAt: "2026-08-04T09:00:00.000Z",
+    storageKey: QUOTE_HISTORY_CACHE_KEY,
+  };
+
+  await storage.saveDailyQuoteHistoryCache(cache);
+  assert.deepEqual(await storage.loadDailyQuoteHistoryCache(), cache);
+
+  await storage.saveDailyQuoteHistoryCache(null);
+  assert.equal(await storage.loadDailyQuoteHistoryCache(), null);
+});
+
+test("interesting today cache persists the current server set for offline display", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const storage = createFocusStorage({ indexedDB, localStorage: createMemoryLocalStorage() });
+  const cache = {
+    localDate: "2026-08-05",
+    timezone: "Europe/Moscow",
+    countryCode: "RU",
+    events: [{ id: "it-event-1", title: "Историческое событие" }],
+    people: [{ id: "it-person-1", title: "Известный человек" }],
+    savedAt: "2026-08-05T09:00:00.000Z",
+    storageKey: INTERESTING_TODAY_CACHE_KEY,
+  };
+
+  await storage.saveInterestingTodayCache(cache);
+  assert.deepEqual(await storage.loadInterestingTodayCache(), cache);
+
+  await storage.saveInterestingTodayCache(null);
+  assert.equal(await storage.loadInterestingTodayCache(), null);
 });
 
 test("personal schedule planner state persists in IndexedDB", async () => {

@@ -5,8 +5,10 @@ import {
   calculateBigFiveScores,
   collectPersonalScheduleExistingIntervals,
   createDefaultPersonalScheduleState,
+  createDeterministicScheduleDraft,
   createPersonalScheduleAiRequest,
   createPersonalScheduleImportBatch,
+  cleanupPersonalScheduleImportedTasks,
   getPersonalScheduleStateLabel,
   getPersonalScheduleWeekdayLabel,
   normalizePersonalScheduleIntake,
@@ -32,14 +34,44 @@ const UI_STEPS = [
   "draft",
   "confirm-import",
   "history",
+  "import-detail",
 ];
 
 const INTAKE_STEPS = UI_STEPS.slice(0, UI_STEPS.indexOf("review") + 1);
 
 const DEFAULT_IMPORT_OPTIONS = Object.freeze({
-  includeTasks: true,
+  includeTasks: false,
   includeReminders: false,
 });
+
+const QUICK_EDIT_MINUTES = 15;
+const MIN_BLOCK_MINUTES = 15;
+const MAX_DAY_MINUTE = 23 * 60 + 59;
+const GOAL_CATEGORY_OPTIONS = Object.freeze([
+  ["focus", "Глубокая работа"],
+  ["work", "Работа"],
+  ["study", "Учеба"],
+  ["sport", "Движение"],
+  ["home", "Дом"],
+  ["family", "Семья"],
+  ["health", "Здоровье"],
+  ["creative", "Творчество"],
+  ["rest", "Отдых"],
+  ["goal", "Другая цель"],
+]);
+const GOAL_PRIORITY_OPTIONS = Object.freeze([
+  ["high", "Очень важно"],
+  ["medium", "Важно"],
+  ["low", "Можно реже"],
+]);
+const GOAL_TIME_OPTIONS = Object.freeze([
+  ["early_morning", "Раннее утро"],
+  ["morning", "Утро"],
+  ["day", "День"],
+  ["evening", "Вечер"],
+  ["late_evening", "Поздний вечер"],
+  ["depends", "Без предпочтения"],
+]);
 
 export function createPersonalSchedulePlannerUi({
   storage,
@@ -54,6 +86,7 @@ export function createPersonalSchedulePlannerUi({
   let openModal = null;
   let currentStep = "mode";
   let bigFiveIndex = 0;
+  let selectedImportBatchId = "";
   let bound = false;
   let lastStatus = {
     status: "idle",
@@ -146,7 +179,7 @@ export function createPersonalSchedulePlannerUi({
     card.innerHTML = `
       <span class="icon icon-sparkles" aria-hidden="true"></span>
       <div class="personal-schedule-feature__main">
-        <h3>Идеальное расписание</h3>
+        <h3>Персональный ритм дня</h3>
         <p>Focus соберет редактируемый черновик из целей, занятых окон, энергии, сна, работы и отдыха.</p>
         <small>${escape(statusLabel)} · ${escape(state.promptVersion || PERSONAL_SCHEDULE_PROMPT_VERSION)}</small>
       </div>
@@ -205,6 +238,8 @@ export function createPersonalSchedulePlannerUi({
         return renderConfirmImportStep();
       case "history":
         return renderHistoryStep();
+      case "import-detail":
+        return renderImportScheduleDetailStep();
       default:
         return renderModeStep();
     }
@@ -215,7 +250,7 @@ export function createPersonalSchedulePlannerUi({
       ${renderChoiceCard("quick", "Быстрый план", "Основные ограничения и один практичный вариант.", state.intake.mode === "quick", "data-ps-mode")}
       ${renderChoiceCard("deep", "Глубокий план", "Добавляет профиль предпочтений и до трех вариантов.", state.intake.mode === "deep", "data-ps-mode")}
     </div>
-    <p class="scenario-note">Запрос к AI идет через backend Focus. Секреты провайдера не попадают в браузер.</p>
+    <p class="scenario-note">Генерация идет через защищенный сервис Focus. Личные названия событий не отправляются.</p>
   `;
 
   const renderPeriodStep = () => {
@@ -296,36 +331,60 @@ export function createPersonalSchedulePlannerUi({
     `;
   };
 
-  const renderGoalsStep = () => `
-    <label class="field-block">
-      <span>Цели</span>
-      <textarea data-ps-goals rows="9" placeholder="Цель; категория; приоритет; раз в неделю; минут; лучшее время">${escape(formatGoalsText(state.intake.goals))}</textarea>
-    </label>
-    <p class="scenario-note">Одна цель на строку. Пример: Учеба; learning; high; 4; 60; morning.</p>
-  `;
+  const renderGoalsStep = () => {
+    const goals = Array.isArray(state.intake.goals) && state.intake.goals.length
+      ? state.intake.goals
+      : createDefaultPersonalScheduleState(now()).intake.goals;
+    return `
+      <section class="personal-schedule-goals" aria-label="Приоритетные цели">
+        <header class="personal-schedule-goals__head">
+          <div>
+            <span class="modal-kicker">Цели для ритма</span>
+            <p>Focus распределит эти направления по неделе с учетом энергии, работы, сна и отдыха.</p>
+          </div>
+          <button class="secondary-button secondary-button--compact" type="button" data-ps-goal-action="add" ${goals.length >= 24 ? "disabled" : ""}>Добавить цель</button>
+        </header>
+        <div class="personal-schedule-goal-list">
+          ${goals.map((goal, index) => renderGoalEditor(goal, index, goals.length)).join("")}
+        </div>
+      </section>
+    `;
+  };
 
   const renderEnergyStep = () => {
     const energy = state.intake.energy;
     return `
-      <div class="modal-form-grid modal-form-grid--compact">
-        ${renderSelect("Пик энергии", "energy.peak", energy.peak, [
+      <section class="personal-schedule-energy">
+        <header class="personal-schedule-energy__head">
+          <span class="modal-kicker">Темп дня</span>
+          <p>Эти настройки говорят Focus, когда ставить сложные дела, сколько держать фокус и какой запас оставлять между блоками.</p>
+        </header>
+        <div class="personal-schedule-energy-map" aria-label="Как эти настройки влияют на расписание">
+          ${renderEnergyRule("Пик энергии", "Сюда планировщик двигает главные и сложные цели.")}
+          ${renderEnergyRule("Плотность", "Определяет, будет день свободнее или заполненнее.")}
+          ${renderEnergyRule("Фокус-блок", "Длина одного непрерывного блока сложной работы.")}
+          ${renderEnergyRule("Буфер", "Запас на переключение, дорогу и восстановление.")}
+        </div>
+        <div class="personal-schedule-energy-fields">
+          ${renderEnergySelect("Лучшее время для сложных дел", "energy.peak", energy.peak, [
           ["early_morning", "Раннее утро"],
           ["morning", "Утро"],
           ["day", "День"],
           ["evening", "Вечер"],
           ["late_evening", "Поздний вечер"],
           ["depends", "Зависит от дня"],
-        ])}
-        ${renderSelect("Плотность", "energy.density", energy.density, [
+        ], "К этому окну будут ближе фокус и важные цели.")}
+          ${renderEnergySelect("Насколько плотно заполнять день", "energy.density", energy.density, [
           ["light", "Свободно"],
           ["balanced", "Сбалансированно"],
           ["dense", "Плотно"],
-        ])}
-        ${renderInput("Фокус-блок, минут", "energy.focusBlockMinutes", energy.focusBlockMinutes, "number")}
-        ${renderInput("Перерыв, минут", "energy.breakMinutes", energy.breakMinutes, "number")}
-        ${renderInput("Сложных блоков подряд", "energy.maxHardBlocksInRow", energy.maxHardBlocksInRow, "number")}
-        ${renderInput("Буфер, минут", "energy.bufferMinutes", energy.bufferMinutes, "number")}
-      </div>
+        ], "Свободно оставит больше пустых окон, плотно соберет дела ближе друг к другу.")}
+          ${renderEnergyInput("Длина одного фокус-блока, минут", "energy.focusBlockMinutes", energy.focusBlockMinutes, "Сколько минут держать сложную задачу без дробления.")}
+          ${renderEnergyInput("Минимальный перерыв после блока, минут", "energy.breakMinutes", energy.breakMinutes, "Пауза после фокуса, спорта или другой нагрузки.")}
+          ${renderEnergyInput("Сложных блоков подряд максимум", "energy.maxHardBlocksInRow", energy.maxHardBlocksInRow, "После этого Focus старается вставить отдых или простое дело.")}
+          ${renderEnergyInput("Запас между делами, минут", "energy.bufferMinutes", energy.bufferMinutes, "Переходы, переключение контекста и небольшой резерв.")}
+        </div>
+      </section>
     `;
   };
 
@@ -349,7 +408,7 @@ export function createPersonalSchedulePlannerUi({
   const renderBigFiveIntroStep = () => `
     <div class="personal-schedule-review">
       <h3>Профиль предпочтений</h3>
-      <p>Двадцать коротких ответов помогают настроить плотность расписания, буферы, совместные блоки и новизну. Баллы считаются в коде Focus до backend-запроса.</p>
+      <p>Двадцать коротких ответов не меняют ваши цели и рабочие часы. Они помогают выбрать стиль черновика: больше структуры или свободы, больше буферов, больше гибкости и места для совместных дел.</p>
     </div>
     <div class="choice-grid personal-schedule-choice-grid">
       ${renderChoiceCard("start", "Ответить на вопросы", "Использовать короткий профиль Big Five для этого плана.", !state.bigFive.skipped, "data-ps-big-five")}
@@ -395,7 +454,7 @@ export function createPersonalSchedulePlannerUi({
         </ul>
       </div>
       <div class="personal-schedule-review">
-        <span class="modal-kicker">Backend-запрос</span>
+        <span class="modal-kicker">Как составляется</span>
         <ul>
           <li>Промпт: ${escape(PERSONAL_SCHEDULE_PROMPT_VERSION)}</li>
           <li>Дневник: не отправляется</li>
@@ -405,7 +464,7 @@ export function createPersonalSchedulePlannerUi({
         </ul>
       </div>
       ${state.lastError ? `<div class="voice-status voice-status--bad">${escape(state.lastError.message)}</div>` : ""}
-      ${lastStatus.status === "offline" ? `<div class="voice-status voice-status--warn">Backend недоступен. Генерация запустится только после восстановления синхронизации.</div>` : ""}
+      ${lastStatus.status === "offline" ? `<div class="voice-status voice-status--warn">Сервис генерации сейчас недоступен. Если он не ответит, Focus соберет локальный черновик на устройстве.</div>` : ""}
     `;
   };
 
@@ -426,6 +485,7 @@ export function createPersonalSchedulePlannerUi({
       existingIntervals: getExistingIntervals(),
     });
     variant.validation = validation;
+    const blocks = sortDraftBlocks(variant.blocks || []);
     return `
       <div class="personal-schedule-draft">
         <div class="personal-schedule-variants" aria-label="Варианты расписания">
@@ -442,8 +502,13 @@ export function createPersonalSchedulePlannerUi({
           <span class="schedule-status-pill ${validation.ok ? "is-active" : ""}">${validation.ok ? "Готово" : "Нужны правки"}</span>
           ${validation.ok ? "" : renderValidationIssues(validation)}
         </div>
-        <div class="personal-schedule-block-editor">
-          ${(variant.blocks || []).map(renderDraftBlockEditor).join("")}
+        ${renderDraftOverview(draft, variant, validation, blocks)}
+        <div class="personal-schedule-block-editor" aria-label="Редактор блоков">
+          <div class="personal-schedule-block-editor__head">
+            <span class="modal-kicker">Блоки</span>
+            <span>${blocks.length} шт.</span>
+          </div>
+          ${blocks.length ? blocks.map(block => renderDraftBlockEditor(block, blocks.length)).join("") : `<p class="modal-hint">В черновике пока нет блоков.</p>`}
         </div>
       </div>
     `;
@@ -463,19 +528,17 @@ export function createPersonalSchedulePlannerUi({
       })
       : { ok: false, batch: null };
     const entities = batchPreview.batch?.entities || { schedules: [], tasks: [], reminders: [] };
+    const blocks = Array.isArray(variant?.blocks) ? variant.blocks : [];
     return `
       <div class="personal-schedule-review">
-        <h3>Предпросмотр импорта</h3>
-        <p>Импорт создаст сущности Focus только после подтверждения. Существующие фиксированные события сохраняются.</p>
-        <ul>
-          <li>Расписания: ${entities.schedules.length}</li>
-          <li>Задачи: ${entities.tasks.length}</li>
-          <li>Напоминания: ${entities.reminders.length}</li>
-        </ul>
+        <h3>Что попадёт в Focus</h3>
+        <p>По умолчанию добавляется одно расписание с блоками по дням. Задачи и напоминания остаются выключенными, чтобы не заполнять сегодняшние дела лишними карточками.</p>
+        ${renderImportConfirmationPlan({ draft, variant, blocks, entities })}
+        ${renderImportImpactList(entities)}
         ${batchPreview.ok ? "" : renderValidationErrors(batchPreview.errors || ["validation_failed"])}
       </div>
       <div class="personal-schedule-consent">
-        ${renderImportCheckbox("Создать задачи из блоков", "includeTasks", state.importOptions.includeTasks)}
+        ${renderImportCheckbox("Дополнительно создать задачи из блоков", "includeTasks", state.importOptions.includeTasks)}
         ${renderImportCheckbox("Создать напоминания для сложных блоков", "includeReminders", state.importOptions.includeReminders)}
       </div>
     `;
@@ -483,40 +546,78 @@ export function createPersonalSchedulePlannerUi({
 
   const renderHistoryStep = () => {
     const appliedBatches = state.importBatches.filter(batch => batch.status === "applied" || batch.status === "rolled_back");
+    const latestBatch = appliedBatches[0] || null;
+    const importedTaskCount = getImportedTaskCleanupCount();
     return `
       <div class="personal-schedule-history">
         <div class="personal-schedule-history__header">
-          <h3>История планировщика</h3>
+          <h3>История ритма дня</h3>
           <div class="personal-schedule-feature__actions">
+            ${importedTaskCount ? `<button class="secondary-button secondary-button--danger" type="button" data-ps-action="cleanup-imported-tasks">Убрать задачи ритма (${importedTaskCount})</button>` : ""}
             <button class="secondary-button secondary-button--danger" type="button" data-ps-action="delete-profile">Очистить профиль</button>
             <button class="secondary-button secondary-button--danger" type="button" data-ps-action="delete-history">Очистить историю</button>
           </div>
         </div>
+        ${importedTaskCount ? `<p class="modal-hint">Можно убрать только задачи, созданные импортом ритма. Расписание, напоминания и личные задачи останутся.</p>` : ""}
+        ${latestBatch ? renderLatestImportResult(latestBatch) : ""}
         <div>
           <span class="modal-kicker">Черновики</span>
-          ${(state.drafts || []).length ? state.drafts.map(draft => `
-            <article>
-              <div>
-                <strong>${escape(draft.variants?.[0]?.title || "Черновик")}</strong>
-                <small>${escape(formatDateTime(draft.createdAt))} · ${escape(draft.promptVersion || PERSONAL_SCHEDULE_PROMPT_VERSION)}</small>
-              </div>
-              <button class="secondary-button secondary-button--compact" type="button" data-ps-open-draft="${escape(draft.id)}">Открыть</button>
-            </article>
-          `).join("") : `<p class="modal-hint">Сохраненных черновиков пока нет.</p>`}
+          ${(state.drafts || []).length ? `<div class="personal-schedule-history__list">${state.drafts.map(draft => `
+              <article>
+                <div>
+                  <strong>${escape(draft.variants?.[0]?.title || "Черновик")}</strong>
+                  <span>${escape(formatDateTime(draft.createdAt))} · ${escape(draft.promptVersion || PERSONAL_SCHEDULE_PROMPT_VERSION)}</span>
+                </div>
+                <button class="secondary-button secondary-button--compact" type="button" data-ps-open-draft="${escape(draft.id)}">Открыть</button>
+              </article>
+            `).join("")}</div>` : `<p class="modal-hint">Сохраненных черновиков пока нет.</p>`}
         </div>
         <div>
           <span class="modal-kicker">Импорты</span>
-          ${appliedBatches.length ? appliedBatches.map(batch => `
-            <article>
-              <div>
-                <strong>${batch.status === "rolled_back" ? "Импорт откатан" : "Импорт применен"}</strong>
-                <small>${escape(formatDateTime(batch.appliedAt || batch.rolledBackAt || batch.createdAt))}</small>
-              </div>
-              ${batch.status === "applied" ? `<button class="secondary-button secondary-button--compact" type="button" data-ps-rollback="${escape(batch.id)}">Откатить</button>` : ""}
-            </article>
-          `).join("") : `<p class="modal-hint">Импортов пока нет.</p>`}
+          ${appliedBatches.length ? `<div class="personal-schedule-history__list">${appliedBatches.map(renderImportHistoryRow).join("")}</div>` : `<p class="modal-hint">Импортов пока нет.</p>`}
         </div>
       </div>
+    `;
+  };
+
+  const renderImportScheduleDetailStep = () => {
+    const batch = getSelectedImportBatch();
+    const schedule = getImportBatchPrimarySchedule(batch);
+    const dayTimes = getImportScheduleDayTimes(schedule);
+    if (!batch || !schedule || !dayTimes.length) {
+      return `
+        <div class="personal-schedule-review">
+          <strong>Сохраненный ритм не найден.</strong>
+          <span>Вернитесь к истории и выберите импорт, в котором есть расписание.</span>
+        </div>
+      `;
+    }
+    const blockCount = getImportScheduleBlockCount(dayTimes);
+    const counts = getImportBatchEntityCounts(batch);
+    const rolledBack = batch.status === "rolled_back";
+    return `
+      <section class="personal-schedule-import-detail" aria-label="Полный ритм дня">
+        <header class="personal-schedule-import-detail__head">
+          <div>
+            <span class="modal-kicker">Сохраненный ритм</span>
+            <h3>${escape(schedule.title || "Персональный ритм дня")}</h3>
+            <p>Все дни и блоки из выбранного импорта. Это версия расписания, которую Focus сохранил после опроса.</p>
+          </div>
+          <div class="personal-schedule-import-detail__metrics" aria-label="Сводка расписания">
+            ${renderImportDetailMetric("Дни", formatImportCount(dayTimes.length, ["день", "дня", "дней"]))}
+            ${renderImportDetailMetric("Блоки", formatImportCount(blockCount, ["блок", "блока", "блоков"]))}
+            ${renderImportDetailMetric("Статус", rolledBack ? "Откатан" : "В Focus")}
+          </div>
+        </header>
+        ${schedule.meta ? `<p class="personal-schedule-import-detail__meta">${escape(schedule.meta)}</p>` : ""}
+        <div class="personal-schedule-import-detail__days" aria-label="Все дни расписания">
+          ${dayTimes.map(renderImportScheduleDetailDay).join("")}
+        </div>
+        <footer class="personal-schedule-import-detail__footer">
+          <span>${escape(formatImportScheduleScope(dayTimes.length, blockCount))} · задач: ${escape(String(counts.tasks))} · напоминаний: ${escape(String(counts.reminders))}</span>
+          ${batch.status === "applied" ? `<button class="secondary-button secondary-button--compact" type="button" data-ps-rollback="${escape(batch.id)}">Откатить импорт</button>` : ""}
+        </footer>
+      </section>
     `;
   };
 
@@ -544,6 +645,9 @@ export function createPersonalSchedulePlannerUi({
       return getSelectedDraft()
         ? `<button class="secondary-button" type="button" data-ps-action="draft">Открыть черновик</button>`
         : `<button class="secondary-button" type="button" data-ps-action="back">Назад</button>`;
+    }
+    if (currentStep === "import-detail") {
+      return `<button class="secondary-button" type="button" data-ps-action="history">К истории</button>`;
     }
     if (currentStep === "review") {
       return `
@@ -606,6 +710,14 @@ export function createPersonalSchedulePlannerUi({
       return;
     }
 
+    const goalAction = event.target.closest("[data-ps-goal-action]");
+    if (goalAction) {
+      applyGoalAction(goalAction.dataset.psGoalAction, Number(goalAction.dataset.psGoalIndex));
+      save();
+      render();
+      return;
+    }
+
     const bigFiveChoice = event.target.closest("[data-ps-big-five]");
     if (bigFiveChoice) {
       if (bigFiveChoice.dataset.psBigFive === "skip") {
@@ -654,6 +766,14 @@ export function createPersonalSchedulePlannerUi({
       return;
     }
 
+    const blockAction = event.target.closest("[data-ps-block-action]");
+    if (blockAction) {
+      applyDraftBlockAction(blockAction.dataset.psBlockId, blockAction.dataset.psBlockAction);
+      save();
+      render();
+      return;
+    }
+
     const openDraft = event.target.closest("[data-ps-open-draft]");
     if (openDraft) {
       state.selectedDraftId = openDraft.dataset.psOpenDraft;
@@ -661,6 +781,14 @@ export function createPersonalSchedulePlannerUi({
       state.selectedVariantId = draft?.selectedVariantId || draft?.recommendedVariantId || draft?.variants?.[0]?.id || "";
       currentStep = "draft";
       save();
+      render();
+      return;
+    }
+
+    const openImportSchedule = event.target.closest("[data-ps-open-import-schedule]");
+    if (openImportSchedule) {
+      selectedImportBatchId = openImportSchedule.dataset.psOpenImportSchedule || "";
+      currentStep = "import-detail";
       render();
       return;
     }
@@ -680,6 +808,14 @@ export function createPersonalSchedulePlannerUi({
       return;
     }
 
+    const goalField = event.target.closest("[data-ps-goal-field]");
+    if (goalField) {
+      updateGoalField(goalField);
+      save();
+      renderFeatureCard();
+      return;
+    }
+
     const field = event.target.closest("[data-ps-field]");
     if (field) {
       setPath(field.dataset.psField, coerceInputValue(field));
@@ -692,15 +828,6 @@ export function createPersonalSchedulePlannerUi({
     const checkbox = event.target.closest("[data-ps-checkbox]");
     if (checkbox) {
       setPath(checkbox.dataset.psCheckbox, checkbox.checked);
-      save();
-      renderFeatureCard();
-      return;
-    }
-
-    const goals = event.target.closest("[data-ps-goals]");
-    if (goals) {
-      const parsed = parseGoalsText(goals.value);
-      if (parsed.length) setPath("goals", parsed);
       save();
       renderFeatureCard();
       return;
@@ -765,6 +892,11 @@ export function createPersonalSchedulePlannerUi({
       currentStep = "draft";
       render();
     }
+    if (action === "history") {
+      currentStep = "history";
+      render();
+    }
+    if (action === "cleanup-imported-tasks") cleanupImportedTasks();
     if (action === "delete-profile") deleteProfile();
     if (action === "delete-history") deleteHistory();
   };
@@ -797,6 +929,8 @@ export function createPersonalSchedulePlannerUi({
       currentStep = state.bigFive.skipped ? "big-five-intro" : "big-five-question";
     } else if (currentStep === "confirm-import") {
       currentStep = "draft";
+    } else if (currentStep === "import-detail") {
+      currentStep = "history";
     } else if (currentStep === "draft") {
       currentStep = "review";
     } else if (currentStep === "history") {
@@ -841,41 +975,71 @@ export function createPersonalSchedulePlannerUi({
     state.lastError = null;
     await save();
     render();
-    showStatus("Генерирую расписание через backend Focus.");
+    showStatus("Собираю расписание. Если сервис не ответит, Focus подготовит локальный черновик.");
 
     const result = await sync?.generatePersonalSchedule?.(request);
     if (result?.status === "draft_ready" && result.draft) {
-      const draft = {
-        ...result.draft,
-        source: result.provider || "mock",
-      };
-      state.drafts = [draft, ...state.drafts.filter(item => item.id !== draft.id)].slice(0, 10);
-      state.selectedDraftId = draft.id;
-      state.selectedVariantId = draft.selectedVariantId || draft.recommendedVariantId || draft.variants?.[0]?.id || "";
-      state.status = "draft_ready";
-      state.history = [{
-        id: `history-${Date.now()}`,
-        type: revision ? "revision" : "generation",
-        promptVersion: result.promptVersion || PERSONAL_SCHEDULE_PROMPT_VERSION,
+      await commitGeneratedDraft({
+        draft: {
+          ...result.draft,
+          source: result.provider || "mock",
+        },
+        revision,
         provider: result.provider || "mock",
-        createdAt: now().toISOString(),
-      }, ...state.history].slice(0, 20);
-      currentStep = "draft";
-      await save();
-      showStatus("Черновик расписания готов. Проверьте и отредактируйте его перед импортом.");
-      render();
+        promptVersion: result.promptVersion || PERSONAL_SCHEDULE_PROMPT_VERSION,
+        statusMessage: "Черновик расписания готов. Проверьте и отредактируйте его перед импортом.",
+      });
       return;
     }
 
-    state.status = "generation_failed";
-    state.lastError = {
-      code: result?.status || "generation_failed",
-      message: "Не удалось сгенерировать расписание. Проверьте доступность backend и попробуйте снова.",
+    const fallbackReason = getGenerationFallbackReason(result);
+    const fallbackDraft = createLocalFallbackDraft({ request, existingIntervals, fallbackReason });
+    await commitGeneratedDraft({
+      draft: fallbackDraft,
+      revision,
+      provider: "local_fallback",
+      promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
+      statusMessage: "Сервис генерации не ответил, поэтому Focus собрал локальный черновик на устройстве. Проверьте его перед импортом.",
+    });
+  };
+
+  const commitGeneratedDraft = async ({ draft, revision = false, provider = "mock", promptVersion = PERSONAL_SCHEDULE_PROMPT_VERSION, statusMessage = "" } = {}) => {
+    state.drafts = [draft, ...state.drafts.filter(item => item.id !== draft.id)].slice(0, 10);
+    state.selectedDraftId = draft.id;
+    state.selectedVariantId = draft.selectedVariantId || draft.recommendedVariantId || draft.variants?.[0]?.id || "";
+    state.status = "draft_ready";
+    state.lastError = null;
+    state.history = [{
+      id: `history-${Date.now()}`,
+      type: revision ? "revision" : "generation",
+      promptVersion,
+      provider,
       createdAt: now().toISOString(),
-    };
+    }, ...state.history].slice(0, 20);
+    currentStep = "draft";
     await save();
-    showStatus(state.lastError.message);
+    if (statusMessage) showStatus(statusMessage);
     render();
+  };
+
+  const createLocalFallbackDraft = ({ request, existingIntervals, fallbackReason }) => ({
+    ...createDeterministicScheduleDraft({
+      intake: state.intake,
+      bigFiveScores: state.bigFive.scores,
+      existingIntervals,
+      variantCount: request?.mode === "deep" ? 3 : 1,
+      now: now(),
+    }),
+    source: "local_fallback",
+    fallbackReason,
+  });
+
+  const getGenerationFallbackReason = result => {
+    if (result?.status === "offline") return "offline";
+    if (result?.status === "provider-not-configured") return "service_unavailable";
+    if (result?.status === "invalid-request") return "request_validation_failed";
+    if (result?.status) return result.status;
+    return "service_unavailable";
   };
 
   const importDraft = async () => {
@@ -953,6 +1117,28 @@ export function createPersonalSchedulePlannerUi({
     render();
   };
 
+  const cleanupImportedTasks = async () => {
+    const data = getExistingData();
+    const cleaned = cleanupPersonalScheduleImportedTasks({
+      tasks: data.tasks,
+      importBatches: state.importBatches,
+      now: now(),
+    });
+    if (!cleaned.removedCount) {
+      showStatus("Задачи, созданные Персональным ритмом, не найдены.");
+      render();
+      return;
+    }
+    state.importBatches = cleaned.importBatches;
+    setCollections({
+      tasks: cleaned.tasks,
+      reason: "personal_schedule_task_cleanup",
+    });
+    await save();
+    showStatus(`Убрано задач из Персонального ритма: ${cleaned.removedCount}.`);
+    render();
+  };
+
   const deleteProfile = async () => {
     state = withRuntimeDefaults({
       ...state,
@@ -978,7 +1164,7 @@ export function createPersonalSchedulePlannerUi({
       status: "idle",
     });
     await save();
-    showStatus("История планировщика расписания очищена.");
+    showStatus("История ритма дня очищена.");
     currentStep = "mode";
     render();
   };
@@ -987,7 +1173,7 @@ export function createPersonalSchedulePlannerUi({
     const result = await sync?.getPersonalScheduleStatus?.();
     lastStatus = result || lastStatus;
     if (!silent && result?.status === "offline") {
-      showStatus("Backend для генерации расписания недоступен.");
+      showStatus("Сервис генерации расписания сейчас недоступен.");
     }
     render();
     return lastStatus;
@@ -1011,6 +1197,15 @@ export function createPersonalSchedulePlannerUi({
     || draft?.variants?.[0]
     || null;
   const getLastAppliedBatch = () => state.importBatches.find(batch => batch.status === "applied");
+  const getSelectedImportBatch = () => state.importBatches.find(batch => batch.id === selectedImportBatchId)
+    || getLastAppliedBatch()
+    || state.importBatches.find(batch => batch.status === "rolled_back")
+    || null;
+  const getImportedTaskCleanupCount = () => cleanupPersonalScheduleImportedTasks({
+    tasks: getExistingData().tasks,
+    importBatches: state.importBatches,
+    now: now(),
+  }).removedCount;
 
   const getDefaultStepForState = () => {
     if (state.status === "draft_ready" || state.status === "ready_to_import" || state.status === "validation_failed") return "draft";
@@ -1059,6 +1254,41 @@ export function createPersonalSchedulePlannerUi({
     setPath(path, [...values].sort((first, second) => first - second));
   };
 
+  const applyGoalAction = (action, goalIndex) => {
+    const goals = Array.isArray(state.intake.goals) ? structuredCloneSafe(state.intake.goals) : [];
+    if (action === "add") {
+      setPath("goals", [...goals, createGoalDraft(goals.length)].slice(0, 24));
+      return;
+    }
+    if (action === "remove" && goals.length > 1 && Number.isInteger(goalIndex)) {
+      setPath("goals", goals.filter((_, index) => index !== goalIndex));
+    }
+  };
+
+  const updateGoalField = field => {
+    const goalIndex = Number(field.dataset.psGoalIndex);
+    const goalField = field.dataset.psGoalField;
+    const goals = Array.isArray(state.intake.goals) ? state.intake.goals : [];
+    if (!Number.isInteger(goalIndex) || goalIndex < 0 || goalIndex >= goals.length) return;
+    const nextGoals = goals.map((goal, index) => {
+      if (index !== goalIndex) return goal;
+      const next = { ...goal };
+      if (goalField === "title") next.title = String(field.value || "").slice(0, 120);
+      if (goalField === "category") next.category = getAllowedOptionValue(field.value, GOAL_CATEGORY_OPTIONS, goal.category || "goal");
+      if (goalField === "priority") next.priority = getAllowedOptionValue(field.value, GOAL_PRIORITY_OPTIONS, goal.priority || "medium");
+      if (goalField === "preferredTime") next.preferredTime = getAllowedOptionValue(field.value, GOAL_TIME_OPTIONS, goal.preferredTime || "depends");
+      if (goalField === "timesPerWeek") next.timesPerWeek = clampNumber(field.value, 1, 14);
+      if (goalField === "desiredMinutes") {
+        const desiredMinutes = clampNumber(field.value, 10, 360);
+        next.desiredMinutes = desiredMinutes;
+        next.minimumMinutes = Math.min(desiredMinutes, clampNumber(goal.minimumMinutes || desiredMinutes, 10, 240));
+      }
+      setGoalDefaults(next);
+      return next;
+    });
+    setPath("goals", nextGoals);
+  };
+
   const applyPeriodDefaults = () => {
     const period = state.intake.period;
     if (period.type === "typical_day") setPath("period.endDate", period.startDate);
@@ -1081,9 +1311,55 @@ export function createPersonalSchedulePlannerUi({
       next.durationMinutes = Math.max(0, Number(next.endMinute) - Number(next.startMinute));
       return next;
     });
-    variant.validation = validatePersonalScheduleDraft({ draft: { blocks: variant.blocks }, intake: draft.intake });
+    validateEditedVariant(draft, variant);
     draft.updatedAt = now().toISOString();
     state.status = "editing";
+  };
+
+  const applyDraftBlockAction = (blockId, action) => {
+    const draft = getSelectedDraft();
+    const variant = getSelectedVariant(draft);
+    const blocks = Array.isArray(variant?.blocks) ? variant.blocks : [];
+    if (!draft || !variant || !blockId || !action) return;
+    if (action === "remove") {
+      if (blocks.length <= 1) return;
+      const nextBlocks = blocks.filter(block => block.id !== blockId);
+      if (nextBlocks.length === blocks.length) return;
+      variant.blocks = sortDraftBlocks(nextBlocks);
+    } else {
+      let changed = false;
+      variant.blocks = sortDraftBlocks(blocks.map(block => {
+        if (block.id !== blockId) return block;
+        changed = true;
+        if (action === "earlier") return shiftDraftBlock(block, -QUICK_EDIT_MINUTES);
+        if (action === "later") return shiftDraftBlock(block, QUICK_EDIT_MINUTES);
+        if (action === "shorter") return resizeDraftBlock(block, -QUICK_EDIT_MINUTES);
+        if (action === "longer") return resizeDraftBlock(block, QUICK_EDIT_MINUTES);
+        if (action === "toggle-fixed") {
+          return {
+            ...block,
+            flexibility: block.flexibility === "fixed" ? "semi_flexible" : "fixed",
+          };
+        }
+        return block;
+      }));
+      if (!changed) return;
+    }
+    validateEditedVariant(draft, variant);
+    draft.selectedVariantId = variant.id;
+    draft.updatedAt = now().toISOString();
+    state.selectedVariantId = variant.id;
+    state.status = "editing";
+    state.lastError = null;
+  };
+
+  const validateEditedVariant = (draft, variant) => {
+    variant.validation = validatePersonalScheduleDraft({
+      draft: { blocks: variant.blocks },
+      intake: draft.intake,
+      existingIntervals: getExistingIntervals(),
+    });
+    return variant.validation;
   };
 
   return {
@@ -1123,6 +1399,81 @@ export function createPersonalSchedulePlannerUi({
     `;
   }
 
+  function renderEnergyRule(title, text) {
+    return `
+      <article>
+        <strong>${escape(title)}</strong>
+        <span>${escape(text)}</span>
+      </article>
+    `;
+  }
+
+  function renderEnergyInput(label, path, value, hint) {
+    return `
+      <label class="field-block field-block--with-hint">
+        <span>${escape(label)}</span>
+        <input data-ps-field="${escape(path)}" type="number" value="${escape(value ?? "")}" step="1" inputmode="numeric" />
+        <small class="field-block__hint">${escape(hint)}</small>
+      </label>
+    `;
+  }
+
+  function renderEnergySelect(label, path, value, options, hint) {
+    return `
+      <label class="field-block field-block--with-hint">
+        <span>${escape(label)}</span>
+        <select data-ps-field="${escape(path)}">
+          ${options.map(([optionValue, optionLabel]) => `<option value="${escape(optionValue)}" ${optionValue === value ? "selected" : ""}>${escape(optionLabel)}</option>`).join("")}
+        </select>
+        <small class="field-block__hint">${escape(hint)}</small>
+      </label>
+    `;
+  }
+
+  function renderGoalEditor(goal, index, goalCount) {
+    return `
+      <article class="personal-schedule-goal-card">
+        <header class="personal-schedule-goal-card__head">
+          <div>
+            <strong>${escape(goal.title || `Цель ${index + 1}`)}</strong>
+            <span>${escape(getGoalSummary(goal))}</span>
+          </div>
+          <button class="icon-button icon-button--tiny" type="button" data-ps-goal-action="remove" data-ps-goal-index="${index}" aria-label="Удалить цель" title="Удалить цель" ${goalCount <= 1 ? "disabled" : ""}>
+            <span class="icon icon-trash" aria-hidden="true"></span>
+          </button>
+        </header>
+        <div class="personal-schedule-goal-grid">
+          ${renderGoalInput("Название цели", index, "title", goal.title || "", "text")}
+          ${renderGoalSelect("Направление", index, "category", goal.category || "goal", GOAL_CATEGORY_OPTIONS)}
+          ${renderGoalSelect("Важность", index, "priority", goal.priority || "medium", GOAL_PRIORITY_OPTIONS)}
+          ${renderGoalInput("Раз в неделю", index, "timesPerWeek", goal.timesPerWeek || 1, "number", "1", "14")}
+          ${renderGoalInput("Минут за раз", index, "desiredMinutes", goal.desiredMinutes || 45, "number", "10", "360")}
+          ${renderGoalSelect("Лучшее время", index, "preferredTime", goal.preferredTime || "depends", GOAL_TIME_OPTIONS)}
+        </div>
+      </article>
+    `;
+  }
+
+  function renderGoalInput(label, index, field, value, type = "text", min = "", max = "") {
+    return `
+      <label class="field-block">
+        <span>${escape(label)}</span>
+        <input data-ps-goal-index="${index}" data-ps-goal-field="${escape(field)}" type="${escape(type)}" value="${escape(value ?? "")}" ${min ? `min="${escape(min)}"` : ""} ${max ? `max="${escape(max)}"` : ""} ${type === "number" ? 'step="1" inputmode="numeric"' : ""} />
+      </label>
+    `;
+  }
+
+  function renderGoalSelect(label, index, field, value, options) {
+    return `
+      <label class="field-block">
+        <span>${escape(label)}</span>
+        <select data-ps-goal-index="${index}" data-ps-goal-field="${escape(field)}">
+          ${options.map(([optionValue, optionLabel]) => `<option value="${escape(optionValue)}" ${optionValue === value ? "selected" : ""}>${escape(optionLabel)}</option>`).join("")}
+        </select>
+      </label>
+    `;
+  }
+
   function renderCheckbox(label, path, checked) {
     return `
       <label>
@@ -1154,14 +1505,510 @@ export function createPersonalSchedulePlannerUi({
     `;
   }
 
-  function renderDraftBlockEditor(block) {
+  function renderDraftOverview(draft, variant, validation, blocks) {
+    const stats = getDraftOverviewStats(blocks);
     return `
-      <article class="personal-schedule-block-row" data-ps-block="${escape(block.id)}">
-        <span>${escape(block.weekdayLabel || getPersonalScheduleWeekdayLabel(block.weekday))}</span>
-        <input data-ps-block-id="${escape(block.id)}" data-ps-block-field="startTime" value="${escape(block.startTime)}" type="time" aria-label="Время начала" />
-        <input data-ps-block-id="${escape(block.id)}" data-ps-block-field="endTime" value="${escape(block.endTime)}" type="time" aria-label="Время окончания" />
-        <input data-ps-block-id="${escape(block.id)}" data-ps-block-field="title" value="${escape(block.title)}" type="text" aria-label="Название блока" />
-        <small>${escape(getFlexibilityLabel(block.flexibility))} · ${escape(block.rationale || "")}</small>
+      <section class="personal-schedule-draft-overview" aria-label="Обзор черновика">
+        ${renderDraftResultBrief(draft, variant, validation, stats, blocks)}
+        ${renderDraftRhythmSummary(draft?.intake, stats)}
+        ${renderDraftWhyPanel(draft, variant, stats, blocks)}
+        ${renderDraftDecisionWarnings(draft?.intake, validation, stats, blocks)}
+        ${renderDraftImportPreview(blocks)}
+        <div class="personal-schedule-draft-metrics">
+          ${renderDraftMetric("План", formatMinutesDuration(stats.totalMinutes), `${stats.blockCount} бл.`)}
+          ${renderDraftMetric("Цели", String(stats.goalBlockCount), formatMinutesDuration(stats.goalMinutes))}
+          ${renderDraftMetric("Отдых", formatMinutesDuration(stats.restMinutes), `${stats.restBlockCount} бл.`)}
+          ${renderDraftMetric("Зафиксировано", String(stats.fixedBlockCount), validation?.ok ? "без конфликтов" : "проверьте")}
+        </div>
+        ${renderDraftDayPreview(blocks)}
+      </section>
+    `;
+  }
+
+  function renderDraftWhyPanel(draft, variant, stats, blocks) {
+    const items = getDraftWhyItems(draft, variant, stats, blocks);
+    return `
+      <section class="personal-schedule-why-panel" aria-label="Почему так составлено">
+        <span class="modal-kicker">Почему так составлено</span>
+        <div class="personal-schedule-why-list">
+          ${items.map(item => `
+            <article>
+              <strong>${escape(item.title)}</strong>
+              <span>${escape(item.body)}</span>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderDraftMetric(label, value, hint) {
+    return `
+      <div class="personal-schedule-draft-metric">
+        <span>${escape(label)}</span>
+        <strong>${escape(value)}</strong>
+        <small>${escape(hint)}</small>
+      </div>
+    `;
+  }
+
+  function renderDraftResultBrief(draft, variant, validation, stats, blocks) {
+    const title = variant?.title || "Вариант ритма";
+    const reason = variant?.recommendationReason || variant?.summary || getDraftResultSummary(stats, blocks);
+    return `
+      <div class="personal-schedule-result-brief">
+        <div>
+          <span class="modal-kicker">Итог опроса</span>
+          <h3>${escape(title)}</h3>
+          <p>${escape(reason)}</p>
+        </div>
+        <span class="schedule-status-pill ${validation?.ok ? "is-active" : ""}">${validation?.ok ? "Готов к импорту" : "Нужны правки"}</span>
+      </div>
+    `;
+  }
+
+  function renderDraftRhythmSummary(intake, stats) {
+    return `
+      <div class="personal-schedule-rhythm-summary" aria-label="Краткий ритм дня">
+        ${renderRhythmSummaryItem("Сон", getSleepWindowLabel(intake?.sleep), `${formatMinutesDuration(Number(intake?.sleep?.minimumSleepMinutes) || 0)} минимум`)}
+        ${renderRhythmSummaryItem("Работа", formatMinutesDuration(stats.workMinutes), `${stats.workBlockCount} бл.`)}
+        ${renderRhythmSummaryItem("Фокус", formatMinutesDuration(stats.focusMinutes), `${stats.focusBlockCount} бл.`)}
+        ${renderRhythmSummaryItem("Отдых", formatMinutesDuration(stats.restMinutes), `${stats.restBlockCount} бл.`)}
+      </div>
+    `;
+  }
+
+  function renderRhythmSummaryItem(label, value, hint) {
+    return `
+      <div class="personal-schedule-rhythm-summary__item">
+        <span>${escape(label)}</span>
+        <strong>${escape(value)}</strong>
+        <small>${escape(hint)}</small>
+      </div>
+    `;
+  }
+
+  function renderDraftDecisionWarnings(intake, validation, stats, blocks) {
+    const items = getDraftDecisionWarningItems(intake, validation, stats, blocks, getValidationSummary(validation));
+    const hasWarning = items.some(item => item.level !== "ok");
+    return `
+      <section class="personal-schedule-decision-panel ${hasWarning ? "has-warning" : ""}" aria-label="Проверка ритма">
+        <span class="modal-kicker">Проверка</span>
+        <div class="personal-schedule-warning-list">
+          ${items.map(item => `
+            <article class="personal-schedule-warning personal-schedule-warning--${escape(item.level)}">
+              <strong>${escape(item.title)}</strong>
+              <span>${escape(item.body)}</span>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderDraftImportPreview(blocks) {
+    const count = Array.isArray(blocks) ? blocks.length : 0;
+    const entities = {
+      schedules: count ? [{}] : [],
+      tasks: state.importOptions.includeTasks ? new Array(count).fill({}) : [],
+      reminders: state.importOptions.includeReminders ? new Array(count).fill({}) : [],
+    };
+    return `
+      <section class="personal-schedule-import-preview" aria-label="Что будет добавлено в Focus">
+        <span class="modal-kicker">Импорт</span>
+        ${renderImportImpactList(entities)}
+      </section>
+    `;
+  }
+
+  function renderImportImpactList(entities) {
+    return `
+      <div class="personal-schedule-import-impact">
+        ${renderImportImpactItem("Расписание", entities.schedules?.length || 0, "Одна недельная сетка с блоками по дням.")}
+        ${renderImportImpactItem("Задачи", entities.tasks?.length || 0, (entities.tasks?.length || 0) ? "Каждый блок появится отдельной задачей с датой и временем." : "Не создаются, чтобы не перегружать список дел.")}
+        ${renderImportImpactItem("Напоминания", entities.reminders?.length || 0, (entities.reminders?.length || 0) ? "Напоминания будут привязаны к времени блоков." : "Не создаются без отдельного включения.")}
+      </div>
+    `;
+  }
+
+  function renderImportConfirmationPlan({ draft, variant, blocks, entities }) {
+    const stats = getDraftOverviewStats(blocks);
+    const scheduleCount = entities.schedules?.length || 0;
+    const taskCount = entities.tasks?.length || 0;
+    const reminderCount = entities.reminders?.length || 0;
+    const variantTitle = variant?.title || "Выбранный вариант";
+    const sourceLabel = draft?.source === "local_fallback" ? "локальный черновик" : "черновик";
+    return `
+      <section class="personal-schedule-import-confirmation" aria-label="План импорта">
+        <header class="personal-schedule-import-confirmation__head">
+          <div>
+            <span class="modal-kicker">Перед добавлением</span>
+            <h4>${escape(variantTitle)}</h4>
+            <p>Focus добавит ${escape(sourceLabel)} как расписание. Блоки останутся внутри расписания; отдельные задачи и напоминания появятся только если включить их ниже.</p>
+          </div>
+          <div class="personal-schedule-import-confirmation__summary" aria-label="Сводка черновика">
+            <span><strong>${escape(String(stats.blockCount))}</strong><small>блоков</small></span>
+            <span><strong>${escape(String(stats.dayCount))}</strong><small>дней</small></span>
+            <span><strong>${escape(formatMinutesDuration(stats.totalMinutes))}</strong><small>в плане</small></span>
+          </div>
+        </header>
+        <div class="personal-schedule-import-confirmation__grid">
+          ${renderImportDecisionItem({
+            key: "schedule",
+            status: scheduleCount ? "Создаётся сейчас" : "Не будет создано",
+            title: "Расписание в Focus",
+            count: `${scheduleCount} объект`,
+            hint: scheduleCount ? "В нём будут все блоки выбранного ритма по дням." : "Вернитесь к черновику и проверьте блоки.",
+            active: Boolean(scheduleCount),
+          })}
+          ${renderImportDecisionItem({
+            key: "tasks",
+            status: taskCount ? "Создаются дополнительно" : "Остаются выключены",
+            title: "Задачи из блоков",
+            count: `${taskCount} карточек`,
+            hint: taskCount ? "Каждая задача получит дату, время и пометку «Персональный ритм»." : "Список дел не заполнится копиями блоков.",
+            active: Boolean(taskCount),
+          })}
+          ${renderImportDecisionItem({
+            key: "reminders",
+            status: reminderCount ? "Создаются дополнительно" : "Остаются выключены",
+            title: "Напоминания",
+            count: `${reminderCount} шт.`,
+            hint: reminderCount ? "Напоминания привяжутся ко времени сложных блоков." : "Уведомления не появятся без отдельного включения.",
+            active: Boolean(reminderCount),
+          })}
+        </div>
+        ${renderImportBlockExamples(blocks)}
+        <p class="personal-schedule-import-confirmation__note">После импорта эту пачку можно откатить из истории «Персонального ритма дня».</p>
+      </section>
+    `;
+  }
+
+  function renderImportDecisionItem({ key, status, title, count, hint, active }) {
+    return `
+      <article class="personal-schedule-import-confirmation__decision ${active ? "is-active" : "is-muted"}" data-ps-import-decision="${escape(key)}">
+        <span>${escape(status)}</span>
+        <strong>${escape(title)}</strong>
+        <small>${escape(count)} · ${escape(hint)}</small>
+      </article>
+    `;
+  }
+
+  function renderImportBlockExamples(blocks) {
+    const sorted = sortDraftBlocks(blocks);
+    const visible = sorted.slice(0, 5);
+    if (!visible.length) return "";
+    const remaining = Math.max(0, sorted.length - visible.length);
+    return `
+      <div class="personal-schedule-import-block-list" aria-label="Примеры блоков внутри расписания">
+        <div class="personal-schedule-import-block-list__head">
+          <span class="modal-kicker">Внутри расписания</span>
+          ${remaining ? `<small>ещё ${escape(String(remaining))} бл.</small>` : ""}
+        </div>
+        <div class="personal-schedule-import-block-list__items">
+          ${visible.map(renderImportBlockExample).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderImportBlockExample(block) {
+    return `
+      <article class="personal-schedule-import-block" data-ps-category="${escape(block.category || "event")}">
+        <time>${escape(block.startTime || "")}-${escape(block.endTime || "")}</time>
+        <div>
+          <strong>${escape(block.title || "Блок расписания")}</strong>
+          <small>${escape(getPersonalScheduleWeekdayLabel(block.weekday))} · ${escape(getCategoryLabel(block.category))} · ${escape(formatMinutesDuration(getDraftBlockDuration(block)))}</small>
+        </div>
+      </article>
+    `;
+  }
+
+  function renderLatestImportResult(batch) {
+    const rolledBack = batch?.status === "rolled_back";
+    const counts = getImportBatchEntityCounts(batch);
+    return `
+      <section class="personal-schedule-import-result ${rolledBack ? "is-rolled-back" : "is-applied"}" aria-label="Последний импорт">
+        <header class="personal-schedule-import-result__head">
+          <div>
+            <span class="modal-kicker">Последний импорт</span>
+            <h4>${rolledBack ? "Импорт откатан" : "Добавлено в Focus"}</h4>
+            <p>${rolledBack ? "Эта пачка уже убрана из Focus. Черновик остался в истории, его можно открыть и импортировать заново." : "Пачка добавлена в Focus. Ниже видно, какие объекты созданы и где их искать."}</p>
+          </div>
+          <div class="personal-schedule-import-result__actions">
+            ${renderOpenImportScheduleButton(batch, "Открыть полный ритм")}
+            ${batch?.status === "applied" ? `<button class="secondary-button secondary-button--compact" type="button" data-ps-rollback="${escape(batch.id)}">Откатить импорт</button>` : ""}
+          </div>
+        </header>
+        ${renderImportImpactList(batch?.entities || {})}
+        ${renderImportScheduleSnapshot(batch)}
+        <div class="personal-schedule-import-result__destinations-head">
+          <strong>Где искать добавленное</strong>
+          <small>Focus разложил импорт по разделам приложения.</small>
+        </div>
+        <div class="personal-schedule-import-result__destinations" aria-label="Где искать добавленное">
+          ${renderImportResultDestination("Расписание", counts.schedules, "Раздел расписаний Focus", "Основная сетка ритма по дням.")}
+          ${renderImportResultDestination("Задачи", counts.tasks, counts.tasks ? "Дела на даты блоков" : "Не создавались", counts.tasks ? "Появились только включенные блоки." : "Список дел не был заполнен копиями блоков.")}
+          ${renderImportResultDestination("Напоминания", counts.reminders, counts.reminders ? "Центр напоминаний" : "Не создавались", counts.reminders ? "Привязаны ко времени сложных блоков." : "Уведомления не добавлялись без галочки.")}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderImportResultDestination(title, count, place, hint) {
+    return `
+      <article class="personal-schedule-import-result__destination ${count ? "is-active" : "is-muted"}">
+        <span>${escape(title)}</span>
+        <strong>${escape(place)}</strong>
+        <small>${escape(String(count))} · ${escape(hint)}</small>
+      </article>
+    `;
+  }
+
+  function renderImportHistoryRow(batch) {
+    const counts = getImportBatchEntityCounts(batch);
+    const rolledBack = batch?.status === "rolled_back";
+    const dateText = formatDateTime(batch?.appliedAt || batch?.rolledBackAt || batch?.createdAt);
+    return `
+      <article class="personal-schedule-history-import" data-ps-import-status="${escape(batch?.status || "unknown")}">
+        <div>
+          <strong>${rolledBack ? "Импорт откатан" : "Импорт применен"}</strong>
+          <span>${escape(dateText)} · расписаний: ${escape(String(counts.schedules))}, задач: ${escape(String(counts.tasks))}, напоминаний: ${escape(String(counts.reminders))}</span>
+          ${renderImportHistoryScheduleSummary(batch)}
+        </div>
+        <div class="personal-schedule-history-import__actions">
+          ${renderOpenImportScheduleButton(batch, "Открыть ритм")}
+          ${batch?.status === "applied" ? `<button class="secondary-button secondary-button--compact" type="button" data-ps-rollback="${escape(batch.id)}">Откатить</button>` : ""}
+        </div>
+      </article>
+    `;
+  }
+
+  function renderOpenImportScheduleButton(batch, label) {
+    if (!batch?.id || !getImportScheduleDayTimes(getImportBatchPrimarySchedule(batch)).length) return "";
+    return `
+      <button class="secondary-button secondary-button--compact" type="button" data-ps-open-import-schedule="${escape(batch.id)}">
+        <span class="icon icon-calendar" aria-hidden="true"></span>${escape(label)}
+      </button>
+    `;
+  }
+
+  function renderImportScheduleSnapshot(batch) {
+    const schedule = getImportBatchPrimarySchedule(batch);
+    const dayTimes = getImportScheduleDayTimes(schedule);
+    if (!schedule || !dayTimes.length) return "";
+    const blockCount = getImportScheduleBlockCount(dayTimes);
+    const visibleDays = dayTimes.slice(0, 3);
+    const hiddenDayCount = Math.max(0, dayTimes.length - visibleDays.length);
+    return `
+      <section class="personal-schedule-import-snapshot" aria-label="Что внутри расписания">
+        <header class="personal-schedule-import-snapshot__head">
+          <div>
+            <strong>Что внутри расписания</strong>
+            <small>${escape(schedule.title || "Персональный ритм дня")} · ${escape(formatImportScheduleScope(dayTimes.length, blockCount))}</small>
+          </div>
+          ${schedule.meta ? `<span>${escape(schedule.meta)}</span>` : ""}
+        </header>
+        <div class="personal-schedule-import-snapshot__days">
+          ${visibleDays.map(renderImportScheduleSnapshotDay).join("")}
+          ${hiddenDayCount ? `
+            <article class="personal-schedule-import-snapshot__day is-more">
+              <span>Ещё ${escape(formatImportCount(hiddenDayCount, ["день", "дня", "дней"]))}</span>
+              <small>Остальные дни сохранены внутри расписания Focus.</small>
+            </article>
+          ` : ""}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderImportScheduleSnapshotDay(day) {
+    const times = Array.isArray(day?.times) ? day.times : [];
+    const visibleTimes = times.slice(0, 2);
+    const hiddenBlockCount = Math.max(0, times.length - visibleTimes.length);
+    return `
+      <article class="personal-schedule-import-snapshot__day">
+        <span>${escape(day?.day || "День")}</span>
+        ${visibleTimes.map(time => `<small>${escape(time)}</small>`).join("")}
+        ${hiddenBlockCount ? `<small>Ещё ${escape(formatImportCount(hiddenBlockCount, ["блок", "блока", "блоков"]))} в этот день.</small>` : ""}
+      </article>
+    `;
+  }
+
+  function renderImportHistoryScheduleSummary(batch) {
+    const schedule = getImportBatchPrimarySchedule(batch);
+    const dayTimes = getImportScheduleDayTimes(schedule);
+    if (!schedule || !dayTimes.length) return "";
+    const blockCount = getImportScheduleBlockCount(dayTimes);
+    const firstDay = dayTimes[0]?.day || "первый день";
+    return `<small class="personal-schedule-history-import__summary">Расписание: ${escape(formatImportScheduleScope(dayTimes.length, blockCount))} · первый день: ${escape(firstDay)}</small>`;
+  }
+
+  function renderImportDetailMetric(label, value) {
+    return `
+      <article class="personal-schedule-import-detail__metric">
+        <span>${escape(label)}</span>
+        <strong>${escape(value)}</strong>
+      </article>
+    `;
+  }
+
+  function renderImportScheduleDetailDay(day) {
+    const times = Array.isArray(day?.times) ? day.times : [];
+    return `
+      <section class="personal-schedule-import-detail__day">
+        <header>
+          <strong>${escape(day?.day || "День")}</strong>
+          <small>${escape(formatImportCount(times.length, ["блок", "блока", "блоков"]))}</small>
+        </header>
+        <div class="personal-schedule-import-detail__blocks">
+          ${times.map(renderImportScheduleDetailBlock).join("")}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderImportScheduleDetailBlock(value, index) {
+    const parsed = parseImportScheduleLine(value);
+    return `
+      <article class="personal-schedule-import-detail__block">
+        <time>${escape(parsed.timeRange || `Блок ${index + 1}`)}</time>
+        <span>${escape(parsed.title || "Блок расписания")}</span>
+      </article>
+    `;
+  }
+
+  function parseImportScheduleLine(value) {
+    const text = String(value || "").trim();
+    const match = text.match(/^(\d{1,2}:\d{2}\s*[-–—]\s*\d{1,2}:\d{2})\s*(?:·|-|–|—)?\s*(.*)$/);
+    if (!match) return { timeRange: "", title: text };
+    return {
+      timeRange: match[1].replace(/\s*([-–—])\s*/g, "$1"),
+      title: match[2] || "Блок расписания",
+    };
+  }
+
+  function getImportBatchEntityCounts(batch) {
+    const entities = batch?.entities || {};
+    return {
+      schedules: entities.schedules?.length || 0,
+      tasks: entities.tasks?.length || 0,
+      reminders: entities.reminders?.length || 0,
+    };
+  }
+
+  function getImportBatchPrimarySchedule(batch) {
+    const schedules = batch?.entities?.schedules;
+    if (!Array.isArray(schedules) || !schedules.length) return null;
+    return schedules.find(schedule => Array.isArray(schedule?.dayTimes) && schedule.dayTimes.length) || schedules[0] || null;
+  }
+
+  function getImportScheduleDayTimes(schedule) {
+    return (Array.isArray(schedule?.dayTimes) ? schedule.dayTimes : [])
+      .map(day => ({
+        day: String(day?.day || "День"),
+        times: (Array.isArray(day?.times) ? day.times : []).map(item => String(item || "").trim()).filter(Boolean),
+      }))
+      .filter(day => day.times.length);
+  }
+
+  function getImportScheduleBlockCount(dayTimes) {
+    return (Array.isArray(dayTimes) ? dayTimes : []).reduce((sum, day) => sum + (Array.isArray(day?.times) ? day.times.length : 0), 0);
+  }
+
+  function formatImportScheduleScope(dayCount, blockCount) {
+    return `${formatImportCount(dayCount, ["день", "дня", "дней"])} · ${formatImportCount(blockCount, ["блок", "блока", "блоков"])}`;
+  }
+
+  function formatImportCount(count, forms) {
+    const safeCount = Math.max(0, Number(count) || 0);
+    const mod100 = safeCount % 100;
+    const mod10 = safeCount % 10;
+    const form = mod100 >= 11 && mod100 <= 14
+      ? forms[2]
+      : mod10 === 1
+        ? forms[0]
+        : mod10 >= 2 && mod10 <= 4
+          ? forms[1]
+          : forms[2];
+    return `${safeCount} ${form}`;
+  }
+
+  function renderImportImpactItem(title, count, hint) {
+    return `
+      <article class="personal-schedule-import-impact__item ${count ? "is-active" : ""}">
+        <span>${escape(title)}</span>
+        <strong>${escape(String(count))}</strong>
+        <small>${escape(hint)}</small>
+      </article>
+    `;
+  }
+
+  function renderDraftDayPreview(blocks) {
+    const groups = groupDraftBlocksByWeekday(blocks);
+    if (!groups.length) return `<p class="modal-hint">В черновике пока нет блоков.</p>`;
+    return `
+      <div class="personal-schedule-day-preview" aria-label="Обзор по дням">
+        ${groups.map(([weekday, items]) => `
+          <section class="personal-schedule-day-column">
+            <header>
+              <strong>${escape(getPersonalScheduleWeekdayLabel(weekday))}</strong>
+              <small>${items.length} бл. · ${escape(formatMinutesDuration(sumDraftBlockMinutes(items)))}</small>
+            </header>
+            <div class="personal-schedule-day-column__blocks">
+              ${items.map(renderDraftDayBlock).join("")}
+            </div>
+          </section>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  function renderDraftDayBlock(block) {
+    return `
+      <article class="personal-schedule-day-block" data-ps-category="${escape(block.category || "event")}">
+        <time>${escape(block.startTime || "")}-${escape(block.endTime || "")}</time>
+        <strong>${escape(block.title || "Блок расписания")}</strong>
+        <span>${escape(getCategoryLabel(block.category))} · ${escape(formatMinutesDuration(getDraftBlockDuration(block)))} · ${escape(getFlexibilityLabel(block.flexibility))}</span>
+      </article>
+    `;
+  }
+
+  function renderDraftBlockEditor(block, blockCount) {
+    const fixed = block.flexibility === "fixed";
+    return `
+      <article class="personal-schedule-block-row" data-ps-block="${escape(block.id)}" data-ps-category="${escape(block.category || "event")}">
+        <div class="personal-schedule-block-row__summary">
+          <div class="personal-schedule-block-row__stamp">
+            <span>${escape(block.weekdayLabel || getPersonalScheduleWeekdayLabel(block.weekday))}</span>
+            <strong>${escape(block.startTime)}-${escape(block.endTime)}</strong>
+          </div>
+          <input data-ps-block-id="${escape(block.id)}" data-ps-block-field="title" value="${escape(block.title)}" type="text" aria-label="Название блока" />
+        </div>
+        <div class="personal-schedule-block-row__meta">
+          <span>${escape(getCategoryLabel(block.category))}</span>
+          <span>${escape(formatMinutesDuration(getDraftBlockDuration(block)))}</span>
+          <span>${escape(getFlexibilityLabel(block.flexibility))}</span>
+        </div>
+        <div class="personal-schedule-block-row__time">
+          <label>
+            <span>Начало</span>
+            <input data-ps-block-id="${escape(block.id)}" data-ps-block-field="startTime" value="${escape(block.startTime)}" type="time" aria-label="Время начала" />
+          </label>
+          <label>
+            <span>Конец</span>
+            <input data-ps-block-id="${escape(block.id)}" data-ps-block-field="endTime" value="${escape(block.endTime)}" type="time" aria-label="Время окончания" />
+          </label>
+        </div>
+        <div class="personal-schedule-block-actions" aria-label="Быстрые правки блока">
+          <button class="icon-button icon-button--tiny" type="button" data-ps-block-id="${escape(block.id)}" data-ps-block-action="earlier" aria-label="Сдвинуть раньше на 15 минут" title="Раньше на 15 минут"><span class="icon icon-arrow-left" aria-hidden="true"></span></button>
+          <button class="icon-button icon-button--tiny" type="button" data-ps-block-id="${escape(block.id)}" data-ps-block-action="later" aria-label="Сдвинуть позже на 15 минут" title="Позже на 15 минут"><span class="icon icon-arrow-right" aria-hidden="true"></span></button>
+          <button class="personal-schedule-block-action-chip" type="button" data-ps-block-id="${escape(block.id)}" data-ps-block-action="shorter" aria-label="Укоротить на 15 минут" title="Укоротить на 15 минут">-15</button>
+          <button class="personal-schedule-block-action-chip" type="button" data-ps-block-id="${escape(block.id)}" data-ps-block-action="longer" aria-label="Удлинить на 15 минут" title="Удлинить на 15 минут">+15</button>
+          <button class="icon-button icon-button--tiny ${fixed ? "is-active" : ""}" type="button" data-ps-block-id="${escape(block.id)}" data-ps-block-action="toggle-fixed" aria-label="${fixed ? "Сделать гибким" : "Закрепить время"}" title="${fixed ? "Сделать гибким" : "Закрепить время"}" aria-pressed="${String(fixed)}"><span class="icon ${fixed ? "icon-check" : "icon-edit"}" aria-hidden="true"></span></button>
+          <button class="icon-button icon-button--tiny" type="button" data-ps-block-id="${escape(block.id)}" data-ps-block-action="remove" aria-label="Удалить блок" title="Удалить блок" ${blockCount <= 1 ? "disabled" : ""}><span class="icon icon-trash" aria-hidden="true"></span></button>
+        </div>
+        <small class="personal-schedule-block-row__note">${escape(block.rationale || "Учитывает ваши ответы и ограничения Focus.")}</small>
       </article>
     `;
   }
@@ -1238,15 +2085,18 @@ export function createPersonalSchedulePlannerUi({
 
   function getStatusText() {
     if (state.lastError) return state.lastError.message;
-    const providerText = lastStatus.status === "ok"
-      ? `Провайдер backend: ${lastStatus.provider || "mock"}`
-      : "Провайдер backend: ожидает проверки";
-    return `${getPersonalScheduleStateLabel(state.status)}. ${providerText}.`;
+    if (state.status === "draft_ready" && getSelectedDraft()?.source === "local_fallback") {
+      return "Черновик готов. Focus собрал его локально на устройстве.";
+    }
+    const serviceText = lastStatus.status === "ok"
+      ? "Сервис генерации готов"
+      : "Сервис генерации проверяется";
+    return `${getPersonalScheduleStateLabel(state.status)}. ${serviceText}.`;
   }
 
   function getTitleForStep(step) {
     return {
-      mode: "Идеальное расписание",
+      mode: "Персональный ритм дня",
       period: "Период планирования",
       calendar: "Доступ к календарю",
       sleep: "Сон",
@@ -1259,8 +2109,9 @@ export function createPersonalSchedulePlannerUi({
       review: "Проверка",
       draft: "Черновик расписания",
       "confirm-import": "Подтверждение импорта",
-      history: "История планировщика",
-    }[step] || "Идеальное расписание";
+      history: "История ритма дня",
+      "import-detail": "Полный ритм дня",
+    }[step] || "Персональный ритм дня";
   }
 }
 
@@ -1281,34 +2132,6 @@ function coerceInputValue(input) {
   if (input.type === "number") return Number(input.value);
   if (input.type === "checkbox") return input.checked;
   return input.value;
-}
-
-function formatGoalsText(goals) {
-  return (Array.isArray(goals) ? goals : [])
-    .map(goal => `${goal.title}; ${goal.category}; ${goal.priority}; ${goal.timesPerWeek}; ${goal.desiredMinutes}; ${goal.preferredTime}`)
-    .join("\n");
-}
-
-function parseGoalsText(value) {
-  return String(value || "").split(/\n+/)
-    .map((line, index) => {
-      const [title, category = "goal", priority = "medium", times = "1", minutes = "45", preferredTime = "depends"] = line.split(";").map(part => part.trim());
-      if (!title) return null;
-      return {
-        id: `goal-${index + 1}`,
-        title: title.slice(0, 120),
-        category,
-        priority,
-        timesPerWeek: Number(times) || 1,
-        minimumMinutes: Math.max(10, Number(minutes) || 30),
-        desiredMinutes: Math.max(10, Number(minutes) || 45),
-        preferredTime,
-        allowedWeekdays: [1, 2, 3, 4, 5, 6, 7],
-        skippable: false,
-        splittable: false,
-      };
-    })
-    .filter(Boolean);
 }
 
 function getBigFiveScoreLabel(score) {
@@ -1353,6 +2176,75 @@ function getFlexibilityLabel(value) {
   }[value] || value;
 }
 
+function getCategoryLabel(value) {
+  return {
+    focus: "Фокус",
+    work: "Работа",
+    study: "Учеба",
+    sport: "Спорт",
+    home: "Дом",
+    family: "Семья",
+    health: "Здоровье",
+    creative: "Творчество",
+    rest: "Отдых",
+    goal: "Цель",
+    event: "Событие",
+  }[value] || "Блок";
+}
+
+function createGoalDraft(index = 0) {
+  return setGoalDefaults({
+    id: `goal-${index + 1}-${Date.now().toString(16)}`,
+    title: "Новая цель",
+    category: "goal",
+    priority: "medium",
+    timesPerWeek: 1,
+    minimumMinutes: 30,
+    desiredMinutes: 45,
+    preferredTime: "depends",
+  });
+}
+
+function setGoalDefaults(goal) {
+  goal.allowedWeekdays ||= [1, 2, 3, 4, 5, 6, 7];
+  goal.skippable = goal.skippable === true;
+  goal.splittable = goal.splittable === true;
+  return goal;
+}
+
+function getAllowedOptionValue(value, options, fallback) {
+  return options.some(([optionValue]) => optionValue === value) ? value : fallback;
+}
+
+function getGoalSummary(goal) {
+  return [
+    getCategoryLabel(goal.category),
+    getPriorityLabel(goal.priority),
+    `${clampNumber(goal.timesPerWeek || 1, 1, 14)} раз/нед.`,
+    formatMinutesDuration(goal.desiredMinutes || 45),
+    getPreferredTimeLabel(goal.preferredTime),
+  ].join(" · ");
+}
+
+function getPriorityLabel(value) {
+  return {
+    high: "очень важно",
+    medium: "важно",
+    low: "можно реже",
+  }[value] || "важно";
+}
+
+function getPreferredTimeLabel(value) {
+  return {
+    early_morning: "раннее утро",
+    morning: "утро",
+    day: "день",
+    evening: "вечер",
+    late_evening: "поздний вечер",
+    depends: "любое время",
+  }[value] || "любое время";
+}
+
 function getWeekdayShortLabel(weekday) {
   return {
     1: "Пн",
@@ -1363,6 +2255,248 @@ function getWeekdayShortLabel(weekday) {
     6: "Сб",
     7: "Вс",
   }[Number(weekday)] || "";
+}
+
+function getDraftOverviewStats(blocks) {
+  const source = Array.isArray(blocks) ? blocks : [];
+  const uniqueDays = new Set(source.map(getDraftBlockWeekday));
+  const workBlocks = source.filter(block => block.category === "work");
+  const focusBlocks = source.filter(block => ["focus", "goal", "study"].includes(block.category));
+  const goalBlocks = source.filter(block => block.category !== "rest");
+  const restBlocks = source.filter(block => block.category === "rest");
+  return {
+    blockCount: source.length,
+    dayCount: uniqueDays.size,
+    totalMinutes: sumDraftBlockMinutes(source),
+    workBlockCount: workBlocks.length,
+    workMinutes: sumDraftBlockMinutes(workBlocks),
+    focusBlockCount: focusBlocks.length,
+    focusMinutes: sumDraftBlockMinutes(focusBlocks),
+    goalBlockCount: goalBlocks.length,
+    goalMinutes: sumDraftBlockMinutes(goalBlocks),
+    restBlockCount: restBlocks.length,
+    restMinutes: sumDraftBlockMinutes(restBlocks),
+    fixedBlockCount: source.filter(block => block.flexibility === "fixed").length,
+  };
+}
+
+function getDraftResultSummary(stats, blocks) {
+  const groups = groupDraftBlocksByWeekday(blocks);
+  if (!stats.blockCount) return "Черновик пока пустой.";
+  const busiest = groups
+    .map(([weekday, items]) => ({ weekday, minutes: sumDraftBlockMinutes(items) }))
+    .sort((first, second) => second.minutes - first.minutes)[0];
+  if (!busiest) return `${stats.blockCount} блоков распределены по ${stats.dayCount} дн.`;
+  return `${stats.blockCount} блоков на ${stats.dayCount} дн.; самый плотный день: ${getPersonalScheduleWeekdayLabel(busiest.weekday)}, ${formatMinutesDuration(busiest.minutes)}.`;
+}
+
+function getDraftWhyItems(draft, variant, stats, blocks) {
+  const intake = draft?.intake || {};
+  const energy = intake.energy || {};
+  const profile = draft?.normalizedProfile || {};
+  const tuning = profile.bigFiveTuning || {};
+  const focusBlock = sortDraftBlocks(blocks).find(block => ["focus", "goal", "study"].includes(block.category));
+  const items = [];
+
+  if (focusBlock) {
+    items.push({
+      title: "Главный приоритет",
+      body: `${focusBlock.title} стоит ${getDraftBlockDayPartLabel(focusBlock)} (${focusBlock.startTime}-${focusBlock.endTime}), потому что выбран пик энергии: ${getEnergyPeakDisplayLabel(energy.peak)}.`,
+    });
+  }
+
+  items.push({
+    title: "Темп дня",
+    body: `Плотность: ${getEnergyDensityDisplayLabel(energy.density)}; фокус-блок: ${energy.focusBlockMinutes || 60} мин.; перерыв: ${energy.breakMinutes || 10} мин.; буфер: ${energy.bufferMinutes || 0} мин.`,
+  });
+
+  items.push({
+    title: "20 вопросов",
+    body: tuning.skipped === false
+      ? `Профиль выбрал стиль «${variant?.title || "Сбалансированный"}»: ${tuning.summary || "нейтральный стиль"}. Он влияет на порядок вариантов и небольшие поправки к фокусу, перерывам и буферам.`
+      : "Опрос предпочтений пропущен, поэтому стиль черновика нейтральный: без дополнительных поправок к фокусу, перерывам и буферам.",
+  });
+
+  if (draft?.source === "local_fallback") {
+    items.push({
+      title: "Локальный черновик",
+      body: "Сервис генерации не ответил, поэтому Focus собрал этот вариант на устройстве из ваших ответов. Черновик можно редактировать перед импортом.",
+    });
+  }
+
+  if (intake.includeCalendar || stats.workBlockCount || stats.fixedBlockCount) {
+    items.push({
+      title: "Ограничения Focus",
+      body: "Сон, рабочие окна и занятые интервалы сохраняются как ограничения, поэтому новые блоки подстраиваются вокруг них.",
+    });
+  }
+
+  return items.slice(0, draft?.source === "local_fallback" ? 5 : 4);
+}
+
+function getDraftBlockDayPartLabel(block) {
+  const minute = getDraftBlockStartMinute(block);
+  if (minute < 11 * 60) return "утром";
+  if (minute < 17 * 60) return "днем";
+  if (minute < 21 * 60) return "вечером";
+  return "поздно вечером";
+}
+
+function getEnergyPeakDisplayLabel(value) {
+  return {
+    early_morning: "раннее утро",
+    morning: "утро",
+    day: "день",
+    evening: "вечер",
+    late_evening: "поздний вечер",
+    depends: "зависит от дня",
+  }[value] || "утро";
+}
+
+function getEnergyDensityDisplayLabel(value) {
+  return {
+    light: "свободно",
+    balanced: "сбалансированно",
+    dense: "плотно",
+  }[value] || "сбалансированно";
+}
+
+function getSleepWindowLabel(sleep) {
+  const wake = sleep?.wakeTime || "07:00";
+  const bed = sleep?.bedTime || "23:00";
+  return `${bed}-${wake}`;
+}
+
+function getDraftDecisionWarningItems(intake, validation, stats, blocks, validationSummary = "") {
+  const items = [];
+  if (validation && validation.ok === false) {
+    items.push({
+      level: "bad",
+      title: "Есть блокирующие конфликты",
+      body: validationSummary || "Проверьте конфликтные блоки перед импортом.",
+    });
+  }
+
+  const overloadedDays = getOverloadedDraftDays(intake, blocks);
+  if (overloadedDays.length) {
+    items.push({
+      level: "warn",
+      title: "Плотные дни",
+      body: overloadedDays
+        .map(day => `${getPersonalScheduleWeekdayLabel(day.weekday)}: ${formatMinutesDuration(day.minutes)}`)
+        .join("; "),
+    });
+  }
+
+  const goalCount = Array.isArray(intake?.goals) ? intake.goals.length : 0;
+  if (goalCount && !stats.focusBlockCount) {
+    items.push({
+      level: "warn",
+      title: "Фокус-блоки не выделены",
+      body: "Цели есть в анкете, но в выбранном варианте нет отдельного фокусного блока.",
+    });
+  }
+
+  if (!items.length) {
+    items.push({
+      level: "ok",
+      title: "Без блокирующих конфликтов",
+      body: "Интервалы не пересекаются с фиксированными событиями Focus.",
+    });
+  }
+  return items;
+}
+
+function getOverloadedDraftDays(intake, blocks) {
+  const threshold = getDraftDayLoadThreshold(intake);
+  return groupDraftBlocksByWeekday(blocks)
+    .map(([weekday, items]) => ({ weekday, minutes: sumDraftBlockMinutes(items) }))
+    .filter(day => day.minutes > threshold)
+    .slice(0, 3);
+}
+
+function getDraftDayLoadThreshold(intake) {
+  const density = intake?.energy?.density;
+  if (density === "light") return 9 * 60;
+  if (density === "dense") return 12 * 60;
+  return 10 * 60 + 30;
+}
+
+function groupDraftBlocksByWeekday(blocks) {
+  const groups = new Map();
+  for (const block of sortDraftBlocks(blocks)) {
+    const weekday = getDraftBlockWeekday(block);
+    if (!groups.has(weekday)) groups.set(weekday, []);
+    groups.get(weekday).push(block);
+  }
+  return [...groups.entries()].sort(([first], [second]) => first - second);
+}
+
+function sortDraftBlocks(blocks) {
+  return [...(Array.isArray(blocks) ? blocks : [])].sort((first, second) => {
+    const weekdayDiff = getDraftBlockWeekday(first) - getDraftBlockWeekday(second);
+    if (weekdayDiff) return weekdayDiff;
+    return getDraftBlockStartMinute(first) - getDraftBlockStartMinute(second);
+  });
+}
+
+function sumDraftBlockMinutes(blocks) {
+  return (Array.isArray(blocks) ? blocks : []).reduce((total, block) => total + getDraftBlockDuration(block), 0);
+}
+
+function getDraftBlockWeekday(block) {
+  const weekday = Number(block?.weekday);
+  return Number.isInteger(weekday) && weekday >= 1 && weekday <= 7 ? weekday : 1;
+}
+
+function getDraftBlockStartMinute(block) {
+  const parsed = Number.isFinite(block?.startMinute) ? Number(block.startMinute) : parseTimeToMinutes(block?.startTime);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getDraftBlockEndMinute(block) {
+  const parsed = Number.isFinite(block?.endMinute) ? Number(block.endMinute) : parseTimeToMinutes(block?.endTime);
+  return Number.isFinite(parsed) ? parsed : Math.min(MAX_DAY_MINUTE, getDraftBlockStartMinute(block) + MIN_BLOCK_MINUTES);
+}
+
+function getDraftBlockDuration(block) {
+  return Math.max(0, getDraftBlockEndMinute(block) - getDraftBlockStartMinute(block));
+}
+
+function shiftDraftBlock(block, deltaMinutes) {
+  const duration = Math.max(MIN_BLOCK_MINUTES, getDraftBlockDuration(block) || Number(block?.durationMinutes) || MIN_BLOCK_MINUTES);
+  const latestStart = Math.max(0, MAX_DAY_MINUTE - duration);
+  const start = clampNumber(getDraftBlockStartMinute(block) + deltaMinutes, 0, latestStart);
+  return setDraftBlockTime(block, start, start + duration);
+}
+
+function resizeDraftBlock(block, deltaMinutes) {
+  const start = getDraftBlockStartMinute(block);
+  const currentEnd = getDraftBlockEndMinute(block);
+  const end = clampNumber(currentEnd + deltaMinutes, start + MIN_BLOCK_MINUTES, MAX_DAY_MINUTE);
+  return setDraftBlockTime(block, start, end);
+}
+
+function setDraftBlockTime(block, startMinute, endMinute) {
+  return {
+    ...block,
+    startMinute,
+    endMinute,
+    startTime: formatTimeFromMinutes(startMinute),
+    endTime: formatTimeFromMinutes(endMinute),
+    durationMinutes: Math.max(0, endMinute - startMinute),
+  };
+}
+
+function formatTimeFromMinutes(value) {
+  const minutes = clampNumber(value, 0, MAX_DAY_MINUTE);
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
+function clampNumber(value, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return min;
+  return Math.min(max, Math.max(min, Math.round(number)));
 }
 
 function getPath(source, path) {

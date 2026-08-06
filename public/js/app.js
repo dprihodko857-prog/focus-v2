@@ -1,4 +1,4 @@
-import { createFocusStorage, DIARY_PIN_KEY, HOLIDAY_CATALOG_CACHE_KEY, HOLIDAY_PREFERENCES_CACHE_KEY, HOLIDAY_RELIGIOUS_PREFERENCES_KEY, LEGACY_BIRTHDAYS_KEY, LEGACY_DIARY_KEY, LEGACY_NOTES_KEY, LEGACY_SCHEDULES_KEY, LEGACY_TASKS_KEY, parseScheduleList, QUOTE_CACHE_KEY, REMINDERS_KEY } from "./storage.js";
+import { createFocusStorage, DIARY_PIN_KEY, HOLIDAY_CATALOG_CACHE_KEY, HOLIDAY_PREFERENCES_CACHE_KEY, HOLIDAY_RELIGIOUS_PREFERENCES_KEY, INTERESTING_TODAY_CACHE_KEY, LEGACY_BIRTHDAYS_KEY, LEGACY_DIARY_KEY, LEGACY_NOTES_KEY, LEGACY_SCHEDULES_KEY, LEGACY_TASKS_KEY, parseScheduleList, QUOTE_CACHE_KEY, QUOTE_HISTORY_CACHE_KEY, REMINDERS_KEY } from "./storage.js";
 import { createFocusAuthClient } from "./auth.js";
 import { createFocusSyncClient } from "./sync.js";
 import { createFocusNotifications, createLocalReminder } from "./notifications.js";
@@ -78,11 +78,512 @@ const HOLIDAY_DESCRIPTION_BY_TITLE = {
   "Мавлид ан-Набий": "Исламская памятная дата, посвященная рождению пророка Мухаммада. В разных общинах традиции отмечания могут отличаться."
 };
 
+const MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION = {
+  kindLabel: "ведомственный памятный день",
+  detailTypeLabel: "Памятный день",
+};
+
 const PROFESSIONAL_HOLIDAY_DESCRIPTION_BY_TITLE = {
+  "День работника прокуратуры Российской Федерации": {
+    audience: "работников прокуратуры, прокурорских работников и специалистов надзорной системы",
+    recurrence: "отмечается ежегодно 12 января",
+  },
+  "День российской печати": {
+    audience: "журналистов, редакторов, издателей и работников печатных и цифровых медиа",
+    recurrence: "отмечается ежегодно 13 января",
+  },
+  "День трубопроводных войск": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов трубопроводных войск",
+    recurrence: "отмечается ежегодно 14 января",
+  },
+  "День артиста": {
+    audience: "актеров, артистов сцены, цирка, эстрады и других исполнительских профессий",
+    recurrence: "отмечается ежегодно 17 января",
+  },
+  "День инженерных войск": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов инженерных войск",
+    recurrence: "отмечается ежегодно 21 января",
+  },
+  "День российской науки": {
+    audience: "ученых, исследователей, преподавателей и сотрудников научных организаций",
+    recurrence: "отмечается ежегодно 8 февраля",
+  },
+  "День военной полиции": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих и ветеранов военной полиции Вооруженных Сил России",
+    recurrence: "отмечается ежегодно 8 февраля",
+  },
+  "День работника гражданской авиации": {
+    audience: "пилотов, диспетчеров, инженеров, наземных служб и работников гражданской авиации",
+    recurrence: "отмечается ежегодно 9 февраля",
+  },
+  "День дипломатического работника": {
+    audience: "дипломатов, сотрудников внешнеполитической службы и специалистов международных направлений",
+    recurrence: "отмечается ежегодно 10 февраля",
+  },
+  "День российских студенческих отрядов": {
+    audience: "участников, командиров, наставников и организаторов российских студенческих отрядов",
+    recurrence: "отмечается ежегодно 17 февраля",
+  },
+  "День Сил специальных операций": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов Сил специальных операций",
+    recurrence: "отмечается ежегодно 27 февраля",
+  },
+  "День наставника": {
+    audience: "наставников, педагогов, кураторов стажировок и специалистов, которые передают профессиональный опыт",
+    recurrence: "отмечается ежегодно 2 марта",
+  },
+  "День работников геодезии и картографии": {
+    audience: "геодезистов, картографов, кадастровых инженеров и специалистов пространственных данных",
+    recurrence: "отмечается ежегодно во второе воскресенье марта",
+  },
+  "День работника органов наркоконтроля": {
+    audience: "сотрудников и ветеранов подразделений, связанных с противодействием незаконному обороту наркотиков",
+    recurrence: "отмечается ежегодно 11 марта",
+  },
+  "День работника уголовно-исполнительной системы": {
+    audience: "сотрудников, специалистов и ветеранов уголовно-исполнительной системы",
+    recurrence: "отмечается ежегодно 12 марта",
+  },
+  "День работников бытового обслуживания населения и жилищно-коммунального хозяйства": {
+    audience: "работников бытовых услуг, управляющих организаций, коммунальных служб и жилищного хозяйства",
+    recurrence: "отмечается ежегодно в третье воскресенье марта",
+  },
+  "День работников гидрометеорологической службы": {
+    audience: "метеорологов, гидрологов, климатологов и специалистов наблюдательных служб",
+    recurrence: "отмечается ежегодно 23 марта",
+  },
+  "День работника культуры": {
+    audience: "работников музеев, библиотек, театров, домов культуры и других культурных институций",
+    recurrence: "отмечается ежегодно 25 марта",
+  },
+  "День войск национальной гвардии Российской Федерации": {
+    audience: "военнослужащих, сотрудников и ветеранов войск национальной гвардии",
+    recurrence: "отмечается ежегодно 27 марта",
+  },
+  "День специалиста юридической службы в Вооруженных Силах Российской Федерации": {
+    audience: "военных юристов, специалистов правового обеспечения и ветеранов юридической службы Вооруженных Сил",
+    recurrence: "отмечается ежегодно 29 марта",
+  },
+  "День геолога": {
+    audience: "геологов, геофизиков, разведчиков недр и специалистов минерально-сырьевой базы",
+    recurrence: "отмечается ежегодно в первое воскресенье апреля",
+  },
+  "День сотрудников военных комиссариатов": {
+    audience: "сотрудников военных комиссариатов, специалистов воинского учета и мобилизационной работы",
+    recurrence: "отмечается ежегодно 8 апреля",
+  },
+  "День российской анимации": {
+    audience: "аниматоров, художников, режиссеров, сценаристов и студий российской анимации",
+    recurrence: "отмечается ежегодно 8 апреля",
+  },
+  "День космонавтики": {
+    audience: "специалистов космической отрасли и всех, кто связан с освоением космоса",
+    recurrence: "отмечается ежегодно 12 апреля",
+    note: "Дата связана с первым полетом человека в космос и поэтому одновременно воспринимается как памятный и профессиональный повод.",
+  },
+  "День войск противовоздушной обороны": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов войск противовоздушной обороны",
+    recurrence: "отмечается ежегодно во второе воскресенье апреля",
+  },
+  "День специалиста по радиоэлектронной борьбе": {
+    audience: "военных специалистов радиоэлектронной борьбы, инженеров и ветеранов профильных подразделений",
+    recurrence: "отмечается ежегодно 15 апреля",
+  },
+  "День местного самоуправления": {
+    audience: "муниципальных служащих, депутатов и специалистов местного самоуправления",
+    recurrence: "отмечается ежегодно 21 апреля",
+  },
+  "День нотариата": {
+    audience: "нотариусов, сотрудников нотариальных палат и специалистов нотариальной практики",
+    recurrence: "отмечается ежегодно 26 апреля",
+  },
+  "День работника скорой медицинской помощи": {
+    audience: "врачей, фельдшеров, диспетчеров, водителей и сотрудников скорой медицинской помощи",
+    recurrence: "отмечается ежегодно 28 апреля",
+  },
+  "День пожарной охраны": {
+    audience: "пожарных, диспетчеров, инспекторов, спасателей и ветеранов пожарной охраны",
+    recurrence: "отмечается ежегодно 30 апреля",
+  },
+  "День радио": {
+    audience: "работников радио, связи, телекоммуникаций и смежных технических профессий",
+    recurrence: "отмечается ежегодно 7 мая",
+  },
+  "День военно-политических органов": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов военно-политических органов",
+    recurrence: "отмечается ежегодно 15 мая",
+  },
+  "День фармацевтического работника": {
+    audience: "провизоров, фармацевтов, сотрудников аптек, производств и фармацевтической отрасли",
+    recurrence: "отмечается ежегодно 19 мая",
+  },
+  "День полярника": {
+    audience: "исследователей, инженеров, моряков, летчиков и специалистов, работающих в Арктике и Антарктике",
+    recurrence: "отмечается ежегодно 21 мая",
+  },
+  "День российского предпринимательства": {
+    audience: "предпринимателей, владельцев бизнеса и команд, развивающих частную инициативу",
+    recurrence: "отмечается ежегодно 26 мая",
+  },
+  "Общероссийский День библиотек": {
+    audience: "библиотекарей, методистов, архивистов и специалистов библиотечного дела",
+    recurrence: "отмечается ежегодно 27 мая",
+  },
+  "День пограничника": {
+    audience: "военнослужащих, сотрудников, ветеранов пограничной службы и их подразделений",
+    recurrence: "отмечается ежегодно 28 мая",
+  },
+  "День военного автомобилиста": {
+    audience: "военных автомобилистов, водителей, механиков и ветеранов автомобильных подразделений",
+    recurrence: "отмечается ежегодно 29 мая",
+  },
+  "День российской адвокатуры": {
+    audience: "адвокатов, помощников адвокатов и специалистов адвокатского сообщества",
+    recurrence: "отмечается ежегодно 31 мая",
+  },
+  "День химика": {
+    audience: "химиков, инженеров, технологов и работников химической промышленности",
+    recurrence: "отмечается ежегодно в последнее воскресенье мая",
+  },
+  "День эколога": {
+    audience: "экологов, природоохранных специалистов, инспекторов и сотрудников экологических организаций",
+    recurrence: "отмечается ежегодно 5 июня",
+  },
+  "День социального работника": {
+    audience: "социальных работников, специалистов служб поддержки и сотрудников учреждений социальной защиты",
+    recurrence: "отмечается ежегодно 8 июня",
+  },
+  "День работников текстильной и легкой промышленности": {
+    audience: "работников текстильных, швейных, обувных и смежных производств легкой промышленности",
+    recurrence: "отмечается ежегодно во второе воскресенье июня",
+  },
+  "День работника миграционной службы": {
+    audience: "сотрудников миграционной службы и специалистов регистрационного, паспортного и миграционного учета",
+    recurrence: "отмечается ежегодно 14 июня",
+  },
+  "День службы военных сообщений": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов службы военных сообщений",
+    recurrence: "отмечается ежегодно 18 июня",
+  },
+  "День медицинского работника": {
+    audience: "врачей, среднего и младшего медицинского персонала, фармацевтов и сотрудников здравоохранения",
+    recurrence: "отмечается ежегодно в третье воскресенье июня",
+  },
+  "День народных художественных промыслов": {
+    audience: "мастеров, художников, технологов и организаций народных художественных промыслов",
+    recurrence: "отмечается ежегодно в предпоследнее воскресенье июня",
+  },
+  "День работника статистики": {
+    audience: "статистиков, аналитиков данных и работников органов государственной статистики",
+    recurrence: "отмечается ежегодно 25 июня",
+  },
+  "День изобретателя и рационализатора": {
+    audience: "изобретателей, рационализаторов, инженеров и авторов технических решений",
+    recurrence: "отмечается ежегодно в последнюю субботу июня",
+  },
+  "День судебного эксперта": {
+    audience: "судебных экспертов, криминалистов, лабораторных специалистов и экспертных учреждений",
+    recurrence: "отмечается ежегодно 28 июня",
+  },
+  "День кораблестроителя": {
+    audience: "кораблестроителей, инженеров, конструкторов, рабочих верфей и судостроительных предприятий",
+    recurrence: "отмечается ежегодно 29 июня",
+  },
+  "День Государственной инспекции безопасности дорожного движения МВД России": {
+    audience: "сотрудников Госавтоинспекции, инспекторов дорожной безопасности и ветеранов службы",
+    recurrence: "отмечается ежегодно 3 июля",
+  },
+  "День работников морского и речного флота": {
+    audience: "моряков, речников, портовых работников, судовых экипажей и специалистов водного транспорта",
+    recurrence: "отмечается ежегодно в первое воскресенье июля",
+  },
+  "День архитектора": {
+    audience: "архитекторов, градостроителей, проектировщиков и специалистов архитектурной среды",
+    recurrence: "отмечается ежегодно в первый понедельник июля",
+  },
+  "День рыбака": {
+    audience: "рыбаков, работников рыбной промышленности, флота и переработки водных биоресурсов",
+    recurrence: "отмечается ежегодно во второе воскресенье июля",
+  },
+  "День российской почты": {
+    audience: "работников почтовой связи, логистики и клиентских почтовых сервисов",
+    recurrence: "отмечается ежегодно во второе воскресенье июля",
+  },
+  "День металлурга": {
+    audience: "металлургов, инженеров, технологов и работников металлургических предприятий",
+    recurrence: "отмечается ежегодно в третье воскресенье июля",
+  },
+  "День сотрудника органов следствия Российской Федерации": {
+    audience: "следователей, криминалистов, сотрудников следственных органов и ветеранов службы",
+    recurrence: "отмечается ежегодно 25 июля",
+  },
+  "День работника торговли": {
+    audience: "работников торговли, сферы услуг, розничных сетей и предпринимателей отрасли",
+    recurrence: "отмечается ежегодно в четвертую субботу июля",
+  },
+  "День Военно-Морского Флота": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов Военно-Морского Флота",
+    recurrence: "отмечается ежегодно в последнее воскресенье июля",
+  },
+  "День Тыла Вооруженных Сил Российской Федерации": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов тыловых служб Вооруженных Сил",
+    recurrence: "отмечается ежегодно 1 августа",
+  },
+  "День Воздушно-десантных войск": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов Воздушно-десантных войск",
+    recurrence: "отмечается ежегодно 2 августа",
+  },
+  "День железнодорожника": {
+    audience: "работников железнодорожного транспорта, инфраструктуры, логистики и сервисных служб",
+    recurrence: "отмечается ежегодно в первое воскресенье августа",
+  },
+  "День Железнодорожных войск": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов Железнодорожных войск",
+    recurrence: "отмечается ежегодно 6 августа",
+  },
+  "День физкультурника": {
+    audience: "спортсменов, тренеров, преподавателей физической культуры и всех, кто развивает массовый спорт",
+    recurrence: "отмечается ежегодно во вторую субботу августа",
+  },
   "День строителя": {
     audience: "работников строительной отрасли",
     recurrence: "отмечается ежегодно во второе воскресенье августа",
     internationalNote: "Праздник также традиционно празднуется в некоторых странах бывшего СССР, таких как Беларусь, Казахстан и другие.",
+  },
+  "День Военно-воздушных сил": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов Военно-воздушных сил",
+    recurrence: "отмечается ежегодно 12 августа",
+    note: "Праздничные мероприятия по этой дате традиционно связываются с Днем Воздушного Флота России.",
+  },
+  "День Воздушного Флота России": {
+    audience: "летчиков, инженеров, диспетчеров, экипажей и специалистов авиационной отрасли",
+    recurrence: "отмечается ежегодно в третье воскресенье августа",
+  },
+  "День географа": {
+    audience: "географов, исследователей территорий, картографов и преподавателей географии",
+    recurrence: "отмечается ежегодно 18 августа",
+  },
+  "День кино": {
+    audience: "режиссеров, операторов, актеров, продюсеров и работников кинематографии",
+    recurrence: "отмечается ежегодно 27 августа",
+  },
+  "День шахтера": {
+    audience: "шахтеров, горных инженеров, проходчиков и работников угольной промышленности",
+    recurrence: "отмечается ежегодно в последнее воскресенье августа",
+  },
+  "День российской гвардии": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов российской гвардии",
+    recurrence: "отмечается ежегодно 2 сентября",
+  },
+  "День специалиста по ядерному обеспечению": {
+    audience: "военных специалистов ядерного обеспечения, инженеров и ветеранов профильных подразделений",
+    recurrence: "отмечается ежегодно 4 сентября",
+  },
+  "День работников нефтяной и газовой промышленности": {
+    audience: "работников добычи, переработки, транспортировки нефти и газа, инженеров и сервисных служб",
+    recurrence: "отмечается ежегодно в первое воскресенье сентября",
+  },
+  "День финансиста": {
+    audience: "финансистов, экономистов, бухгалтеров, аналитиков и специалистов финансового рынка",
+    recurrence: "отмечается ежегодно 8 сентября",
+  },
+  "День специалиста органов воспитательной работы в Вооруженных Силах Российской Федерации": {
+    audience: "военных педагогов, офицеров воспитательной работы и специалистов морально-психологического обеспечения",
+    recurrence: "отмечается ежегодно 11 сентября",
+  },
+  "День программиста": {
+    audience: "программистов, инженеров, разработчиков, тестировщиков и специалистов цифровых продуктов",
+    recurrence: "отмечается ежегодно в 256-й день года",
+    note: "В невисокосный год он приходится на 13 сентября, а в високосный год - на 12 сентября.",
+  },
+  "День танкиста": {
+    audience: "военнослужащих танковых войск, танкостроителей, ремонтных специалистов и ветеранов танковых подразделений",
+    recurrence: "отмечается ежегодно во второе воскресенье сентября",
+  },
+  "День федерального государственного санитарно-эпидемиологического надзора": {
+    audience: "специалистов санитарно-эпидемиологического надзора, врачей-гигиенистов и эпидемиологов",
+    recurrence: "отмечается ежегодно 15 сентября",
+  },
+  "День оружейника": {
+    audience: "конструкторов, инженеров, технологов и работников предприятий оборонно-промышленного комплекса",
+    recurrence: "отмечается ежегодно 19 сентября",
+  },
+  "День работников леса": {
+    audience: "лесничих, инженеров лесного хозяйства, работников лесной промышленности и охраны лесов",
+    recurrence: "отмечается ежегодно в третье воскресенье сентября",
+  },
+  "День воспитателя и всех дошкольных работников": {
+    audience: "воспитателей, педагогов, помощников воспитателей и сотрудников дошкольных организаций",
+    recurrence: "отмечается ежегодно 27 сентября",
+  },
+  "День машиностроителя": {
+    audience: "работников машиностроения, конструкторских бюро, производственных и инженерных предприятий",
+    recurrence: "отмечается ежегодно в последнее воскресенье сентября",
+  },
+  "День работника атомной промышленности": {
+    audience: "работников атомной отрасли, инженеров, физиков, эксплуатационных и производственных служб",
+    recurrence: "отмечается ежегодно 28 сентября",
+  },
+  "День Сухопутных войск": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов Сухопутных войск",
+    recurrence: "отмечается ежегодно 1 октября",
+  },
+  "День среднего профессионального образования": {
+    audience: "преподавателей, мастеров производственного обучения, студентов и сотрудников колледжей и техникумов",
+    recurrence: "отмечается ежегодно 2 октября",
+  },
+  "День метростроителя": {
+    audience: "строителей метро, проектировщиков, инженеров и рабочих метростроительных организаций",
+    recurrence: "отмечается ежегодно 2 октября",
+  },
+  "День работника электронной промышленности": {
+    audience: "инженеров, технологов, разработчиков и работников предприятий электронной промышленности",
+    recurrence: "отмечается ежегодно в первое воскресенье октября",
+  },
+  "День Космических войск": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов Космических войск",
+    recurrence: "отмечается ежегодно 4 октября",
+  },
+  "День учителя": {
+    audience: "учителей, педагогов, наставников и сотрудников образовательных организаций",
+    recurrence: "отмечается ежегодно 5 октября",
+  },
+  "День работника сельского хозяйства": {
+    audience: "работников сельского хозяйства, перерабатывающей промышленности и аграрного сектора",
+    recurrence: "отмечается ежегодно во второе воскресенье октября",
+  },
+  "День работников дорожного хозяйства": {
+    audience: "дорожников, инженеров, проектировщиков и работников эксплуатации автомобильных дорог",
+    recurrence: "отмечается ежегодно в третье воскресенье октября",
+  },
+  "День военного связиста": {
+    audience: "военных связистов, инженеров связи, операторов и ветеранов войск связи",
+    recurrence: "отмечается ежегодно 20 октября",
+  },
+  "День финансово-экономической службы": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов финансово-экономической службы",
+    recurrence: "отмечается ежегодно 22 октября",
+  },
+  "День подразделений специального назначения": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов подразделений специального назначения",
+    recurrence: "отмечается ежегодно 24 октября",
+  },
+  "День таможенника Российской Федерации": {
+    audience: "сотрудников таможенных органов, специалистов контроля и ветеранов таможенной службы",
+    recurrence: "отмечается ежегодно 25 октября",
+  },
+  "День работника автомобильного и городского пассажирского транспорта": {
+    audience: "водителей, диспетчеров, инженеров, механиков и работников пассажирского автотранспорта",
+    recurrence: "отмечается ежегодно в последнее воскресенье октября",
+  },
+  "День судебного пристава": {
+    audience: "судебных приставов, сотрудников ФССП и специалистов исполнительного производства",
+    recurrence: "отмечается ежегодно 1 ноября",
+  },
+  "День военного разведчика": {
+    audience: "военных разведчиков, специалистов разведывательных подразделений и ветеранов службы",
+    recurrence: "отмечается ежегодно 5 ноября",
+  },
+  "День работника суда": {
+    audience: "работников аппаратов судов, секретарей, помощников судей и специалистов судебной системы",
+    recurrence: "отмечается ежегодно 5 ноября",
+  },
+  "День сотрудника органов внутренних дел Российской Федерации": {
+    audience: "сотрудников полиции, органов внутренних дел, гражданского персонала и ветеранов службы",
+    recurrence: "отмечается ежегодно 10 ноября",
+  },
+  "День экономиста": {
+    audience: "экономистов, аналитиков, плановиков, исследователей и специалистов экономического развития",
+    recurrence: "отмечается ежегодно 11 ноября",
+  },
+  "День войск радиационной, химической и биологической защиты": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов войск радиационной, химической и биологической защиты",
+    recurrence: "отмечается ежегодно 13 ноября",
+  },
+  "День самбо": {
+    audience: "спортсменов, тренеров, судей, секций и организаций, развивающих самбо",
+    recurrence: "отмечается ежегодно 16 ноября",
+  },
+  "День ракетных войск и артиллерии": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов ракетных войск и артиллерии",
+    recurrence: "отмечается ежегодно 19 ноября",
+  },
+  "День преподавателя высшей школы": {
+    audience: "преподавателей вузов, научно-педагогических работников и сотрудников высшего образования",
+    recurrence: "отмечается ежегодно 19 ноября",
+  },
+  "День работника транспорта": {
+    audience: "работников транспортного комплекса, логистики, управления перевозками и инфраструктуры",
+    recurrence: "отмечается ежегодно 20 ноября",
+  },
+  "День работника налоговых органов Российской Федерации": {
+    audience: "сотрудников налоговых органов, инспекторов, аналитиков и специалистов налогового администрирования",
+    recurrence: "отмечается ежегодно 21 ноября",
+  },
+  "День психолога": {
+    audience: "психологов, консультантов, преподавателей психологии и специалистов психологической помощи",
+    recurrence: "отмечается ежегодно 22 ноября",
+  },
+  "День морской пехоты": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов морской пехоты",
+    recurrence: "отмечается ежегодно 27 ноября",
+  },
+  "День математика": {
+    audience: "математиков, преподавателей, исследователей и специалистов прикладной математики",
+    recurrence: "отмечается ежегодно 1 декабря",
+  },
+  "День юриста": {
+    audience: "юристов, адвокатов, нотариусов, судей, правоведов и специалистов правовой сферы",
+    recurrence: "отмечается ежегодно 3 декабря",
+  },
+  "День Ракетных войск стратегического назначения": {
+    ...MILITARY_MEMORIAL_HOLIDAY_DESCRIPTION,
+    audience: "военнослужащих, гражданского персонала и ветеранов Ракетных войск стратегического назначения",
+    recurrence: "отмечается ежегодно 17 декабря",
+  },
+  "День российской фельдъегерской связи": {
+    audience: "сотрудников фельдъегерской связи, курьеров особой связи и ветеранов службы",
+    recurrence: "отмечается ежегодно 17 декабря",
+  },
+  "День работника органов безопасности Российской Федерации": {
+    audience: "сотрудников органов безопасности, гражданского персонала и ветеранов службы",
+    recurrence: "отмечается ежегодно 20 декабря",
+  },
+  "День энергетика": {
+    audience: "работников энергетики, электросетевого комплекса, генерации и смежных инженерных служб",
+    recurrence: "отмечается ежегодно 22 декабря",
+  },
+  "День хоккея": {
+    audience: "хоккеистов, тренеров, судей, спортивных школ, клубов и специалистов хоккейной инфраструктуры",
+    recurrence: "отмечается ежегодно 22 декабря",
+  },
+  "День работника органов регистрации прав на недвижимое имущество и сделок с ним": {
+    audience: "специалистов регистрации прав, кадастрового учета и органов, работающих с недвижимостью",
+    recurrence: "отмечается ежегодно 25 декабря",
+  },
+  "День спасателя Российской Федерации": {
+    audience: "спасателей, сотрудников аварийно-спасательных служб и специалистов гражданской защиты",
+    recurrence: "отмечается ежегодно 27 декабря",
   },
 };
 
@@ -203,6 +704,8 @@ let paidFeatureCheckoutState = {
   featureKey: "",
 };
 const VOICE_RECORDING_MAX_MS = 15000;
+const GREETING_ASSISTANT_DRAFT_KEY = "focus-greeting-assistant-draft";
+const GREETING_DISABLED_MESSAGE = "Генерация поздравлений пока недоступна. Анкету можно сохранить и продолжить позднее.";
 let activeVoiceRecognition = null;
 let activeVoiceButton = null;
 let activeVoiceRecorder = null;
@@ -212,6 +715,8 @@ let activeVoiceRecorderTimer = null;
 let activeVoiceRecorderStartedAt = 0;
 let activeVoiceRecorderStoppedByLimit = false;
 let activeVoiceTranscriptionButton = null;
+let greetingAssistantContext = null;
+let greetingAssistantState = createEmptyGreetingAssistantState();
 
 function createDefaultAccountEntitlements() {
   return {
@@ -271,6 +776,7 @@ const installShortcutTargets = new Set([
   "useful",
   "holidays"
 ]);
+const HOLIDAY_INITIAL_SETUP_DISMISSED_KEY = "focusHolidayInitialSetupDismissed";
 
 function getInitialLaunchTarget() {
   try {
@@ -292,6 +798,18 @@ function clearInitialLaunchTarget() {
   }
 }
 
+function hasDismissedHolidayInitialSetup() {
+  return readLocalStorageItem(HOLIDAY_INITIAL_SETUP_DISMISSED_KEY) === "true";
+}
+
+function dismissHolidayInitialSetup() {
+  try {
+    localStorage.setItem(HOLIDAY_INITIAL_SETUP_DISMISSED_KEY, "true");
+  } catch {
+    // Не критично: без localStorage настройка просто снова может открыться на следующем запуске.
+  }
+}
+
 function readLocalStorageItem(key) {
   try {
     return localStorage.getItem(key);
@@ -305,19 +823,168 @@ function readLegacyScheduleList(key) {
 }
 
 function lockViewportScale() {
-  const preventScale = event => event.preventDefault();
+  const preventScale = event => {
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+  };
   ["gesturestart", "gesturechange", "gestureend"].forEach(type => {
     document.addEventListener(type, preventScale, { passive: false });
   });
-  document.addEventListener("touchmove", event => {
-    if (event.touches?.length > 1) {
+}
+
+const PRIMARY_MOUSE_BUTTON = 0;
+const RIGHT_MOUSE_BUTTON = 2;
+const DRAG_SCROLL_BUTTON_MASKS = {
+  [PRIMARY_MOUSE_BUTTON]: 1,
+  [RIGHT_MOUSE_BUTTON]: 2,
+};
+const RIGHT_DRAG_SCROLL_THRESHOLD = 3;
+const DRAG_SCROLL_EDITABLE_SELECTOR = "input, textarea, select, option, [contenteditable]";
+let rightDragScrollState = null;
+let suppressNextContextMenu = false;
+let suppressNextDragClick = false;
+let suppressContextMenuTimer = 0;
+let suppressDragClickTimer = 0;
+
+function canDragScrollElement(element) {
+  if (!element) return false;
+  const style = window.getComputedStyle(element);
+  const canScrollY = /(auto|scroll|overlay)/.test(style.overflowY)
+    && element.scrollHeight > element.clientHeight + 1;
+  const canScrollX = /(auto|scroll|overlay)/.test(style.overflowX)
+    && element.scrollWidth > element.clientWidth + 1;
+  return canScrollY || canScrollX;
+}
+
+function getRightDragScrollTarget(startElement) {
+  const modal = startElement?.closest?.(".focus-modal:not([hidden])");
+  if (modal) {
+    const modalBody = modal.querySelector(".modal-body");
+    return canDragScrollElement(modalBody) ? modalBody : null;
+  }
+
+  let element = startElement;
+  while (element && element !== document.body && element !== document.documentElement) {
+    if (canDragScrollElement(element)) {
+      return element;
+    }
+    element = element.parentElement;
+  }
+
+  const shell = document.querySelector(".app-shell");
+  if (canDragScrollElement(shell)) {
+    return shell;
+  }
+
+  const documentScroller = document.scrollingElement;
+  return canDragScrollElement(documentScroller) ? documentScroller : null;
+}
+
+function canStartMouseDragScroll(event, startElement) {
+  if (event.pointerType && event.pointerType !== "mouse") return false;
+  if (!Object.prototype.hasOwnProperty.call(DRAG_SCROLL_BUTTON_MASKS, event.button)) return false;
+  return !startElement?.closest?.(DRAG_SCROLL_EDITABLE_SELECTOR);
+}
+
+function clearRightDragScrollState() {
+  rightDragScrollState?.scrollTarget?.classList.remove("is-right-drag-scroll-target");
+  document.body.classList.remove("is-right-drag-scroll");
+  rightDragScrollState = null;
+}
+
+function bindRightButtonDragScroll() {
+  document.addEventListener("pointerdown", event => {
+    const startElement = event.target instanceof Element ? event.target : null;
+    if (!canStartMouseDragScroll(event, startElement)) return;
+    const scrollTarget = getRightDragScrollTarget(startElement);
+    if (!scrollTarget) return;
+    if (event.cancelable) {
       event.preventDefault();
     }
+
+    rightDragScrollState = {
+      button: event.button,
+      buttonMask: DRAG_SCROLL_BUTTON_MASKS[event.button],
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startScrollLeft: scrollTarget.scrollLeft,
+      startScrollTop: scrollTarget.scrollTop,
+      scrollTarget,
+      captureTarget: startElement,
+      hasMoved: false,
+    };
+    document.body.classList.add("is-right-drag-scroll");
+    scrollTarget.classList.add("is-right-drag-scroll-target");
+    startElement?.setPointerCapture?.(event.pointerId);
+  });
+
+  document.addEventListener("pointermove", event => {
+    if (!rightDragScrollState || event.pointerId !== rightDragScrollState.pointerId) return;
+    if ((event.buttons & rightDragScrollState.buttonMask) !== rightDragScrollState.buttonMask) {
+      clearRightDragScrollState();
+      return;
+    }
+
+    const deltaX = event.clientX - rightDragScrollState.startX;
+    const deltaY = event.clientY - rightDragScrollState.startY;
+    if (
+      !rightDragScrollState.hasMoved
+      && Math.max(Math.abs(deltaX), Math.abs(deltaY)) < RIGHT_DRAG_SCROLL_THRESHOLD
+    ) {
+      return;
+    }
+
+    rightDragScrollState.hasMoved = true;
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+    rightDragScrollState.scrollTarget.scrollLeft = rightDragScrollState.startScrollLeft - deltaX;
+    rightDragScrollState.scrollTarget.scrollTop = rightDragScrollState.startScrollTop - deltaY;
   }, { passive: false });
+
+  ["pointerup", "pointercancel"].forEach(type => {
+    document.addEventListener(type, event => {
+      if (!rightDragScrollState || event.pointerId !== rightDragScrollState.pointerId) return;
+      if (rightDragScrollState.hasMoved) {
+        suppressNextContextMenu = rightDragScrollState.button === RIGHT_MOUSE_BUTTON;
+        suppressNextDragClick = rightDragScrollState.button === PRIMARY_MOUSE_BUTTON;
+        window.clearTimeout(suppressContextMenuTimer);
+        window.clearTimeout(suppressDragClickTimer);
+        suppressContextMenuTimer = window.setTimeout(() => {
+          suppressNextContextMenu = false;
+        }, 350);
+        suppressDragClickTimer = window.setTimeout(() => {
+          suppressNextDragClick = false;
+        }, 350);
+      }
+      rightDragScrollState.captureTarget?.releasePointerCapture?.(event.pointerId);
+      clearRightDragScrollState();
+    });
+  });
+
+  document.addEventListener("click", event => {
+    if (!suppressNextDragClick) return;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressNextDragClick = false;
+    window.clearTimeout(suppressDragClickTimer);
+  }, { capture: true });
+
+  document.addEventListener("contextmenu", event => {
+    if (!rightDragScrollState && !suppressNextContextMenu) return;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressNextContextMenu = false;
+    window.clearTimeout(suppressContextMenuTimer);
+  }, { capture: true });
 }
 
 const COMPACT_WINDOW_WIDTH = 1720;
 const RESTORED_WINDOW_TOLERANCE = 24;
+let compactWindowModeFrame = 0;
+let currentWindowMode = "";
 
 function syncCompactWindowMode() {
   const shell = document.querySelector(".app-shell");
@@ -333,15 +1000,29 @@ function syncCompactWindowMode() {
     && outerWidth < screenWidth - RESTORED_WINDOW_TOLERANCE;
   const isCompactWindow = Number.isFinite(layoutWidth)
     && (layoutWidth <= COMPACT_WINDOW_WIDTH || isRestoredDesktopWindow);
+  const nextWindowMode = isCompactWindow ? "compact" : "desktop";
 
+  if (currentWindowMode === nextWindowMode) {
+    return;
+  }
+
+  currentWindowMode = nextWindowMode;
   shell.classList.toggle("app-shell--compact-window", isCompactWindow);
-  document.documentElement.dataset.windowMode = isCompactWindow ? "compact" : "desktop";
+  document.documentElement.dataset.windowMode = nextWindowMode;
+}
+
+function scheduleCompactWindowModeSync() {
+  if (compactWindowModeFrame) return;
+  compactWindowModeFrame = requestAnimationFrame(() => {
+    compactWindowModeFrame = 0;
+    syncCompactWindowMode();
+  });
 }
 
 function bindCompactWindowMode() {
   syncCompactWindowMode();
-  window.addEventListener("resize", syncCompactWindowMode, { passive: true });
-  window.visualViewport?.addEventListener?.("resize", syncCompactWindowMode, { passive: true });
+  window.addEventListener("resize", scheduleCompactWindowModeSync, { passive: true });
+  window.visualViewport?.addEventListener?.("resize", scheduleCompactWindowModeSync, { passive: true });
 }
 
 const scheduleTypes = {
@@ -734,6 +1415,8 @@ const monthImageSlugs = [
   "december"
 ];
 
+const QUOTE_HISTORY_LIMIT = 14;
+
 let quoteIndex = 0;
 let dailyQuotesState = {
   status: "idle",
@@ -766,6 +1449,37 @@ let quotePreferencesState = {
 };
 let quotePreferencesSaveState = "idle";
 let quotePreferencesSaveMessage = "";
+let interestingTodayState = {
+  status: "idle",
+  localDate: "",
+  timezone: "",
+  countryCode: "RU",
+  language: "ru",
+  catalogVersion: "",
+  validFromUtc: null,
+  validUntilUtc: null,
+  generationReason: "",
+  compact: { events: 2, people: 2 },
+  limits: { events: 5, people: 6 },
+  availableEvents: 0,
+  availablePeople: 0,
+  preferences: {
+    countryCode: "RU",
+    language: "ru",
+    showEvents: true,
+    showPeople: true,
+  },
+  events: [],
+  people: [],
+};
+let interestingTodayPreferencesState = {
+  countryCode: "RU",
+  language: "ru",
+  showEvents: true,
+  showPeople: true,
+};
+let interestingTodaySelectedRecord = null;
+let interestingTodayPreferencesSaveState = "idle";
 let holidayCatalogState = {
   status: "idle",
   catalog: getBundledPublishedHolidayCatalog({ countryCode: "RU", year: 2026 }),
@@ -777,6 +1491,13 @@ let holidayProfessionalCategoriesState = getProfessionalHolidayCategories();
 let holidaySettingsSaveState = "idle";
 let currentCalendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedDayCardDate = new Date();
+const CALENDAR_MONTH_LABELS = Array.from({ length: 12 }, (_, monthIndex) => {
+  const month = new Intl.DateTimeFormat("ru-RU", { month: "long" }).format(new Date(2026, monthIndex, 1));
+  return month ? `${month[0].toUpperCase()}${month.slice(1)}` : "";
+});
+const CALENDAR_YEAR_PAGE_SIZE = 12;
+let calendarPickerType = "";
+let calendarYearPickerStart = getCalendarYearPageStart(currentCalendarDate.getFullYear());
 
 function formatDate() {
   const now = new Date();
@@ -826,6 +1547,7 @@ async function loadDailyQuotes({ force = false } = {}) {
       status: "cached",
     };
     quoteIndex = Math.min(quoteIndex, Math.max(0, dailyQuotesState.quotes.length - 1));
+    await saveDailyQuotesToHistory(dailyQuotesState);
     renderQuote();
     renderDailyQuotesModal();
   }
@@ -838,6 +1560,7 @@ async function loadDailyQuotes({ force = false } = {}) {
     };
     quoteIndex = Math.min(quoteIndex, Math.max(0, dailyQuotesState.quotes.length - 1));
     await saveDailyQuotesToCache(dailyQuotesState);
+    await saveDailyQuotesToHistory(dailyQuotesState);
   } else if (!cached) {
     dailyQuotesState = {
       ...dailyQuotesState,
@@ -884,18 +1607,32 @@ async function loadQuoteHistory() {
     status: "loading",
   };
   renderDailyQuotesModal();
+  const cached = await loadQuoteHistoryFromCache();
+  if (cached) {
+    quoteHistoryState = {
+      ...quoteHistoryState,
+      status: "cached",
+      sets: mergeQuoteHistorySets(quoteHistoryState.sets, cached.sets),
+      checkedAt: cached.checkedAt || cached.savedAt || quoteHistoryState.checkedAt,
+      days: cached.days || quoteHistoryState.days,
+    };
+    renderDailyQuotesModal();
+  }
   const result = await scheduleSync.getQuoteHistory({ timezone, days: quoteHistoryState.days });
-  quoteHistoryState = result.status === "ok"
-    ? {
+  if (result.status === "ok") {
+    quoteHistoryState = {
       status: "ok",
-      sets: result.sets || [],
+      sets: mergeQuoteHistorySets(quoteHistoryState.sets, cached?.sets || [], result.sets || []),
       checkedAt: result.checkedAt || null,
       days: result.days || quoteHistoryState.days,
-    }
-    : {
-      ...quoteHistoryState,
-      status: "offline",
     };
+    await saveQuoteHistoryToCache(quoteHistoryState);
+  } else {
+    quoteHistoryState = {
+      ...quoteHistoryState,
+      status: quoteHistoryState.sets.length ? "offline-cached" : "offline",
+    };
+  }
   renderDailyQuotesModal();
 }
 
@@ -925,6 +1662,47 @@ async function saveDailyQuotesToCache(quotesState) {
   }
 }
 
+async function loadQuoteHistoryFromCache() {
+  try {
+    const cache = await scheduleStorage.loadDailyQuoteHistoryCache();
+    return normalizeQuoteHistoryCache(cache);
+  } catch {
+    return null;
+  }
+}
+
+async function saveDailyQuotesToHistory(quotesState) {
+  const set = normalizeQuoteHistorySet(quotesState);
+  if (!set) return;
+
+  try {
+    const cached = await loadQuoteHistoryFromCache();
+    quoteHistoryState = {
+      ...quoteHistoryState,
+      status: quoteHistoryState.status === "idle" ? "cached" : quoteHistoryState.status,
+      sets: mergeQuoteHistorySets([set], quoteHistoryState.sets, cached?.sets || []),
+      checkedAt: quoteHistoryState.checkedAt || cached?.checkedAt || cached?.savedAt || new Date().toISOString(),
+    };
+    await saveQuoteHistoryToCache(quoteHistoryState);
+  } catch {
+    // История цитат не должна мешать показу текущей подборки.
+  }
+}
+
+async function saveQuoteHistoryToCache(historyState) {
+  const sets = mergeQuoteHistorySets(historyState.sets || []);
+  if (!sets.length) return;
+
+  const savedAt = new Date().toISOString();
+  await scheduleStorage.saveDailyQuoteHistoryCache({
+    days: normalizeQuoteHistoryDays(historyState.days),
+    sets,
+    checkedAt: historyState.checkedAt || savedAt,
+    savedAt,
+    storageKey: QUOTE_HISTORY_CACHE_KEY,
+  });
+}
+
 function normalizeDailyQuotesCache(cache) {
   if (!cache || typeof cache !== "object" || Array.isArray(cache)) {
     return null;
@@ -942,6 +1720,95 @@ function normalizeDailyQuotesCache(cache) {
     validUntilUtc: cache.validUntilUtc || null,
     generationReason: String(cache.generationReason || ""),
     quotes,
+  };
+}
+
+function normalizeQuoteHistoryCache(cache) {
+  if (!cache || typeof cache !== "object" || Array.isArray(cache)) {
+    return null;
+  }
+
+  const sets = mergeQuoteHistorySets(cache.sets || []);
+  if (!sets.length) {
+    return null;
+  }
+
+  return {
+    days: normalizeQuoteHistoryDays(cache.days),
+    sets,
+    checkedAt: cache.checkedAt || null,
+    savedAt: cache.savedAt || null,
+  };
+}
+
+function normalizeQuoteHistoryDays(value) {
+  return Math.max(1, Math.min(90, Math.floor(Number(value) || QUOTE_HISTORY_LIMIT)));
+}
+
+function mergeQuoteHistorySets(...setLists) {
+  const byDate = new Map();
+  setLists.flat().forEach(rawSet => {
+    const set = normalizeQuoteHistorySet(rawSet);
+    if (!set || byDate.has(set.localDate)) return;
+    byDate.set(set.localDate, set);
+  });
+
+  return [...byDate.values()]
+    .sort((first, second) => second.localDate.localeCompare(first.localDate))
+    .slice(0, normalizeQuoteHistoryDays(quoteHistoryState.days));
+}
+
+function normalizeQuoteHistorySet(set) {
+  if (!set || typeof set !== "object" || Array.isArray(set)) {
+    return null;
+  }
+
+  const localDate = normalizeQuoteHistoryLocalDate(set.localDate);
+  const quotes = normalizeQuoteHistoryQuotes(set.quotes);
+  if (!localDate || !quotes.length) {
+    return null;
+  }
+
+  return {
+    localDate,
+    timezone: String(set.timezone || ""),
+    validFromUtc: set.validFromUtc || null,
+    validUntilUtc: set.validUntilUtc || null,
+    generationReason: String(set.generationReason || ""),
+    quotes,
+  };
+}
+
+function normalizeQuoteHistoryLocalDate(localDate) {
+  const value = String(localDate || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
+}
+
+function normalizeQuoteHistoryQuotes(quotes) {
+  return Array.isArray(quotes)
+    ? quotes.map(normalizeQuoteHistoryQuote).filter(Boolean).sort((first, second) => first.position - second.position).slice(0, 5)
+    : [];
+}
+
+function normalizeQuoteHistoryQuote(quote, index) {
+  if (!quote || typeof quote !== "object" || Array.isArray(quote)) {
+    return null;
+  }
+
+  const id = String(quote.id || "").trim();
+  const text = String(quote.text || "").trim();
+  const authorName = String(quote.authorName || "").trim();
+  if (!id || !text || !authorName) {
+    return null;
+  }
+
+  return {
+    ...quote,
+    id,
+    position: Math.max(1, Math.min(5, Math.floor(Number(quote.position) || index + 1))),
+    text,
+    authorName,
+    isFavorite: quote.isFavorite === true,
   };
 }
 
@@ -972,8 +1839,8 @@ function renderDailyQuotesModal() {
     list.innerHTML = `
       ${tabs}
       <article class="empty-state">
-        <strong>${isFavoritesView ? "Избранных цитат пока нет" : isHistoryView ? "Истории пока нет" : "Подборка пока недоступна"}</strong>
-        <span>${isFavoritesView ? "Нажмите звезду у цитаты, чтобы сохранить её здесь." : isHistoryView ? "Откройте цитаты в разные дни, чтобы здесь появились прошлые подборки." : "Серверный каталог цитат ещё не наполнен проверенными записями."}</span>
+        <strong>${isFavoritesView ? "Избранных цитат пока нет" : isHistoryView ? "История пока пуста" : "Подборка пока недоступна"}</strong>
+        <span>${isFavoritesView ? "Нажмите звезду у цитаты, чтобы сохранить её здесь." : isHistoryView ? "Откройте дневную подборку, чтобы она сохранилась здесь по дате." : "Серверный каталог цитат ещё не наполнен проверенными записями."}</span>
       </article>
     `;
     return;
@@ -1144,6 +2011,12 @@ function getQuoteHistoryStatusText() {
   if (quoteHistoryState.status === "loading") {
     return "Загружаем историю цитат.";
   }
+  if (quoteHistoryState.status === "cached" && count > 0) {
+    return `Показываем локальную историю: ${count} ${formatPlural(count, ["цитата", "цитаты", "цитат"])}.`;
+  }
+  if (quoteHistoryState.status === "offline-cached" && count > 0) {
+    return "Нет соединения. Показываем сохранённую локальную историю.";
+  }
   if (quoteHistoryState.status === "offline" && count > 0) {
     return "Нет соединения. Показываем ранее загруженную историю.";
   }
@@ -1161,6 +2034,512 @@ function setQuoteActionStatus(message) {
   if (status) {
     status.textContent = message;
   }
+}
+
+async function loadInterestingToday({ force = false } = {}) {
+  const timezone = getCurrentTimezone();
+  const cached = await loadInterestingTodayFromCache();
+  if (cached && !force) {
+    interestingTodayState = {
+      ...interestingTodayState,
+      ...cached,
+      status: "cached",
+    };
+    interestingTodayPreferencesState = {
+      ...interestingTodayPreferencesState,
+      ...interestingTodayState.preferences,
+    };
+    renderInterestingToday();
+    renderInterestingTodayModal();
+  }
+
+  const result = await scheduleSync.getTodayInterestingToday({ timezone });
+  if (result.status === "ok" && (result.events.length || result.people.length)) {
+    interestingTodayState = {
+      ...result,
+      status: "ok",
+    };
+    interestingTodayPreferencesState = {
+      ...interestingTodayPreferencesState,
+      ...result.preferences,
+    };
+    await saveInterestingTodayToCache(interestingTodayState);
+  } else if (!cached) {
+    interestingTodayState = {
+      ...interestingTodayState,
+      ...result,
+      timezone,
+      status: result.status,
+      events: [],
+      people: [],
+    };
+  } else {
+    interestingTodayState = {
+      ...interestingTodayState,
+      status: result.status === "catalog-unavailable" ? "catalog-unavailable-cached" : "offline-cached",
+    };
+  }
+
+  renderInterestingToday();
+  renderInterestingTodayModal();
+}
+
+async function loadInterestingTodayFromCache() {
+  try {
+    const cache = await scheduleStorage.loadInterestingTodayCache();
+    return normalizeInterestingTodayCache(cache);
+  } catch {
+    return null;
+  }
+}
+
+async function saveInterestingTodayToCache(state) {
+  try {
+    await scheduleStorage.saveInterestingTodayCache({
+      localDate: state.localDate,
+      timezone: state.timezone,
+      countryCode: state.countryCode,
+      language: state.language,
+      catalogVersion: state.catalogVersion,
+      validFromUtc: state.validFromUtc,
+      validUntilUtc: state.validUntilUtc,
+      generationReason: state.generationReason,
+      compact: state.compact,
+      limits: state.limits,
+      availableEvents: state.availableEvents,
+      availablePeople: state.availablePeople,
+      preferences: state.preferences,
+      events: state.events,
+      people: state.people,
+      savedAt: new Date().toISOString(),
+      storageKey: INTERESTING_TODAY_CACHE_KEY,
+    });
+  } catch {
+    // Кеш интересных фактов не должен блокировать главный экран.
+  }
+}
+
+function normalizeInterestingTodayCache(cache) {
+  if (!cache || typeof cache !== "object" || Array.isArray(cache)) {
+    return null;
+  }
+
+  const events = Array.isArray(cache.events) ? cache.events.filter(record => record?.id && record?.title) : [];
+  const people = Array.isArray(cache.people) ? cache.people.filter(record => record?.id && record?.title) : [];
+  if (!events.length && !people.length) {
+    return null;
+  }
+
+  return {
+    localDate: String(cache.localDate || ""),
+    timezone: String(cache.timezone || ""),
+    countryCode: String(cache.countryCode || "RU"),
+    language: String(cache.language || "ru"),
+    catalogVersion: String(cache.catalogVersion || ""),
+    validFromUtc: cache.validFromUtc || null,
+    validUntilUtc: cache.validUntilUtc || null,
+    generationReason: String(cache.generationReason || ""),
+    compact: normalizeInterestingCountShape(cache.compact, { events: 2, people: 2 }),
+    limits: normalizeInterestingCountShape(cache.limits, { events: 5, people: 6 }),
+    availableEvents: Math.max(0, Math.floor(Number(cache.availableEvents) || events.length)),
+    availablePeople: Math.max(0, Math.floor(Number(cache.availablePeople) || people.length)),
+    preferences: normalizeInterestingTodayPreferenceState(cache.preferences),
+    events,
+    people,
+  };
+}
+
+function renderInterestingToday() {
+  const root = document.querySelector("#interestingToday");
+  const grid = document.querySelector("#interestingTodayBody");
+  const status = document.querySelector("#interestingTodayStatus");
+  const toggle = document.querySelector("#interestingToggleButton");
+  if (!root || !grid) return;
+
+  const expanded = !root.classList.contains("is-collapsed");
+  const eventLimit = interestingTodayState.compact.events;
+  const peopleLimit = interestingTodayState.compact.people;
+  const showEvents = interestingTodayState.preferences?.showEvents !== false;
+  const showPeople = interestingTodayState.preferences?.showPeople !== false;
+  const sections = [];
+
+  if (status) {
+    status.textContent = getInterestingTodayStatusText();
+  }
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", String(expanded));
+    toggle.setAttribute("aria-label", expanded ? "Свернуть" : "Развернуть");
+  }
+
+  if (showEvents) {
+    sections.push(renderInterestingTodaySection({
+      type: "event",
+      title: "Важные исторические события",
+      records: interestingTodayState.events,
+      visibleLimit: eventLimit,
+      availableCount: interestingTodayState.availableEvents,
+      emptyTitle: "События пока не найдены",
+    }));
+  }
+
+  if (showPeople) {
+    sections.push(renderInterestingTodaySection({
+      type: "person",
+      title: "В этот день родились",
+      records: interestingTodayState.people,
+      visibleLimit: peopleLimit,
+      availableCount: interestingTodayState.availablePeople,
+      emptyTitle: "Персоны пока не найдены",
+    }));
+  }
+
+  const hasHiddenRecords =
+    (showEvents && interestingTodayState.events.length > Math.max(1, eventLimit)) ||
+    (showPeople && interestingTodayState.people.length > Math.max(1, peopleLimit));
+
+  if (!sections.length) {
+    grid.innerHTML = `
+      <article class="interesting-empty">
+        <strong>Блоки скрыты в настройках</strong>
+        <span>Откройте настройки раздела, чтобы вернуть события или людей.</span>
+        <button class="secondary-button secondary-button--compact" type="button" data-open-modal="interestingToday">Настройки</button>
+      </article>
+    `;
+    return;
+  }
+
+  grid.innerHTML = sections.join("") + (hasHiddenRecords ? `
+    <button class="interesting-more interesting-more--global" type="button" data-open-modal="interestingToday" data-interesting-full-list>
+      Показать ещё
+    </button>
+  ` : "");
+}
+
+function renderInterestingTodaySection({ type, title, records, visibleLimit, availableCount, emptyTitle }) {
+  const visibleRecords = records.slice(0, Math.max(1, visibleLimit));
+  const countText = type === "event"
+    ? formatInterestingCount(availableCount || records.length, ["историческое событие", "исторических события", "исторических событий"])
+    : formatInterestingCount(availableCount || records.length, ["известный человек", "известных человека", "известных людей"]);
+
+  if (!visibleRecords.length) {
+    return `
+      <article class="interesting-panel interesting-panel--${type}">
+        <header class="interesting-panel__head">
+          <h3>${escapeHtml(title)}</h3>
+          <span>${escapeHtml(countText)}</span>
+        </header>
+        <div class="interesting-empty">
+          <strong>${escapeHtml(emptyTitle)}</strong>
+          <span>Серверный каталог для этой даты еще не содержит проверенных записей.</span>
+        </div>
+      </article>
+    `;
+  }
+
+  return `
+    <article class="interesting-panel interesting-panel--${type}">
+      <header class="interesting-panel__head">
+        <h3>${escapeHtml(title)}</h3>
+        <span>${escapeHtml(countText)}</span>
+      </header>
+      <ul class="interesting-list">
+        ${visibleRecords.map(record => renderInterestingTodayListItem(record)).join("")}
+      </ul>
+    </article>
+  `;
+}
+
+function renderInterestingTodayListItem(record) {
+  const isPerson = record.type === "person";
+  const badge = formatInterestingCountryLabel(record.primaryCountryCode);
+  const year = isPerson ? record.lifeYears || record.birthYear || "" : record.year || "";
+  const title = isPerson ? record.name || record.title : record.title;
+  return `
+    <li>
+      <button class="interesting-item" type="button" data-interesting-record="${escapeHtml(record.type)}" data-interesting-id="${escapeHtml(record.id)}">
+        <span class="interesting-item__year">${escapeHtml(String(year))}</span>
+        <span class="interesting-item__body">
+          <strong>${escapeHtml(title)}</strong>
+          <span>${escapeHtml(record.summary)}</span>
+        </span>
+        <span class="interesting-item__meta">${escapeHtml(badge)}${record.themeLabels?.[0] ? ` · ${escapeHtml(record.themeLabels[0])}` : ""}</span>
+      </button>
+    </li>
+  `;
+}
+
+function renderInterestingTodayModal() {
+  const list = document.querySelector("#interestingTodayFullList");
+  const status = document.querySelector("#interestingTodayModalStatus");
+  const settings = document.querySelector("#interestingTodaySettings");
+  if (!list || !status || !settings) return;
+
+  status.textContent = getInterestingTodayStatusText();
+  settings.innerHTML = `
+    <label class="field-check">
+      <input type="checkbox" data-interesting-preference="showEvents" ${interestingTodayPreferencesState.showEvents !== false ? "checked" : ""} />
+      <span>Показывать исторические события</span>
+    </label>
+    <label class="field-check">
+      <input type="checkbox" data-interesting-preference="showPeople" ${interestingTodayPreferencesState.showPeople !== false ? "checked" : ""} />
+      <span>Показывать людей, родившихся в этот день</span>
+    </label>
+  `;
+  renderInterestingTodayPreferencesStatus();
+
+  const sections = [];
+  if (interestingTodayState.preferences?.showEvents !== false) {
+    sections.push(renderInterestingTodayModalSection("Важные исторические события", interestingTodayState.events));
+  }
+  if (interestingTodayState.preferences?.showPeople !== false) {
+    sections.push(renderInterestingTodayModalSection("В этот день родились", interestingTodayState.people));
+  }
+
+  list.innerHTML = sections.length
+    ? sections.join("")
+    : `
+      <article class="empty-state">
+        <strong>Нет видимых блоков</strong>
+        <span>Включите хотя бы один блок в настройках.</span>
+      </article>
+    `;
+}
+
+function renderInterestingTodayModalSection(title, records) {
+  return `
+    <section class="interesting-modal-section">
+      <h3>${escapeHtml(title)}</h3>
+      <div class="interesting-modal-list">
+        ${records.length ? records.map(record => `
+          <article class="interesting-detail-row">
+            <button class="interesting-detail-row__main" type="button" data-interesting-record="${escapeHtml(record.type)}" data-interesting-id="${escapeHtml(record.id)}">
+              <span>${escapeHtml(String(record.type === "person" ? record.lifeYears || record.birthYear || "" : record.year || ""))}</span>
+              <strong>${escapeHtml(record.type === "person" ? record.name || record.title : record.title)}</strong>
+              <small>${escapeHtml(record.summary)}</small>
+            </button>
+          </article>
+        `).join("") : `
+          <article class="empty-state">
+            <strong>Нет проверенных записей</strong>
+            <span>Для этой даты раздел покажет локальный кеш или пустое состояние.</span>
+          </article>
+        `}
+      </div>
+    </section>
+  `;
+}
+
+function renderInterestingTodayDetail() {
+  const body = document.querySelector("#interestingTodayDetailBody");
+  const title = document.querySelector("#interestingTodayDetailTitle");
+  if (!body || !title) return;
+
+  const record = interestingTodaySelectedRecord;
+  if (!record) {
+    title.textContent = "Подробности";
+    body.innerHTML = `
+      <article class="empty-state">
+        <strong>Запись недоступна</strong>
+        <span>Вернитесь к списку и выберите запись заново.</span>
+      </article>
+    `;
+    return;
+  }
+
+  const isPerson = record.type === "person";
+  const displayTitle = isPerson ? record.name || record.title : record.title;
+  const year = isPerson ? record.lifeYears || record.birthYear || "" : record.year || "";
+  title.textContent = displayTitle;
+  body.innerHTML = `
+    <article class="interesting-detail-card">
+      <header>
+        <span class="modal-kicker">${escapeHtml(formatInterestingCountryLabel(record.primaryCountryCode))}</span>
+        <h3>${escapeHtml(displayTitle)}</h3>
+        <p>${escapeHtml(String(year))}${record.themeLabels?.length ? ` · ${escapeHtml(record.themeLabels.join(", "))}` : ""}</p>
+      </header>
+      <p>${escapeHtml(record.description || record.summary)}</p>
+      <section class="interesting-source-list">
+        <h4>Источники</h4>
+        ${record.sources?.length ? record.sources.map(source => `
+          <a href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">
+            <strong>${escapeHtml(source.title)}</strong>
+            <span>${escapeHtml(source.publisher)}</span>
+          </a>
+        `).join("") : "<span>Источник не указан.</span>"}
+      </section>
+    </article>
+  `;
+}
+
+async function openInterestingTodayRecord(recordType, recordId, openModal) {
+  const localRecord = [...interestingTodayState.events, ...interestingTodayState.people]
+    .find(record => record.type === recordType && record.id === recordId);
+  interestingTodaySelectedRecord = localRecord || null;
+  renderInterestingTodayDetail();
+  openModal("interestingTodayDetail");
+
+  const result = await scheduleSync.getInterestingTodayDetail(recordType, recordId);
+  if (result.status === "ok" && result.record) {
+    interestingTodaySelectedRecord = result.record;
+    renderInterestingTodayDetail();
+  }
+}
+
+async function loadInterestingTodayPreferencesUi() {
+  const result = await scheduleSync.getInterestingTodayPreferences();
+  if (result.status !== "ok") {
+    interestingTodayPreferencesState = normalizeInterestingTodayPreferenceState(
+      interestingTodayState.preferences || interestingTodayPreferencesState
+    );
+    interestingTodayState = {
+      ...interestingTodayState,
+      preferences: {
+        ...interestingTodayState.preferences,
+        ...interestingTodayPreferencesState,
+      },
+    };
+    renderInterestingToday();
+    renderInterestingTodayModal();
+    return;
+  }
+
+  interestingTodayPreferencesState = result.preferences || interestingTodayPreferencesState;
+  interestingTodayState = {
+    ...interestingTodayState,
+    preferences: {
+      ...interestingTodayState.preferences,
+      ...interestingTodayPreferencesState,
+    },
+  };
+  renderInterestingToday();
+  renderInterestingTodayModal();
+}
+
+async function saveInterestingTodayPreferencesUi() {
+  if (!interestingTodayPreferencesState.showEvents && !interestingTodayPreferencesState.showPeople) {
+    interestingTodayPreferencesSaveState = "invalid";
+    renderInterestingTodayPreferencesStatus();
+    return;
+  }
+
+  interestingTodayPreferencesSaveState = "saving";
+  renderInterestingTodayPreferencesStatus();
+  const result = await scheduleSync.updateInterestingTodayPreferences(interestingTodayPreferencesState);
+  if (result.status === "saved") {
+    interestingTodayPreferencesState = result.preferences;
+    interestingTodayState = {
+      ...interestingTodayState,
+      preferences: result.preferences,
+    };
+    interestingTodayPreferencesSaveState = "saved";
+    renderInterestingToday();
+    renderInterestingTodayModal();
+    await loadInterestingToday({ force: true });
+  } else if (result.status === "offline") {
+    interestingTodayPreferencesSaveState = "offline";
+  } else {
+    interestingTodayPreferencesSaveState = "invalid";
+  }
+  renderInterestingTodayPreferencesStatus();
+}
+
+function renderInterestingTodayPreferencesStatus() {
+  const status = document.querySelector("#interestingTodayPreferencesStatus");
+  const button = document.querySelector("#interestingTodayPreferencesSaveButton");
+  if (status) {
+    status.textContent = interestingTodayPreferencesSaveState === "saved"
+      ? "Настройки сохранены."
+      : interestingTodayPreferencesSaveState === "offline"
+        ? "Нет соединения. Настройки не отправлены на сервер."
+        : interestingTodayPreferencesSaveState === "invalid"
+          ? "Оставьте включенным хотя бы один блок."
+          : interestingTodayPreferencesSaveState === "saving"
+            ? "Сохраняем настройки."
+            : "Можно скрыть любой из двух блоков.";
+  }
+  if (button) {
+    button.textContent = interestingTodayPreferencesSaveState === "saving" ? "Сохраняем..." : "Сохранить";
+    button.disabled = interestingTodayPreferencesSaveState === "saving";
+  }
+}
+
+function getInterestingTodayStatusText() {
+  if (interestingTodayState.status === "ok") {
+    return `Подборка на ${interestingTodayState.localDate || "сегодня"}.`;
+  }
+  if (interestingTodayState.status === "cached") {
+    return "Показана сохраненная локальная подборка.";
+  }
+  if (interestingTodayState.status === "offline-cached") {
+    return "Нет соединения. Показана сохраненная локальная подборка.";
+  }
+  if (interestingTodayState.status === "catalog-unavailable-cached") {
+    return "Серверный каталог для даты пока не готов. Показан локальный кеш.";
+  }
+  if (interestingTodayState.status === "catalog-unavailable") {
+    return "Серверный каталог для этой даты пока не содержит проверенных записей.";
+  }
+  if (interestingTodayState.status === "offline") {
+    return "Нет соединения с сервером интересных фактов.";
+  }
+  return "Загружаем сегодняшнюю подборку.";
+}
+
+function formatInterestingCountryLabel(countryCode) {
+  const labels = {
+    RU: "Россия",
+    WORLD: "Мир",
+    US: "США",
+    GB: "Великобритания",
+    JP: "Япония",
+    CH: "Швейцария",
+    IT: "Италия",
+    MY: "Малайзия",
+    HK: "Гонконг",
+    KZ: "Казахстан",
+    FR: "Франция",
+    DE: "Германия",
+    CN: "Китай",
+    IN: "Индия",
+    ES: "Испания",
+    PT: "Португалия",
+    EG: "Египет",
+    NO: "Норвегия",
+    DK: "Дания",
+    ZA: "ЮАР",
+  };
+  const normalized = String(countryCode || "WORLD").trim().toUpperCase();
+  return labels[normalized] || "Мир";
+}
+
+function normalizeInterestingCountShape(value, fallback) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return {
+    events: Math.max(1, Math.min(12, Math.floor(Number(source.events) || fallback.events))),
+    people: Math.max(1, Math.min(12, Math.floor(Number(source.people) || fallback.people))),
+  };
+}
+
+function normalizeInterestingTodayPreferenceState(value) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return {
+    countryCode: String(source.countryCode || "RU"),
+    language: "ru",
+    showEvents: source.showEvents !== false,
+    showPeople: source.showPeople !== false,
+  };
+}
+
+function formatInterestingCount(count, forms) {
+  const value = Math.max(0, Math.floor(Number(count) || 0));
+  const mod10 = value % 10;
+  const mod100 = value % 100;
+  const form = mod10 === 1 && mod100 !== 11
+    ? forms[0]
+    : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
+      ? forms[1]
+      : forms[2];
+  return `${value} ${form}`;
 }
 
 async function loadQuotePreferencesUi() {
@@ -1400,11 +2779,14 @@ async function hydrateHolidayCalendar() {
     await saveHolidayCatalogToCache(catalogResult.catalog);
   }
 
-  holidayPreferencesState = normalizeHolidayPreferences(preferencesResult.preferences || cachedPreferences || HOLIDAY_DEFAULT_PREFERENCES);
+  const remoteHolidayPreferences = preferencesResult.status === "ok" ? preferencesResult.preferences : null;
+  holidayPreferencesState = normalizeHolidayPreferences(remoteHolidayPreferences || cachedPreferences || HOLIDAY_DEFAULT_PREFERENCES);
   holidayProfessionalCategoriesState = categoriesResult.categories?.length
     ? categoriesResult.categories
     : getProfessionalHolidayCategories();
-  await saveHolidayPreferencesToCache(holidayPreferencesState);
+  if (remoteHolidayPreferences || !cachedPreferences) {
+    await saveHolidayPreferencesToCache(holidayPreferencesState);
+  }
   renderHolidaySettingsUi();
   renderCalendar();
   renderSummary();
@@ -1568,6 +2950,11 @@ function renderHolidayEventDetail(eventId) {
       </ul>
       ${getHolidayDateStatusMessage(event) ? `<p class="holiday-detail-note">${escapeHtml(getHolidayDateStatusMessage(event))}</p>` : ""}
       <p class="holiday-detail-note">Это системное событие Focus. Его нельзя редактировать как пользовательскую задачу.</p>
+      <div class="holiday-detail-actions">
+        <button class="secondary-button secondary-button--compact" type="button" data-greeting-holiday="${escapeHtml(event.id)}">
+          Составить поздравление
+        </button>
+      </div>
     </article>
   `;
   return true;
@@ -1590,26 +2977,54 @@ function getHolidayDetailAccentColor(event = {}) {
 }
 
 function getHolidayEventDescriptionHtml(event = {}) {
-  const professionalParts = getProfessionalHolidayDescriptionParts(event);
-  if (professionalParts) {
-    return professionalParts
-      .map(part => part.strong ? `<strong>${escapeHtml(part.text)}</strong>` : escapeHtml(part.text))
-      .join("");
-  }
-  return escapeHtml(getHolidayEventDescription(event));
+  return getHolidayEventDescriptionParts(event)
+    .map(part => part.strong ? `<strong>${escapeHtml(part.text)}</strong>` : escapeHtml(part.text))
+    .join("");
 }
 
 function getHolidayEventDescription(event = {}) {
+  return getHolidayEventDescriptionParts(event).map(part => part.text).join("");
+}
+
+function getHolidayEventDescriptionParts(event = {}) {
   const explicitDescription = String(event.description || "").trim();
-  if (explicitDescription) return explicitDescription;
+  const professionalParts = getProfessionalHolidayDescriptionParts(event);
+  if (professionalParts) return professionalParts;
 
   const knownDescription = HOLIDAY_DESCRIPTION_BY_TITLE[event.title] || HOLIDAY_DESCRIPTION_BY_TITLE[event.shortTitle];
-  if (knownDescription) return knownDescription;
+  const baseDescription = explicitDescription || knownDescription || getHolidayFallbackDescription(event);
+  const timingParts = getHolidayTimingDescriptionParts(event);
+  if (!timingParts.length) return [{ text: baseDescription }];
+  const normalizedTimingParts = normalizeHolidayTimingPartsForBaseDescription(baseDescription, timingParts);
+  return [
+    { text: `${baseDescription} ` },
+    ...normalizedTimingParts,
+  ];
+}
 
+function normalizeHolidayTimingPartsForBaseDescription(baseDescription = "", timingParts = []) {
+  if (!/[.!?]\s*$/.test(baseDescription)) return timingParts;
+  let capitalizedFirstText = false;
+  return timingParts.map(part => {
+    if (capitalizedFirstText || !String(part.text || "").trim()) return part;
+    capitalizedFirstText = true;
+    return {
+      ...part,
+      text: capitalizeHolidayTextStart(part.text),
+    };
+  });
+}
+
+function capitalizeHolidayTextStart(text = "") {
+  const value = String(text);
+  const firstTextIndex = [...value].findIndex(char => char.trim());
+  if (firstTextIndex < 0) return value;
+  return `${value.slice(0, firstTextIndex)}${value[firstTextIndex].toLocaleUpperCase("ru-RU")}${value.slice(firstTextIndex + 1)}`;
+}
+
+function getHolidayFallbackDescription(event = {}) {
   const title = event.shortTitle || event.title || "Эта дата";
   const types = getHolidayEventTypes(event);
-  const professionalDescription = getProfessionalHolidayDescription(event);
-  if (professionalDescription) return professionalDescription;
 
   if (types.has("religious_holiday")) {
     const tradition = getHolidayReligiousTraditionLabel(event);
@@ -1636,6 +3051,89 @@ function getHolidayEventDescription(event = {}) {
   return `${title} - календарное событие Focus. Подробные признаки даты и источник приведены ниже в карточке.`;
 }
 
+function getHolidayTimingDescriptionParts(event = {}) {
+  const parts = [];
+  const recurrenceText = getHolidayRecurrenceText(event);
+  const dateSentence = getHolidayDescriptionDateSentence(event);
+  const relatedDateSentence = getHolidayRelatedDateSentence(event);
+  const statusSentence = getHolidayDescriptionStatusSentence(event);
+
+  if (recurrenceText) {
+    parts.push({ text: recurrenceText, strong: true }, { text: "." });
+  }
+  if (dateSentence) parts.push({ text: `${parts.length ? " " : ""}${dateSentence}` });
+  if (relatedDateSentence) parts.push({ text: ` ${relatedDateSentence}` });
+  if (statusSentence) parts.push({ text: ` ${statusSentence}` });
+  return parts;
+}
+
+function getHolidayRecurrenceText(event = {}) {
+  const types = getHolidayEventTypes(event);
+  const professionalConfig = getProfessionalHolidayDescriptionConfig(event);
+  if (professionalConfig?.recurrence) return professionalConfig.recurrence;
+
+  if (types.has("working_weekend")) {
+    const relatedDateText = formatHolidayDescriptionDate({ startLocalDate: event.relatedLocalDate });
+    return relatedDateText
+      ? `рабочий день перенесен с ${relatedDateText}`
+      : "рабочий день задан производственным календарем";
+  }
+  if (HOLIDAY_WORKING_DAY_OVERRIDE_TYPES.some(type => types.has(type))) {
+    const relatedDateText = formatHolidayDescriptionDate({ startLocalDate: event.relatedLocalDate });
+    return relatedDateText
+      ? `день отдыха перенесен с ${relatedDateText}`
+      : "дата задана производственным календарем как перенос или дополнительный выходной";
+  }
+  if (event.dateStatus === "fixed") {
+    const recurringDateText = formatHolidayDescriptionDate(event);
+    return recurringDateText ? `отмечается ежегодно ${recurringDateText}` : "";
+  }
+  if (event.dateStatus === "calculated") {
+    return types.has("religious_holiday")
+      ? "дата переходящая и рассчитывается по календарю религиозной традиции"
+      : "дата переходящая и рассчитывается по календарному правилу";
+  }
+  if (event.dateStatus === "preliminary") {
+    return "дата предварительная и может уточняться по официальному календарному источнику";
+  }
+  if (event.dateStatus === "confirmed") {
+    return "дата подтверждена календарным источником на этот год";
+  }
+  return "";
+}
+
+function getHolidayDescriptionDateSentence(event = {}) {
+  const dateText = formatHolidayDescriptionDate(event);
+  const yearText = getHolidayDescriptionYear(event);
+  return dateText && yearText ? `В ${yearText} году этот день приходится на ${dateText}.` : "";
+}
+
+function getHolidayRelatedDateSentence(event = {}) {
+  if (!event.relatedLocalDate || getHolidayEventTypes(event).has("working_weekend")) return "";
+  const relatedDateText = formatHolidayDescriptionDate({ startLocalDate: event.relatedLocalDate });
+  return relatedDateText ? `Связанная дата переноса: ${relatedDateText}.` : "";
+}
+
+function getHolidayDescriptionStatusSentence(event = {}) {
+  const types = getHolidayEventTypes(event);
+  if (types.has("professional_holiday")) {
+    return "Дата сама по себе не делает день официальным выходным, но помогает учитывать отраслевые поводы и поздравления.";
+  }
+  if (types.has("working_weekend")) {
+    return "Focus выделяет его отдельно, чтобы не спутать с днем отдыха.";
+  }
+  if (event.isOfficialNonWorkingDay === true) {
+    return "В производственном календаре Focus он отмечен как официальный нерабочий день.";
+  }
+  if (types.has("religious_holiday")) {
+    return "Официальным нерабочим днем в производственном календаре не является, если такой статус не указан отдельно.";
+  }
+  if (types.has("public_holiday") || types.has("commemorative_date")) {
+    return "Если дата не является нерабочей, Focus показывает ее как светский календарный повод.";
+  }
+  return "";
+}
+
 function getProfessionalHolidayDescription(event = {}) {
   const parts = getProfessionalHolidayDescriptionParts(event);
   return parts ? parts.map(part => part.text).join("") : "";
@@ -1644,23 +3142,27 @@ function getProfessionalHolidayDescription(event = {}) {
 function getProfessionalHolidayDescriptionParts(event = {}) {
   if (!getHolidayEventTypes(event).has("professional_holiday")) return null;
 
-  const config = PROFESSIONAL_HOLIDAY_DESCRIPTION_BY_TITLE[event.title]
-    || PROFESSIONAL_HOLIDAY_DESCRIPTION_BY_TITLE[event.shortTitle];
+  const config = getProfessionalHolidayDescriptionConfig(event);
   if (!config) return null;
 
   const title = event.shortTitle || event.title || "Профессиональный праздник";
-  const dateText = formatHolidayDescriptionDate(event);
-  const yearText = getHolidayDescriptionYear(event);
-  const dateSentence = dateText && yearText
-    ? ` В ${yearText} году этот день приходится на ${dateText}.`
-    : "";
+  const kindLabel = config.kindLabel || "профессиональный праздник";
+  const dateSentence = getHolidayDescriptionDateSentence(event);
+  const professionalStatus = getHolidayDescriptionStatusSentence(event);
+  const note = config.note ? ` ${config.note}` : "";
   const internationalNote = config.internationalNote ? ` ${config.internationalNote}` : "";
 
   return [
-    { text: `${title} — это профессиональный праздник ${config.audience}, который ` },
+    { text: `${title} — это ${kindLabel} ${config.audience}, который ` },
     { text: config.recurrence, strong: true },
-    { text: `.${dateSentence}${internationalNote}` },
+    { text: `.${dateSentence ? ` ${dateSentence}` : ""}${professionalStatus ? ` ${professionalStatus}` : ""}${note}${internationalNote}` },
   ];
+}
+
+function getProfessionalHolidayDescriptionConfig(event = {}) {
+  return PROFESSIONAL_HOLIDAY_DESCRIPTION_BY_TITLE[event.title]
+    || PROFESSIONAL_HOLIDAY_DESCRIPTION_BY_TITLE[event.shortTitle]
+    || null;
 }
 
 function formatHolidayDescriptionDate(event = {}) {
@@ -1741,13 +3243,14 @@ function renderHolidaySettingsUi() {
 
   const selectedProfessionalCodes = new Set(holidayPreferencesState.professionalCategoryCodes);
   const categoriesDisabled = holidayPreferencesState.professionalMode !== "selected";
-  categories.innerHTML = holidayProfessionalCategoriesState.map(category => `
-    <label class="holiday-option ${categoriesDisabled ? "is-disabled" : ""}">
-      <input type="checkbox" value="${escapeHtml(category.code)}" ${selectedProfessionalCodes.has(category.code) ? "checked" : ""} ${categoriesDisabled ? "disabled" : ""} />
-      <span>${escapeHtml(category.title)}</span>
-    </label>
-  `).join("");
-
+  categories.innerHTML = holidayProfessionalCategoriesState.map(category => {
+    return `
+      <label class="holiday-option holiday-option--category ${categoriesDisabled ? "is-disabled" : ""}">
+        <input type="checkbox" value="${escapeHtml(category.code)}" ${selectedProfessionalCodes.has(category.code) ? "checked" : ""} ${categoriesDisabled ? "disabled" : ""} />
+        <span>${escapeHtml(category.title)}</span>
+      </label>
+    `;
+  }).join("");
   const selectedTraditions = new Set(holidayReligiousPreferencesState.selectedTraditions);
   document.querySelectorAll("#holidayReligiousOptions input[type='checkbox']").forEach(input => {
     input.checked = selectedTraditions.has(input.value);
@@ -1768,7 +3271,13 @@ function renderHolidaySettingsUi() {
 
   const saveButton = document.querySelector("#holidaySettingsSaveButton");
   if (saveButton) {
-    saveButton.textContent = holidaySettingsSaveState === "saving" ? "Сохраняем..." : "Сохранить";
+    const isSavedSettingsState = holidaySettingsSaveState === "saved" || holidaySettingsSaveState === "offline";
+    saveButton.textContent = holidaySettingsSaveState === "saving"
+      ? "Сохраняем..."
+      : isSavedSettingsState
+        ? "Сохранено"
+        : "Сохранить";
+    saveButton.classList.toggle("is-saved", isSavedSettingsState);
     saveButton.disabled = holidaySettingsSaveState === "saving";
   }
 }
@@ -1799,8 +3308,9 @@ function readHolidayPreferencesDraft() {
   const selectedProfessionalCodes = [...document.querySelectorAll("#holidayProfessionalCategories input[type='checkbox']:checked")]
     .map(input => input.value)
     .filter(Boolean);
-  const professionalMode = document.querySelector("input[name='holidayProfessionalMode']:checked")?.value || "none";
-  return normalizeHolidayPreferences({
+  const checkedProfessionalMode = document.querySelector("input[name='holidayProfessionalMode']:checked")?.value || "none";
+  const professionalMode = ["none", "all", "selected"].includes(checkedProfessionalMode) ? checkedProfessionalMode : "none";
+  const normalizedPreferences = normalizeHolidayPreferences({
     countryCode: document.querySelector("#holidayCountrySelect")?.value || "RU",
     publicHolidaysEnabled: document.querySelector("#holidayPublicEnabled")?.checked !== false,
     workingDayOverridesEnabled: document.querySelector("#holidayOverridesEnabled")?.checked !== false,
@@ -1809,6 +3319,11 @@ function readHolidayPreferencesDraft() {
     setupCompleted: true,
     updatedAt: new Date().toISOString(),
   });
+  return {
+    ...normalizedPreferences,
+    professionalMode,
+    professionalCategoryCodes: professionalMode === "selected" ? selectedProfessionalCodes : [],
+  };
 }
 
 function readHolidayReligiousPreferencesDraft() {
@@ -1823,10 +3338,7 @@ function readHolidayReligiousPreferencesDraft() {
 
 function syncHolidayProfessionalControls() {
   holidaySettingsSaveState = "idle";
-  holidayPreferencesState = normalizeHolidayPreferences({
-    ...holidayPreferencesState,
-    ...readHolidayPreferencesDraft(),
-  });
+  holidayPreferencesState = readHolidayPreferencesDraft();
   renderHolidaySettingsUi();
   renderCalendar();
   renderSummary();
@@ -1859,6 +3371,7 @@ async function saveHolidaySettingsUi() {
   }
   await saveHolidayPreferencesToCache(holidayPreferencesState);
   await saveHolidayReligiousPreferences(religiousPreferences);
+  dismissHolidayInitialSetup();
   holidaySettingsSaveState = result.status === "offline" ? "offline" : "saved";
   renderHolidaySettingsUi();
   renderCalendar();
@@ -1891,6 +3404,7 @@ async function skipHolidaySettingsUi() {
     : serverPreferences;
   await saveHolidayPreferencesToCache(holidayPreferencesState);
   await saveHolidayReligiousPreferences(religiousPreferences);
+  dismissHolidayInitialSetup();
   holidaySettingsSaveState = result.status === "offline" ? "offline" : "saved";
   renderHolidaySettingsUi();
   renderCalendar();
@@ -1898,8 +3412,12 @@ async function skipHolidaySettingsUi() {
   return true;
 }
 
-function shouldOpenHolidayInitialSetup() {
+function isHolidayInitialSetupIncomplete() {
   return !holidayPreferencesState.setupCompleted || !holidayReligiousPreferencesState.setupCompleted;
+}
+
+function shouldOpenHolidayInitialSetup() {
+  return isHolidayInitialSetupIncomplete() && !hasDismissedHolidayInitialSetup();
 }
 
 async function toggleQuoteFavorite(quoteId) {
@@ -1933,6 +3451,7 @@ async function toggleQuoteFavorite(quoteId) {
       favoriteQuotesState.status = "ok";
     }
     await saveDailyQuotesToCache(dailyQuotesState);
+    await saveQuoteHistoryToCache(quoteHistoryState);
     renderDailyQuotesModal();
     renderQuote();
     setQuoteActionStatus(result.isFavorite ? "Цитата добавлена в избранное." : "Цитата убрана из избранного.");
@@ -2033,10 +3552,8 @@ function renderCalendar() {
 
   const year = currentCalendarDate.getFullYear();
   const month = currentCalendarDate.getMonth();
-  const title = document.querySelector(".calendar-card h1");
-  if (title) {
-    title.textContent = formatMonthTitle(currentCalendarDate);
-  }
+  renderCalendarHeaderControls();
+  renderCalendarPicker();
   applySeasonalBackground(currentCalendarDate);
 
   const cells = getCalendarCells(year, month);
@@ -2114,8 +3631,122 @@ function getCalendarCells(year, month) {
 }
 
 function formatMonthTitle(date) {
-  const month = new Intl.DateTimeFormat("ru-RU", { month: "long" }).format(date);
-  return `${month[0].toUpperCase()}${month.slice(1)} ${date.getFullYear()}`;
+  return `${getCalendarMonthLabel(date.getMonth())} ${date.getFullYear()}`;
+}
+
+function getCalendarMonthLabel(monthIndex) {
+  return CALENDAR_MONTH_LABELS[monthIndex] || "";
+}
+
+function getCalendarYearPageStart(year) {
+  return year - (year % CALENDAR_YEAR_PAGE_SIZE);
+}
+
+function getCurrentCalendarMonthDate() {
+  const today = new Date();
+  return new Date(today.getFullYear(), today.getMonth(), 1);
+}
+
+function isSameCalendarMonth(first, second) {
+  return first.getFullYear() === second.getFullYear() && first.getMonth() === second.getMonth();
+}
+
+function renderCalendarHeaderControls() {
+  const title = document.querySelector(".calendar-card h1");
+  if (title) {
+    title.classList.add("calendar-title");
+    title.innerHTML = `
+      <button class="calendar-title-button" type="button" data-calendar-picker="month" aria-haspopup="dialog" aria-expanded="${calendarPickerType === "month"}">
+        ${escapeHtml(getCalendarMonthLabel(currentCalendarDate.getMonth()))}
+      </button>
+      <button class="calendar-title-button" type="button" data-calendar-picker="year" aria-haspopup="dialog" aria-expanded="${calendarPickerType === "year"}">
+        ${currentCalendarDate.getFullYear()}
+      </button>
+    `;
+  }
+
+  const headActions = document.querySelector(".calendar-card .head-actions");
+  if (headActions && !headActions.querySelector("[data-calendar-return-current]")) {
+    headActions.insertAdjacentHTML(
+      "afterbegin",
+      `<button class="calendar-return-button" type="button" data-calendar-return-current hidden>Вернуться в текущий месяц</button>`
+    );
+  }
+
+  const returnButton = headActions?.querySelector("[data-calendar-return-current]");
+  if (returnButton) {
+    returnButton.hidden = isSameCalendarMonth(currentCalendarDate, getCurrentCalendarMonthDate());
+  }
+}
+
+function renderCalendarPicker() {
+  const card = document.querySelector(".calendar-card");
+  if (!card) return;
+
+  card.querySelector("[data-calendar-picker-panel]")?.remove();
+  if (!calendarPickerType) return;
+
+  const selectedMonth = currentCalendarDate.getMonth();
+  const selectedYear = currentCalendarDate.getFullYear();
+  const pickerTitle = calendarPickerType === "month" ? "Выберите месяц" : "Выберите год";
+  const pickerBody = calendarPickerType === "month"
+    ? `
+      <div class="calendar-picker__grid calendar-picker__grid--months">
+        ${CALENDAR_MONTH_LABELS.map((label, monthIndex) => `
+          <button class="calendar-picker__option${monthIndex === selectedMonth ? " is-active" : ""}" type="button" data-calendar-month-option="${monthIndex}" aria-pressed="${monthIndex === selectedMonth}">
+            ${escapeHtml(label)}
+          </button>
+        `).join("")}
+      </div>
+    `
+    : `
+      <div class="calendar-picker__years-head">
+        <button class="icon-button icon-button--tiny" type="button" aria-label="Предыдущие годы" data-calendar-year-page="-${CALENDAR_YEAR_PAGE_SIZE}"><span class="icon icon-arrow-left"></span></button>
+        <strong>${calendarYearPickerStart} - ${calendarYearPickerStart + CALENDAR_YEAR_PAGE_SIZE - 1}</strong>
+        <button class="icon-button icon-button--tiny" type="button" aria-label="Следующие годы" data-calendar-year-page="${CALENDAR_YEAR_PAGE_SIZE}"><span class="icon icon-arrow-right"></span></button>
+      </div>
+      <div class="calendar-picker__grid calendar-picker__grid--years">
+        ${Array.from({ length: CALENDAR_YEAR_PAGE_SIZE }, (_, index) => calendarYearPickerStart + index).map(year => `
+          <button class="calendar-picker__option${year === selectedYear ? " is-active" : ""}" type="button" data-calendar-year-option="${year}" aria-pressed="${year === selectedYear}">
+            ${year}
+          </button>
+        `).join("")}
+      </div>
+    `;
+
+  card.insertAdjacentHTML(
+    "beforeend",
+    `
+      <div class="calendar-picker glass-panel" role="dialog" aria-label="${pickerTitle}" data-calendar-picker-panel="${calendarPickerType}">
+        <div class="calendar-picker__head">
+          <span>${pickerTitle}</span>
+          <button class="icon-button icon-button--tiny" type="button" aria-label="Закрыть выбор" data-calendar-picker-close><span class="icon icon-close"></span></button>
+        </div>
+        ${pickerBody}
+      </div>
+    `
+  );
+}
+
+function syncCalendarPicker() {
+  renderCalendarHeaderControls();
+  renderCalendarPicker();
+}
+
+function openCalendarPicker(type) {
+  if (!["month", "year"].includes(type)) return;
+  if (type === "year" && calendarPickerType !== "year") {
+    calendarYearPickerStart = getCalendarYearPageStart(currentCalendarDate.getFullYear());
+  }
+  if (calendarPickerType === type) return;
+  calendarPickerType = type;
+  syncCalendarPicker();
+}
+
+function closeCalendarPicker() {
+  if (!calendarPickerType) return;
+  calendarPickerType = "";
+  syncCalendarPicker();
 }
 
 function applySeasonalBackground(date) {
@@ -2258,7 +3889,9 @@ function getEventsForDate(date) {
       time: "Весь день",
       title: `День рождения: ${birthday.name}`,
       subtitle: getBirthdayEventSubtitle(birthday, date),
-      color: "#D96B5F"
+      color: "#D96B5F",
+      isBirthdayEvent: true,
+      birthdayId: birthday.id,
     });
   });
 
@@ -2528,9 +4161,20 @@ function renderDayCard(date) {
               <small>${escapeHtml(item.subtitle)}</small>
             </div>
             ${item.isSystemEvent ? `
-              <button class="secondary-button secondary-button--compact" type="button" data-open-holiday-event="${escapeHtml(item.id)}">
-                Подробнее
-              </button>
+              <div class="day-card-event__actions">
+                <button class="secondary-button secondary-button--compact" type="button" data-open-holiday-event="${escapeHtml(item.id)}">
+                  Подробнее
+                </button>
+                <button class="secondary-button secondary-button--compact" type="button" data-greeting-holiday="${escapeHtml(item.id)}">
+                  Составить
+                </button>
+              </div>
+            ` : item.isBirthdayEvent ? `
+              <div class="day-card-event__actions">
+                <button class="secondary-button secondary-button--compact" type="button" data-greeting-birthday="${escapeHtml(item.birthdayId)}">
+                  Составить
+                </button>
+              </div>
             ` : item.isReadOnly ? `
             ` : `
               <button class="icon-button icon-button--tiny" type="button" aria-label="Удалить">
@@ -2601,12 +4245,17 @@ function renderWeekView(date) {
 
 function renderSummary() {
   document.querySelector("#summaryList").innerHTML = getTodaySummaryItems().map(item => `
-    <div class="summary-item">
+    <div class="summary-item ${item.greeting ? "summary-item--with-action" : ""}">
       <span class="summary-time">${item.time}</span>
-      <span>
+      <span class="summary-item__content">
         <span class="summary-title" style="--summary-color:${item.color}">${item.title}</span>
         <span class="summary-subtitle">${item.subtitle}</span>
       </span>
+      ${item.greeting?.scenario === "holiday" ? `
+        <button class="secondary-button secondary-button--compact" type="button" data-greeting-holiday="${escapeHtml(item.greeting.eventId)}">Составить</button>
+      ` : item.greeting?.scenario === "birthday" ? `
+        <button class="secondary-button secondary-button--compact" type="button" data-greeting-birthday="${escapeHtml(item.greeting.birthdayId)}">Составить</button>
+      ` : ""}
     </div>
   `).join("");
 }
@@ -2618,12 +4267,20 @@ function getTodaySummaryItems() {
     title: event.title,
     subtitle: event.subtitle,
     color: event.color,
+    greeting: {
+      scenario: "holiday",
+      eventId: event.id,
+    },
   }));
   const birthdayItems = getBirthdaysForDate(today).map(birthday => ({
     time: "Весь день",
     title: `День рождения: ${birthday.name}`,
     subtitle: getBirthdayEventSubtitle(birthday, today),
     color: "#D96B5F",
+    greeting: {
+      scenario: "birthday",
+      birthdayId: birthday.id,
+    },
   }));
   const diaryItems = getDiaryEntriesForDate(today).map(entry => ({
     time: "Дневник",
@@ -2650,7 +4307,7 @@ function normalizeTaskList(tasksList) {
       if (!title) return null;
 
       const createdAt = task.createdAt || now;
-      return {
+      const normalized = {
         id: String(task.id || `task-${Date.now()}-${index}`),
         title,
         label: String(task.label || "Личное").trim() || "Личное",
@@ -2659,6 +4316,9 @@ function normalizeTaskList(tasksList) {
         createdAt,
         updatedAt: task.updatedAt || createdAt,
       };
+      if (task.source) normalized.source = String(task.source).trim();
+      if (task.personalScheduleBlockId) normalized.personalScheduleBlockId = String(task.personalScheduleBlockId);
+      return normalized;
     })
     .filter(Boolean);
 }
@@ -3022,6 +4682,9 @@ function renderBirthdays() {
           ${birthday.reminderEnabled ? `<small>Напоминание утром включено</small>` : ""}
         </div>
         <div class="saved-birthday-card__actions">
+          <button class="icon-button icon-button--tiny" type="button" aria-label="Составить поздравление" title="Составить поздравление" data-greeting-birthday="${escapeHtml(birthday.id)}">
+            <span class="icon icon-edit"></span>
+          </button>
           <button class="icon-button icon-button--tiny" type="button" aria-label="Редактировать день рождения" data-edit-birthday="${escapeHtml(birthday.id)}">
             <span class="icon icon-gift"></span>
           </button>
@@ -3052,6 +4715,588 @@ function formatBirthdayUpcoming(date) {
     month: "long",
     year: "numeric",
   }).format(date);
+}
+
+function createEmptyGreetingAssistantState() {
+  return {
+    status: "idle",
+    providerConfigured: false,
+    provider: null,
+    disabledMessage: GREETING_DISABLED_MESSAGE,
+    fields: null,
+    variants: [],
+    selectedVariantId: "",
+    editorText: "",
+    revisionInstruction: "",
+    lastInput: null,
+    errors: [],
+    warnings: [],
+    savedAt: "",
+    checkedAt: "",
+  };
+}
+
+function openGreetingAssistantFromBirthday(birthdayId, openModal) {
+  const birthday = savedBirthdays.find(item => item.id === birthdayId);
+  if (!birthday) return;
+  const nextDate = getNextBirthdayDate(birthday) || parseIsoDate(birthday.dateOfBirth);
+  greetingAssistantContext = {
+    key: `birthday:${birthday.id}`,
+    scenario: "birthday",
+    title: `День рождения: ${birthday.name}`,
+    subtitle: getBirthdayEventSubtitle(birthday, nextDate || new Date()),
+    eventDate: nextDate ? toIsoDate(nextDate) : birthday.dateOfBirth,
+    birthday: { ...birthday },
+  };
+  prepareGreetingAssistantState();
+  openModal("greetingAssistant");
+}
+
+function openGreetingAssistantFromHoliday(eventId, openModal) {
+  const event = getHolidayEventById(eventId);
+  if (!event) return;
+  greetingAssistantContext = {
+    key: `holiday:${event.id}`,
+    scenario: "holiday",
+    title: event.title,
+    subtitle: getHolidayEventSubtitle(event),
+    eventDate: normalizeGreetingDate(event.date || event.localDate || event.startLocalDate) || toIsoDate(selectedDayCardDate),
+    holidayType: getGreetingHolidayType(event),
+    holiday: {
+      id: event.id,
+      title: event.title,
+      calendarTitle: event.calendarTitle || "",
+      description: getHolidayEventDescription(event),
+      sourceReference: event.sourceReference || "",
+      tradition: getGreetingHolidayTradition(event),
+    },
+  };
+  prepareGreetingAssistantState();
+  openModal("greetingAssistant");
+}
+
+function prepareGreetingAssistantState() {
+  const savedDraft = loadGreetingAssistantDraft(greetingAssistantContext?.key);
+  const defaultFields = getDefaultGreetingAssistantFields(greetingAssistantContext);
+  greetingAssistantState = {
+    ...createEmptyGreetingAssistantState(),
+    status: savedDraft ? "draft" : "checking",
+    fields: {
+      ...defaultFields,
+      ...(savedDraft?.fields || {}),
+    },
+    variants: Array.isArray(savedDraft?.variants) ? savedDraft.variants.slice(0, 3) : [],
+    selectedVariantId: savedDraft?.selectedVariantId || savedDraft?.variants?.[0]?.id || "",
+    editorText: savedDraft?.editorText || savedDraft?.variants?.[0]?.text || "",
+    revisionInstruction: savedDraft?.revisionInstruction || "",
+    lastInput: savedDraft?.lastInput || null,
+    savedAt: savedDraft?.savedAt || "",
+  };
+}
+
+async function refreshGreetingAssistantStatus() {
+  if (!greetingAssistantContext) return;
+  const result = await scheduleSync.getGreetingStatus();
+  greetingAssistantState = {
+    ...greetingAssistantState,
+    providerConfigured: result.providerConfigured === true,
+    provider: result.provider || null,
+    disabledMessage: result.disabledMessage || GREETING_DISABLED_MESSAGE,
+    checkedAt: result.checkedAt || "",
+    status: result.providerConfigured === true
+      ? ["checking", "disabled"].includes(greetingAssistantState.status)
+        ? greetingAssistantState.variants.length ? "draft" : "ready"
+        : greetingAssistantState.status
+      : "disabled",
+  };
+  renderGreetingAssistant();
+}
+
+function renderGreetingAssistant() {
+  const title = document.querySelector("#greetingAssistantTitle");
+  const status = document.querySelector("#greetingAssistantStatus");
+  const body = document.querySelector("#greetingAssistantBody");
+  const actions = document.querySelector("#greetingAssistantActions");
+  if (!title || !status || !body || !actions) return;
+
+  if (!greetingAssistantContext) {
+    title.textContent = "Поздравление";
+    status.textContent = "Выберите день рождения или праздник.";
+    body.innerHTML = "";
+    actions.innerHTML = "";
+    return;
+  }
+
+  const fields = greetingAssistantState.fields || getDefaultGreetingAssistantFields(greetingAssistantContext);
+  const isBusy = greetingAssistantState.status === "generating" || greetingAssistantState.status === "revising";
+  const canGenerate = greetingAssistantState.providerConfigured && !isBusy;
+  const hasText = Boolean(getGreetingAssistantEditorText({ preferDom: false }));
+  title.textContent = greetingAssistantContext.title;
+  status.textContent = getGreetingAssistantStatusText();
+  body.dataset.state = greetingAssistantState.status;
+  body.innerHTML = `
+    ${greetingAssistantState.providerConfigured ? `
+      <div class="greeting-status-card">
+        <strong>${escapeHtml(greetingAssistantContext.subtitle || "Анкета готова")}</strong>
+        <span>Анкета готова к генерации.</span>
+      </div>
+    ` : `
+      <div class="greeting-disabled-note">
+        <strong>${escapeHtml(GREETING_DISABLED_MESSAGE)}</strong>
+        <span>Заполненные поля останутся в черновике.</span>
+      </div>
+    `}
+    <div class="greeting-assistant-form">
+      <label class="greeting-field">
+        <span>Кому</span>
+        <input id="greetingRecipientName" type="text" value="${escapeHtml(fields.recipientName)}" data-greeting-field="recipientName" placeholder="${greetingAssistantContext.scenario === "birthday" ? "Имя" : "Имя или группа"}">
+      </label>
+      <label class="greeting-field">
+        <span>Роль / отношение</span>
+        <input id="greetingRecipientRole" type="text" value="${escapeHtml(fields.recipientRole)}" data-greeting-field="recipientRole" placeholder="руководитель, коллега, друг">
+      </label>
+      <label class="greeting-field">
+        <span>Тон</span>
+        <select id="greetingTone" data-greeting-field="tone">
+          ${renderGreetingOption("warm", "Теплый", fields.tone)}
+          ${renderGreetingOption("personal", "Личный", fields.tone)}
+          ${renderGreetingOption("official", "Официальный", fields.tone)}
+          ${renderGreetingOption("respectful", "Уважительный", fields.tone)}
+          ${renderGreetingOption("light_humor", "Легкий юмор", fields.tone)}
+        </select>
+      </label>
+      <label class="greeting-field">
+        <span>Обращение</span>
+        <select id="greetingAddressMode" data-greeting-field="addressMode">
+          ${renderGreetingOption("vy", "На «вы»", fields.addressMode)}
+          ${renderGreetingOption("ty", "На «ты»", fields.addressMode)}
+        </select>
+      </label>
+      <label class="greeting-field">
+        <span>Длина</span>
+        <select id="greetingLength" data-greeting-field="length">
+          ${renderGreetingOption("short", "Коротко", fields.length)}
+          ${renderGreetingOption("medium", "Средне", fields.length)}
+          ${renderGreetingOption("long", "Развернуто", fields.length)}
+        </select>
+      </label>
+      <label class="greeting-field">
+        <span>От кого</span>
+        <input id="greetingSender" type="text" value="${escapeHtml(fields.sender)}" data-greeting-field="sender" placeholder="от меня, от коллектива">
+      </label>
+      <label class="greeting-field greeting-field--wide">
+        <span>Что учесть</span>
+        <textarea id="greetingPersonalNote" data-greeting-field="personalNote" placeholder="Только факты, которые можно упомянуть">${escapeHtml(fields.personalNote)}</textarea>
+      </label>
+      <label class="greeting-field greeting-field--wide">
+        <span>Запретные темы</span>
+        <input id="greetingForbiddenTopics" type="text" value="${escapeHtml(fields.forbiddenTopics)}" data-greeting-field="forbiddenTopics" placeholder="например: возраст, работа, личная тема">
+      </label>
+      <div class="greeting-check-row">
+        <label>
+          <input id="greetingAvoidAge" type="checkbox" data-greeting-field="avoidAge" ${fields.avoidAge ? "checked" : ""}>
+          <span>Не упоминать возраст</span>
+        </label>
+      </div>
+    </div>
+    ${renderGreetingVariants()}
+    ${renderGreetingEditor()}
+  `;
+
+  actions.innerHTML = `
+    <button class="secondary-button" type="button" data-greeting-action="save-draft">Сохранить анкету</button>
+    <button class="secondary-button" type="button" data-greeting-action="copy" ${hasText ? "" : "disabled"}>Скопировать текст</button>
+    <button class="primary-button" type="button" data-greeting-action="generate" ${canGenerate ? "" : "disabled"}>
+      ${isBusy ? "Готовлю..." : "Сформировать 3 варианта"}
+    </button>
+  `;
+}
+
+function renderGreetingOption(value, label, selectedValue) {
+  return `<option value="${escapeHtml(value)}" ${selectedValue === value ? "selected" : ""}>${escapeHtml(label)}</option>`;
+}
+
+function renderGreetingVariants() {
+  const variants = greetingAssistantState.variants || [];
+  if (!variants.length) return "";
+  return `
+    <div class="greeting-assistant-variants">
+      ${variants.map(variant => `
+        <button class="greeting-variant-card ${variant.id === greetingAssistantState.selectedVariantId ? "is-selected" : ""}" type="button" data-greeting-variant="${escapeHtml(variant.id)}">
+          <strong>${escapeHtml(variant.title || "Вариант")}</strong>
+          <span>${escapeHtml(variant.text)}</span>
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderGreetingEditor() {
+  const editorText = getGreetingAssistantEditorText({ preferDom: false });
+  if (!editorText && !greetingAssistantState.variants.length) return "";
+  return `
+    <section class="greeting-editor">
+      <header>
+        <strong>Черновик поздравления</strong>
+        <button class="secondary-button secondary-button--compact" type="button" data-greeting-action="copy" ${editorText ? "" : "disabled"}>Копировать</button>
+      </header>
+      <textarea id="greetingEditorText" data-greeting-field="editorText">${escapeHtml(editorText)}</textarea>
+      <input class="greeting-revision-input" id="greetingRevisionInstruction" type="text" value="${escapeHtml(greetingAssistantState.revisionInstruction || "")}" data-greeting-field="revisionInstruction" placeholder="Что изменить в тексте">
+      <div class="greeting-quick-actions">
+        <button class="secondary-button secondary-button--compact" type="button" data-greeting-action="revise" data-greeting-revision="Сделай текст теплее" ${greetingAssistantState.providerConfigured ? "" : "disabled"}>Теплее</button>
+        <button class="secondary-button secondary-button--compact" type="button" data-greeting-action="revise" data-greeting-revision="Сделай текст официальнее" ${greetingAssistantState.providerConfigured ? "" : "disabled"}>Официальнее</button>
+        <button class="secondary-button secondary-button--compact" type="button" data-greeting-action="revise" ${greetingAssistantState.providerConfigured ? "" : "disabled"}>Применить правку</button>
+      </div>
+    </section>
+  `;
+}
+
+function getGreetingAssistantStatusText() {
+  if (greetingAssistantState.status === "checking") return "Проверяем доступность генерации.";
+  if (greetingAssistantState.status === "generating") return "Формируем три варианта поздравления.";
+  if (greetingAssistantState.status === "revising") return "Обновляем черновик по вашей правке.";
+  if (greetingAssistantState.status === "generated") return "Выберите вариант, отредактируйте текст и скопируйте его, когда будет готово.";
+  if (greetingAssistantState.status === "draft") return "Открыта сохраненная анкета. Можно продолжить или сформировать новые варианты.";
+  if (greetingAssistantState.status === "saved") return "Анкета сохранена локально. Можно продолжить позднее.";
+  if (greetingAssistantState.status === "invalid") return "Заполните обязательные поля анкеты.";
+  if (greetingAssistantState.status === "failed") return "Не удалось сформировать поздравление. Попробуйте позже или сохраните анкету.";
+  if (greetingAssistantState.status === "disabled") return greetingAssistantState.disabledMessage || GREETING_DISABLED_MESSAGE;
+  return "Заполните анкету и сформируйте варианты.";
+}
+
+function captureGreetingAssistantFormState() {
+  const fields = readGreetingAssistantFields();
+  const editor = document.querySelector("#greetingEditorText");
+  const revision = document.querySelector("#greetingRevisionInstruction");
+  greetingAssistantState = {
+    ...greetingAssistantState,
+    fields,
+    editorText: editor ? editor.value.trim() : greetingAssistantState.editorText || "",
+    revisionInstruction: revision ? revision.value.trim() : greetingAssistantState.revisionInstruction || "",
+  };
+  return fields;
+}
+
+function readGreetingAssistantFields() {
+  const fallback = greetingAssistantState.fields || getDefaultGreetingAssistantFields(greetingAssistantContext);
+  const getValue = (selector, fallbackValue = "") => {
+    const value = document.querySelector(selector)?.value;
+    return value === undefined ? fallbackValue : sanitizeGreetingUiText(value, 1200);
+  };
+  return {
+    recipientName: getValue("#greetingRecipientName", fallback.recipientName),
+    recipientRole: getValue("#greetingRecipientRole", fallback.recipientRole),
+    sender: getValue("#greetingSender", fallback.sender),
+    tone: getValue("#greetingTone", fallback.tone) || "warm",
+    length: getValue("#greetingLength", fallback.length) || "medium",
+    addressMode: getValue("#greetingAddressMode", fallback.addressMode) || "vy",
+    personalNote: getValue("#greetingPersonalNote", fallback.personalNote),
+    forbiddenTopics: getValue("#greetingForbiddenTopics", fallback.forbiddenTopics),
+    avoidAge: document.querySelector("#greetingAvoidAge")?.checked ?? Boolean(fallback.avoidAge),
+  };
+}
+
+function getDefaultGreetingAssistantFields(context) {
+  const birthday = context?.birthday || null;
+  return {
+    recipientName: context?.scenario === "birthday" ? birthday?.name || "" : "",
+    recipientRole: "",
+    sender: "",
+    tone: context?.scenario === "holiday" ? "respectful" : "warm",
+    length: "medium",
+    addressMode: "vy",
+    personalNote: birthday?.note || "",
+    forbiddenTopics: "",
+    avoidAge: false,
+  };
+}
+
+function buildGreetingGenerationInput() {
+  const fields = captureGreetingAssistantFormState();
+  const topics = splitGreetingForbiddenTopics(fields.forbiddenTopics);
+  const input = {
+    scenario: greetingAssistantContext.scenario,
+    recipient: {
+      name: fields.recipientName,
+      role: fields.recipientRole,
+    },
+    sender: fields.sender,
+    addressMode: fields.addressMode === "ty" ? "ty" : "vy",
+    tone: ["warm", "official", "personal", "light_humor", "respectful"].includes(fields.tone) ? fields.tone : "warm",
+    length: ["short", "medium", "long"].includes(fields.length) ? fields.length : "medium",
+    format: "plain_text",
+    variantCount: 3,
+    bans: {
+      mentionAge: fields.avoidAge,
+      personalTopics: topics,
+    },
+    context: {
+      personalNote: fields.personalNote,
+      allowedFacts: getGreetingAllowedFacts(greetingAssistantContext, fields),
+    },
+  };
+
+  if (greetingAssistantContext.scenario === "birthday") {
+    const birthday = greetingAssistantContext.birthday || {};
+    const eventDate = normalizeGreetingDate(greetingAssistantContext.eventDate) || "";
+    input.event = {
+      title: "День рождения",
+      date: eventDate,
+    };
+    input.context.birthday = {
+      name: birthday.name || fields.recipientName,
+      dateOfBirth: normalizeGreetingDate(birthday.dateOfBirth),
+      age: getBirthdayAge(birthday, eventDate ? parseIsoDate(eventDate) : new Date()),
+      note: birthday.note || "",
+    };
+  } else {
+    const holiday = greetingAssistantContext.holiday || {};
+    input.holidayType = greetingAssistantContext.holidayType || "public_holiday";
+    input.event = {
+      title: holiday.title || greetingAssistantContext.title,
+      date: normalizeGreetingDate(greetingAssistantContext.eventDate),
+      holidayType: greetingAssistantContext.holidayType || "public_holiday",
+      tradition: holiday.tradition || "",
+      description: holiday.description || "",
+    };
+    input.context.holiday = {
+      title: holiday.title || greetingAssistantContext.title,
+      description: holiday.description || "",
+      source: holiday.calendarTitle || holiday.sourceReference || "",
+    };
+  }
+
+  return input;
+}
+
+async function generateGreetingAssistant() {
+  if (!greetingAssistantContext) return;
+  if (!greetingAssistantState.providerConfigured) {
+    greetingAssistantState.status = "disabled";
+    renderGreetingAssistant();
+    return;
+  }
+  const input = buildGreetingGenerationInput();
+  if (input.scenario === "birthday" && !input.recipient.name) {
+    greetingAssistantState = {
+      ...greetingAssistantState,
+      status: "invalid",
+      errors: ["recipient_name"],
+    };
+    renderGreetingAssistant();
+    return;
+  }
+
+  greetingAssistantState = {
+    ...greetingAssistantState,
+    status: "generating",
+    lastInput: input,
+    errors: [],
+  };
+  renderGreetingAssistant();
+
+  const result = await scheduleSync.generateGreeting(input);
+  applyGreetingAssistantResult(result, input);
+}
+
+async function reviseGreetingAssistant(button) {
+  if (!greetingAssistantContext) return;
+  captureGreetingAssistantFormState();
+  const sourceText = getGreetingAssistantEditorText();
+  const instruction = sanitizeGreetingUiText(
+    button?.dataset.greetingRevision || greetingAssistantState.revisionInstruction || "",
+    500,
+  );
+  if (!sourceText || !instruction) {
+    greetingAssistantState = {
+      ...greetingAssistantState,
+      status: "invalid",
+      errors: ["revision_instruction"],
+    };
+    renderGreetingAssistant();
+    return;
+  }
+  if (!greetingAssistantState.providerConfigured) {
+    greetingAssistantState.status = "disabled";
+    renderGreetingAssistant();
+    return;
+  }
+
+  const baseInput = greetingAssistantState.lastInput || buildGreetingGenerationInput();
+  greetingAssistantState = {
+    ...greetingAssistantState,
+    status: "revising",
+    revisionInstruction: instruction,
+    errors: [],
+  };
+  renderGreetingAssistant();
+
+  const result = await scheduleSync.reviseGreeting({
+    sourceText,
+    instruction,
+    baseInput,
+  });
+  applyGreetingAssistantResult(result, baseInput);
+}
+
+function applyGreetingAssistantResult(result, input) {
+  if (result.status === "generated" && result.variants?.length) {
+    const firstVariant = result.variants[0];
+    greetingAssistantState = {
+      ...greetingAssistantState,
+      status: "generated",
+      providerConfigured: true,
+      provider: result.provider || greetingAssistantState.provider,
+      variants: result.variants.slice(0, 3),
+      selectedVariantId: firstVariant.id,
+      editorText: firstVariant.text,
+      lastInput: input,
+      warnings: result.warnings || [],
+      errors: [],
+      checkedAt: result.checkedAt || greetingAssistantState.checkedAt,
+    };
+  } else if (result.status === "provider-not-configured") {
+    greetingAssistantState = {
+      ...greetingAssistantState,
+      status: "disabled",
+      providerConfigured: false,
+      disabledMessage: result.disabledMessage || GREETING_DISABLED_MESSAGE,
+      errors: [],
+    };
+  } else {
+    greetingAssistantState = {
+      ...greetingAssistantState,
+      status: result.status === "invalid-request" ? "invalid" : "failed",
+      errors: result.errors || [],
+    };
+  }
+  saveGreetingAssistantDraft({ capture: false });
+  renderGreetingAssistant();
+}
+
+function selectGreetingAssistantVariant(variantId) {
+  const variant = greetingAssistantState.variants.find(item => item.id === variantId);
+  if (!variant) return;
+  captureGreetingAssistantFormState();
+  greetingAssistantState = {
+    ...greetingAssistantState,
+    selectedVariantId: variant.id,
+    editorText: variant.text,
+  };
+  renderGreetingAssistant();
+}
+
+function saveGreetingAssistantDraft({ capture = true } = {}) {
+  if (!greetingAssistantContext?.key) return;
+  if (capture) {
+    captureGreetingAssistantFormState();
+  }
+  const store = loadGreetingAssistantDraftStore();
+  store[greetingAssistantContext.key] = {
+    fields: greetingAssistantState.fields,
+    variants: greetingAssistantState.variants,
+    selectedVariantId: greetingAssistantState.selectedVariantId,
+    editorText: greetingAssistantState.editorText,
+    revisionInstruction: greetingAssistantState.revisionInstruction,
+    lastInput: greetingAssistantState.lastInput,
+    savedAt: new Date().toISOString(),
+  };
+  try {
+    localStorage.setItem(GREETING_ASSISTANT_DRAFT_KEY, JSON.stringify(store));
+  } catch {
+    // Local draft persistence is optional; generated text remains visible in the modal.
+  }
+}
+
+function saveGreetingAssistantDraftFromUi() {
+  saveGreetingAssistantDraft();
+  greetingAssistantState = {
+    ...greetingAssistantState,
+    status: "saved",
+    savedAt: new Date().toISOString(),
+  };
+  renderGreetingAssistant();
+}
+
+function loadGreetingAssistantDraft(contextKey) {
+  const draft = loadGreetingAssistantDraftStore()[contextKey || ""];
+  return draft && typeof draft === "object" && !Array.isArray(draft) ? draft : null;
+}
+
+function loadGreetingAssistantDraftStore() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(GREETING_ASSISTANT_DRAFT_KEY) || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function copyGreetingAssistantText() {
+  captureGreetingAssistantFormState();
+  const text = getGreetingAssistantEditorText();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    greetingAssistantState.status = "generated";
+    document.querySelector("#greetingAssistantStatus").textContent = "Поздравление скопировано.";
+  } catch {
+    document.querySelector("#greetingEditorText")?.focus();
+    document.querySelector("#greetingAssistantStatus").textContent = "Не удалось скопировать текст автоматически.";
+  }
+}
+
+function getGreetingAssistantEditorText({ preferDom = true } = {}) {
+  if (preferDom) {
+    return document.querySelector("#greetingEditorText")?.value.trim() || greetingAssistantState.editorText || "";
+  }
+  return greetingAssistantState.editorText || "";
+}
+
+function getGreetingAllowedFacts(context, fields) {
+  const facts = [];
+  if (context?.scenario === "birthday" && context.birthday?.note) {
+    facts.push(context.birthday.note);
+  }
+  if (context?.scenario === "holiday" && context.holiday?.title) {
+    facts.push(context.holiday.title);
+  }
+  if (fields.sender) facts.push(`Отправитель: ${fields.sender}`);
+  return facts.map(item => sanitizeGreetingUiText(item, 240)).filter(Boolean).slice(0, 8);
+}
+
+function splitGreetingForbiddenTopics(value) {
+  return String(value || "")
+    .split(/[,\n;]/u)
+    .map(item => sanitizeGreetingUiText(item, 120))
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function getGreetingHolidayType(event = {}) {
+  const types = getHolidayEventTypes(event);
+  if (types.has("religious_holiday")) return "religious_holiday";
+  if (types.has("professional_holiday")) return "professional_holiday";
+  return "public_holiday";
+}
+
+function getGreetingHolidayTradition(event = {}) {
+  const types = getHolidayEventTypes(event);
+  if (!types.has("religious_holiday")) return "";
+  const calendarTitle = String(event.calendarTitle || "").toLocaleLowerCase("ru-RU");
+  if (calendarTitle.includes("православ")) return "orthodox";
+  if (calendarTitle.includes("катол")) return "catholic";
+  if (calendarTitle.includes("ислам") || calendarTitle.includes("мусульман")) return "islam";
+  return "religious";
+}
+
+function normalizeGreetingDate(value) {
+  const text = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/u.test(text) ? text : "";
+}
+
+function sanitizeGreetingUiText(value, maxLength = 500) {
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
 function clearBirthdayForm() {
@@ -3583,6 +5828,8 @@ function prepareDiaryPinForm(mode = "setup") {
   const current = document.querySelector("#diaryPinCurrent");
   const pin = document.querySelector("#diaryPinNew");
   const confirm = document.querySelector("#diaryPinConfirm");
+  const pinLabel = document.querySelector("#diaryPinNewLabel");
+  const confirmLabel = document.querySelector("#diaryPinConfirmLabel");
 
   if (title) {
     title.textContent = mode === "change" ? "Изменить PIN дневника" : "Создать PIN дневника";
@@ -3600,6 +5847,14 @@ function prepareDiaryPinForm(mode = "setup") {
 
   if (saveButton) {
     saveButton.textContent = mode === "change" ? "Изменить PIN" : "Создать PIN";
+  }
+
+  if (pinLabel) {
+    pinLabel.textContent = mode === "change" ? "Новый PIN" : "PIN";
+  }
+
+  if (confirmLabel) {
+    confirmLabel.textContent = mode === "change" ? "Повтор нового PIN" : "Повтор PIN";
   }
 
   setDiaryPinStatus(mode === "change"
@@ -4541,10 +6796,13 @@ function applyPersonalScheduleCollections({ schedules, tasks: nextTasks, reminde
   renderCalendar();
   renderSummary();
   if (reason === "personal_schedule_import") {
-    setSyncStatus("Идеальное расписание добавило черновик в существующие расписания Focus.");
+    setSyncStatus("Персональный ритм дня добавил черновик в существующие расписания Focus.");
   }
   if (reason === "personal_schedule_rollback") {
-    setSyncStatus("Идеальное расписание откатило последний импорт.");
+    setSyncStatus("Персональный ритм дня откатил последний импорт.");
+  }
+  if (reason === "personal_schedule_task_cleanup") {
+    setSyncStatus("Персональный ритм дня убрал задачи из старого импорта.");
   }
 }
 
@@ -8994,9 +11252,12 @@ function bindControls(initialLaunchTarget = "") {
     useful: document.querySelector("#usefulModal"),
     reminders: document.querySelector("#remindersModal"),
     quotes: document.querySelector("#quotesModal"),
+    interestingToday: document.querySelector("#interestingTodayModal"),
+    interestingTodayDetail: document.querySelector("#interestingTodayDetailModal"),
     holidays: document.querySelector("#holidaysModal"),
     personalSchedule: document.querySelector("#personalScheduleModal"),
     holidayEvent: document.querySelector("#holidayEventModal"),
+    greetingAssistant: document.querySelector("#greetingAssistantModal"),
     schedules: document.querySelector("#schedulesModal"),
     scheduleDetail: document.querySelector("#scheduleDetailModal"),
     dayCard: document.querySelector("#dayCardModal"),
@@ -9014,7 +11275,90 @@ function bindControls(initialLaunchTarget = "") {
     renderCalendar();
   });
 
+  document.querySelector(".calendar-card")?.addEventListener("pointerover", event => {
+    const pickerButton = event.target.closest("[data-calendar-picker]");
+    if (!pickerButton) return;
+    openCalendarPicker(pickerButton.dataset.calendarPicker);
+  });
+
+  document.querySelector(".calendar-card")?.addEventListener("click", event => {
+    const pickerButton = event.target.closest("[data-calendar-picker]");
+    if (pickerButton) {
+      event.stopPropagation();
+      openCalendarPicker(pickerButton.dataset.calendarPicker);
+      return;
+    }
+
+    if (event.target.closest("[data-calendar-picker-close]")) {
+      event.stopPropagation();
+      closeCalendarPicker();
+      return;
+    }
+
+    const monthOption = event.target.closest("[data-calendar-month-option]");
+    if (monthOption) {
+      event.stopPropagation();
+      currentCalendarDate = new Date(
+        currentCalendarDate.getFullYear(),
+        Number(monthOption.dataset.calendarMonthOption),
+        1
+      );
+      calendarPickerType = "";
+      renderCalendar();
+      return;
+    }
+
+    const yearOption = event.target.closest("[data-calendar-year-option]");
+    if (yearOption) {
+      event.stopPropagation();
+      currentCalendarDate = new Date(
+        Number(yearOption.dataset.calendarYearOption),
+        currentCalendarDate.getMonth(),
+        1
+      );
+      calendarPickerType = "";
+      renderCalendar();
+      return;
+    }
+
+    const yearPageButton = event.target.closest("[data-calendar-year-page]");
+    if (yearPageButton) {
+      event.stopPropagation();
+      calendarYearPickerStart += Number(yearPageButton.dataset.calendarYearPage);
+      renderCalendarPicker();
+      return;
+    }
+
+    if (event.target.closest("[data-calendar-return-current]")) {
+      event.stopPropagation();
+      currentCalendarDate = getCurrentCalendarMonthDate();
+      calendarPickerType = "";
+      renderCalendar();
+      return;
+    }
+
+    if (calendarPickerType && !event.target.closest("[data-calendar-picker-panel]")) {
+      closeCalendarPicker();
+    }
+  });
+
+  document.addEventListener("click", event => {
+    if (!calendarPickerType) return;
+    if (event.target.closest("[data-calendar-picker-panel], [data-calendar-picker]")) return;
+    closeCalendarPicker();
+  });
+
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      closeCalendarPicker();
+    }
+  });
+
   document.querySelector("#calendarGrid")?.addEventListener("click", event => {
+    if (calendarPickerType) {
+      closeCalendarPicker();
+      return;
+    }
     const dayButton = event.target.closest("[data-calendar-date]");
     if (!dayButton) return;
     renderDayCard(parseIsoDate(dayButton.dataset.calendarDate));
@@ -9078,6 +11422,18 @@ function bindControls(initialLaunchTarget = "") {
         renderQuotePreferencesUi();
       });
     }
+    if (name === "interestingToday") {
+      renderInterestingTodayModal();
+      loadInterestingToday().catch(() => {
+        renderInterestingTodayModal();
+      });
+      loadInterestingTodayPreferencesUi().catch(() => {
+        renderInterestingTodayModal();
+      });
+    }
+    if (name === "interestingTodayDetail") {
+      renderInterestingTodayDetail();
+    }
     if (name === "holidays") {
       renderHolidaySettingsUi();
     }
@@ -9131,10 +11487,6 @@ function bindControls(initialLaunchTarget = "") {
       refreshReminderPushDiagnostics().catch(() => {
         renderDeviceCheck();
       });
-      renderDiaryPinSummary();
-      loadDiaryPinSettings().catch(() => {
-        renderDiaryPinSummary();
-      });
       refreshAuthSession()
         .catch(() => {})
         .finally(() => {
@@ -9155,6 +11507,18 @@ function bindControls(initialLaunchTarget = "") {
     }
     if (name === "personalSchedule") {
       personalSchedulePlannerUi.renderFeatureCard();
+    }
+    if (name === "greetingAssistant") {
+      renderGreetingAssistant();
+      refreshGreetingAssistantStatus().catch(() => {
+        greetingAssistantState = {
+          ...greetingAssistantState,
+          status: "disabled",
+          providerConfigured: false,
+          disabledMessage: GREETING_DISABLED_MESSAGE,
+        };
+        renderGreetingAssistant();
+      });
     }
     if (name === "reminder") {
       if (!reminderEditId) {
@@ -9228,10 +11592,14 @@ function bindControls(initialLaunchTarget = "") {
   }
 
   function closeModal() {
+    const wasHolidaySettingsModal = modals.holidays && !modals.holidays.hidden;
     modalLayer.hidden = true;
     Object.values(modals).forEach(item => {
       item.hidden = true;
     });
+    if (wasHolidaySettingsModal && isHolidayInitialSetupIncomplete()) {
+      dismissHolidayInitialSetup();
+    }
     reminderEditId = null;
     renderReminderEditorState();
     noteEditId = null;
@@ -9247,9 +11615,52 @@ function bindControls(initialLaunchTarget = "") {
   personalSchedulePlannerUi.setOpenModal(openModal);
   personalSchedulePlannerUi.bind();
 
+  const greetingAssistantModal = document.querySelector("#greetingAssistantModal");
+  const captureGreetingState = event => {
+    if (event.target.closest("[data-greeting-field]")) {
+      captureGreetingAssistantFormState();
+    }
+  };
+  greetingAssistantModal?.addEventListener("input", captureGreetingState);
+  greetingAssistantModal?.addEventListener("change", captureGreetingState);
+
   document.querySelector(".quote-card")?.addEventListener("click", () => {
     openModal("quotes");
   });
+
+  const interestingToday = document.querySelector("#interestingToday");
+  const interestingToggleButton = document.querySelector("#interestingToggleButton");
+
+  function updateInterestingToggleState() {
+    if (!interestingToday || !interestingToggleButton) return;
+    const isCollapsed = interestingToday.classList.contains("is-collapsed");
+    interestingToggleButton.setAttribute("aria-expanded", String(!isCollapsed));
+    interestingToggleButton.setAttribute("aria-label", isCollapsed
+      ? "Развернуть раздел Интересное сегодня"
+      : "Свернуть раздел Интересное сегодня");
+  }
+
+  interestingToggleButton?.addEventListener("click", () => {
+    interestingToday?.classList.toggle("is-collapsed");
+    updateInterestingToggleState();
+  });
+
+  interestingToday?.addEventListener("click", event => {
+    const recordButton = event.target.closest("[data-interesting-record]");
+    if (recordButton) {
+      openInterestingTodayRecord(recordButton.dataset.interestingRecord, recordButton.dataset.interestingId, openModal).catch(() => {
+        renderInterestingTodayDetail();
+      });
+      return;
+    }
+
+    const modalButton = event.target.closest("[data-open-modal]");
+    if (modalButton) {
+      openModal(modalButton.dataset.openModal);
+    }
+  });
+
+  updateInterestingToggleState();
 
   document.querySelector("#quotesRefreshButton")?.addEventListener("click", () => {
     const loader = quoteModalView === "favorites"
@@ -9260,6 +11671,21 @@ function bindControls(initialLaunchTarget = "") {
     loader.catch(() => {
       renderDailyQuotesModal();
     });
+  });
+
+  document.querySelector("#interestingTodayPreferencesSaveButton")?.addEventListener("click", saveInterestingTodayPreferencesUi);
+
+  document.querySelector("#interestingTodaySettings")?.addEventListener("change", event => {
+    const input = event.target.closest("[data-interesting-preference]");
+    if (!input) return;
+    const key = input.dataset.interestingPreference;
+    if (key !== "showEvents" && key !== "showPeople") return;
+    interestingTodayPreferencesState = {
+      ...interestingTodayPreferencesState,
+      [key]: input.checked,
+    };
+    interestingTodayPreferencesSaveState = "idle";
+    renderInterestingTodayPreferencesStatus();
   });
 
   document.querySelector("#quotePreferencesSaveButton")?.addEventListener("click", saveQuotePreferencesUi);
@@ -9445,7 +11871,26 @@ function bindControls(initialLaunchTarget = "") {
     }
   });
 
+  document.querySelector("#summaryList")?.addEventListener("click", event => {
+    const birthdayButton = event.target.closest("[data-greeting-birthday]");
+    if (birthdayButton) {
+      openGreetingAssistantFromBirthday(birthdayButton.dataset.greetingBirthday, openModal);
+      return;
+    }
+
+    const holidayButton = event.target.closest("[data-greeting-holiday]");
+    if (holidayButton) {
+      openGreetingAssistantFromHoliday(holidayButton.dataset.greetingHoliday, openModal);
+    }
+  });
+
   document.querySelector("#savedBirthdaysList")?.addEventListener("click", event => {
+    const greetingButton = event.target.closest("[data-greeting-birthday]");
+    if (greetingButton) {
+      openGreetingAssistantFromBirthday(greetingButton.dataset.greetingBirthday, openModal);
+      return;
+    }
+
     const editButton = event.target.closest("[data-edit-birthday]");
     if (editButton) {
       if (prepareBirthdayEdit(editButton.dataset.editBirthday)) {
@@ -9972,10 +12417,70 @@ function bindControls(initialLaunchTarget = "") {
       return;
     }
 
+    const greetingBirthdayButton = event.target.closest("[data-greeting-birthday]");
+    if (greetingBirthdayButton) {
+      openGreetingAssistantFromBirthday(greetingBirthdayButton.dataset.greetingBirthday, openModal);
+      return;
+    }
+
+    const greetingHolidayButton = event.target.closest("[data-greeting-holiday]");
+    if (greetingHolidayButton) {
+      openGreetingAssistantFromHoliday(greetingHolidayButton.dataset.greetingHoliday, openModal);
+      return;
+    }
+
+    const greetingVariantButton = event.target.closest("[data-greeting-variant]");
+    if (greetingVariantButton) {
+      selectGreetingAssistantVariant(greetingVariantButton.dataset.greetingVariant);
+      return;
+    }
+
+    const greetingActionButton = event.target.closest("[data-greeting-action]");
+    if (greetingActionButton) {
+      const action = greetingActionButton.dataset.greetingAction;
+      if (action === "generate") {
+        generateGreetingAssistant().catch(() => {
+          greetingAssistantState = {
+            ...greetingAssistantState,
+            status: "failed",
+          };
+          renderGreetingAssistant();
+        });
+      } else if (action === "revise") {
+        reviseGreetingAssistant(greetingActionButton).catch(() => {
+          greetingAssistantState = {
+            ...greetingAssistantState,
+            status: "failed",
+          };
+          renderGreetingAssistant();
+        });
+      } else if (action === "copy") {
+        copyGreetingAssistantText().catch(() => {});
+      } else if (action === "save-draft") {
+        saveGreetingAssistantDraftFromUi();
+      }
+      return;
+    }
+
     const openDiaryForDayButton = event.target.closest("[data-open-diary-entry-for-day]");
     if (openDiaryForDayButton) {
       diaryDraftDateKey = toIsoDate(selectedDayCardDate);
       openModal("diaryEntry");
+      return;
+    }
+
+    const interestingRecordButton = event.target.closest("[data-interesting-record]");
+    if (interestingRecordButton) {
+      openInterestingTodayRecord(interestingRecordButton.dataset.interestingRecord, interestingRecordButton.dataset.interestingId, openModal).catch(() => {
+        renderInterestingTodayDetail();
+      });
+      return;
+    }
+
+    const backToInterestingTodayButton = event.target.closest("[data-back-to-interesting-today]");
+    if (backToInterestingTodayButton) {
+      renderInterestingTodayModal();
+      openModal("interestingToday");
       return;
     }
 
@@ -10056,10 +12561,14 @@ function bindControls(initialLaunchTarget = "") {
 
 bindCompactWindowMode();
 lockViewportScale();
+bindRightButtonDragScroll();
 formatDate();
 renderQuote();
 loadDailyQuotes().catch(() => {
   renderDailyQuotesModal();
+});
+loadInterestingToday().catch(() => {
+  renderInterestingToday();
 });
 renderCalendar();
 renderSummary();

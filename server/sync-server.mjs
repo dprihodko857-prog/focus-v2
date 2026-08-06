@@ -17,6 +17,40 @@ import {
   createMockPersonalScheduleProvider,
   validatePersonalScheduleAiRequest,
 } from "../public/js/personal-schedule-planner.js";
+import {
+  GREETING_DISABLED_MESSAGE,
+  GREETING_PROMPT_VERSION,
+  createGreetingAIProviderFromEnv,
+  normalizeGreetingAIProvider,
+  validateGreetingGenerationInput,
+  validateGreetingGenerationResult,
+  validateGreetingRevisionInput,
+} from "./greeting-ai-provider.mjs";
+import {
+  DEFAULT_INTERESTING_TODAY_CATALOG,
+  DEFAULT_INTERESTING_TODAY_PREFERENCES,
+  INTERESTING_TODAY_CATALOG_VERSION,
+  INTERESTING_TODAY_DEFAULT_COUNTRY,
+  INTERESTING_TODAY_EVENTS_PER_DAY,
+  INTERESTING_TODAY_FALLBACK_REASON,
+  INTERESTING_TODAY_GENERATION_REASON,
+  INTERESTING_TODAY_LANGUAGE,
+  INTERESTING_TODAY_PEOPLE_PER_DAY,
+  cloneInterestingTodayCatalog,
+  createInterestingTodayCatalogReport,
+  createInterestingTodayDryRun,
+  createInterestingTodaySetKey,
+  formatInterestingTodayRecordForApi,
+  formatInterestingTodayResponse,
+  isInterestingTodayEligibleForProduction,
+  normalizeInterestingCountryCode,
+  normalizeInterestingTodayCatalog,
+  normalizeInterestingTodayPreferences,
+  normalizeInterestingTodaySet,
+  normalizeInterestingTodaySetItems,
+  selectInterestingTodayRecords,
+  validateInterestingTodayPreferences,
+} from "./interesting-today-catalog.mjs";
 
 const DEFAULT_PORT = Number(process.env.FOCUS_SYNC_PORT || 4178);
 const DEFAULT_DB_PATH = process.env.FOCUS_SYNC_DB || join(process.cwd(), "data", "focus-sync.json");
@@ -720,7 +754,7 @@ class JsonSyncDatabase {
     return existed;
   }
 
-    listFavoriteQuotes(accountId) {
+  listFavoriteQuotes(accountId) {
     return Object.values(this.state.favoriteQuotes[accountId] || {})
       .filter(isPlainObject)
       .map(item => ({
@@ -759,6 +793,150 @@ class JsonSyncDatabase {
       createdAt: normalizeTimestamp(createdAt),
     };
     this.state.quoteEvents[accountId] = [event, ...currentEvents].slice(0, 50);
+    this.persist();
+    return event;
+  }
+
+  getInterestingTodayCatalog() {
+    return cloneInterestingTodayCatalog(this.state.interestingTodayCatalog);
+  }
+
+  replaceInterestingTodayCatalog(records = DEFAULT_INTERESTING_TODAY_CATALOG) {
+    this.state.interestingTodayCatalog = normalizeInterestingTodayCatalog(records);
+    this.persist();
+    return this.getInterestingTodayCatalog();
+  }
+
+  ensureDefaultInterestingTodayCatalogSeed() {
+    const current = normalizeInterestingTodayCatalog(this.state.interestingTodayCatalog);
+    const currentIds = new Set(current.map(record => record.id));
+    const missingDefaultRecords = normalizeInterestingTodayCatalog(DEFAULT_INTERESTING_TODAY_CATALOG)
+      .filter(record => !currentIds.has(record.id));
+    if (!missingDefaultRecords.length) {
+      this.state.interestingTodayCatalog = current;
+      return {
+        addedCount: 0,
+        catalog: this.getInterestingTodayCatalog(),
+      };
+    }
+
+    this.state.interestingTodayCatalog = normalizeInterestingTodayCatalog([
+      ...current,
+      ...missingDefaultRecords,
+    ]);
+    this.persist();
+    return {
+      addedCount: missingDefaultRecords.length,
+      catalog: this.getInterestingTodayCatalog(),
+    };
+  }
+
+  auditInterestingTodayCatalogForProduction({ checkedAt = new Date().toISOString() } = {}) {
+    const normalized = normalizeInterestingTodayCatalog(this.state.interestingTodayCatalog);
+    const before = JSON.stringify(this.state.interestingTodayCatalog || []);
+    this.state.interestingTodayCatalog = normalized;
+    const report = createInterestingTodayCatalogReport(normalized, { checkedAt });
+    if (JSON.stringify(this.state.interestingTodayCatalog || []) !== before) {
+      this.persist();
+    }
+    return report;
+  }
+
+  getInterestingTodayRecord(recordId) {
+    const id = String(recordId || "").trim();
+    return this.getInterestingTodayCatalog().find(record => record.id === id) || null;
+  }
+
+  getUserInterestingTodayPreferences(accountId, { fallbackCountryCode = INTERESTING_TODAY_DEFAULT_COUNTRY, checkedAt = null } = {}) {
+    const preferences = this.state.userInterestingTodayPreferences?.[accountId];
+    return preferences
+      ? normalizeInterestingTodayPreferences(preferences, { accountId, fallbackCountryCode, checkedAt })
+      : null;
+  }
+
+  saveUserInterestingTodayPreferences({ accountId, preferences, updatedAt }) {
+    const normalizedPreferences = normalizeInterestingTodayPreferences(preferences, {
+      accountId,
+      fallbackCountryCode: preferences?.countryCode || INTERESTING_TODAY_DEFAULT_COUNTRY,
+      checkedAt: updatedAt,
+    });
+    this.state.userInterestingTodayPreferences ||= {};
+    this.state.userInterestingTodayPreferences[accountId] = {
+      ...normalizedPreferences,
+      updatedAt,
+    };
+    this.persist();
+    return this.state.userInterestingTodayPreferences[accountId];
+  }
+
+  getDailyInterestingTodaySet({ countryCode, language, localDate }) {
+    const key = createInterestingTodaySetKey({ countryCode, language, localDate });
+    return normalizeInterestingTodaySet(this.state.dailyInterestingTodaySets?.[key]);
+  }
+
+  getDailyInterestingTodaySetItems(setId) {
+    return normalizeInterestingTodaySetItems(this.state.dailyInterestingTodaySetItems?.[setId], setId);
+  }
+
+  saveDailyInterestingTodaySet({ set, items }) {
+    const normalizedSet = normalizeInterestingTodaySet(set);
+    const normalizedItems = normalizeInterestingTodaySetItems(items, normalizedSet?.id);
+    if (!normalizedSet) {
+      return null;
+    }
+
+    this.state.dailyInterestingTodaySets ||= {};
+    this.state.dailyInterestingTodaySetItems ||= {};
+    this.state.dailyInterestingTodaySets[createInterestingTodaySetKey(normalizedSet)] = normalizedSet;
+    this.state.dailyInterestingTodaySetItems[normalizedSet.id] = normalizedItems;
+    this.persist();
+    return {
+      set: normalizedSet,
+      items: normalizedItems,
+    };
+  }
+
+  saveInterestingTodayImportBatch(dryRun) {
+    if (!dryRun?.batch?.id) {
+      return null;
+    }
+
+    this.state.interestingTodayImportBatches ||= {};
+    this.state.interestingTodayStagingCandidates ||= {};
+    this.state.interestingTodayImportBatches[dryRun.batch.id] = dryRun.batch;
+    this.state.interestingTodayStagingCandidates[dryRun.batch.id] = dryRun.candidates || [];
+    this.persist();
+    return dryRun.batch;
+  }
+
+  saveInterestingTodayEvent({
+    accountId,
+    eventType,
+    recordId,
+    recordType,
+    localDate,
+    generationReason,
+    createdAt,
+  }) {
+    if (!accountId) {
+      return null;
+    }
+
+    this.state.interestingTodayEvents ||= {};
+    const currentEvents = Array.isArray(this.state.interestingTodayEvents[accountId])
+      ? this.state.interestingTodayEvents[accountId]
+      : [];
+    const event = {
+      id: randomUUID(),
+      accountId,
+      eventType: sanitizeInterestingTodayEventType(eventType),
+      recordId: String(recordId || "").trim() || null,
+      recordType: ["event", "person"].includes(recordType) ? recordType : null,
+      localDate: normalizeLocalDate(localDate) || null,
+      generationReason: sanitizeInterestingTodayGenerationReason(generationReason),
+      createdAt: normalizeTimestamp(createdAt),
+    };
+    this.state.interestingTodayEvents[accountId] = [event, ...currentEvents].slice(0, 50);
     this.persist();
     return event;
   }
@@ -1211,6 +1389,13 @@ function readState(dbPath, { profanityRules = DEFAULT_QUOTE_PROFANITY_RULES } = 
       quoteCatalog: normalizeQuoteCatalog(parsed.quoteCatalog, { profanityRules }),
       userQuotePreferences: isPlainObject(parsed.userQuotePreferences) ? parsed.userQuotePreferences : {},
       userHolidayPreferences: isPlainObject(parsed.userHolidayPreferences) ? parsed.userHolidayPreferences : {},
+      interestingTodayCatalog: normalizeInterestingTodayCatalog(parsed.interestingTodayCatalog),
+      userInterestingTodayPreferences: isPlainObject(parsed.userInterestingTodayPreferences) ? parsed.userInterestingTodayPreferences : {},
+      dailyInterestingTodaySets: isPlainObject(parsed.dailyInterestingTodaySets) ? parsed.dailyInterestingTodaySets : {},
+      dailyInterestingTodaySetItems: isPlainObject(parsed.dailyInterestingTodaySetItems) ? parsed.dailyInterestingTodaySetItems : {},
+      interestingTodayEvents: isPlainObject(parsed.interestingTodayEvents) ? parsed.interestingTodayEvents : {},
+      interestingTodayImportBatches: isPlainObject(parsed.interestingTodayImportBatches) ? parsed.interestingTodayImportBatches : {},
+      interestingTodayStagingCandidates: isPlainObject(parsed.interestingTodayStagingCandidates) ? parsed.interestingTodayStagingCandidates : {},
       dailyQuoteSets: isPlainObject(parsed.dailyQuoteSets) ? parsed.dailyQuoteSets : {},
       dailyQuoteSetItems: isPlainObject(parsed.dailyQuoteSetItems) ? parsed.dailyQuoteSetItems : {},
       favoriteQuotes: isPlainObject(parsed.favoriteQuotes) ? parsed.favoriteQuotes : {},
@@ -1259,6 +1444,13 @@ function createEmptyState() {
     quoteCatalog: [],
     userQuotePreferences: {},
     userHolidayPreferences: {},
+    interestingTodayCatalog: normalizeInterestingTodayCatalog(),
+    userInterestingTodayPreferences: {},
+    dailyInterestingTodaySets: {},
+    dailyInterestingTodaySetItems: {},
+    interestingTodayEvents: {},
+    interestingTodayImportBatches: {},
+    interestingTodayStagingCandidates: {},
     dailyQuoteSets: {},
     dailyQuoteSetItems: {},
     favoriteQuotes: {},
@@ -3725,6 +3917,11 @@ export function createFocusSyncServer({
   voiceTranscriptionMonthlyLimit = DEFAULT_VOICE_TRANSCRIPTION_MONTHLY_LIMIT,
   voiceTranscriptionProvider = createVoiceTranscriptionProviderConfig(),
   personalScheduleProvider = null,
+  greetingAIProvider = createGreetingAIProviderFromEnv(process.env, {
+    fetchImpl,
+    now: () => new Date(now()),
+    createId,
+  }),
   logger = console,
 } = {}) {
   const normalizedVoiceTranscriptionProvider = normalizeVoiceTranscriptionProviderConfig(voiceTranscriptionProvider);
@@ -3732,8 +3929,19 @@ export function createFocusSyncServer({
     createId: prefix => `${prefix}-${createId()}`,
     now: () => new Date(now()),
   });
+  const normalizedGreetingAIProvider = normalizeGreetingAIProvider(greetingAIProvider, {
+    fetchImpl,
+    now: () => new Date(now()),
+    createId,
+  });
   if (db && typeof db.auditQuoteCatalogForProduction === "function") {
     db.auditQuoteCatalogForProduction();
+  }
+  if (db && typeof db.ensureDefaultInterestingTodayCatalogSeed === "function") {
+    db.ensureDefaultInterestingTodayCatalogSeed();
+  }
+  if (db && typeof db.auditInterestingTodayCatalogForProduction === "function") {
+    db.auditInterestingTodayCatalogForProduction();
   }
   const server = http.createServer(async (request, response) => {
     try {
@@ -3755,6 +3963,7 @@ export function createFocusSyncServer({
         voiceTranscriptionMonthlyLimit,
         voiceTranscriptionProvider: normalizedVoiceTranscriptionProvider,
         personalScheduleProvider: normalizedPersonalScheduleProvider,
+        greetingAIProvider: normalizedGreetingAIProvider,
       });
     } catch (error) {
       if (isHttpRequestError(error)) {
@@ -3783,7 +3992,7 @@ export function createFocusSyncServer({
   return server;
 }
 
-async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, yookassaConfig, adminToken, yookassaWebhookToken, voiceTranscriptionMonthlyLimit, voiceTranscriptionProvider, personalScheduleProvider }) {
+async function routeRequest({ request, response, db, now, createId, pushPublicKey, pushSender, authConfig, authSessions, fetchImpl, subscriptionCheckoutUrl, yookassaConfig, adminToken, yookassaWebhookToken, voiceTranscriptionMonthlyLimit, voiceTranscriptionProvider, personalScheduleProvider, greetingAIProvider }) {
   const url = new URL(request.url || "/", "http://127.0.0.1");
 
   if (request.method === "OPTIONS") {
@@ -4084,6 +4293,119 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     return;
   }
 
+  if (url.pathname === "/api/interesting-today/version") {
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    sendJson(response, 200, getInterestingTodayVersionResponse(db, {
+      countryCode: url.searchParams.get("country") || url.searchParams.get("countryCode"),
+      language: url.searchParams.get("language"),
+      checkedAt: now(),
+    }));
+    return;
+  }
+
+  if (url.pathname === "/api/interesting-today/preferences") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method === "GET") {
+      sendJson(response, 200, getInterestingTodayPreferencesResponse(db, {
+        accountId: accountContext.accountId,
+        checkedAt: accountContext.checkedAt,
+      }));
+      return;
+    }
+
+    if (request.method === "PUT") {
+      const body = await readJsonBody(request, { optional: true });
+      const result = saveInterestingTodayPreferencesFromRequest(db, {
+        accountId: accountContext.accountId,
+        body,
+        checkedAt: accountContext.checkedAt,
+      });
+      sendJson(response, result.statusCode, result.body);
+      return;
+    }
+
+    sendJson(response, 405, { error: "method_not_allowed" });
+    return;
+  }
+
+  if (url.pathname === "/api/interesting-today/today") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    const result = getTodayInterestingTodayResponse(db, {
+      accountId: accountContext.accountId,
+      timezone: url.searchParams.get("timezone") || request.headers["x-focus-timezone"],
+      checkedAt: accountContext.checkedAt,
+      createId,
+    });
+    sendJson(response, result.statusCode, result.body);
+    return;
+  }
+
+  const interestingDetailMatch = url.pathname.match(/^\/api\/interesting-today\/(events|people)\/([^/]+)$/);
+  if (interestingDetailMatch) {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    const recordType = interestingDetailMatch[1] === "events" ? "event" : "person";
+    const record = db.getInterestingTodayRecord(decodeURIComponent(interestingDetailMatch[2]));
+    if (!record || record.type !== recordType || !isInterestingTodayEligibleForProduction(record)) {
+      sendJson(response, 404, { error: "interesting_today_record_not_found" });
+      return;
+    }
+
+    db.saveInterestingTodayEvent({
+      accountId: accountContext.accountId,
+      eventType: "interesting_today_detail_opened",
+      recordId: record.id,
+      recordType,
+      createdAt: accountContext.checkedAt,
+    });
+    sendJson(response, 200, {
+      record: formatInterestingTodayRecordForApi(record, 1),
+      checkedAt: accountContext.checkedAt,
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/admin/interesting-today/import/dry-run") {
+    if (!adminToken || !isAuthorizedAdminRequest(request, adminToken)) {
+      sendJson(response, 404, { error: "not_found" });
+      return;
+    }
+
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    const body = await readJsonBody(request, { optional: true });
+    const dryRun = createInterestingTodayDryRun(Array.isArray(body?.candidates) ? body.candidates : [], {
+      target: body?.target,
+      checkedAt: now(),
+      createId,
+    });
+    db.saveInterestingTodayImportBatch(dryRun);
+    sendJson(response, 200, dryRun);
+    return;
+  }
+
   if (url.pathname === "/api/push/subscriptions/status") {
     const accountContext = getExistingAccountContext({ request, response, db, now });
     if (!accountContext) return;
@@ -4316,6 +4638,225 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       accountId: accountContext.accountId,
       checkedAt: accountContext.checkedAt,
       ...generationResult,
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/sync/greetings/status") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    const providerConfigured = isGreetingAIProviderConfigured(greetingAIProvider);
+    sendJson(response, 200, {
+      accountId: accountContext.accountId,
+      providerConfigured,
+      provider: providerConfigured ? getGreetingAIProviderName(greetingAIProvider) : null,
+      promptVersion: GREETING_PROMPT_VERSION,
+      disabledMessage: providerConfigured ? null : GREETING_DISABLED_MESSAGE,
+      checkedAt: accountContext.checkedAt,
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/sync/greetings/generate") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    if (!isGreetingAIProviderConfigured(greetingAIProvider)) {
+      sendJson(response, 503, {
+        error: "provider_not_configured",
+        status: "provider_not_configured",
+        accountId: accountContext.accountId,
+        provider: null,
+        promptVersion: GREETING_PROMPT_VERSION,
+        message: GREETING_DISABLED_MESSAGE,
+        disabledMessage: GREETING_DISABLED_MESSAGE,
+        variants: [],
+        checkedAt: accountContext.checkedAt,
+      });
+      return;
+    }
+
+    const body = await readJsonBody(request);
+    const requestValidation = validateGreetingGenerationInput(body);
+    if (!requestValidation.ok) {
+      sendJson(response, 400, {
+        error: "invalid_greeting_request",
+        status: "invalid_request",
+        accountId: accountContext.accountId,
+        promptVersion: GREETING_PROMPT_VERSION,
+        errors: requestValidation.errors,
+        checkedAt: accountContext.checkedAt,
+      });
+      return;
+    }
+
+    let generationResult;
+    try {
+      generationResult = await greetingAIProvider.generateGreeting(requestValidation.input);
+    } catch {
+      sendJson(response, 502, {
+        error: "greeting_provider_failed",
+        status: "failed",
+        accountId: accountContext.accountId,
+        provider: getGreetingAIProviderName(greetingAIProvider),
+        promptVersion: GREETING_PROMPT_VERSION,
+        reason: "provider_error",
+        checkedAt: accountContext.checkedAt,
+      });
+      return;
+    }
+
+    if (generationResult?.status === "provider_not_configured") {
+      sendJson(response, 503, {
+        error: "provider_not_configured",
+        accountId: accountContext.accountId,
+        ...generationResult,
+        provider: null,
+        message: generationResult.message || GREETING_DISABLED_MESSAGE,
+        disabledMessage: generationResult.message || GREETING_DISABLED_MESSAGE,
+      });
+      return;
+    }
+
+    if (generationResult?.status === "invalid_request") {
+      sendJson(response, 400, {
+        error: "invalid_greeting_request",
+        accountId: accountContext.accountId,
+        ...generationResult,
+      });
+      return;
+    }
+
+    const resultValidation = validateGreetingGenerationResult(generationResult, requestValidation.input);
+    if (!resultValidation.ok) {
+      sendJson(response, 502, {
+        error: "greeting_provider_failed",
+        status: "failed",
+        accountId: accountContext.accountId,
+        provider: getGreetingAIProviderName(greetingAIProvider),
+        promptVersion: GREETING_PROMPT_VERSION,
+        reason: "provider_validation_failed",
+        errors: resultValidation.errors,
+        checkedAt: accountContext.checkedAt,
+      });
+      return;
+    }
+
+    sendJson(response, 200, {
+      accountId: accountContext.accountId,
+      checkedAt: accountContext.checkedAt,
+      ...resultValidation.result,
+      usage: generationResult.usage || null,
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/sync/greetings/revise") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    if (!isGreetingAIProviderConfigured(greetingAIProvider)) {
+      sendJson(response, 503, {
+        error: "provider_not_configured",
+        status: "provider_not_configured",
+        accountId: accountContext.accountId,
+        provider: null,
+        promptVersion: GREETING_PROMPT_VERSION,
+        message: GREETING_DISABLED_MESSAGE,
+        disabledMessage: GREETING_DISABLED_MESSAGE,
+        variants: [],
+        checkedAt: accountContext.checkedAt,
+      });
+      return;
+    }
+
+    const body = await readJsonBody(request);
+    const requestValidation = validateGreetingRevisionInput(body);
+    if (!requestValidation.ok) {
+      sendJson(response, 400, {
+        error: "invalid_greeting_revision_request",
+        status: "invalid_request",
+        accountId: accountContext.accountId,
+        promptVersion: GREETING_PROMPT_VERSION,
+        errors: requestValidation.errors,
+        checkedAt: accountContext.checkedAt,
+      });
+      return;
+    }
+
+    let revisionResult;
+    try {
+      revisionResult = await greetingAIProvider.reviseGreeting(requestValidation.input);
+    } catch {
+      sendJson(response, 502, {
+        error: "greeting_provider_failed",
+        status: "failed",
+        accountId: accountContext.accountId,
+        provider: getGreetingAIProviderName(greetingAIProvider),
+        promptVersion: GREETING_PROMPT_VERSION,
+        reason: "provider_error",
+        checkedAt: accountContext.checkedAt,
+      });
+      return;
+    }
+
+    if (revisionResult?.status === "provider_not_configured") {
+      sendJson(response, 503, {
+        error: "provider_not_configured",
+        accountId: accountContext.accountId,
+        ...revisionResult,
+        provider: null,
+        message: revisionResult.message || GREETING_DISABLED_MESSAGE,
+        disabledMessage: revisionResult.message || GREETING_DISABLED_MESSAGE,
+      });
+      return;
+    }
+
+    if (revisionResult?.status === "invalid_request") {
+      sendJson(response, 400, {
+        error: "invalid_greeting_revision_request",
+        accountId: accountContext.accountId,
+        ...revisionResult,
+      });
+      return;
+    }
+
+    const resultValidation = validateGreetingGenerationResult(revisionResult, requestValidation.input.baseInput);
+    if (!resultValidation.ok) {
+      sendJson(response, 502, {
+        error: "greeting_provider_failed",
+        status: "failed",
+        accountId: accountContext.accountId,
+        provider: getGreetingAIProviderName(greetingAIProvider),
+        promptVersion: GREETING_PROMPT_VERSION,
+        reason: "provider_validation_failed",
+        errors: resultValidation.errors,
+        checkedAt: accountContext.checkedAt,
+      });
+      return;
+    }
+
+    sendJson(response, 200, {
+      accountId: accountContext.accountId,
+      checkedAt: accountContext.checkedAt,
+      ...resultValidation.result,
+      usage: revisionResult.usage || null,
     });
     return;
   }
@@ -5782,6 +6323,325 @@ function getQuoteHistoryResponse(db, { accountId, timezone, days, checkedAt }) {
   };
 }
 
+function getInterestingTodayVersionResponse(db, { countryCode, language, checkedAt }) {
+  const normalizedCountry = normalizeInterestingCountryCode(countryCode) || INTERESTING_TODAY_DEFAULT_COUNTRY;
+  const normalizedLanguage = language === INTERESTING_TODAY_LANGUAGE ? INTERESTING_TODAY_LANGUAGE : INTERESTING_TODAY_LANGUAGE;
+  const catalog = db.getInterestingTodayCatalog();
+  const report = createInterestingTodayCatalogReport(catalog, { checkedAt });
+  const countryEligible = catalog.filter(record => isInterestingTodayEligibleForProduction(record)
+    && record.language === normalizedLanguage
+    && (record.countryCodes.includes(normalizedCountry) || record.countryCodes.includes("WORLD") || record.primaryCountryCode === "WORLD"));
+
+  return {
+    version: INTERESTING_TODAY_CATALOG_VERSION,
+    countryCode: normalizedCountry,
+    language: normalizedLanguage,
+    supportedCountries: [
+      {
+        code: INTERESTING_TODAY_DEFAULT_COUNTRY,
+        titleRu: "Россия",
+      },
+    ],
+    limits: {
+      events: INTERESTING_TODAY_EVENTS_PER_DAY,
+      people: INTERESTING_TODAY_PEOPLE_PER_DAY,
+    },
+    report: {
+      ...report,
+      countryEligibleRecordCount: countryEligible.length,
+    },
+    checkedAt,
+  };
+}
+
+function getInterestingTodayPreferencesResponse(db, { accountId, checkedAt }) {
+  const preferences = getEffectiveInterestingTodayPreferences(db, { accountId, checkedAt });
+  return {
+    accountId,
+    preferences,
+    checkedAt,
+  };
+}
+
+function saveInterestingTodayPreferencesFromRequest(db, { accountId, body, checkedAt }) {
+  if (!isPlainObject(body)) {
+    return { statusCode: 400, body: { error: "invalid_interesting_today_preferences" } };
+  }
+
+  const fallbackCountryCode = getInterestingTodayCalendarCountry(db, accountId);
+  const countryCode = normalizeInterestingCountryCode(body.countryCode || fallbackCountryCode) || fallbackCountryCode;
+  if (countryCode !== INTERESTING_TODAY_DEFAULT_COUNTRY) {
+    return { statusCode: 400, body: { error: "interesting_today_country_not_supported" } };
+  }
+
+  const validation = validateInterestingTodayPreferences({
+    accountId,
+    countryCode,
+    language: INTERESTING_TODAY_LANGUAGE,
+    showEvents: body.showEvents !== false,
+    showPeople: body.showPeople !== false,
+  }, {
+    accountId,
+    fallbackCountryCode,
+    checkedAt,
+  });
+
+  if (!validation.ok) {
+    return {
+      statusCode: 400,
+      body: {
+        error: validation.error,
+        preferences: validation.preferences,
+      },
+    };
+  }
+
+  const saved = db.saveUserInterestingTodayPreferences({
+    accountId,
+    preferences: validation.preferences,
+    updatedAt: checkedAt,
+  });
+
+  db.saveInterestingTodayEvent({
+    accountId,
+    eventType: "interesting_today_preferences_updated",
+    createdAt: checkedAt,
+  });
+
+  return {
+    statusCode: 200,
+    body: {
+      accountId,
+      preferences: saved,
+      checkedAt,
+    },
+  };
+}
+
+function getTodayInterestingTodayResponse(db, { accountId, timezone, checkedAt, createId }) {
+  const preferences = getEffectiveInterestingTodayPreferences(db, { accountId, checkedAt });
+  const normalizedTimezone = normalizeTimezone(timezone);
+  const localDate = getLocalDateString(checkedAt, normalizedTimezone);
+  const existingSet = db.getDailyInterestingTodaySet({
+    countryCode: preferences.countryCode,
+    language: preferences.language,
+    localDate,
+  });
+
+  if (existingSet?.status === "ready" && existingSet.catalogVersion === INTERESTING_TODAY_CATALOG_VERSION) {
+    const existingBody = formatTodayInterestingTodayResponse(db, {
+      set: existingSet,
+      preferences,
+    });
+    if (isCompleteInterestingTodaySet(existingBody, preferences)) {
+      db.saveInterestingTodayEvent({
+        accountId,
+        eventType: "interesting_today_opened",
+        localDate,
+        generationReason: existingSet.generationReason,
+        createdAt: checkedAt,
+      });
+      return {
+        statusCode: 200,
+        body: existingBody,
+      };
+    }
+  }
+
+  const generated = generateInterestingTodaySet(db, {
+    timezone: normalizedTimezone,
+    countryCode: preferences.countryCode,
+    language: preferences.language,
+    localDate,
+    generationReason: INTERESTING_TODAY_FALLBACK_REASON,
+    checkedAt,
+    createId,
+  });
+
+  if (!generated.ok) {
+    db.saveInterestingTodayEvent({
+      accountId,
+      eventType: "interesting_today_generation_failed",
+      localDate,
+      generationReason: INTERESTING_TODAY_FALLBACK_REASON,
+      createdAt: checkedAt,
+    });
+    return {
+      statusCode: 503,
+      body: {
+        error: "interesting_today_catalog_unavailable",
+        accountId,
+        localDate,
+        timezone: normalizedTimezone,
+        countryCode: preferences.countryCode,
+        language: preferences.language,
+        reason: generated.reason,
+        events: [],
+        people: [],
+      },
+    };
+  }
+
+  db.saveInterestingTodayEvent({
+    accountId,
+    eventType: "interesting_today_recovery_used",
+    localDate,
+    generationReason: INTERESTING_TODAY_FALLBACK_REASON,
+    createdAt: checkedAt,
+  });
+  db.saveInterestingTodayEvent({
+    accountId,
+    eventType: "interesting_today_generated",
+    localDate,
+    generationReason: INTERESTING_TODAY_FALLBACK_REASON,
+    createdAt: checkedAt,
+  });
+
+  return {
+    statusCode: 200,
+    body: formatTodayInterestingTodayResponse(db, {
+      set: generated.set,
+      preferences,
+    }),
+  };
+}
+
+function isCompleteInterestingTodaySet(body, preferences) {
+  const expectedEvents = preferences.showEvents === false
+    ? 0
+    : Math.min(body.availableEvents || 0, INTERESTING_TODAY_EVENTS_PER_DAY);
+  const expectedPeople = preferences.showPeople === false
+    ? 0
+    : Math.min(body.availablePeople || 0, INTERESTING_TODAY_PEOPLE_PER_DAY);
+  return body.events.length >= expectedEvents && body.people.length >= expectedPeople;
+}
+
+function generateInterestingTodaySet(db, { timezone, countryCode, language, localDate, generationReason, checkedAt, createId }) {
+  const selection = selectInterestingTodayRecords({
+    catalog: db.getInterestingTodayCatalog(),
+    countryCode,
+    language,
+    localDate,
+    eventsLimit: INTERESTING_TODAY_EVENTS_PER_DAY,
+    peopleLimit: INTERESTING_TODAY_PEOPLE_PER_DAY,
+  });
+
+  if (!selection.events.length && !selection.people.length) {
+    return {
+      ok: false,
+      reason: "not_enough_verified_interesting_today_records",
+    };
+  }
+
+  const validFromUtc = getLocalMidnightUtc(localDate, timezone);
+  const validUntilUtc = getLocalMidnightUtc(getNextLocalDate(localDate), timezone);
+  const set = {
+    id: createId(),
+    countryCode,
+    language,
+    localDate,
+    timezone,
+    validFromUtc,
+    validUntilUtc,
+    generationReason,
+    status: "ready",
+    catalogVersion: INTERESTING_TODAY_CATALOG_VERSION,
+    createdAt: checkedAt,
+  };
+  const eventItems = selection.events.map((record, index) => ({
+    setId: set.id,
+    recordId: record.id,
+    recordType: "event",
+    position: index + 1,
+    createdAt: checkedAt,
+  }));
+  const personItems = selection.people.map((record, index) => ({
+    setId: set.id,
+    recordId: record.id,
+    recordType: "person",
+    position: index + 1,
+    createdAt: checkedAt,
+  }));
+  const saved = db.saveDailyInterestingTodaySet({ set, items: [...eventItems, ...personItems] });
+  return saved ? { ok: true, ...saved } : { ok: false, reason: "interesting_today_set_save_failed" };
+}
+
+function formatTodayInterestingTodayResponse(db, { set, preferences }) {
+  const catalog = db.getInterestingTodayCatalog();
+  const catalogById = new Map(catalog.map(record => [record.id, record]));
+  const items = db.getDailyInterestingTodaySetItems(set.id);
+  const availability = selectInterestingTodayRecords({
+    catalog,
+    countryCode: set.countryCode,
+    language: set.language,
+    localDate: set.localDate,
+  });
+  const events = [];
+  const people = [];
+
+  items.forEach(item => {
+    const record = catalogById.get(item.recordId);
+    const formatted = formatInterestingTodayRecordForApi(record, item.position);
+    if (!formatted) return;
+    if (item.recordType === "event") {
+      events.push(formatted);
+    } else if (item.recordType === "person") {
+      people.push(formatted);
+    }
+  });
+
+  return formatInterestingTodayResponse({
+    set,
+    preferences,
+    availableEvents: availability.availableEvents,
+    availablePeople: availability.availablePeople,
+    events: events.sort((first, second) => first.position - second.position),
+    people: people.sort((first, second) => first.position - second.position),
+  });
+}
+
+function getEffectiveInterestingTodayPreferences(db, { accountId, checkedAt }) {
+  const fallbackCountryCode = getInterestingTodayCalendarCountry(db, accountId);
+  const stored = db.getUserInterestingTodayPreferences(accountId, {
+    fallbackCountryCode,
+    checkedAt,
+  });
+
+  if (stored?.accountId) {
+    return stored;
+  }
+
+  return normalizeInterestingTodayPreferences(DEFAULT_INTERESTING_TODAY_PREFERENCES, {
+    accountId,
+    fallbackCountryCode,
+    checkedAt,
+  });
+}
+
+function getInterestingTodayCalendarCountry(db, accountId) {
+  const holidayCountry = normalizeInterestingCountryCode(db.getUserHolidayPreferences(accountId)?.countryCode);
+  return holidayCountry || INTERESTING_TODAY_DEFAULT_COUNTRY;
+}
+
+function sanitizeInterestingTodayGenerationReason(value) {
+  return [
+    INTERESTING_TODAY_GENERATION_REASON,
+    INTERESTING_TODAY_FALLBACK_REASON,
+    "admin_rebuild",
+  ].includes(value) ? value : INTERESTING_TODAY_FALLBACK_REASON;
+}
+
+function sanitizeInterestingTodayEventType(value) {
+  return [
+    "interesting_today_generated",
+    "interesting_today_generation_failed",
+    "interesting_today_recovery_used",
+    "interesting_today_opened",
+    "interesting_today_detail_opened",
+    "interesting_today_preferences_updated",
+  ].includes(value) ? value : "interesting_today_opened";
+}
+
 function getLocalDateString(timestamp, timezone = QUOTE_DEFAULT_TIMEZONE) {
   const date = new Date(normalizeTimestamp(timestamp) || timestamp || Date.now());
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -6002,6 +6862,18 @@ function getPersonalScheduleFeatureFlags() {
     flag,
     !["personal_schedule_ai_revisions", "personal_schedule_adaptation"].includes(flag),
   ]));
+}
+
+function isGreetingAIProviderConfigured(provider) {
+  if (!provider || provider.available === false) return false;
+  if (typeof provider.generateGreeting !== "function" || typeof provider.reviseGreeting !== "function") return false;
+  if (typeof provider.isConfigured === "function") return provider.isConfigured();
+  return true;
+}
+
+function getGreetingAIProviderName(provider) {
+  const name = sanitizeStoredName(provider?.provider || "");
+  return name || "custom";
 }
 
 function getScheduleSnapshot(db, accountId) {

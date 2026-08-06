@@ -41,6 +41,7 @@ export const HOLIDAY_PROFESSIONAL_CATEGORIES = [
   { code: "economics_finance", title: "Экономика и финансы", sortOrder: 50 },
   { code: "law", title: "Право", sortOrder: 60 },
   { code: "government_municipal_service", title: "Государственная и муниципальная служба", sortOrder: 70 },
+  { code: "military_security", title: "Военная служба и силовые ведомства", sortOrder: 75 },
   { code: "construction_architecture", title: "Строительство и архитектура", sortOrder: 80 },
   { code: "industry_energy", title: "Промышленность и энергетика", sortOrder: 90 },
   { code: "transport_logistics", title: "Транспорт и логистика", sortOrder: 100 },
@@ -80,6 +81,31 @@ const RU_2026_PROFESSIONAL_CALENDAR_ID = "holiday-calendar-ru-2026-professional"
 const RU_2026_ORTHODOX_CALENDAR_ID = "holiday-calendar-ru-2026-orthodox";
 const RU_2026_CATHOLIC_CALENDAR_ID = "holiday-calendar-ru-2026-catholic";
 const RU_2026_ISLAMIC_CALENDAR_ID = "holiday-calendar-ru-2026-islamic";
+const RU_2026_PROFESSIONAL_SOURCE_ID = "ru-professional-editorial-2026";
+const RU_2026_MILITARY_SOURCE_ID = "ru-military-presidential-decree-549";
+const RU_2026_MILITARY_MEMORIAL_TITLES = new Set([
+  "День трубопроводных войск",
+  "День инженерных войск",
+  "День военной полиции",
+  "День Сил специальных операций",
+  "День войск противовоздушной обороны",
+  "День военно-политических органов",
+  "День службы военных сообщений",
+  "День Военно-Морского Флота",
+  "День Тыла Вооруженных Сил Российской Федерации",
+  "День Воздушно-десантных войск",
+  "День Железнодорожных войск",
+  "День Военно-воздушных сил",
+  "День российской гвардии",
+  "День Сухопутных войск",
+  "День Космических войск",
+  "День финансово-экономической службы",
+  "День подразделений специального назначения",
+  "День войск радиационной, химической и биологической защиты",
+  "День ракетных войск и артиллерии",
+  "День морской пехоты",
+  "День Ракетных войск стратегического назначения",
+]);
 
 const RU_2026_SOURCES = [
   {
@@ -101,12 +127,21 @@ const RU_2026_SOURCES = [
     sourceUrl: "https://government.ru/docs/all/161028/",
   },
   {
-    id: "ru-professional-editorial-2026",
-    title: "Focus approved professional dates seed RU-2026",
-    organization: "Focus Holiday Catalog",
-    sourceType: "other_official_source",
+    id: RU_2026_PROFESSIONAL_SOURCE_ID,
+    title: "Справочная информация о федеральных профессиональных праздниках и памятных днях",
+    organization: "КонсультантПлюс",
+    sourceType: "legal_reference",
     publicationDate: "2026-08-04",
     sourceUrl: "https://www.consultant.ru/document/cons_doc_LAW_19238/",
+  },
+  {
+    id: RU_2026_MILITARY_SOURCE_ID,
+    title: "Указ Президента РФ от 31.05.2006 № 549 в редакции от 20.03.2026",
+    organization: "Президент Российской Федерации",
+    sourceType: "presidential_decree",
+    documentNumber: "№ 549",
+    publicationDate: "2006-05-31",
+    sourceUrl: "https://www.consultant.ru/document/cons_doc_LAW_91913/",
   },
   {
     id: "ru-orthodox-patriarchia-2026",
@@ -229,26 +264,124 @@ const RU_2026_EVENTS = [
     relatedLocalDate: "2026-01-04",
   }),
 
+  professionalEvent("ru-2026-prof-prosecutor", "День работника прокуратуры Российской Федерации", "2026-01-12", ["law", "government_municipal_service"]),
   professionalEvent("ru-2026-prof-press", "День российской печати", "2026-01-13", ["media_publishing"]),
+  professionalEvent("ru-2026-prof-pipeline-troops", "День трубопроводных войск", "2026-01-14", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-artist", "День артиста", "2026-01-17", ["culture_arts"]),
+  professionalEvent("ru-2026-prof-engineer-troops", "День инженерных войск", "2026-01-21", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
   professionalEvent("ru-2026-prof-science", "День российской науки", "2026-02-08", ["science", "education"]),
+  professionalEvent("ru-2026-prof-military-police", "День военной полиции", "2026-02-08", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-civil-aviation", "День работника гражданской авиации", "2026-02-09", ["transport_logistics"]),
+  professionalEvent("ru-2026-prof-diplomat", "День дипломатического работника", "2026-02-10", ["government_municipal_service"]),
+  professionalEvent("ru-2026-prof-student-brigades", "День российских студенческих отрядов", "2026-02-17", ["education", "other_industries"]),
+  professionalEvent("ru-2026-prof-special-operations", "День Сил специальных операций", "2026-02-27", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-mentor", "День наставника", "2026-03-02", ["education", "other_industries"]),
+  professionalEvent("ru-2026-prof-geodesy-cartography", "День работников геодезии и картографии", "2026-03-08", ["construction_architecture", "science"], "calculated"),
+  professionalEvent("ru-2026-prof-drug-control", "День работника органов наркоконтроля", "2026-03-11", ["military_security", "government_municipal_service"]),
+  professionalEvent("ru-2026-prof-penitentiary", "День работника уголовно-исполнительной системы", "2026-03-12", ["military_security", "government_municipal_service"]),
+  professionalEvent("ru-2026-prof-household-housing", "День работников бытового обслуживания населения и жилищно-коммунального хозяйства", "2026-03-15", ["trade_services"], "calculated"),
+  professionalEvent("ru-2026-prof-hydrometeorology", "День работников гидрометеорологической службы", "2026-03-23", ["science", "other_industries"]),
   professionalEvent("ru-2026-prof-culture", "День работника культуры", "2026-03-25", ["culture_arts"]),
+  professionalEvent("ru-2026-prof-national-guard", "День войск национальной гвардии Российской Федерации", "2026-03-27", ["military_security"]),
+  professionalEvent("ru-2026-prof-military-legal-service", "День специалиста юридической службы в Вооруженных Силах Российской Федерации", "2026-03-29", ["military_security", "law"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-geologist", "День геолога", "2026-04-05", ["science", "industry_energy"], "calculated"),
+  professionalEvent("ru-2026-prof-military-commissariats", "День сотрудников военных комиссариатов", "2026-04-08", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-animation", "День российской анимации", "2026-04-08", ["culture_arts", "media_publishing"]),
   professionalEvent("ru-2026-prof-cosmonautics", "День космонавтики", "2026-04-12", ["science", "industry_energy"]),
+  professionalEvent("ru-2026-prof-air-defense-troops", "День войск противовоздушной обороны", "2026-04-12", ["military_security"], "calculated", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-electronic-warfare", "День специалиста по радиоэлектронной борьбе", "2026-04-15", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
   professionalEvent("ru-2026-prof-local-government", "День местного самоуправления", "2026-04-21", ["government_municipal_service"]),
+  professionalEvent("ru-2026-prof-notary", "День нотариата", "2026-04-26", ["law"]),
+  professionalEvent("ru-2026-prof-ambulance", "День работника скорой медицинской помощи", "2026-04-28", ["medicine_healthcare"]),
+  professionalEvent("ru-2026-prof-firefighters", "День пожарной охраны", "2026-04-30", ["safety_rescue", "military_security"]),
   professionalEvent("ru-2026-prof-radio", "День радио", "2026-05-07", ["it_telecom", "media_publishing"]),
+  professionalEvent("ru-2026-prof-military-political", "День военно-политических органов", "2026-05-15", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-pharma", "День фармацевтического работника", "2026-05-19", ["medicine_healthcare"]),
+  professionalEvent("ru-2026-prof-polar", "День полярника", "2026-05-21", ["science", "other_industries"]),
   professionalEvent("ru-2026-prof-entrepreneur", "День российского предпринимательства", "2026-05-26", ["business_entrepreneurship"]),
+  professionalEvent("ru-2026-prof-library", "Общероссийский День библиотек", "2026-05-27", ["culture_arts", "education"]),
+  professionalEvent("ru-2026-prof-border-guard", "День пограничника", "2026-05-28", ["military_security"]),
+  professionalEvent("ru-2026-prof-military-motorist", "День военного автомобилиста", "2026-05-29", ["military_security", "transport_logistics"]),
+  professionalEvent("ru-2026-prof-lawyer-advocacy", "День российской адвокатуры", "2026-05-31", ["law"]),
+  professionalEvent("ru-2026-prof-chemist", "День химика", "2026-05-31", ["industry_energy", "science"], "calculated"),
+  professionalEvent("ru-2026-prof-ecologist", "День эколога", "2026-06-05", ["science", "other_industries"]),
+  professionalEvent("ru-2026-prof-social-worker", "День социального работника", "2026-06-08", ["government_municipal_service", "medicine_healthcare"]),
+  professionalEvent("ru-2026-prof-textile-light-industry", "День работников текстильной и легкой промышленности", "2026-06-14", ["industry_energy", "trade_services"], "calculated"),
+  professionalEvent("ru-2026-prof-migration-service", "День работника миграционной службы", "2026-06-14", ["government_municipal_service", "military_security"]),
+  professionalEvent("ru-2026-prof-military-transport-service", "День службы военных сообщений", "2026-06-18", ["military_security", "transport_logistics"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
   professionalEvent("ru-2026-prof-medical-worker", "День медицинского работника", "2026-06-21", ["medicine_healthcare"], "calculated"),
+  professionalEvent("ru-2026-prof-folk-crafts", "День народных художественных промыслов", "2026-06-21", ["culture_arts", "industry_energy"], "calculated"),
+  professionalEvent("ru-2026-prof-inventor", "День изобретателя и рационализатора", "2026-06-27", ["science", "industry_energy"], "calculated"),
+  professionalEvent("ru-2026-prof-statistics", "День работника статистики", "2026-06-25", ["economics_finance", "government_municipal_service"]),
+  professionalEvent("ru-2026-prof-forensic-expert", "День судебного эксперта", "2026-06-28", ["law", "government_municipal_service"]),
+  professionalEvent("ru-2026-prof-shipbuilder", "День кораблестроителя", "2026-06-29", ["industry_energy", "transport_logistics"]),
+  professionalEvent("ru-2026-prof-maritime-river-fleet", "День работников морского и речного флота", "2026-07-05", ["transport_logistics"], "calculated"),
+  professionalEvent("ru-2026-prof-architect", "День архитектора", "2026-07-06", ["construction_architecture"], "calculated"),
+  professionalEvent("ru-2026-prof-traffic-police", "День Государственной инспекции безопасности дорожного движения МВД России", "2026-07-03", ["military_security", "transport_logistics"]),
+  professionalEvent("ru-2026-prof-fisherman", "День рыбака", "2026-07-12", ["agriculture", "other_industries"], "calculated"),
   professionalEvent("ru-2026-prof-post", "День российской почты", "2026-07-12", ["transport_logistics", "trade_services"], "calculated"),
+  professionalEvent("ru-2026-prof-metallurgist", "День металлурга", "2026-07-19", ["industry_energy"], "calculated"),
+  professionalEvent("ru-2026-prof-investigator", "День сотрудника органов следствия Российской Федерации", "2026-07-25", ["law", "government_municipal_service"]),
   professionalEvent("ru-2026-prof-trade", "День работника торговли", "2026-07-25", ["trade_services"], "calculated"),
-  professionalEvent("ru-2026-prof-physical-culture", "День физкультурника", "2026-08-08", ["sport"], "calculated"),
+  professionalEvent("ru-2026-prof-navy", "День Военно-Морского Флота", "2026-07-26", ["military_security"], "calculated", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-military-rear", "День Тыла Вооруженных Сил Российской Федерации", "2026-08-01", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-airborne-troops", "День Воздушно-десантных войск", "2026-08-02", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
   professionalEvent("ru-2026-prof-railway", "День железнодорожника", "2026-08-02", ["transport_logistics"], "calculated"),
+  professionalEvent("ru-2026-prof-railway-troops", "День Железнодорожных войск", "2026-08-06", ["military_security", "transport_logistics"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-physical-culture", "День физкультурника", "2026-08-08", ["sport"], "calculated"),
   professionalEvent("ru-2026-prof-builder", "День строителя", "2026-08-09", ["construction_architecture"], "calculated"),
+  professionalEvent("ru-2026-prof-air-force", "День Военно-воздушных сил", "2026-08-12", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-air-fleet", "День Воздушного Флота России", "2026-08-16", ["transport_logistics"], "calculated"),
+  professionalEvent("ru-2026-prof-geographer", "День географа", "2026-08-18", ["science", "education"]),
+  professionalEvent("ru-2026-prof-cinema", "День кино", "2026-08-27", ["culture_arts", "media_publishing"]),
+  professionalEvent("ru-2026-prof-miner", "День шахтера", "2026-08-30", ["industry_energy"], "calculated"),
+  professionalEvent("ru-2026-prof-russian-guard", "День российской гвардии", "2026-09-02", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-nuclear-support", "День специалиста по ядерному обеспечению", "2026-09-04", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-oil-gas", "День работников нефтяной и газовой промышленности", "2026-09-06", ["industry_energy"], "calculated"),
   professionalEvent("ru-2026-prof-financier", "День финансиста", "2026-09-08", ["economics_finance"]),
+  professionalEvent("ru-2026-prof-military-education", "День специалиста органов воспитательной работы в Вооруженных Силах Российской Федерации", "2026-09-11", ["military_security", "education"]),
   professionalEvent("ru-2026-prof-programmer", "День программиста", "2026-09-13", ["it_telecom"], "calculated"),
+  professionalEvent("ru-2026-prof-tankman", "День танкиста", "2026-09-13", ["military_security"], "calculated", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-sanitary-supervision", "День федерального государственного санитарно-эпидемиологического надзора", "2026-09-15", ["medicine_healthcare", "government_municipal_service"]),
+  professionalEvent("ru-2026-prof-weapon-maker", "День оружейника", "2026-09-19", ["industry_energy", "military_security"]),
+  professionalEvent("ru-2026-prof-forest-workers", "День работников леса", "2026-09-20", ["agriculture", "other_industries"], "calculated"),
+  professionalEvent("ru-2026-prof-preschool-teacher", "День воспитателя и всех дошкольных работников", "2026-09-27", ["education"]),
   professionalEvent("ru-2026-prof-machine-builder", "День машиностроителя", "2026-09-27", ["industry_energy"], "calculated"),
+  professionalEvent("ru-2026-prof-atomic-industry", "День работника атомной промышленности", "2026-09-28", ["industry_energy", "science"]),
+  professionalEvent("ru-2026-prof-ground-forces", "День Сухопутных войск", "2026-10-01", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-secondary-vocational-education", "День среднего профессионального образования", "2026-10-02", ["education"]),
+  professionalEvent("ru-2026-prof-metro-builder", "День метростроителя", "2026-10-02", ["construction_architecture", "transport_logistics"]),
+  professionalEvent("ru-2026-prof-electronics-industry", "День работника электронной промышленности", "2026-10-04", ["industry_energy", "it_telecom"], "calculated"),
+  professionalEvent("ru-2026-prof-space-forces", "День Космических войск", "2026-10-04", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
   professionalEvent("ru-2026-prof-teacher", "День учителя", "2026-10-05", ["education"]),
   professionalEvent("ru-2026-prof-agriculture", "День работника сельского хозяйства", "2026-10-11", ["agriculture"], "calculated"),
+  professionalEvent("ru-2026-prof-road-workers", "День работников дорожного хозяйства", "2026-10-18", ["construction_architecture", "transport_logistics"], "calculated"),
+  professionalEvent("ru-2026-prof-military-signaller", "День военного связиста", "2026-10-20", ["military_security", "it_telecom"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-military-finance", "День финансово-экономической службы", "2026-10-22", ["military_security", "economics_finance"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-special-purpose-units", "День подразделений специального назначения", "2026-10-24", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-customs", "День таможенника Российской Федерации", "2026-10-25", ["government_municipal_service", "transport_logistics"]),
+  professionalEvent("ru-2026-prof-auto-transport", "День работника автомобильного и городского пассажирского транспорта", "2026-10-25", ["transport_logistics"], "calculated"),
+  professionalEvent("ru-2026-prof-bailiff", "День судебного пристава", "2026-11-01", ["law", "government_municipal_service"]),
+  professionalEvent("ru-2026-prof-military-intelligence", "День военного разведчика", "2026-11-05", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-court-worker", "День работника суда", "2026-11-05", ["law", "government_municipal_service"]),
+  professionalEvent("ru-2026-prof-internal-affairs", "День сотрудника органов внутренних дел Российской Федерации", "2026-11-10", ["military_security", "government_municipal_service"]),
+  professionalEvent("ru-2026-prof-economist", "День экономиста", "2026-11-11", ["economics_finance"]),
+  professionalEvent("ru-2026-prof-radiation-chemical-biological-defense", "День войск радиационной, химической и биологической защиты", "2026-11-13", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-sambo", "День самбо", "2026-11-16", ["sport"]),
+  professionalEvent("ru-2026-prof-rocket-troops-artillery", "День ракетных войск и артиллерии", "2026-11-19", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-higher-school-teacher", "День преподавателя высшей школы", "2026-11-19", ["education"]),
+  professionalEvent("ru-2026-prof-transport-worker", "День работника транспорта", "2026-11-20", ["transport_logistics"]),
+  professionalEvent("ru-2026-prof-tax-worker", "День работника налоговых органов Российской Федерации", "2026-11-21", ["economics_finance", "government_municipal_service"]),
+  professionalEvent("ru-2026-prof-psychologist", "День психолога", "2026-11-22", ["medicine_healthcare", "education"]),
+  professionalEvent("ru-2026-prof-marine-infantry", "День морской пехоты", "2026-11-27", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-mathematician", "День математика", "2026-12-01", ["science", "education"]),
   professionalEvent("ru-2026-prof-lawyer", "День юриста", "2026-12-03", ["law"]),
+  professionalEvent("ru-2026-prof-strategic-missile-forces", "День Ракетных войск стратегического назначения", "2026-12-17", ["military_security"], "fixed", { sourceId: RU_2026_MILITARY_SOURCE_ID }),
+  professionalEvent("ru-2026-prof-courier-service", "День российской фельдъегерской связи", "2026-12-17", ["government_municipal_service", "transport_logistics"]),
+  professionalEvent("ru-2026-prof-security-agencies", "День работника органов безопасности Российской Федерации", "2026-12-20", ["military_security", "government_municipal_service"]),
   professionalEvent("ru-2026-prof-power-engineer", "День энергетика", "2026-12-22", ["industry_energy"]),
+  professionalEvent("ru-2026-prof-hockey", "День хоккея", "2026-12-22", ["sport"]),
+  professionalEvent("ru-2026-prof-real-estate-registration", "День работника органов регистрации прав на недвижимое имущество и сделок с ним", "2026-12-25", ["law", "government_municipal_service"]),
   professionalEvent("ru-2026-prof-rescuer", "День спасателя Российской Федерации", "2026-12-27", ["safety_rescue"]),
 
   religiousEvent({
@@ -932,9 +1065,15 @@ export function getHolidayEventTypeLabel(event = {}) {
   if (event.eventType === "additional_day_off") return "Официальный нерабочий день";
   if (event.eventType === "transferred_day_off") return "Перенесённый выходной";
   if (event.eventType === "working_weekend") return "Рабочий день после переноса";
+  if (event.eventType === "commemorative_date") return "Памятная дата";
+  if (event.eventType === "professional_holiday" && isMilitaryMemorialEvent(event)) return "Памятный день";
   if (event.eventType === "professional_holiday") return "Профессиональный праздник";
   if (event.eventType === "religious_holiday") return "Религиозный календарь";
   return "Системное событие";
+}
+
+function isMilitaryMemorialEvent(event = {}) {
+  return event.sourceId === RU_2026_MILITARY_SOURCE_ID && RU_2026_MILITARY_MEMORIAL_TITLES.has(event.title);
 }
 
 export function getHolidayDateStatusMessage(event = {}) {
@@ -1020,7 +1159,8 @@ function overrideEvent({
   });
 }
 
-function professionalEvent(id, title, startLocalDate, professionalCategoryCodes, dateStatus = "fixed") {
+function professionalEvent(id, title, startLocalDate, professionalCategoryCodes, dateStatus = "fixed", options = {}) {
+  const eventOptions = isPlainObject(options) ? options : {};
   return createEvent({
     id,
     calendarId: RU_2026_PROFESSIONAL_CALENDAR_ID,
@@ -1031,7 +1171,8 @@ function professionalEvent(id, title, startLocalDate, professionalCategoryCodes,
     isOfficialNonWorkingDay: false,
     importance: "regular",
     dateStatus,
-    sourceId: "ru-professional-editorial-2026",
+    sourceId: eventOptions.sourceId || RU_2026_PROFESSIONAL_SOURCE_ID,
+    ...(eventOptions.sourceReference ? { sourceReference: eventOptions.sourceReference } : {}),
   });
 }
 

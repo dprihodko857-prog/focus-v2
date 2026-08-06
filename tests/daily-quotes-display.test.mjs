@@ -126,18 +126,31 @@ test("daily quotes modal exposes favorite quotes view", () => {
 test("daily quotes modal exposes quote history view", () => {
   const modalRenderer = getFunctionBody(appJs, "renderDailyQuotesModal");
   const historyLoader = getFunctionBody(appJs, "loadQuoteHistory");
+  const historyCacheLoader = getFunctionBody(appJs, "loadQuoteHistoryFromCache");
+  const historyCacheSaver = getFunctionBody(appJs, "saveQuoteHistoryToCache");
+  const historySaver = getFunctionBody(appJs, "saveDailyQuotesToHistory");
+  const historyMerger = getFunctionBody(appJs, "mergeQuoteHistorySets");
   const historyRenderer = getFunctionBody(appJs, "renderQuoteHistorySets");
   const quoteFinder = getFunctionBody(appJs, "findQuoteForAction");
   const favoriteAction = getFunctionBody(appJs, "toggleQuoteFavorite");
 
   assert.match(appJs, /quoteHistoryState/);
+  assert.match(appJs, /QUOTE_HISTORY_CACHE_KEY/);
   assert.match(appJs, /function getQuoteHistoryQuotes/);
   assert.match(appJs, /data-quote-view="history"/);
   assert.match(modalRenderer, /quoteModalView === "history"/);
-  assert.match(modalRenderer, /Истории пока нет/);
+  assert.match(modalRenderer, /История пока пуста/);
+  assert.match(appJs, /async function loadDailyQuotes\(\{ force = false \} = \{\}\)[\s\S]*saveDailyQuotesToHistory/);
+  assert.match(historyLoader, /loadQuoteHistoryFromCache/);
   assert.match(historyLoader, /scheduleSync\.getQuoteHistory/);
+  assert.match(historyLoader, /saveQuoteHistoryToCache/);
+  assert.match(historyCacheLoader, /scheduleStorage\.loadDailyQuoteHistoryCache/);
+  assert.match(historyCacheSaver, /scheduleStorage\.saveDailyQuoteHistoryCache/);
+  assert.match(historySaver, /mergeQuoteHistorySets/);
+  assert.match(historyMerger, /byDate\.has\(set\.localDate\)/);
   assert.match(historyRenderer, /renderDailyQuoteCards\(set\.quotes\)/);
   assert.match(favoriteAction, /quoteHistoryState\.sets/);
+  assert.match(favoriteAction, /saveQuoteHistoryToCache/);
   assert.match(quoteFinder, /getQuoteHistoryQuotes/);
   assert.match(appCss, /\.daily-quotes-history-day\s*\{/);
   assert.match(appCss, /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);

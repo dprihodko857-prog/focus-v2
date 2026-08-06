@@ -86,6 +86,16 @@ const WEEKDAY_LABELS = Object.freeze({
   7: "Воскресенье",
 });
 
+const WEEKDAY_IMPORT_SHORT_LABELS = Object.freeze({
+  1: "Пн",
+  2: "Вт",
+  3: "Ср",
+  4: "Чт",
+  5: "Пт",
+  6: "Сб",
+  7: "Вс",
+});
+
 const WEEKDAY_SHORTS = Object.freeze({
   пн: 1,
   вт: 2,
@@ -103,8 +113,21 @@ const WEEKDAY_SHORTS = Object.freeze({
   su: 7,
 });
 
+const IMPORT_CATEGORY_LABELS = Object.freeze({
+  focus: "Фокус",
+  work: "Работа",
+  study: "Учеба",
+  sport: "Спорт",
+  home: "Дом",
+  family: "Семья",
+  rest: "Отдых",
+  health: "Здоровье",
+  creative: "Творчество",
+  goal: "Цель",
+});
+
 const DEFAULT_GOALS = Object.freeze([
-  { title: "Главное дело дня", category: "focus", priority: "high", timesPerWeek: 3, minimumMinutes: 45, desiredMinutes: 60, preferredTime: "morning", splittable: false },
+  { title: "Главный приоритет дня", category: "focus", priority: "high", timesPerWeek: 3, minimumMinutes: 45, desiredMinutes: 60, preferredTime: "morning", splittable: false },
   { title: "Движение или спорт", category: "sport", priority: "medium", timesPerWeek: 3, minimumMinutes: 30, desiredMinutes: 45, preferredTime: "evening", splittable: false },
   { title: "Домашние дела", category: "home", priority: "medium", timesPerWeek: 4, minimumMinutes: 25, desiredMinutes: 40, preferredTime: "day", splittable: true },
   { title: "Время для отдыха", category: "rest", priority: "high", timesPerWeek: 7, minimumMinutes: 45, desiredMinutes: 60, preferredTime: "evening", splittable: false },
@@ -314,6 +337,7 @@ export function calculateBigFiveScores(answers, questions = PERSONAL_SCHEDULE_BI
 export function normalizePersonalScheduleProfile(intake, bigFiveScores = null) {
   const normalizedIntake = normalizePersonalScheduleIntake(intake);
   const scores = bigFiveScores || calculateBigFiveScores(null);
+  const tuning = getBigFiveScheduleTuning(scores);
   const focusBlock = normalizedIntake.energy.focusBlockMinutes;
   const density = normalizedIntake.energy.density;
   return {
@@ -326,10 +350,70 @@ export function normalizePersonalScheduleProfile(intake, bigFiveScores = null) {
       `Фокус-блок: ${focusBlock} минут`,
       `Буфер: ${normalizedIntake.energy.bufferMinutes} минут`,
       `Свободное время: ${normalizedIntake.rest.dailyFreeMinutes} минут в день`,
-      scores.skipped ? "Big Five пропущен" : "Big Five учтен для стиля планирования",
+      scores.skipped ? "Big Five пропущен" : `Big Five: ${tuning.summary}`,
     ],
     bigFive: scores,
+    bigFiveTuning: tuning,
   };
+}
+
+function getBigFiveScheduleTuning(bigFiveScores) {
+  const skipped = bigFiveScores?.skipped !== false;
+  if (skipped) {
+    return {
+      skipped: true,
+      preferredProfileId: "balanced",
+      focusBlockAdjustmentMinutes: 0,
+      breakAdjustmentMinutes: 0,
+      bufferAdjustmentMinutes: 0,
+      summary: "нейтральный стиль",
+    };
+  }
+
+  const conscientiousness = getBigFiveAverage(bigFiveScores, "conscientiousness");
+  const emotionalSensitivity = getBigFiveAverage(bigFiveScores, "emotional_sensitivity");
+  const openness = getBigFiveAverage(bigFiveScores, "openness");
+  const extraversion = getBigFiveAverage(bigFiveScores, "extraversion");
+  const agreeableness = getBigFiveAverage(bigFiveScores, "agreeableness");
+  const needsMoreRecovery = emotionalSensitivity !== null && emotionalSensitivity >= 4;
+  const prefersStructure = conscientiousness !== null && conscientiousness >= 4;
+  const resistsStrictPlans = conscientiousness !== null && conscientiousness <= 2.4;
+  const prefersVariety = openness !== null && openness >= 4;
+  const needsSocialRoom = extraversion !== null && extraversion >= 4;
+  const protectsSharedTime = agreeableness !== null && agreeableness >= 4;
+  const preferredProfileId = needsMoreRecovery || resistsStrictPlans
+    ? "spacious"
+    : prefersStructure
+      ? "focused"
+      : "balanced";
+
+  const summaryParts = [];
+  if (needsMoreRecovery) summaryParts.push("больше буферов");
+  if (prefersStructure) summaryParts.push("больше структуры");
+  if (resistsStrictPlans) summaryParts.push("свободнее сетка");
+  if (prefersVariety) summaryParts.push("больше вариативности");
+  if (needsSocialRoom || protectsSharedTime) summaryParts.push("место для совместных дел");
+
+  return {
+    skipped: false,
+    preferredProfileId,
+    focusBlockAdjustmentMinutes: prefersStructure ? 10 : resistsStrictPlans ? -10 : 0,
+    breakAdjustmentMinutes: needsMoreRecovery ? 5 : 0,
+    bufferAdjustmentMinutes: needsMoreRecovery ? 10 : emotionalSensitivity !== null && emotionalSensitivity <= 2 ? -5 : 0,
+    summary: summaryParts.length ? summaryParts.join(", ") : "нейтральный стиль",
+  };
+}
+
+function getBigFiveAverage(bigFiveScores, factor) {
+  const value = bigFiveScores?.scores?.[factor]?.average;
+  return Number.isFinite(value) ? value : null;
+}
+
+function orderScheduleProfilesByTuning(profiles, tuning) {
+  const preferred = tuning?.preferredProfileId || "balanced";
+  const preferredProfile = profiles.find(profile => profile.id === preferred);
+  if (!preferredProfile) return profiles;
+  return [preferredProfile, ...profiles.filter(profile => profile.id !== preferred)];
 }
 
 export function collectPersonalScheduleExistingIntervals({
@@ -470,14 +554,15 @@ export function createDeterministicScheduleDraft({
   createId = defaultCreateId,
 } = {}) {
   const normalizedIntake = normalizePersonalScheduleIntake(intake, now);
+  const bigFiveTuning = getBigFiveScheduleTuning(bigFiveScores);
   const count = clampInteger(variantCount || (normalizedIntake.mode === "deep" ? 3 : 1), 1, 3, 1);
-  const profiles = [
+  const profiles = orderScheduleProfilesByTuning([
     { id: "balanced", title: "Сбалансированный", offset: 0, reason: "Ровно распределяет фокус, быт и восстановление." },
     { id: "focused", title: "С фокус-утром", offset: -45, reason: "Ставит самые сложные блоки ближе к пику энергии." },
     { id: "spacious", title: "Свободнее", offset: 30, reason: "Оставляет больше переходов и снижает плотность." },
-  ];
+  ], bigFiveTuning);
   const variants = profiles.slice(0, count).map(profile => {
-    const blocks = createVariantBlocks({ intake: normalizedIntake, profile, createId });
+    const blocks = createVariantBlocks({ intake: normalizedIntake, profile, bigFiveTuning, createId });
     const validation = validatePersonalScheduleDraft({ draft: { blocks }, intake: normalizedIntake, existingIntervals });
     return {
       id: createId("personal-schedule-variant"),
@@ -593,30 +678,13 @@ export function createPersonalScheduleImportBatch({
     ? variant.blocks
       .filter(block => block.category !== "rest")
       .slice(0, 12)
-      .map(block => ({
-        id: createId("task"),
-        title: block.title,
-        done: false,
-        createdAt,
-        updatedAt: createdAt,
-        source: "personal_schedule_planner",
-        personalScheduleBlockId: block.id,
-      }))
+      .map(block => createTaskEntityFromBlock({ draft, block, createdAt, createId }))
     : [];
   const reminders = includeReminders
     ? variant.blocks
       .filter(block => ["focus", "work", "study", "sport"].includes(block.category))
       .slice(0, 8)
-      .map(block => ({
-        id: createId("reminder"),
-        title: block.title,
-        scheduledAt: toReminderTimestamp(draft.intake?.period?.startDate, block.startTime),
-        completed: false,
-        createdAt,
-        updatedAt: createdAt,
-        source: "personal_schedule_planner",
-        personalScheduleBlockId: block.id,
-      }))
+      .map(block => createReminderEntityFromBlock({ draft, block, createdAt, createId }))
     : [];
 
   return {
@@ -690,6 +758,27 @@ export function rollbackPersonalScheduleImportBatch({
   };
 }
 
+export function cleanupPersonalScheduleImportedTasks({ tasks = [], importBatches = [], now = new Date() } = {}) {
+  const existingTasks = Array.isArray(tasks) ? tasks : [];
+  const batchTaskIds = getAppliedImportTaskIds(importBatches);
+  const removedIds = [];
+  const nextTasks = existingTasks.filter(task => {
+    const shouldRemove = batchTaskIds.has(task?.id) || isPersonalScheduleImportedTask(task);
+    if (shouldRemove) removedIds.push(task.id);
+    return !shouldRemove;
+  });
+  const removedSet = new Set(removedIds);
+  const cleanedAt = toIsoTimestamp(now);
+  return {
+    status: removedIds.length ? "tasks_cleaned" : "tasks_clean",
+    tasks: nextTasks,
+    importBatches: markImportTaskCleanup(importBatches, removedSet, cleanedAt),
+    removedIds,
+    removedCount: removedIds.length,
+    cleanedAt,
+  };
+}
+
 export function validatePersonalScheduleAiResponse(response) {
   const errors = [];
   if (!response || typeof response !== "object" || Array.isArray(response)) errors.push("response_invalid");
@@ -725,6 +814,7 @@ export function createMockPersonalScheduleProvider({ createId = defaultCreateId,
         promptVersion: PERSONAL_SCHEDULE_PROMPT_VERSION,
         draft: createDeterministicScheduleDraft({
           intake: request.intake,
+          bigFiveScores: request.profile?.bigFive,
           existingIntervals: request.constraints?.existingIntervals,
           variantCount: request.mode === "deep" ? 3 : 1,
           now: now(),
@@ -766,12 +856,28 @@ export function parseTimeToMinutes(value) {
   return hours * 60 + minutes;
 }
 
-function createVariantBlocks({ intake, profile, createId }) {
+function createVariantBlocks({ intake, profile, bigFiveTuning, createId }) {
+  const tuning = bigFiveTuning || getBigFiveScheduleTuning(null);
   const weekdays = getPeriodWeekdays(intake.period);
-  const startBase = parseTimeToMinutes(intake.sleep.wakeTime) + 60 + profile.offset;
-  const focusMinutes = intake.energy.focusBlockMinutes;
-  const breakMinutes = intake.energy.breakMinutes;
-  const buffer = intake.energy.bufferMinutes;
+  const startBase = getEnergyPeakStartMinute(intake.energy.peak, intake.sleep.wakeTime) + profile.offset;
+  const focusMinutes = clampInteger(
+    intake.energy.focusBlockMinutes + tuning.focusBlockAdjustmentMinutes,
+    20,
+    180,
+    intake.energy.focusBlockMinutes,
+  );
+  const breakMinutes = clampInteger(
+    intake.energy.breakMinutes + tuning.breakAdjustmentMinutes,
+    5,
+    60,
+    intake.energy.breakMinutes,
+  );
+  const buffer = clampInteger(
+    intake.energy.bufferMinutes + tuning.bufferAdjustmentMinutes,
+    0,
+    90,
+    intake.energy.bufferMinutes,
+  );
   const blocks = [];
   weekdays.slice(0, intake.period.type === "typical_day" ? 1 : 7).forEach((weekday, index) => {
     let cursor = clampInteger(startBase + (index % 2) * 15, 360, 1260, 540);
@@ -837,6 +943,19 @@ function createVariantBlocks({ intake, profile, createId }) {
   return blocks.sort((first, second) => first.weekday - second.weekday || first.startMinute - second.startMinute);
 }
 
+function getEnergyPeakStartMinute(peak, wakeTime) {
+  const wakeMinute = parseTimeToMinutes(wakeTime);
+  const safeWake = Number.isFinite(wakeMinute) ? wakeMinute : 450;
+  return {
+    early_morning: safeWake + 30,
+    morning: Math.max(safeWake + 60, 8 * 60),
+    day: 13 * 60,
+    evening: 18 * 60,
+    late_evening: 20 * 60,
+    depends: safeWake + 90,
+  }[peak] || Math.max(safeWake + 60, 8 * 60);
+}
+
 function createBlock({ createId, weekday, startMinute, duration, title, category, priority, flexibility, rationale }) {
   const safeStart = clampInteger(startMinute, 0, 1430, 540);
   const safeEnd = Math.min(1439, safeStart + Math.max(10, duration));
@@ -872,16 +991,16 @@ function createScheduleEntity({ draft, variant, now, createId }) {
     }));
   return {
     id: createId("schedule"),
-    title: "Идеальное расписание",
+    title: "Персональный ритм дня",
     type: "personal",
     typeLabel: "Персональный план",
     isActive: true,
     reminder: "Без напоминаний",
     meta: `${variant.title} · ${variant.blocks.length} бл.`,
-    note: `Создано через «Идеальное расписание». ${variant.recommendationReason || ""}`.trim(),
+    note: `Создано через «Персональный ритм дня». ${variant.recommendationReason || ""}`.trim(),
     dayTimes,
     details: {
-      "Источник": "Идеальное расписание",
+      "Источник": "Персональный ритм дня",
       "Версия": draft.promptVersion || PERSONAL_SCHEDULE_PROMPT_VERSION,
       "Создано": createdAt,
     },
@@ -890,6 +1009,72 @@ function createScheduleEntity({ draft, variant, now, createId }) {
     personalScheduleDraftId: draft.id,
     personalScheduleVariantId: variant.id,
   };
+}
+
+function createTaskEntityFromBlock({ draft, block, createdAt, createId }) {
+  const dateKey = getImportBlockDateKey(draft, block);
+  return {
+    id: createId("task"),
+    title: formatImportBlockTitle(block),
+    label: formatImportBlockLabel(block, dateKey),
+    done: false,
+    dateKey,
+    createdAt,
+    updatedAt: createdAt,
+    source: "personal_schedule_planner",
+    personalScheduleBlockId: block.id,
+  };
+}
+
+function createReminderEntityFromBlock({ draft, block, createdAt, createId }) {
+  const dateKey = getImportBlockDateKey(draft, block);
+  return {
+    id: createId("reminder"),
+    title: formatImportBlockTitle(block),
+    scheduledAt: toReminderTimestamp(dateKey, block.startTime),
+    completed: false,
+    createdAt,
+    updatedAt: createdAt,
+    source: "personal_schedule_planner",
+    personalScheduleBlockId: block.id,
+  };
+}
+
+function formatImportBlockTitle(block) {
+  const title = limitText(block?.title, 90) || "Блок расписания";
+  return `${formatImportBlockTimeRange(block)} · ${title}`;
+}
+
+function formatImportBlockLabel(block, dateKey) {
+  const weekday = normalizeWeekdayLabel(block?.weekday) || Number(block?.weekday) || 1;
+  return `${getImportWeekdayShortLabel(weekday)}, ${formatShortDate(dateKey)} · ${getImportCategoryLabel(block?.category)} · Персональный ритм`;
+}
+
+function formatImportBlockTimeRange(block) {
+  return `${normalizeTime(block?.startTime, "09:00")}-${normalizeTime(block?.endTime, "10:00")}`;
+}
+
+function getImportCategoryLabel(category) {
+  const normalized = normalizeCategory(category);
+  return IMPORT_CATEGORY_LABELS[normalized] || "Блок";
+}
+
+function getImportWeekdayShortLabel(weekday) {
+  return WEEKDAY_IMPORT_SHORT_LABELS[Number(weekday)] || WEEKDAY_IMPORT_SHORT_LABELS[1];
+}
+
+function getImportBlockDateKey(draft, block) {
+  const startDate = normalizeIsoDate(draft?.intake?.period?.startDate, toIsoDate(new Date()));
+  const start = new Date(`${startDate}T00:00:00`);
+  const startWeekday = Number.isFinite(start.getTime()) ? getIsoWeekday(start) : 1;
+  const blockWeekday = normalizeWeekdayLabel(block?.weekday) || Number(block?.weekday) || startWeekday;
+  const offset = (blockWeekday - startWeekday + 7) % 7;
+  return addDaysIso(startDate, offset);
+}
+
+function formatShortDate(dateKey) {
+  const [, month = "", day = ""] = String(dateKey || "").match(/^\d{4}-(\d{2})-(\d{2})$/) || [];
+  return month && day ? `${day}.${month}` : String(dateKey || "");
 }
 
 function normalizeGoals(goals) {
@@ -1005,6 +1190,34 @@ function mergeById(existing, incoming) {
 function removeById(items, ids) {
   const set = new Set(Array.isArray(ids) ? ids : []);
   return (Array.isArray(items) ? items : []).filter(item => !set.has(item.id));
+}
+
+function getAppliedImportTaskIds(importBatches) {
+  return new Set((Array.isArray(importBatches) ? importBatches : [])
+    .filter(batch => batch?.status === "applied")
+    .flatMap(batch => Array.isArray(batch?.importedIds?.tasks) ? batch.importedIds.tasks : []));
+}
+
+function markImportTaskCleanup(importBatches, removedSet, cleanedAt) {
+  if (!removedSet.size) return Array.isArray(importBatches) ? importBatches : [];
+  return (Array.isArray(importBatches) ? importBatches : []).map(batch => {
+    const taskIds = Array.isArray(batch?.importedIds?.tasks) ? batch.importedIds.tasks : [];
+    const removedTaskIds = taskIds.filter(id => removedSet.has(id));
+    if (!removedTaskIds.length) return batch;
+    return {
+      ...batch,
+      taskCleanupAt: cleanedAt,
+      cleanedTaskIds: [...new Set([...(Array.isArray(batch.cleanedTaskIds) ? batch.cleanedTaskIds : []), ...removedTaskIds])],
+      importedIds: {
+        ...(batch.importedIds || {}),
+        tasks: taskIds.filter(id => !removedSet.has(id)),
+      },
+    };
+  });
+}
+
+function isPersonalScheduleImportedTask(task) {
+  return task?.source === "personal_schedule_planner" && Boolean(task?.personalScheduleBlockId);
 }
 
 function rangesOverlap(firstStart, firstEnd, secondStart, secondEnd) {

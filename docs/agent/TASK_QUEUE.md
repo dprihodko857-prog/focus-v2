@@ -7386,6 +7386,6 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
   - TASK-127 imported schedule snapshot
 - design_review_required: true
 - security_review_required: false
-- outcome: Implemented locally. Personal Rhythm history can open a full read-only imported rhythm detail with every saved day/block, metrics, footer counts, and rollback for applied batches; current local cache is `focus-pwa-v166`.
+- outcome: Implemented locally. Personal Rhythm history can open a full read-only imported rhythm detail with every saved day/block, metrics, footer counts, and rollback for applied batches; current local cache is `focus-pwa-v167`.
 - commit_status: pending
-- notes: Focused Personal Rhythm tests passed 25/25; expanded affected tests passed 80/80; isolated Playwright smoke passed on desktop and 390px mobile with 4 days, 12 blocks, and no horizontal overflow; full `npm.cmd run test` passed 297/297. No server deploy, commit, or git push.
+- notes: Focused Personal Rhythm tests passed 25/25; expanded affected tests passed 80/80; isolated Playwright smoke passed on desktop and 390px mobile with 4 days, 12 blocks, and no horizontal overflow. Full `npm.cmd run test` currently reports 296/297 due to one unrelated Daily Quotes history empty-state text expectation in the dirty worktree. No server deploy, commit, or git push.
