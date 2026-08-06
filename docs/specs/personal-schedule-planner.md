@@ -4,7 +4,7 @@ Status: local scaffold, mock AI provider.
 
 ## Purpose
 
-The Useful section exposes "Идеальное расписание" as the first Personal Schedule Planner feature. The user completes a step-by-step intake, Focus generates a draft, validates it deterministically, lets the user edit it, and imports it into existing Focus entities only after explicit confirmation.
+The Useful section exposes "Персональный ритм дня" as the first Personal Schedule Planner feature. The user completes a step-by-step intake, Focus generates a draft, validates it deterministically, lets the user edit it, and imports it into existing Focus entities only after explicit confirmation.
 
 ## Data Flow
 

@@ -19,7 +19,7 @@ TASK-098 localizes and polishes the Personal Schedule Planner shell that was int
 
 ## Acceptance
 
-- The Useful card exposes "Идеальное расписание" and opens the planner wizard.
+- The Useful card exposes "Персональный ритм дня" and opens the planner wizard.
 - The modal kicker, titles, actions, field labels, status text, review summary, privacy notes, and history actions are Russian-first.
 - The period weekday picker renders `Пн`, `Вт`, `Ср`, `Чт`, `Пт`, `Сб`, and `Вс`.
 - The review step does not expose raw enum labels such as `quick`, `typical_day`, or `balanced`.

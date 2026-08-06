@@ -5940,3 +5940,1452 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Pending YooKassa checkout actions in Settings and Useful now show the stored checkout creation timestamp when available.
 - commit_status: committed
 - notes: App/service-worker/test syntax passed; focused static/client tests passed 108/108; `npm.cmd run test` passed 248/248; `git diff --check` passed on 2026-08-04. No deployment or git push.
+
+## TASK-106
+
+- title: Clarify Diary PIN create and change actions
+- status: DONE
+- owner_gate: owner_continue_after_task_105
+- task_type: diary_privacy_ux
+- priority: medium
+- source: continuing local diary privacy UX after TASK-105
+- spec_reference: `docs/specs/diary-pin-create-change-copy.md`
+- spec_status: implemented_deployed_pending_commit
+- goal: make Diary PIN setup/change actions clear and reachable without changing PIN storage or verification.
+- out_of_scope:
+  - PIN algorithm changes
+  - server-side diary encryption
+  - recovery code flows
+  - IndexedDB or legacy fallback storage contract changes
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - first-time Diary PIN setup uses `Создать PIN` copy
+  - existing-PIN actions use `Изменить PIN` copy
+  - diary unlock modal exposes a secondary change-PIN action
+  - change-PIN action opens the existing PIN form in change mode after loading current PIN settings
+  - Settings hydrates PIN state before rendering the PIN summary
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check tests/sync-integration-assets.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small local diary UX task
+- file_limit: up to 8 files
+- command_limit: up to 8 meaningful commands
+- chain_position: 106
+- stop_conditions:
+  - implementation requires PIN algorithm or storage changes
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/index.html`
+  - `public/js/app.js`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-005 diary PIN IndexedDB cleanup
+  - existing diary PIN modal and unlock flow
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally and deployed from a runtime archive. Diary PIN setup/change labels are explicit, the unlock modal can open the change-PIN flow, and Settings waits for loaded PIN state before rendering the summary.
+- commit_status: pending
+- notes: App/test syntax passed; focused static tests passed 60/60; `npm.cmd run test` passed 248/248; `git diff --ignore-cr-at-eol --check` passed on 2026-08-04 with LF-to-CRLF warnings only. Deployed to production on 2026-08-04 from archive `focus-v2-runtime-20260804-184712.tgz`; remote backup is `/opt/focus-v2/deploy-backups/backup-20260804-184712-pre-daead9-worktree.tgz`. No commit or git push.
+
+## TASK-107
+
+- title: Rename Personal Schedule Planner to Personal Rhythm Of Day
+- status: DONE
+- owner_gate: owner_requested_personal_schedule_only_chat
+- task_type: personal_schedule_ux_copy
+- priority: medium
+- source: owner requested this chat focus only on the Personal Schedule Planner area and rename the section to "Персональный ритм дня"
+- spec_reference: `docs/specs/personal-schedule-rename-personal-rhythm.md`
+- spec_status: implemented_deployed_pending_commit
+- goal: make the Personal Schedule Planner visible feature name "Персональный ритм дня" without changing internal ids or planner behavior.
+- out_of_scope:
+  - internal JavaScript module names, DOM ids, storage keys, backend routes, and source ids
+  - generated draft behavior
+  - import validation or rollback behavior
+  - git push, tags, or release work
+- acceptance_criteria:
+  - Useful feature card title says `Персональный ритм дня`
+  - planner modal title/kicker and wizard fallback title say `Персональный ритм дня`
+  - imported schedule title, note, and `details["Источник"]` use `Персональный ритм дня`
+  - import and rollback status messages use `Персональный ритм дня`
+  - stable `personal_schedule_planner` source ids remain unchanged
+  - static coverage guards the new visible name and absence of the old visible name in runtime planner files
+  - PWA service worker cache is bumped to `focus-pwa-v126`
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/js/personal-schedule-planner.js`
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/personal-schedule-planner.test.mjs`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --ignore-cr-at-eol --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small local Personal Schedule copy task
+- file_limit: up to 14 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 107
+- stop_conditions:
+  - implementation requires changing Personal Schedule internal ids
+  - implementation requires git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/index.html`
+  - `public/js/app.js`
+  - `public/js/personal-schedule-planner.js`
+  - `public/js/personal-schedule-ui.js`
+  - `public/service-worker.js`
+  - Personal Schedule static/unit tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-097 Personal Schedule Planner scaffold
+  - TASK-098 Personal Schedule Planner UI polish
+  - TASK-099 Personal Schedule import artifact localization
+  - TASK-102 Personal Schedule import validation guard
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. The former Personal Schedule Planner visible feature name is now `Персональный ритм дня`, import artifacts/status messages use the new name, internal source ids stay stable, and PWA cache is `focus-pwa-v126`.
+- commit_status: pending
+- notes: Syntax checks passed; focused Personal Schedule/PWA static tests passed 68/68; `npm.cmd run test` passed 248/248; `git diff --ignore-cr-at-eol --check` passed on 2026-08-04 with LF-to-CRLF warnings only. Deployed to production on 2026-08-04 as part of isolated Personal Rhythm payload `focus-v2-personal-rhythm-v128-20260804-192328.tgz`; remote backup is `/opt/focus-v2/deploy-backups/backup-20260804-192328-pre-personal-rhythm-v128.tgz`. No commit or git push.
+
+## TASK-108
+
+- title: Expand rich descriptions across holiday detail cards
+- status: DONE
+- owner_gate: owner_requested_all_holiday_description_analogy_2026-08-04
+- task_type: holiday_calendar_copy_quality
+- priority: high
+- source: owner requested applying the Builder's Day description pattern to all professional holidays and other holiday types
+- spec_reference: `docs/specs/holiday-detail-broad-description-enrichment.md`
+- spec_status: implemented_deployed_pending_commit
+- goal: make readonly holiday detail descriptions consistently informative across professional, public, religious, transfer, and fallback events.
+- out_of_scope:
+  - changing holiday catalog dates or source metadata
+  - external encyclopedia-level article text for every holiday
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - every RU-2026 professional catalog event has configured audience and recurrence copy
+  - professional holiday descriptions follow the Builder's Day pattern with highlighted recurrence and 2026 occurrence date
+  - public, religious, transfer, and fallback descriptions include timing/status context
+  - dynamic text remains escaped and only controlled recurrence parts render as `<strong>`
+  - PWA service worker cache is bumped to `focus-pwa-v127`
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/sync-integration-assets.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/personal-schedule-assets.test.mjs tests/focus-sync-client.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --check`
+  - professional coverage script for `professionalEvent(...)` titles
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one medium local holiday copy task
+- file_limit: up to 12 files
+- command_limit: up to 12 meaningful commands
+- chain_position: 108
+- stop_conditions:
+  - implementation requires changing official holiday source data
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - static holiday/PWA contract tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-089 holiday catalog
+  - TASK-100 holiday detail descriptions and accents
+  - TASK-104 professional holiday detail polish
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented and deployed. All current professional holidays have configured audience/recurrence descriptions, and non-professional holiday detail descriptions now receive structured timing/status context.
+- commit_status: pending
+- notes: App/service-worker/test syntax passed; focused static/client tests passed 108/108; `npm.cmd run test` passed 248/248; `git diff --check` passed on 2026-08-04 with LF-to-CRLF warnings only; coverage script found 21 professional titles and no missing descriptions. Deployed to production on 2026-08-05 as part of isolated Holidays payload `focus-pwa-v131`; remote backup is `/opt/focus-v2/deploy-backups/backup-20260805-100547-pre-holiday-v131.tgz`. No commit or git push.
+
+## TASK-109
+
+- title: Improve Personal Schedule draft overview and quick edits
+- status: DONE
+- owner_gate: owner_continue_personal_rhythm_day_plan
+- task_type: personal_schedule_result_ux
+- priority: high
+- source: continuing this chat's "Персональный ритм дня" plan after TASK-107
+- spec_reference: `docs/specs/personal-schedule-draft-overview-quick-edits.md`
+- spec_status: implemented_deployed_pending_commit
+- goal: make the generated draft easier to scan and adjust before the user imports it into Focus.
+- out_of_scope:
+  - changing Personal Schedule provider request/response contracts
+  - changing deterministic generator behavior
+  - changing imported Focus entity schema
+  - creating a separate calendar surface
+  - git push, tags, or release work
+- acceptance_criteria:
+  - draft screen exposes compact metrics for plan load, goals, rest, and fixed blocks
+  - selected variant is grouped into day overview cards before the editor
+  - each block row exposes quick actions to move earlier/later by 15 minutes
+  - each block row exposes quick actions to shorten/lengthen by 15 minutes
+  - each block row exposes a fixed-time toggle
+  - each block row can be removed while keeping at least one block in the draft
+  - quick edits revalidate the selected variant against existing Focus fixed intervals
+  - direct time/title input editing remains available
+  - PWA service worker cache is bumped to `focus-pwa-v128`
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/js/personal-schedule-planner.js`
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --ignore-cr-at-eol --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one medium local Personal Schedule UI task
+- file_limit: up to 12 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 109
+- stop_conditions:
+  - implementation requires changing Personal Schedule internal ids
+  - implementation requires git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/personal-schedule-ui.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - Personal Schedule static/unit tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-097 Personal Schedule Planner scaffold
+  - TASK-101 Personal Schedule overlap guard
+  - TASK-102 Personal Schedule import validation guard
+  - TASK-107 Personal Schedule visible rename
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. The draft review now has a scannable day overview and quick per-block edits before import while preserving import confirmation and internal ids.
+- commit_status: pending
+- notes: Syntax checks passed; focused Personal Schedule/PWA static tests passed 69/69; `npm.cmd run test` passed 252/252; preview curl confirmed service worker `focus-pwa-v128` and draft overview/CSS hooks; `git diff --ignore-cr-at-eol --check` passed on 2026-08-04 with LF-to-CRLF warnings only. Deployed to production on 2026-08-04 as part of isolated Personal Rhythm payload `focus-v2-personal-rhythm-v128-20260804-192328.tgz`; public verification confirmed app 200, API health, service worker `focus-pwa-v128`, draft overview, CSS hooks, and quick block actions. No commit or git push.
+
+## TASK-110
+
+- title: Expand RU-2026 professional holiday catalog with military and sector dates
+- status: DONE
+- owner_gate: owner_requested_holidays_only_military_professional_expansion_2026-08-04
+- task_type: holiday_calendar_catalog_expansion
+- priority: high
+- source: owner asked whether professional holidays include military dates such as Navy Day and Airborne Forces Day, and why the catalog had only 21 professional holidays
+- spec_reference: `docs/specs/holiday-professional-calendar-expansion.md`
+- spec_status: implemented_deployed_pending_commit
+- goal: broaden the Holidays section professional catalog so military, force-agency, and wider federal professional/sector dates are visible and described.
+- out_of_scope:
+  - regional holidays or region-specific non-working days
+  - a separate military calendar UI outside existing professional-holiday settings
+  - changing public/religious holiday behavior
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - professional categories include `military_security`
+  - RU-2026 professional catalog grows beyond the initial 21-event seed
+  - Navy Day and Airborne Forces Day are present, source-backed, and selectable through the military category
+  - Armed Forces memorial days from the military source use `Памятный день` as the readonly detail type label
+  - every `professionalEvent(...)` title has audience/recurrence copy for the "О празднике" section
+  - PWA service worker cache is bumped to `focus-pwa-v129`
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/holiday-catalog.js`
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/holiday-catalog.test.mjs`
+  - `node --check tests/sync-integration-assets.test.mjs`
+  - professional coverage script for `professionalEvent(...)` titles
+  - `node --test tests/holiday-catalog.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --ignore-cr-at-eol --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one medium local holiday catalog task
+- file_limit: up to 12 files
+- command_limit: up to 12 meaningful commands
+- chain_position: 110
+- stop_conditions:
+  - implementation requires adding regional/non-federal source data
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/holiday-catalog.js`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - holiday/static PWA tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-089 holiday catalog
+  - TASK-100 holiday detail descriptions and accents
+  - TASK-108 broad holiday detail description enrichment
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented and deployed. The RU-2026 professional calendar now includes military, force-agency, and broader federal sector dates with configured holiday-detail descriptions.
+- commit_status: pending
+- notes: Syntax checks passed; focused holiday/PWA static tests passed 70/70; `npm.cmd run test` passed 253/253; coverage script found 119 professional titles, 28 military-source events, and 0 missing descriptions; `git diff --ignore-cr-at-eol --check` passed on 2026-08-04 with LF-to-CRLF warnings only. Deployed to production on 2026-08-05 as part of isolated Holidays payload `focus-pwa-v131`; production static/API checks verified `military_security`, Navy Day, and Airborne Forces Day. No commit or git push.
+
+## TASK-111
+
+- title: Show professional holiday category counts and examples
+- status: DONE
+- owner_gate: owner_continue_holidays_only_after_catalog_expansion_2026-08-04
+- task_type: holiday_settings_discoverability
+- priority: high
+- source: continuing the Holidays-only thread after expanding professional and military holiday coverage
+- spec_reference: `docs/specs/holiday-professional-category-discoverability.md`
+- spec_status: implemented_deployed_pending_commit
+- goal: make the expanded professional holiday categories easier to understand before users choose selected directions.
+- out_of_scope:
+  - per-holiday selection controls
+  - search/filter UI inside the settings modal
+  - changing catalog source data
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - professional category options show date counts from the loaded catalog
+  - professional category options show short example holiday names
+  - long category names and examples wrap without overflowing the modal
+  - server-saved holiday preferences remain category-code only
+  - PWA service worker cache is bumped to `focus-pwa-v130`
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/sync-integration-assets.test.mjs`
+  - `node --check tests/desktop-layout-css.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/personal-schedule-assets.test.mjs tests/holiday-catalog.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --ignore-cr-at-eol --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small local holiday settings task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 111
+- stop_conditions:
+  - implementation requires changing server preference schema
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/app.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - holiday/static PWA tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-089 holiday catalog
+  - TASK-110 professional holiday catalog expansion
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented and deployed. Professional holiday settings now show per-category counts and examples from the current catalog.
+- commit_status: pending
+- notes: Syntax checks passed; focused holiday/PWA static tests passed 70/70; `npm.cmd run test` passed 253/253; `git diff --ignore-cr-at-eol --check` passed on 2026-08-04 with LF-to-CRLF warnings only. Deployed to production on 2026-08-05 as part of isolated Holidays payload `focus-pwa-v131`; production HTML/CSS/app checks verified the category count/example hooks. No commit or git push.
+
+## TASK-112
+
+- title: Preview professional holiday dates from the current settings choice
+- status: DONE
+- owner_gate: owner_continue_holidays_only_after_category_discoverability_2026-08-05
+- task_type: holiday_settings_preview
+- priority: high
+- source: continuing the Holidays-only thread after professional category counts/examples
+- spec_reference: `docs/specs/holiday-professional-selection-preview.md`
+- spec_status: implemented_deployed_pending_commit
+- goal: show which professional holiday dates will appear before the user saves or changes the current settings.
+- out_of_scope:
+  - per-holiday selection controls
+  - search/filter UI inside the settings modal
+  - changing server preference schema
+  - production deploy
+  - git push, tags, or release work
+- acceptance_criteria:
+  - Holidays settings include a professional date preview block
+  - preview explains hidden state when professional mode is `none`
+  - preview asks for directions when selected mode has no selected categories
+  - preview shows total matching date count for `all` and selected categories
+  - preview shows up to six nearest matching professional dates with date/title/type
+  - preview dates prioritize upcoming dates within the current catalog year
+  - long preview titles wrap without overflowing the modal
+  - PWA service worker cache is bumped to `focus-pwa-v131`
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/sync-integration-assets.test.mjs`
+  - `node --check tests/desktop-layout-css.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/personal-schedule-assets.test.mjs tests/holiday-catalog.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --ignore-cr-at-eol --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small local holiday settings task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 112
+- stop_conditions:
+  - implementation requires changing server preference schema
+  - implementation requires production deploy or git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/index.html`
+  - `public/js/app.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - holiday/static PWA tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-089 holiday catalog
+  - TASK-110 professional holiday catalog expansion
+  - TASK-111 professional category discoverability
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented and deployed. Holidays settings now preview the professional dates produced by the current all/selected/none choice.
+- commit_status: pending
+- notes: Syntax checks passed; focused holiday/PWA static tests passed 70/70; `npm.cmd run test` passed 254/254; `git diff --ignore-cr-at-eol --check` passed on 2026-08-05 with LF-to-CRLF warnings only. Deployed to production on 2026-08-05 as part of isolated Holidays payload `focus-pwa-v131`; production checks verified `holidayProfessionalPreview`, service worker `focus-pwa-v131`, public app 200, and API health. No commit or git push.
+
+## TASK-113
+
+- title: Keep Personal Rhythm imported tasks understandable
+- status: DONE
+- owner_gate: owner_reported_personal_rhythm_import_confusing_today_tasks_2026-08-05
+- task_type: personal_schedule_import_ux
+- priority: high
+- source: owner completed the "Персональный ритм дня" survey and screenshot showed repeated "Рабочий блок" / "Главное дело дня" cards in "Дела на сегодня" without useful context.
+- spec_reference: `docs/specs/personal-rhythm-import-task-context.md`
+- spec_status: implemented_deployed_pending_commit
+- goal: prevent Personal Rhythm imports from cluttering today's task list and make optional imported tasks self-explanatory.
+- out_of_scope:
+  - automatic deletion of already imported user tasks
+  - changing the deterministic planner algorithm
+  - changing the generic Focus task card layout
+  - git push, tags, or release work
+- acceptance_criteria:
+  - task creation from Personal Rhythm blocks is opt-in during import
+  - default import creates the schedule without filling "Дела на сегодня" with block tasks
+  - optional imported tasks get `dateKey` from the block weekday and planning start date
+  - optional imported task titles include the block time range
+  - optional imported task labels include weekday/date/category and "Персональный ритм"
+  - optional imported reminders use the block date for `scheduledAt`
+  - production PWA service worker cache is bumped to `focus-pwa-v133`
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/personal-schedule-planner.js`
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/personal-schedule-planner.test.mjs`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/sync-integration-assets.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/desktop-layout-css.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --ignore-cr-at-eol --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small Personal Rhythm import UX fix
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 113
+- stop_conditions:
+  - implementation requires deleting existing user data automatically
+  - implementation requires git push
+  - checks fail outside the approved scope
+- areas:
+  - `public/js/personal-schedule-planner.js`
+  - `public/js/personal-schedule-ui.js`
+  - `public/service-worker.js`
+  - Personal Schedule static/unit tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-107 Personal Schedule visible rename
+  - TASK-109 Personal Schedule draft overview and quick edits
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented and deployed. Default Personal Rhythm import now adds the schedule without task clutter; optional generated tasks include date, time range, category, and Personal Rhythm context.
+- commit_status: pending
+- notes: Syntax checks passed; focused Personal Schedule/PWA static tests passed 71/71; `npm.cmd run test` passed 257/257. Deployed on 2026-08-05 as isolated Personal Rhythm payload `focus-v2-personal-rhythm-task-context-v133-20260805-103707.tgz`; remote backup is `/opt/focus-v2/deploy-backups/backup-20260805-103707-pre-personal-rhythm-task-context-v133.tgz`. Production app returned 200, API health returned `{"ok":true,"service":"focus-sync"}`, backend was active, service worker returned `focus-pwa-v133`, public UI exposed opt-in task creation, and downloaded production planner generated labeled dated tasks. Example generated tasks now look like `2026-08-05 | 09:00-18:00 · Рабочий блок | Ср, 05.08 · Работа · Персональный ритм`. No commit or git push.
+
+## TASK-114
+
+- title: Remove professional holiday preview card
+- status: DONE
+- owner_gate: owner_requested_remove_holiday_professional_preview_2026-08-05
+- task_type: holiday_settings_ux_revert
+- priority: high
+- source: owner asked to remove the `Предпросмотр` card from Holidays settings and keep the previous mode choices
+- spec_reference: `docs/specs/holiday-professional-preview-removal.md`
+- spec_status: implemented_deployed_pending_commit
+- goal: remove the professional holiday preview block while preserving the existing professional mode controls.
+- out_of_scope:
+  - changing the expanded professional holiday catalog
+  - removing professional category counts and examples
+  - changing holiday preference schema
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `holidayProfessionalPreview` is absent from the app shell
+  - preview rendering functions are absent from `public/js/app.js`
+  - `.holiday-professional-preview*` CSS is absent from `public/css/app.css`
+  - `holidayProfessionalMode` values `none`, `all`, and `selected` remain in the app shell
+  - focused static tests pass
+  - production is deployed with a cache bump
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check tests/sync-integration-assets.test.mjs`
+  - `node --check tests/desktop-layout-css.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/holiday-catalog.test.mjs`
+  - `git diff --ignore-cr-at-eol --check`
+  - production static marker checks
+- sandbox_level: current_workspace
+- cycle_budget: one small Holidays UI removal
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 114
+- stop_conditions:
+  - implementation requires removing catalog data
+  - implementation requires changing server preference schema
+  - checks fail outside the approved scope
+- areas:
+  - `public/index.html`
+  - `public/js/app.js`
+  - `public/css/app.css`
+  - `tests/sync-integration-assets.test.mjs`
+  - `tests/desktop-layout-css.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-110 professional holiday catalog expansion
+  - TASK-111 professional category discoverability
+  - TASK-112 professional date preview
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented and deployed. The professional holiday preview card is gone, the three mode choices remain, and the final deployed PWA cache is `focus-pwa-v136` with refreshed app/CSS asset URLs.
+- commit_status: pending
+- notes: Focused static tests passed 43/43; `git diff --ignore-cr-at-eol --check` passed with LF-to-CRLF warnings only. Deployed on 2026-08-05 as isolated static payload; remote backup is `/opt/focus-v2/deploy-backups/backup-20260805-103004-pre-holiday-no-preview-v132.tgz`. After the owner still saw stale cached assets, a second isolated cache-bust correction deployed `focus-pwa-v136` plus `focus-20260805-holiday-no-preview-2` app/CSS URLs; backup is `/opt/focus-v2/deploy-backups/backup-20260805-1042-pre-cache-bust-v136.tgz`. Final production app returned 200, UTF-8 markers were intact, backend stayed active, preview markers were absent from HTML/CSS/JS, and all three `holidayProfessionalMode` values remained in production HTML. No commit or git push.
+
+## TASK-115
+
+- title: Clean up old Personal Rhythm imported task clutter
+- status: DONE
+- owner_gate: owner_requested_local_only_continue_personal_rhythm_2026-08-05
+- task_type: personal_schedule_import_cleanup
+- priority: high
+- source: owner reported that completed Personal Rhythm import produced confusing repeated today-task cards, then explicitly changed the rule to local-only work with no more server deploys.
+- spec_reference: `docs/specs/personal-rhythm-imported-task-cleanup.md`
+- spec_status: implemented_local_pending_commit
+- goal: give the owner a safe way to remove old Personal Rhythm generated task clutter without deleting the imported schedule, reminders, or personal tasks.
+- out_of_scope:
+  - server deploy
+  - automatic deletion without a user action
+  - deleting Personal Rhythm schedules
+  - deleting Personal Rhythm reminders
+  - deleting ordinary user-created tasks
+  - git push, tags, or release work
+- acceptance_criteria:
+  - Personal Rhythm history exposes a cleanup action when matching imported tasks exist
+  - cleanup removes tasks by applied import batch ids
+  - cleanup removes future metadata-tagged Personal Rhythm block tasks
+  - cleanup keeps user tasks and unrelated source-tagged tasks
+  - generic task normalization preserves Personal Rhythm source metadata needed for future cleanup
+  - app status copy explains that Personal Rhythm removed old imported tasks
+  - PWA service worker cache is bumped locally to `focus-pwa-v140`
+  - Personal Rhythm focused tests pass locally
+- required_checks:
+  - `node --check public/js/personal-schedule-planner.js`
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/personal-schedule-planner.test.mjs`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --ignore-cr-at-eol --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small local Personal Rhythm cleanup task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 115
+- stop_conditions:
+  - implementation requires server deploy
+  - implementation requires deleting data that cannot be safely attributed to Personal Rhythm
+  - checks fail inside the approved Personal Rhythm scope
+- areas:
+  - `public/js/personal-schedule-planner.js`
+  - `public/js/personal-schedule-ui.js`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - Personal Schedule static/unit tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-107 Personal Schedule visible rename
+  - TASK-109 Personal Schedule draft overview and quick edits
+  - TASK-113 Personal Rhythm import task context
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Personal Rhythm history can remove old imported task clutter while leaving schedules, reminders, and user tasks intact.
+- commit_status: pending
+- notes: Syntax checks passed for touched JS/test files; focused Personal Rhythm tests passed 19/19; full `npm.cmd run test` passed 271/271 on the current working copy. No server deploy, commit, or git push.
+
+## TASK-116
+
+- title: Restore simple professional holiday direction checklist
+- status: DONE
+- owner_gate: owner_requested_local_only_holiday_simple_categories_2026-08-05
+- task_type: holiday_settings_ux_revert
+- priority: high
+- source: owner reported the professional direction cards were unclear and asked to restore a simple checklist while also removing the extra nested scroll; owner explicitly said no more server deploys.
+- spec_reference: `docs/specs/holiday-professional-category-simple-list.md`
+- spec_status: implemented_local_pending_commit
+- goal: make the professional holiday direction selector a simple list of topics with checkboxes.
+- out_of_scope:
+  - server deploy
+  - changing the expanded professional holiday catalog
+  - changing holiday preference schema
+  - removing the three professional display modes
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `holidayProfessionalMode` values `none`, `all`, and `selected` remain in the app shell
+  - clicking `Выбрать направления` enables the category checklist even when no categories are selected yet
+  - professional categories render as checkbox rows with only category titles
+  - category count chips are absent
+  - category example text is absent
+  - the professional category list has no fixed internal max-height/overflow scroll area
+  - focused holiday/static tests pass locally
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/sync-integration-assets.test.mjs`
+  - `node --check tests/desktop-layout-css.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/holiday-catalog.test.mjs`
+  - `git diff --ignore-cr-at-eol --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small local Holidays UI revert
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 116
+- stop_conditions:
+  - implementation requires server deploy
+  - implementation requires removing catalog data
+  - implementation requires changing server preference schema
+  - checks fail inside the approved Holidays scope
+- areas:
+  - `public/index.html`
+  - `public/js/app.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - `tests/sync-integration-assets.test.mjs`
+  - `tests/desktop-layout-css.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-110 professional holiday catalog expansion
+  - TASK-111 professional category discoverability
+  - TASK-114 professional preview removal
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Professional holiday directions are now a simple one-column checkbox list with no count/example card UI and no nested scroll area, and the `Выбрать направления` mode can be entered before selecting the first category.
+- commit_status: pending
+- notes: App/service-worker/test syntax passed; focused holiday/static tests passed 43/43; full `npm.cmd run test` passed 273/273; `git diff --ignore-cr-at-eol --check` passed with LF-to-CRLF warnings only. No server deploy, commit, or git push.
+
+## TASK-117
+
+- title: Make Personal Rhythm survey result understandable before import
+- status: DONE
+- owner_gate: owner_approved_personal_rhythm_result_review_2026-08-05
+- task_type: personal_schedule_result_review_ux
+- priority: high
+- source: owner asked to continue the Personal Rhythm plan after the confusing survey result was fixed locally.
+- spec_reference: `docs/specs/personal-rhythm-result-review.md`
+- spec_status: implemented_local_pending_commit
+- goal: make the generated result readable enough that the owner can understand the weekly rhythm, risks, and import impact before adding anything to Focus.
+- out_of_scope:
+  - server deploy
+  - changing the deterministic planner algorithm
+  - changing backend generation contracts
+  - deleting existing data
+  - git push, tags, or release work
+- acceptance_criteria:
+  - draft result includes an `Итог опроса` brief for the selected variant
+  - draft result summarizes sleep, work, focus, and rest
+  - draft result shows blocking-conflict, dense-day, and missing-focus warnings before the day grid
+  - draft result previews the Focus import impact for schedules, tasks, and reminders
+  - confirm-import screen explicitly shows what will be added to Focus
+  - default import still avoids task clutter unless task creation is enabled
+  - grouped day overview and quick block editor remain available
+  - local PWA service worker cache is `focus-pwa-v140`
+  - focused and full tests pass locally
+- required_checks:
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `npm.cmd run test`
+  - `curl.exe -L http://127.0.0.1:8091/service-worker.js`
+  - `git diff --ignore-cr-at-eol --check`
+  - `git status --short`
+- sandbox_level: current_workspace
+- cycle_budget: one small local Personal Rhythm result UI task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 117
+- stop_conditions:
+  - implementation requires server deploy
+  - implementation requires backend schema changes
+  - checks fail inside the approved Personal Rhythm scope
+- areas:
+  - `public/js/personal-schedule-ui.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - `tests/personal-schedule-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-107 Personal Schedule visible rename
+  - TASK-109 Personal Schedule draft overview and quick edits
+  - TASK-113 Personal Rhythm import task context
+  - TASK-115 Personal Rhythm imported task cleanup
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. The Personal Rhythm draft result now starts with a readable result brief, rhythm metrics, warnings, import impact, then keeps the week overview and quick block editor below.
+- commit_status: pending
+- notes: UI/service-worker/test syntax passed; focused Personal Rhythm tests passed 19/19; full `npm.cmd run test` passed 273/273; local `http://127.0.0.1:8091/service-worker.js` returned `focus-pwa-v140`. No server deploy, commit, or git push.
+
+## TASK-118
+
+- title: Fix Holidays professional selected mode locally
+- status: DONE
+- owner_gate: owner_reported_selected_directions_still_not_clickable_2026-08-05
+- task_type: holiday_settings_hotfix
+- priority: high
+- source: owner reported the local Holidays settings still could not activate `Выбрать направления` after the simple checklist change.
+- spec_reference: `docs/specs/holiday-professional-selected-mode-hotfix.md`
+- spec_status: implemented_local_pending_commit
+- goal: make `Выбрать направления` reliably enter selected professional mode and enable category checkboxes before any category is selected.
+- out_of_scope:
+  - server deploy
+  - changing the holiday catalog
+  - changing saved preference schema
+  - changing Personal Rhythm behavior
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `syncHolidayProfessionalControls()` preserves the UI draft from `readHolidayPreferencesDraft()`
+  - `readHolidayPreferencesDraft()` preserves `professionalMode: "selected"` even with zero selected category codes
+  - local app/CSS asset URLs use `focus-20260805-holiday-simple-categories-3`
+  - local PWA service worker cache is `focus-pwa-v141`
+  - clicking `Выбрать направления` in the local browser enables category checkboxes
+  - focused holiday/static tests and full local regression pass
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/sync-integration-assets.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/desktop-layout-css.test.mjs tests/holiday-catalog.test.mjs`
+  - `npm.cmd run test`
+  - `git diff --ignore-cr-at-eol --check`
+  - `curl.exe -L http://127.0.0.1:5173/?local=holiday-simple-categories-3`
+  - browser click verification in the local app
+- sandbox_level: current_workspace
+- cycle_budget: one small local Holidays hotfix
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 118
+- stop_conditions:
+  - implementation requires server deploy
+  - implementation requires catalog/schema changes
+  - checks fail inside the approved Holidays scope
+- areas:
+  - `public/index.html`
+  - `public/js/app.js`
+  - `public/service-worker.js`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-116 simple professional direction checklist
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. The local app now serves `holiday-simple-categories-3`, `focus-pwa-v141`, and browser verification confirms `Выбрать направления` leaves the mode selected with all 19 category checkboxes enabled.
+- commit_status: pending
+- notes: App/service-worker/test syntax passed; focused holiday/static tests passed 43/43; full `npm.cmd run test` passed 273/273; local curl verified updated assets and service worker; in-app browser click verification passed. No server deploy, commit, or git push.
+
+## TASK-119
+
+- title: Replace Personal Rhythm goals textarea with a structured form
+- status: DONE
+- owner_gate: owner_reported_goals_step_unclear_2026-08-05
+- task_type: personal_rhythm_ui_clarity
+- priority: high
+- source: owner showed the `Приоритетные цели` screen and said the window was unclear.
+- spec_reference: `docs/specs/personal-rhythm-goals-form.md`
+- spec_status: implemented_local_pending_commit
+- goal: make the Personal Rhythm goals step understandable by replacing the internal semicolon textarea with normal editable goal cards.
+- out_of_scope:
+  - server deploy
+  - backend schema changes
+  - planner algorithm changes
+  - Holidays behavior
+  - git push, tags, or release work
+- acceptance_criteria:
+  - the goals step renders editable goal cards instead of `[data-ps-goals]`
+  - users can edit title, direction, importance, weekly frequency, duration, and preferred time
+  - users can add and remove goals without leaving the step
+  - technical `backend/provider` status copy is replaced with service-ready wording
+  - local PWA service worker cache is `focus-pwa-v146`
+  - focused Personal Rhythm tests and full local regression pass
+  - local browser verification confirms no old textarea, no technical example, and no backend/provider copy
+- required_checks:
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `npm.cmd run test`
+  - `curl.exe -L http://127.0.0.1:8091/service-worker.js`
+  - `git diff --ignore-cr-at-eol --check`
+  - in-app browser verification at `http://127.0.0.1:8091/?open=useful&local=personal-rhythm-goals-v146`
+- sandbox_level: current_workspace
+- cycle_budget: one small local Personal Rhythm UI task
+- file_limit: up to 10 files
+- command_limit: up to 10 meaningful commands
+- chain_position: 119
+- stop_conditions:
+  - implementation requires server deploy
+  - implementation requires backend schema changes
+  - checks fail inside the approved Personal Rhythm scope
+- areas:
+  - `public/js/personal-schedule-ui.js`
+  - `public/css/app.css`
+  - `public/index.html`
+  - `public/service-worker.js`
+  - `tests/personal-schedule-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-107 Personal Schedule visible rename
+  - TASK-117 Personal Rhythm result review
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. The `Приоритетные цели` step now uses editable goal cards, the old semicolon textarea is gone, modal status copy no longer mentions backend/provider, and current local PWA cache is `focus-pwa-v146`.
+- commit_status: pending
+- notes: UI/service-worker/test syntax passed; focused Personal Rhythm tests passed 20/20; full `npm.cmd run test` passed 277/277; local `http://127.0.0.1:8091/service-worker.js` returned `focus-pwa-v146`; in-app browser verification confirmed four goal cards and no old technical UI. No server deploy, commit, or git push.
+
+## TASK-120
+
+- title: Complete local Holidays QA and fix cache/text defects
+- status: DONE
+- owner_gate: owner_approved_holidays_qa_pass_2026-08-05
+- task_type: holiday_settings_qa_hotfix
+- priority: high
+- source: owner approved the recommended local QA plan for the Holidays section.
+- spec_reference: `docs/specs/holiday-settings-qa-cache-description-hotfix.md`
+- spec_status: implemented_local_pending_commit
+- goal: verify Holidays settings, calendar rendering, and detail cards locally, then fix defects found during QA.
+- out_of_scope:
+  - server deploy
+  - changing Personal Rhythm behavior
+  - changing the holiday catalog content
+  - git push, tags, or release work
+- acceptance_criteria:
+  - `selected` professional mode still enables categories before a checkbox is selected
+  - saved local professional holiday preferences survive reload when the sync API is offline
+  - `Не показывать` removes professional holidays from the calendar after restore
+  - religious holiday detail accents are green
+  - secular working holiday detail accents are orange
+  - secular non-working holiday detail accents are red
+  - generated detail descriptions do not start a new sentence with lowercase timing text
+  - local app JS marker is `focus-20260805-holiday-preferences-cache-2`
+  - local PWA service worker cache was later superseded by `focus-pwa-v146`
+- required_checks:
+  - `node --check public/js/app.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/sync-integration-assets.test.mjs`
+  - `node --test tests/sync-integration-assets.test.mjs tests/holiday-catalog.test.mjs tests/holiday-sync.test.mjs`
+  - `git diff --ignore-cr-at-eol --check`
+  - `curl.exe -L http://127.0.0.1:5173/?local=holiday-qa-cache-2`
+  - in-app browser verification at `http://127.0.0.1:5173/?local=holiday-qa-cache-2`
+- sandbox_level: current_workspace
+- cycle_budget: one local Holidays QA pass plus small hotfixes
+- file_limit: up to 10 files
+- command_limit: up to 12 meaningful commands
+- chain_position: 120
+- stop_conditions:
+  - implementation requires server deploy
+  - implementation requires unrelated desktop layout changes
+  - checks fail inside the approved Holidays scope
+- areas:
+  - `public/js/app.js`
+  - `public/index.html`
+  - `public/service-worker.js`
+  - `tests/sync-integration-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-116 simple professional direction checklist
+  - TASK-118 selected-mode hotfix
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Holiday hydration now keeps cached local preferences when offline; detail timing text is capitalized after complete base descriptions; browser QA verified save/reload persistence, restored `Не показывать`, and red/green/orange holiday detail accents.
+- commit_status: pending
+- notes: App/service-worker/test syntax passed; focused Holidays tests passed 41/41; local curl served `holiday-preferences-cache-2` and `focus-pwa-v145` before later Personal Rhythm cache-bust work superseded it with `focus-pwa-v146`; `git diff --ignore-cr-at-eol --check` passed with LF-to-CRLF warnings only. The broader desktop layout test still fails on an unrelated dirty-worktree CSS expectation. No server deploy, commit, or git push.
+
+## TASK-121
+
+- title: Clarify Personal Rhythm energy step and Big Five schedule influence
+- status: DONE
+- owner_gate: owner_reported_unclear_personal_rhythm_energy_step_2026-08-05
+- task_type: personal_rhythm_ui_generation_tuning
+- priority: high
+- source: owner screenshot showed the `Энергия и плотность` step as unclear and asked how the 20-question survey affects schedule generation.
+- spec_reference: `docs/specs/personal-rhythm-energy-big-five-clarity.md`
+- spec_status: implemented_local_pending_commit
+- goal: make the energy step understandable and make Big Five answers visibly matter in the local deterministic draft.
+- out_of_scope:
+  - server deploy
+  - Holidays behavior
+  - backend schema changes
+  - creating social/family blocks without user-defined goals
+- acceptance_criteria:
+  - the energy step explains peak energy, density, focus-block length, breaks, hard-block streaks, and buffers
+  - user-visible Personal Rhythm survey copy does not expose backend wording
+  - selected energy peak moves the primary focus-block target
+  - completed Big Five scores reorder the local draft style and tune focus/break/buffer minutes
+  - local PWA service worker cache is `focus-pwa-v148`
+  - focused Personal Rhythm tests and full local regression pass
+  - browser verification confirms the new energy layout and no backend/provider copy
+- required_checks:
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/js/personal-schedule-planner.js`
+  - `node --check tests/personal-schedule-planner.test.mjs`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `npm.cmd run test`
+  - `curl.exe -L http://127.0.0.1:8091/service-worker.js`
+  - `git diff --ignore-cr-at-eol --check`
+  - in-app browser verification at `http://127.0.0.1:8091/?open=useful&local=personal-rhythm-energy-v148`
+- sandbox_level: current_workspace
+- cycle_budget: one local Personal Rhythm UI/generation tuning task
+- file_limit: up to 10 files
+- command_limit: up to 12 meaningful commands
+- chain_position: 121
+- stop_conditions:
+  - implementation requires server deploy
+  - implementation requires unrelated Holidays changes
+  - checks fail inside the approved Personal Rhythm scope
+- areas:
+  - `public/js/personal-schedule-ui.js`
+  - `public/js/personal-schedule-planner.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - `tests/personal-schedule-planner.test.mjs`
+  - `tests/personal-schedule-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-107 Personal Schedule visible rename
+  - TASK-119 goals form clarity
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. The energy step now uses clear tempo labels and hints; Big Five scores affect local draft style and timing; current local PWA cache is `focus-pwa-v148`.
+- commit_status: pending
+- notes: UI/planner/test syntax passed; focused Personal Rhythm tests passed 23/23; full `npm.cmd run test` passed 283/283; local `8091` served `focus-pwa-v148`; browser verified six energy fields, four explanation items, and no backend/provider copy. No server deploy, commit, or git push.
+
+## TASK-122
+
+- title: Explain Personal Rhythm draft result decisions
+- status: DONE
+- owner_gate: owner_asked_next_personal_rhythm_plan_after_main_priority_clarification_2026-08-05
+- task_type: personal_rhythm_result_clarity
+- priority: high
+- source: owner asked what "Главное дело" means and approved continuing the Personal Rhythm plan.
+- spec_reference: `docs/specs/personal-rhythm-result-explanation.md`
+- spec_status: implemented_local_pending_commit
+- goal: make the generated draft result explain why Focus arranged the rhythm the way it did.
+- out_of_scope:
+  - server deploy
+  - Holidays behavior
+  - backend schema changes
+  - internal source-id rename
+- acceptance_criteria:
+  - default primary goal text is "Главный приоритет дня"
+  - old default "Главное дело дня" is absent from planner defaults
+  - draft overview includes a "Почему так составлено" panel
+  - the panel explains the main priority, tempo settings, 20-question profile influence, and Focus constraints when applicable
+  - Personal Rhythm UI copy does not expose backend/provider wording
+  - local PWA service worker cache is `focus-pwa-v151`
+  - focused Personal Rhythm tests and full local regression pass
+- required_checks:
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/js/personal-schedule-planner.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `npm.cmd run test`
+  - `curl.exe -L http://127.0.0.1:8091/service-worker.js`
+  - `git diff --ignore-cr-at-eol --check`
+- sandbox_level: current_workspace
+- cycle_budget: one local Personal Rhythm result-clarity task
+- file_limit: up to 10 files
+- command_limit: up to 12 meaningful commands
+- chain_position: 122
+- stop_conditions:
+  - implementation requires server deploy
+  - implementation requires unrelated Holidays changes
+  - checks fail inside the approved Personal Rhythm scope
+- areas:
+  - `public/js/personal-schedule-ui.js`
+  - `public/js/personal-schedule-planner.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - `tests/personal-schedule-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-117 result review
+  - TASK-119 goals form clarity
+  - TASK-121 energy and Big Five clarity
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. The draft result now includes a "Почему так составлено" panel, the default primary goal is "Главный приоритет дня", and current local cache is `focus-pwa-v151`.
+- commit_status: pending
+- notes: UI/planner/service-worker/test syntax passed; focused Personal Rhythm tests passed 23/23 before and after the cache sync; full `npm.cmd run test` passed 285/285; local `8091` served `focus-pwa-v151`. In-app browser generation did not reach the result screen because the local generation service returned a failure, so the result panel was verified by source/static contracts rather than an end-to-end browser result. No server deploy, commit, or git push.
+
+## TASK-123
+
+- title: Add local fallback when Personal Rhythm generation service fails
+- status: DONE
+- owner_gate: owner_approved_next_plan_to_fix_personal_rhythm_generation_dead_end_2026-08-05
+- task_type: personal_rhythm_generation_reliability
+- priority: high
+- source: owner approved making the survey produce a result even when the local generation service is unavailable.
+- spec_reference: `docs/specs/personal-rhythm-local-generation-fallback.md`
+- spec_status: implemented_local_pending_commit
+- goal: prevent the Personal Rhythm survey from ending in a dead-end generation error.
+- out_of_scope:
+  - server deploy
+  - Daily Quotes fixes
+  - Holidays behavior
+  - backend endpoint contract changes
+- acceptance_criteria:
+  - sync generation remains the first attempt
+  - if sync generation does not return `draft_ready`, the UI creates a local deterministic draft from the same answers
+  - fallback drafts are marked with `source: "local_fallback"` and a safe reason code
+  - the draft result explains "Локальный черновик"
+  - the modal status says Focus assembled the draft locally
+  - user-visible Personal Rhythm UI source does not contain Backend wording
+  - local PWA service worker cache is `focus-pwa-v155`
+  - focused Personal Rhythm tests and browser fallback verification pass
+- required_checks:
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs`
+  - `npm.cmd run test`
+  - `curl.exe -L http://127.0.0.1:8091/service-worker.js`
+  - `git diff --ignore-cr-at-eol --check`
+  - browser verification at `http://127.0.0.1:8091/?open=useful&local=personal-rhythm-fallback-v155`
+- sandbox_level: current_workspace
+- cycle_budget: one local Personal Rhythm reliability task
+- file_limit: up to 10 files
+- command_limit: up to 12 meaningful commands
+- chain_position: 123
+- stop_conditions:
+  - implementation requires server deploy
+  - implementation requires unrelated Daily Quotes changes
+  - checks fail inside the approved Personal Rhythm scope
+- areas:
+  - `public/js/personal-schedule-ui.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - `tests/personal-schedule-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-117 result review
+  - TASK-121 local deterministic draft tuning
+  - TASK-122 result explanation
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Personal Rhythm now falls back to a local deterministic draft when the generation service is unavailable; the result explains "Локальный черновик", the modal status is local-fallback-aware, and current local cache is `focus-pwa-v155`.
+- commit_status: pending
+- notes: UI/service-worker/test syntax passed; focused Personal Rhythm tests passed 24/24; expanded affected tests passed 78/78; browser fallback verification with a simulated generation 503 reached `Черновик расписания`, showed `Почему так составлено` and `Локальный черновик`, exposed the import button, and had no generation-dead-end or Backend text. Full `npm.cmd run test` passed 286/288 and failed only two unrelated Daily Quotes display tests in `tests/daily-quotes-display.test.mjs`. No server deploy, commit, or git push.
+
+## TASK-124
+
+- title: Polish Personal Rhythm draft block editor cards
+- status: DONE
+- owner_gate: owner_approved_next_personal_rhythm_plan_after_local_generation_fallback_2026-08-05
+- task_type: personal_rhythm_draft_editor_clarity
+- priority: high
+- source: owner approved continuing the Personal Rhythm local-only plan after the survey could generate a local draft.
+- spec_reference: `docs/specs/personal-rhythm-draft-block-editor-polish.md`
+- spec_status: implemented_local_pending_commit
+- goal: make the editable draft block list understandable after survey completion.
+- out_of_scope:
+  - server deploy
+  - Daily Quotes fixes
+  - Holidays behavior
+  - generated draft logic changes
+  - backend endpoint contract changes
+- acceptance_criteria:
+  - draft blocks render as readable cards instead of table-like rows
+  - each block shows a day/time stamp, editable title, metadata chips, labeled start/end time fields, quick actions, and rationale
+  - category accents use existing block category ids through `data-ps-category`
+  - mobile layout has no horizontal overflow at 390px width
+  - local PWA service worker cache is `focus-pwa-v156`
+  - focused Personal Rhythm tests and browser editor verification pass
+- required_checks:
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs`
+  - `npm.cmd run test`
+  - browser verification at `http://127.0.0.1:8091/?open=useful&local=personal-rhythm-block-editor-v156`
+  - mobile browser metrics at `390x844`
+  - `git diff --ignore-cr-at-eol --check`
+- sandbox_level: current_workspace
+- cycle_budget: one local Personal Rhythm editor clarity task
+- file_limit: up to 10 files
+- command_limit: up to 12 meaningful commands
+- chain_position: 124
+- stop_conditions:
+  - implementation requires server deploy
+  - implementation requires unrelated Daily Quotes changes
+  - checks fail inside the approved Personal Rhythm scope
+- areas:
+  - `public/js/personal-schedule-ui.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - `tests/personal-schedule-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-109 quick block edits
+  - TASK-117 result review
+  - TASK-123 local generation fallback
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. Personal Rhythm draft blocks now render as cards with day/time stamps, a prominent editable title, metadata chips, labeled start/end time fields, quick actions, category accents, and mobile-safe layout; current local cache is `focus-pwa-v156`.
+- commit_status: pending
+- notes: UI/service-worker/test syntax passed; focused Personal Rhythm tests passed 24/24; expanded affected tests passed 78/78; browser verification showed local fallback status, `Почему так составлено`, `Локальный черновик`, import availability, readable block rows, `Начало`/`Конец` labels, no Backend wording, and no mobile horizontal overflow at 390px. Full `npm.cmd run test` passed 290/291 and failed only the unrelated Daily Quotes `icon-copy` expectation in `tests/daily-quotes-display.test.mjs`. No server deploy, commit, or git push.
+
+## TASK-125
+
+- title: Clarify Personal Rhythm final import confirmation
+- status: DONE
+- owner_gate: owner_approved_next_personal_rhythm_plan_after_block_editor_polish_2026-08-06
+- task_type: personal_rhythm_import_confirmation_clarity
+- priority: high
+- source: owner approved continuing the Personal Rhythm local-only plan after the draft block editor polish.
+- spec_reference: `docs/specs/personal-rhythm-import-confirmation-clarity.md`
+- spec_status: implemented_local_pending_commit
+- goal: make the final import confirmation clearly explain what will be created in Focus.
+- out_of_scope:
+  - server deploy
+  - Daily Quotes changes
+  - Holidays behavior
+  - generated draft logic changes
+  - import batch contract changes
+- acceptance_criteria:
+  - confirmation step renders a clear import plan section
+  - selected variant/source, block count, day count, and total duration are visible
+  - schedule, tasks, and reminders are shown as decision cards
+  - disabled tasks/reminders remain explicit until their checkboxes are enabled
+  - schedule block examples are visible before import
+  - rollback copy is visible before final import
+  - mobile layout has no horizontal overflow at 390px width
+  - local PWA service worker cache is `focus-pwa-v157`
+  - focused Personal Rhythm tests, expanded affected tests, browser verification, full regression, and diff-check pass
+- required_checks:
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs`
+  - browser verification at `http://127.0.0.1:8091/?open=useful&local=personal-rhythm-import-confirm-v157-desktop-only`
+  - mobile browser metrics at `390x844`
+  - `npm.cmd run test`
+  - `curl.exe -L http://127.0.0.1:8091/service-worker.js`
+  - `git diff --ignore-cr-at-eol --check`
+- sandbox_level: current_workspace
+- cycle_budget: one local Personal Rhythm confirmation clarity task
+- file_limit: up to 10 files
+- command_limit: up to 12 meaningful commands
+- chain_position: 125
+- stop_conditions:
+  - implementation requires server deploy
+  - implementation requires unrelated Daily Quotes or Holidays changes
+  - checks fail inside the approved Personal Rhythm scope
+- areas:
+  - `public/js/personal-schedule-ui.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - `tests/personal-schedule-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-113 import task context
+  - TASK-117 result review
+  - TASK-124 draft block editor polish
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. The final Personal Rhythm import confirmation now shows selected variant/source, block/day/duration summary, decision cards for schedule/tasks/reminders, examples of blocks inside the schedule, rollback copy, and mobile-safe layout; current local cache is `focus-pwa-v157`.
+- commit_status: pending
+- notes: UI/service-worker/test syntax passed; focused Personal Rhythm tests passed 24/24; expanded affected tests passed 78/78; browser verification showed `Подтверждение импорта`, `Перед добавлением`, `Внутри расписания`, 3 decision cards, 3 block examples, the import button, no Backend wording, and no mobile horizontal overflow at 390px. Full `npm.cmd run test` passed 291/291; local `8091` served `focus-pwa-v157`; diff-check passed with LF-to-CRLF warnings only. No server deploy, commit, or git push.
+
+## TASK-126
+
+- title: Clarify Personal Rhythm post-import history result
+- status: DONE
+- owner_gate: owner_approved_next_personal_rhythm_plan_after_import_confirmation_clarity_2026-08-06
+- task_type: personal_rhythm_post_import_history_clarity
+- priority: high
+- source: owner approved continuing the Personal Rhythm local-only plan after import confirmation clarity.
+- spec_reference: `docs/specs/personal-rhythm-post-import-history-clarity.md`
+- spec_status: implemented_local_pending_commit
+- goal: make the screen after import explain what was added, where to find it in Focus, and how to rollback.
+- out_of_scope:
+  - server deploy
+  - Daily Quotes changes
+  - Holidays behavior
+  - generated draft logic changes
+  - import batch contract changes
+- acceptance_criteria:
+  - history step renders a latest-import result card
+  - created schedules, optional tasks, and optional reminders counts are visible
+  - visible destination cards explain where to find schedules, tasks, and reminders
+  - rollback remains visible for the latest applied import
+  - applied and rolled-back import rows have distinct status markers
+  - history step title is `История ритма дня`
+  - mobile layout has no horizontal overflow at 390px width
+  - local PWA service worker cache is `focus-pwa-v159`
+  - focused Personal Rhythm tests, expanded affected tests, browser verification, full regression, and diff-check pass
+- required_checks:
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs`
+  - browser verification at `http://127.0.0.1:8093/?open=useful&local=personal-rhythm-post-import-v159-e2e`
+  - mobile browser metrics at `390x844`
+  - `npm.cmd run test`
+  - `curl.exe -L http://127.0.0.1:8093/service-worker.js`
+  - `git diff --ignore-cr-at-eol --check`
+- sandbox_level: current_workspace
+- cycle_budget: one local Personal Rhythm post-import clarity task
+- file_limit: up to 10 files
+- command_limit: up to 12 meaningful commands
+- chain_position: 126
+- stop_conditions:
+  - implementation requires server deploy
+  - implementation requires unrelated Daily Quotes or Holidays changes
+  - checks fail inside the approved Personal Rhythm scope
+- areas:
+  - `public/js/personal-schedule-ui.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - `tests/personal-schedule-assets.test.mjs`
+  - Project Maestro memory
+- dependencies:
+  - TASK-113 import task context
+  - TASK-115 imported task cleanup
+  - TASK-125 import confirmation clarity
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. The Personal Rhythm history screen now opens with a latest-import result card, visible object counts, destination cards for schedules/tasks/reminders, rollback action, distinct import history rows, and the title `История ритма дня`; current local cache is `focus-pwa-v159`.
+- commit_status: pending
+- notes: UI/test syntax passed; focused Personal Rhythm tests passed 25/25; expanded affected tests passed 79/79; browser verification showed `История ритма дня`, `Добавлено в Focus`, visible `Где искать добавленное`, `Раздел расписаний Focus`, 3 destination cards, 3 import-impact counters, rollback action, no Backend wording, and no mobile horizontal overflow at 390px. Full `npm.cmd run test` passed 292/292; local `8093` served `focus-pwa-v159`; diff-check passed with LF-to-CRLF warnings only. No server deploy, commit, or git push.
+
+## TASK-127
+
+- title: Show imported schedule contents in Personal Rhythm history
+- status: DONE
+- owner_gate: owner_approved_next_personal_rhythm_plan_after_post_import_history_clarity_2026-08-06
+- task_type: personal_rhythm_post_import_schedule_snapshot
+- priority: high
+- source: owner approved continuing the Personal Rhythm local-only plan after post-import history clarity.
+- spec_reference: `docs/specs/personal-rhythm-import-schedule-snapshot.md`
+- spec_status: implemented_local_pending_commit
+- goal: make the Personal Rhythm post-import history show what is inside the imported schedule, not only how many Focus objects were created.
+- out_of_scope:
+  - server deploy
+  - Daily Quotes changes
+  - Holidays behavior
+  - generated draft logic changes
+  - import batch contract changes
+- acceptance_criteria:
+  - latest-import result renders `personal-schedule-import-snapshot`
+  - snapshot visibly includes `Что внутри расписания`
+  - imported schedule title, day count, and block count are visible
+  - first visible day and block lines from `schedule.dayTimes` are visible
+  - hidden days and hidden blocks are summarized instead of overflowing the modal
+  - import rows render `personal-schedule-history-import__summary`
+  - history row summary says `первый день`, not `первый блок`
+  - mobile layout has no horizontal overflow at 390px width
+  - local PWA service worker cache is `focus-pwa-v163`
+  - focused Personal Rhythm tests, expanded affected tests, browser verification, full regression, and diff-check pass
+- required_checks:
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/service-worker.js`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs`
+  - browser verification at `http://127.0.0.1:8093/?open=useful&local=personal-rhythm-import-snapshot-v163-e2e`
+  - mobile browser metrics at `390x844`
+  - `npm.cmd run test`
+  - `curl.exe -L http://127.0.0.1:8093/service-worker.js`
+  - `git diff --ignore-cr-at-eol --check`
+- sandbox_level: current_workspace
+- cycle_budget: one local Personal Rhythm post-import clarity task
+- file_limit: up to 10 files
+- command_limit: up to 12 meaningful commands
+- chain_position: 127
+- stop_conditions:
+  - implementation requires server deploy
+  - implementation requires unrelated Daily Quotes or Holidays changes
+  - checks fail inside the approved Personal Rhythm scope
+- areas:
+  - `public/js/personal-schedule-ui.js`
+  - `public/css/app.css`
+  - `public/service-worker.js`
+  - `tests/personal-schedule-assets.test.mjs`
+  - `docs/specs/personal-rhythm-import-schedule-snapshot.md`
+  - Project Maestro memory
+- dependencies:
+  - TASK-125 import confirmation clarity
+  - TASK-126 post-import history clarity
+- design_review_required: false
+- security_review_required: false
+- outcome: Implemented locally. The Personal Rhythm history result now shows the imported schedule contents with a `Что внутри расписания` snapshot, day/block totals, first day/block lines, hidden-item summaries, compact import row summaries, and current local cache `focus-pwa-v163`.
+- commit_status: pending
+- notes: UI/service-worker syntax passed; focused Personal Rhythm tests passed 25/25; expanded affected tests passed 80/80; browser verification showed `История ритма дня`, `Что внутри расписания`, imported schedule day/block content, `Расписание: 4 дня · 7 блоков · первый день: Четверг`, no `первый блок` wording, and no mobile horizontal overflow at 390px. Full `npm.cmd run test` passed 297/297; local `8093` served `focus-pwa-v163`; diff-check passed with LF-to-CRLF warnings only. No server deploy, commit, or git push.
+
+## TASK-128
+
+- title: Add server-side Greeting Assistant AI provider boundary
+- status: DONE
+- owner_gate: owner_requested_greeting_ai_provider_with_gigachat_production_adapter_2026-08-06
+- task_type: greeting_ai_provider_foundation
+- priority: high
+- source: owner requested a Greeting Assistant generation tool that uses a server-side large language model through Focus backend, with GigaChat as the first Russian production adapter and mock development mode.
+- spec_reference: `docs/specs/greeting-ai-provider.md`
+- spec_status: implemented_local_pending_commit
+- goal: add a provider-neutral Greeting Assistant AI boundary with mock, disabled, and GigaChat implementations while keeping keys, tokens, and production model selection server-side only.
+- out_of_scope:
+  - requesting or storing real production credentials
+  - live GigaChat API calls
+  - production model comparison or activation
+  - frontend access to provider keys, access tokens, provider URLs, or production model names
+  - provider-side draft persistence, copying, birthday/holiday mutation, reminder creation, message sending, or sent-status updates
+  - server deploy, git push, or production rollout
+- acceptance_criteria:
+  - `GreetingAIProvider` contract supports `generateGreeting()` and `reviseGreeting()`
+  - `MockGreetingAIProvider`, `DisabledGreetingAIProvider`, and `GigaChatGreetingAIProvider` exist behind the same contract
+  - backend exposes account-scoped greeting status, generation, and revision routes
+  - frontend calls Focus backend only and never calls GigaChat directly
+  - no authorization key, access token, production model, or provider URL is exposed to frontend, localStorage, or status UI
+  - GigaChat adapter uses authorization-key token acquisition, token caching, safe refresh, timeout, limited retry, rate limiting, structured response parsing, and server validation
+  - missing provider configuration shows `Генерация поздравлений пока недоступна. Анкету можно сохранить и продолжить позднее.`
+  - mock mode supports the full user scenario with three variants, revision, copy, save draft, and restore draft
+  - production activation documentation includes environment variables and model comparison checklist
+  - focused tests, browser smoke checks, and full local regression pass
+- required_checks:
+  - `node --check server/greeting-ai-provider.mjs`
+  - `node --check server/sync-server.mjs`
+  - `node --check public/js/sync.js`
+  - `node --check public/js/app.js`
+  - browser mock smoke at `http://127.0.0.1:8082`
+  - browser disabled smoke at `http://127.0.0.1:8083`
+  - `node --test tests/focus-sync-server.test.mjs tests/sync-integration-assets.test.mjs`
+  - `npm.cmd run test`
+- sandbox_level: current_workspace
+- cycle_budget: one local Greeting Assistant provider foundation task
+- file_limit: up to 14 files plus QA artifacts
+- command_limit: up to 20 meaningful commands
+- chain_position: 128
+- stop_conditions:
+  - implementation requires real provider credentials
+  - implementation requires live external API calls
+  - implementation requires frontend storage or display of secrets, tokens, or production model names
+  - production deploy or git push is needed
+- areas:
+  - `server/greeting-ai-provider.mjs`
+  - `server/greeting-ai-provider.d.ts`
+  - `server/sync-server.mjs`
+  - `public/js/sync.js`
+  - `public/js/app.js`
+  - `public/css/app.css`
+  - `public/index.html`
+  - `public/service-worker.js`
+  - `tests/focus-sync-server.test.mjs`
+  - `tests/sync-integration-assets.test.mjs`
+  - `docs/specs/greeting-ai-provider.md`
+  - Project Maestro memory
+- dependencies:
+  - existing Focus sync account route conventions
+  - existing Greeting Assistant UI surfaces for birthdays and holidays
+  - existing server-side provider pattern used by Personal Rhythm/transcription work
+- design_review_required: true
+- security_review_required: true
+- outcome: Implemented locally. Greeting Assistant now uses Focus backend routes and a provider-neutral server contract; mock and disabled flows are browser-verified; GigaChat production adapter is scaffolded with server-only auth/token handling, structured output, retries, timeout, rate limiting, and shared validation; current local cache is `focus-pwa-v166`.
+- commit_status: pending
+- notes: No real credentials were requested or added and no live provider calls were performed. Official GigaChat REST/structured-output docs were checked before implementing the adapter headers/payload shape. Mock browser smoke passed with 3 distinct variants, revision, copy, save, restore, and no provider secrets in `localStorage`; disabled mobile smoke passed with the controlled unavailable message and disabled generation action. Syntax checks passed; focused server/static tests passed 159/159; full `npm.cmd run test` passed 297/297; `git diff --ignore-cr-at-eol --check` passed with LF-to-CRLF warnings only. No server deploy, commit, or git push.
+
+## TASK-129
+
+- title: Open full imported Personal Rhythm from history
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: high
+- source: owner asked to continue local-only Personal Rhythm work after the post-import schedule snapshot.
+- spec_reference: `docs/specs/personal-rhythm-import-full-rhythm-view.md`
+- spec_status: implemented_local_pending_commit
+- goal: let the user open a full read-only view of the imported Personal Rhythm schedule from history instead of seeing only a compact snapshot.
+- out_of_scope:
+  - server deployment
+  - changing generated draft logic
+  - changing import, rollback, storage, or sync contracts
+  - editing Daily Quotes, Holidays, Diary, Greeting Assistant, or other app sections
+  - changing internal `personal_schedule_planner` ids
+- acceptance_criteria:
+  - latest import result exposes `Открыть полный ритм`
+  - import history rows expose `Открыть ритм` when a saved schedule exists
+  - opening the action shows `Полный ритм дня`
+  - the detail view renders every `schedule.dayTimes` day and every saved block
+  - block lines are split into readable time and title fields
+  - metrics show days, blocks, and import status
+  - footer shows schedule scope plus task/reminder counts
+  - applied batches can still be rolled back from the detail view
+  - mobile layout has no horizontal overflow at 390px width
+- required_checks:
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check public/service-worker.js`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs tests/desktop-layout-css.test.mjs tests/install-quality-css.test.mjs tests/legal-pages.test.mjs tests/sync-integration-assets.test.mjs`
+  - isolated Playwright browser smoke on desktop and 390px mobile
+  - `npm.cmd run test`
+- sandbox_level: current_workspace
+- cycle_budget: one local Personal Rhythm history drill-down task
+- file_limit: Personal Rhythm UI/CSS/tests/docs only
+- command_limit: up to 16 meaningful commands
+- chain_position: 129
+- stop_conditions:
+  - implementation requires server deployment
+  - implementation requires changing import persistence contracts
+  - implementation requires changing another app section
+- areas:
+  - `public/js/personal-schedule-ui.js`
+  - `public/css/app.css`
+  - `tests/personal-schedule-assets.test.mjs`
+  - service worker cache tests
+  - Project Maestro memory
+- dependencies:
+  - TASK-126 post-import history result card
+  - TASK-127 imported schedule snapshot
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. Personal Rhythm history can open a full read-only imported rhythm detail with every saved day/block, metrics, footer counts, and rollback for applied batches; current local cache is `focus-pwa-v166`.
+- commit_status: pending
+- notes: Focused Personal Rhythm tests passed 25/25; expanded affected tests passed 80/80; isolated Playwright smoke passed on desktop and 390px mobile with 4 days, 12 blocks, and no horizontal overflow; full `npm.cmd run test` passed 297/297. No server deploy, commit, or git push.
