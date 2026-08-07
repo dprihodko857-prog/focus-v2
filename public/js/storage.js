@@ -10,6 +10,7 @@ export const DIARY_KEY = "focusDiaryEntries";
 export const DIARY_PIN_KEY = "focusDiaryPin";
 export const QUOTE_CACHE_KEY = "focusDailyQuotesCache";
 export const QUOTE_HISTORY_CACHE_KEY = "focusDailyQuoteHistoryCache";
+export const QUOTE_FAVORITES_CACHE_KEY = "focusFavoriteQuotesCache";
 export const INTERESTING_TODAY_CACHE_KEY = "focusInterestingTodayCache";
 export const HOLIDAY_CATALOG_CACHE_KEY = "focusHolidayCatalogCache";
 export const HOLIDAY_PREFERENCES_CACHE_KEY = "focusHolidayPreferencesCache";
@@ -199,6 +200,19 @@ export function createFocusStorage({
         ? cache
         : null;
       await putValue(QUOTE_HISTORY_CACHE_KEY, normalizedCache);
+      return normalizedCache;
+    },
+
+    async loadFavoriteQuotesCache() {
+      const cache = await getValue(QUOTE_FAVORITES_CACHE_KEY);
+      return cache && typeof cache === "object" && !Array.isArray(cache) ? cache : null;
+    },
+
+    async saveFavoriteQuotesCache(cache) {
+      const normalizedCache = cache && typeof cache === "object" && !Array.isArray(cache)
+        ? cache
+        : null;
+      await putValue(QUOTE_FAVORITES_CACHE_KEY, normalizedCache);
       return normalizedCache;
     },
 

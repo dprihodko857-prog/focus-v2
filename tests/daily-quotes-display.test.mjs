@@ -107,16 +107,35 @@ test("daily quote cards expose explicit favorite, share and copy actions", () =>
 test("daily quotes modal exposes favorite quotes view", () => {
   const modalRenderer = getFunctionBody(appJs, "renderDailyQuotesModal");
   const favoriteLoader = getFunctionBody(appJs, "loadFavoriteQuotes");
+  const favoriteCacheLoader = getFunctionBody(appJs, "loadFavoriteQuotesFromCache");
+  const favoriteCacheSaver = getFunctionBody(appJs, "saveFavoriteQuotesToCache");
+  const favoriteCacheSync = getFunctionBody(appJs, "syncFavoriteQuotesFromCache");
+  const favoriteMerger = getFunctionBody(appJs, "mergeFavoriteQuotes");
+  const favoriteStateApplier = getFunctionBody(appJs, "applyFavoriteStateToQuoteCollections");
   const favoriteAction = getFunctionBody(appJs, "toggleQuoteFavorite");
   const quoteFinder = getFunctionBody(appJs, "findQuoteForAction");
 
   assert.match(appJs, /favoriteQuotesState/);
+  assert.match(appJs, /QUOTE_FAVORITES_CACHE_KEY/);
   assert.match(appJs, /function renderDailyQuoteTabs/);
   assert.match(appJs, /data-quote-view="favorites"/);
   assert.match(modalRenderer, /quoteModalView === "favorites"/);
   assert.match(modalRenderer, /Избранных цитат пока нет/);
+  assert.match(favoriteLoader, /syncFavoriteQuotesFromCache/);
   assert.match(favoriteLoader, /scheduleSync\.getFavoriteQuotes/);
+  assert.match(favoriteLoader, /saveFavoriteQuotesToCache/);
+  assert.match(favoriteLoader, /offline-cached/);
+  assert.match(favoriteCacheLoader, /scheduleStorage\.loadFavoriteQuotesCache/);
+  assert.match(favoriteCacheSaver, /scheduleStorage\.saveFavoriteQuotesCache/);
+  assert.match(favoriteCacheSaver, /QUOTE_FAVORITES_CACHE_KEY/);
+  assert.match(favoriteCacheSync, /applyFavoriteStateToQuoteCollections/);
+  assert.match(favoriteMerger, /byId\.has\(quote\.id\)/);
+  assert.match(favoriteStateApplier, /dailyQuotesState\.quotes/);
+  assert.match(favoriteStateApplier, /quoteHistoryState\.sets/);
   assert.match(favoriteAction, /favoriteQuotesState\.quotes/);
+  assert.match(favoriteAction, /nextIsFavorite/);
+  assert.match(favoriteAction, /saveFavoriteQuotesToCache/);
+  assert.match(favoriteAction, /локальное избранное/);
   assert.match(quoteFinder, /dailyQuotesState\.quotes/);
   assert.match(quoteFinder, /favoriteQuotesState\.quotes/);
   assert.match(appCss, /\.daily-quotes-tabs\s*\{/);
@@ -136,6 +155,7 @@ test("daily quotes modal exposes quote history view", () => {
   const historyClear = getFunctionBody(appJs, "clearQuoteHistory");
   const quoteSetFormatter = getFunctionBody(appJs, "formatQuoteSetShareText");
   const quoteFinder = getFunctionBody(appJs, "findQuoteForAction");
+  const favoriteStateApplier = getFunctionBody(appJs, "applyFavoriteStateToQuoteCollections");
   const favoriteAction = getFunctionBody(appJs, "toggleQuoteFavorite");
 
   assert.match(appJs, /quoteHistoryState/);
@@ -164,7 +184,7 @@ test("daily quotes modal exposes quote history view", () => {
   assert.match(historyCacheSaver, /saveDailyQuoteHistoryCache\(null\)/);
   assert.match(quoteSetFormatter, /formatQuoteMarqueeText/);
   assert.doesNotMatch(quoteSetFormatter, /sourceTitle|sourceReference/);
-  assert.match(favoriteAction, /quoteHistoryState\.sets/);
+  assert.match(favoriteStateApplier, /quoteHistoryState\.sets/);
   assert.match(favoriteAction, /saveQuoteHistoryToCache/);
   assert.match(quoteFinder, /getQuoteHistoryQuotes/);
   assert.match(appCss, /\.daily-quotes-history-day\s*\{/);

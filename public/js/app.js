@@ -1,4 +1,4 @@
-import { createFocusStorage, DIARY_PIN_KEY, HOLIDAY_CATALOG_CACHE_KEY, HOLIDAY_PREFERENCES_CACHE_KEY, HOLIDAY_RELIGIOUS_PREFERENCES_KEY, INTERESTING_TODAY_CACHE_KEY, LEGACY_BIRTHDAYS_KEY, LEGACY_DIARY_KEY, LEGACY_NOTES_KEY, LEGACY_SCHEDULES_KEY, LEGACY_TASKS_KEY, parseScheduleList, QUOTE_CACHE_KEY, QUOTE_HISTORY_CACHE_KEY, REMINDERS_KEY } from "./storage.js";
+import { createFocusStorage, DIARY_PIN_KEY, HOLIDAY_CATALOG_CACHE_KEY, HOLIDAY_PREFERENCES_CACHE_KEY, HOLIDAY_RELIGIOUS_PREFERENCES_KEY, INTERESTING_TODAY_CACHE_KEY, LEGACY_BIRTHDAYS_KEY, LEGACY_DIARY_KEY, LEGACY_NOTES_KEY, LEGACY_SCHEDULES_KEY, LEGACY_TASKS_KEY, parseScheduleList, QUOTE_CACHE_KEY, QUOTE_FAVORITES_CACHE_KEY, QUOTE_HISTORY_CACHE_KEY, REMINDERS_KEY } from "./storage.js";
 import { createFocusAuthClient } from "./auth.js";
 import { createFocusSyncClient } from "./sync.js";
 import { createFocusNotifications, createLocalReminder } from "./notifications.js";
@@ -1587,17 +1587,25 @@ async function loadFavoriteQuotes() {
     status: "loading",
   };
   renderDailyQuotesModal();
+  const cached = await syncFavoriteQuotesFromCache();
+  if (cached) {
+    renderDailyQuotesModal();
+  }
   const result = await scheduleSync.getFavoriteQuotes();
-  favoriteQuotesState = result.status === "ok"
-    ? {
+  if (result.status === "ok") {
+    favoriteQuotesState = {
       status: "ok",
-      quotes: result.quotes || [],
+      quotes: mergeFavoriteQuotes(favoriteQuotesState.quotes, result.quotes || []),
       checkedAt: result.checkedAt || null,
-    }
-    : {
-      ...favoriteQuotesState,
-      status: "offline",
     };
+    applyFavoriteStateToQuoteCollections();
+    await saveFavoriteQuotesToCache(favoriteQuotesState);
+  } else {
+    favoriteQuotesState = {
+      ...favoriteQuotesState,
+      status: favoriteQuotesState.quotes.length ? "offline-cached" : "offline",
+    };
+  }
   renderDailyQuotesModal();
 }
 
@@ -1617,6 +1625,7 @@ async function loadQuoteHistory() {
       checkedAt: cached.checkedAt || cached.savedAt || quoteHistoryState.checkedAt,
       days: cached.days || quoteHistoryState.days,
     };
+    await syncFavoriteQuotesFromCache();
     renderDailyQuotesModal();
   }
   const result = await scheduleSync.getQuoteHistory({ timezone, days: quoteHistoryState.days });
@@ -1627,6 +1636,7 @@ async function loadQuoteHistory() {
       checkedAt: result.checkedAt || null,
       days: result.days || quoteHistoryState.days,
     };
+    await syncFavoriteQuotesFromCache();
     await saveQuoteHistoryToCache(quoteHistoryState);
   } else {
     quoteHistoryState = {
@@ -1705,6 +1715,129 @@ async function saveQuoteHistoryToCache(historyState) {
     savedAt,
     storageKey: QUOTE_HISTORY_CACHE_KEY,
   });
+}
+
+async function loadFavoriteQuotesFromCache() {
+  try {
+    const cache = await scheduleStorage.loadFavoriteQuotesCache();
+    return normalizeFavoriteQuotesCache(cache);
+  } catch {
+    return null;
+  }
+}
+
+async function syncFavoriteQuotesFromCache() {
+  const cached = await loadFavoriteQuotesFromCache();
+  if (!cached) {
+    if (favoriteQuotesState.quotes.length) {
+      applyFavoriteStateToQuoteCollections();
+    }
+    return null;
+  }
+
+  favoriteQuotesState = {
+    ...favoriteQuotesState,
+    status: favoriteQuotesState.status === "idle" || favoriteQuotesState.status === "loading"
+      ? "cached"
+      : favoriteQuotesState.status,
+    quotes: mergeFavoriteQuotes(favoriteQuotesState.quotes, cached.quotes),
+    checkedAt: favoriteQuotesState.checkedAt || cached.checkedAt || cached.savedAt || null,
+  };
+  applyFavoriteStateToQuoteCollections();
+  return cached;
+}
+
+async function saveFavoriteQuotesToCache(favoritesState) {
+  const quotes = mergeFavoriteQuotes(favoritesState.quotes || []);
+  if (!quotes.length) {
+    await scheduleStorage.saveFavoriteQuotesCache(null);
+    return;
+  }
+
+  const savedAt = new Date().toISOString();
+  await scheduleStorage.saveFavoriteQuotesCache({
+    quotes,
+    checkedAt: favoritesState.checkedAt || savedAt,
+    savedAt,
+    storageKey: QUOTE_FAVORITES_CACHE_KEY,
+  });
+}
+
+function normalizeFavoriteQuotesCache(cache) {
+  if (!cache || typeof cache !== "object" || Array.isArray(cache)) {
+    return null;
+  }
+
+  const quotes = mergeFavoriteQuotes(cache.quotes || []);
+  if (!quotes.length) {
+    return null;
+  }
+
+  return {
+    quotes,
+    checkedAt: cache.checkedAt || null,
+    savedAt: cache.savedAt || null,
+  };
+}
+
+function mergeFavoriteQuotes(...quoteLists) {
+  const byId = new Map();
+  quoteLists.flat().forEach((rawQuote, index) => {
+    const quote = normalizeFavoriteQuoteForCache(rawQuote, index);
+    if (!quote || byId.has(quote.id)) return;
+    byId.set(quote.id, quote);
+  });
+
+  return [...byId.values()].sort((first, second) => {
+    const firstTime = Date.parse(first.favoritedAt || first.updatedAt || first.createdAt || "") || 0;
+    const secondTime = Date.parse(second.favoritedAt || second.updatedAt || second.createdAt || "") || 0;
+    if (firstTime !== secondTime) {
+      return secondTime - firstTime;
+    }
+    return first.text.localeCompare(second.text, "ru-RU");
+  });
+}
+
+function normalizeFavoriteQuoteForCache(quote, index) {
+  if (!quote || typeof quote !== "object" || Array.isArray(quote)) {
+    return null;
+  }
+
+  const id = String(quote.id || "").trim();
+  const text = String(quote.text || "").trim();
+  const authorName = String(quote.authorName || "").trim();
+  if (!id || !text || !authorName) {
+    return null;
+  }
+
+  return {
+    ...quote,
+    id,
+    position: Math.max(1, Math.floor(Number(quote.position) || index + 1)),
+    text,
+    authorName,
+    favoritedAt: quote.favoritedAt || quote.createdAt || quote.updatedAt || null,
+    isFavorite: true,
+  };
+}
+
+function applyFavoriteStateToQuoteCollections() {
+  if (favoriteQuotesState.status === "idle") return;
+  const favoriteIds = new Set(favoriteQuotesState.quotes.map(quote => quote.id));
+  dailyQuotesState.quotes = applyFavoriteStateToQuotes(dailyQuotesState.quotes, favoriteIds);
+  quoteHistoryState.sets = quoteHistoryState.sets.map(set => ({
+    ...set,
+    quotes: applyFavoriteStateToQuotes(set.quotes, favoriteIds),
+  }));
+}
+
+function applyFavoriteStateToQuotes(quotesList, favoriteIds) {
+  return Array.isArray(quotesList)
+    ? quotesList.map(quote => ({
+      ...quote,
+      isFavorite: favoriteIds.has(quote.id),
+    }))
+    : [];
 }
 
 function normalizeDailyQuotesCache(cache) {
@@ -2114,6 +2247,12 @@ function getFavoriteQuotesStatusText() {
   const count = favoriteQuotesState.quotes.length;
   if (favoriteQuotesState.status === "loading") {
     return "Загружаем избранные цитаты.";
+  }
+  if (favoriteQuotesState.status === "cached" && count > 0) {
+    return "Показываем локальное избранное.";
+  }
+  if (favoriteQuotesState.status === "offline-cached" && count > 0) {
+    return "Нет соединения. Показываем локальное избранное.";
   }
   if (favoriteQuotesState.status === "offline" && count > 0) {
     return "Нет соединения. Показываем ранее загруженное избранное.";
@@ -3544,39 +3683,41 @@ function shouldOpenHolidayInitialSetup() {
 async function toggleQuoteFavorite(quoteId) {
   const quote = findQuoteForAction(quoteId);
   if (!quote) return;
+  const nextIsFavorite = !quote.isFavorite;
   const result = quote.isFavorite
     ? await scheduleSync.unfavoriteQuote(quoteId)
     : await scheduleSync.favoriteQuote(quoteId);
-  if (result.status === "saved") {
-    quote.isFavorite = result.isFavorite;
-    dailyQuotesState.quotes = dailyQuotesState.quotes.map(item => item.id === quoteId
-      ? { ...item, isFavorite: result.isFavorite }
-      : item);
-    quoteHistoryState.sets = quoteHistoryState.sets.map(set => ({
-      ...set,
-      quotes: set.quotes.map(item => item.id === quoteId
-        ? { ...item, isFavorite: result.isFavorite }
-        : item),
-    }));
-    favoriteQuotesState.quotes = result.isFavorite
-      ? [
+  if (result.status === "invalid") {
+    setQuoteActionStatus("Не удалось изменить избранное для этой цитаты.");
+    return;
+  }
+
+  const savedOnServer = result.status === "saved";
+  const isFavorite = savedOnServer ? result.isFavorite : nextIsFavorite;
+  const checkedAt = new Date().toISOString();
+  favoriteQuotesState = {
+    ...favoriteQuotesState,
+    status: savedOnServer ? "ok" : "cached",
+    checkedAt,
+    quotes: isFavorite
+      ? mergeFavoriteQuotes([
         {
           ...quote,
           isFavorite: true,
-          favoritedAt: result.createdAt || new Date().toISOString(),
+          favoritedAt: result.createdAt || checkedAt,
         },
-        ...favoriteQuotesState.quotes.filter(item => item.id !== quoteId),
-      ]
-      : favoriteQuotesState.quotes.filter(item => item.id !== quoteId);
-    if (favoriteQuotesState.status === "idle") {
-      favoriteQuotesState.status = "ok";
-    }
-    await saveDailyQuotesToCache(dailyQuotesState);
-    await saveQuoteHistoryToCache(quoteHistoryState);
-    renderDailyQuotesModal();
-    renderQuote();
-    setQuoteActionStatus(result.isFavorite ? "Цитата добавлена в избранное." : "Цитата убрана из избранного.");
-  }
+      ], favoriteQuotesState.quotes)
+      : favoriteQuotesState.quotes.filter(item => item.id !== quoteId),
+  };
+  applyFavoriteStateToQuoteCollections();
+  await saveDailyQuotesToCache(dailyQuotesState);
+  await saveQuoteHistoryToCache(quoteHistoryState);
+  await saveFavoriteQuotesToCache(favoriteQuotesState);
+  renderDailyQuotesModal();
+  renderQuote();
+  setQuoteActionStatus(isFavorite
+    ? savedOnServer ? "Цитата добавлена в избранное." : "Цитата добавлена в локальное избранное."
+    : savedOnServer ? "Цитата убрана из избранного." : "Цитата убрана из локального избранного.");
 }
 
 async function shareQuote(quoteId) {

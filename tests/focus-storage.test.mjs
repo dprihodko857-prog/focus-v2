@@ -13,6 +13,7 @@ import {
   INTERESTING_TODAY_CACHE_KEY,
   parseScheduleList,
   QUOTE_CACHE_KEY,
+  QUOTE_FAVORITES_CACHE_KEY,
   QUOTE_HISTORY_CACHE_KEY,
   REMINDERS_KEY,
 } from "../public/js/storage.js";
@@ -263,6 +264,30 @@ test("daily quote history cache persists shown quote sets by date", async () => 
 
   await storage.saveDailyQuoteHistoryCache(null);
   assert.equal(await storage.loadDailyQuoteHistoryCache(), null);
+});
+
+test("favorite quotes cache persists local favorite quotes", async () => {
+  const indexedDB = createFakeIndexedDB();
+  const storage = createFocusStorage({ indexedDB, localStorage: createMemoryLocalStorage() });
+  const cache = {
+    quotes: [
+      {
+        id: "quote-1",
+        text: "Focus quote",
+        authorName: "Author",
+        isFavorite: true,
+        favoritedAt: "2026-08-04T09:00:00.000Z",
+      },
+    ],
+    savedAt: "2026-08-04T09:00:00.000Z",
+    storageKey: QUOTE_FAVORITES_CACHE_KEY,
+  };
+
+  await storage.saveFavoriteQuotesCache(cache);
+  assert.deepEqual(await storage.loadFavoriteQuotesCache(), cache);
+
+  await storage.saveFavoriteQuotesCache(null);
+  assert.equal(await storage.loadFavoriteQuotesCache(), null);
 });
 
 test("interesting today cache persists the current server set for offline display", async () => {
