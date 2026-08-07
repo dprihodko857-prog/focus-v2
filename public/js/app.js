@@ -5609,17 +5609,18 @@ async function reviseGreetingAssistant(button) {
 }
 
 function applyGreetingAssistantResult(result, input) {
-  if (result.status === "generated" && result.variants?.length) {
-    const firstVariant = result.variants[0];
+  const variants = result.status === "generated" ? normalizeGreetingDraftVariants(result.variants) : [];
+  if (variants.length) {
+    const firstVariant = variants[0];
     greetingAssistantState = {
       ...greetingAssistantState,
       status: "generated",
       providerConfigured: true,
       provider: result.provider || greetingAssistantState.provider,
-      variants: result.variants.slice(0, 3),
+      variants,
       selectedVariantId: firstVariant.id,
       editorText: firstVariant.text,
-      lastInput: input,
+      lastInput: normalizeGreetingDraftInput(input),
       warnings: result.warnings || [],
       errors: [],
       checkedAt: result.checkedAt || greetingAssistantState.checkedAt,
@@ -5661,15 +5662,7 @@ function saveGreetingAssistantDraft({ capture = true } = {}) {
     captureGreetingAssistantFormState();
   }
   const store = loadGreetingAssistantDraftStore();
-  store[greetingAssistantContext.key] = {
-    fields: greetingAssistantState.fields,
-    variants: greetingAssistantState.variants,
-    selectedVariantId: greetingAssistantState.selectedVariantId,
-    editorText: greetingAssistantState.editorText,
-    revisionInstruction: greetingAssistantState.revisionInstruction,
-    lastInput: greetingAssistantState.lastInput,
-    savedAt: new Date().toISOString(),
-  };
+  store[greetingAssistantContext.key] = createGreetingAssistantDraftPayload(greetingAssistantState);
   try {
     localStorage.setItem(GREETING_ASSISTANT_DRAFT_KEY, JSON.stringify(store));
   } catch {
@@ -5689,7 +5682,7 @@ function saveGreetingAssistantDraftFromUi() {
 
 function loadGreetingAssistantDraft(contextKey) {
   const draft = loadGreetingAssistantDraftStore()[contextKey || ""];
-  return draft && typeof draft === "object" && !Array.isArray(draft) ? draft : null;
+  return normalizeGreetingAssistantDraft(draft);
 }
 
 function loadGreetingAssistantDraftStore() {
@@ -5699,6 +5692,161 @@ function loadGreetingAssistantDraftStore() {
   } catch {
     return {};
   }
+}
+
+function createGreetingAssistantDraftPayload(state) {
+  const variants = normalizeGreetingDraftVariants(state.variants);
+  const selectedVariantId = sanitizeGreetingUiText(state.selectedVariantId, 120);
+  const normalizedSelectedVariantId = variants.some(variant => variant.id === selectedVariantId)
+    ? selectedVariantId
+    : variants[0]?.id || "";
+  return {
+    fields: normalizeGreetingDraftFields(state.fields),
+    variants,
+    selectedVariantId: normalizedSelectedVariantId,
+    editorText: sanitizeGreetingEditorText(state.editorText),
+    revisionInstruction: sanitizeGreetingUiText(state.revisionInstruction, 500),
+    lastInput: normalizeGreetingDraftInput(state.lastInput),
+    savedAt: new Date().toISOString(),
+  };
+}
+
+function normalizeGreetingAssistantDraft(draft) {
+  if (!draft || typeof draft !== "object" || Array.isArray(draft)) {
+    return null;
+  }
+
+  const variants = normalizeGreetingDraftVariants(draft.variants);
+  const selectedVariantId = sanitizeGreetingUiText(draft.selectedVariantId, 120);
+  const normalizedSelectedVariantId = variants.some(variant => variant.id === selectedVariantId)
+    ? selectedVariantId
+    : variants[0]?.id || "";
+  return {
+    fields: normalizeGreetingDraftFields(draft.fields),
+    variants,
+    selectedVariantId: normalizedSelectedVariantId,
+    editorText: sanitizeGreetingEditorText(draft.editorText || variants[0]?.text || ""),
+    revisionInstruction: sanitizeGreetingUiText(draft.revisionInstruction, 500),
+    lastInput: normalizeGreetingDraftInput(draft.lastInput),
+    savedAt: normalizeGreetingDraftTimestamp(draft.savedAt),
+  };
+}
+
+function normalizeGreetingDraftFields(fields = {}) {
+  const source = fields && typeof fields === "object" && !Array.isArray(fields) ? fields : {};
+  return {
+    recipientName: sanitizeGreetingUiText(source.recipientName, 160),
+    recipientRole: sanitizeGreetingUiText(source.recipientRole, 160),
+    sender: sanitizeGreetingUiText(source.sender, 160),
+    tone: ["warm", "official", "personal", "light_humor", "respectful"].includes(source.tone) ? source.tone : "warm",
+    length: ["short", "medium", "long"].includes(source.length) ? source.length : "medium",
+    addressMode: source.addressMode === "ty" ? "ty" : "vy",
+    personalNote: sanitizeGreetingUiText(source.personalNote, 1200),
+    forbiddenTopics: sanitizeGreetingUiText(source.forbiddenTopics, 500),
+    avoidAge: source.avoidAge === true,
+  };
+}
+
+function normalizeGreetingDraftVariants(variants = []) {
+  return Array.isArray(variants)
+    ? variants.map(normalizeGreetingDraftVariant).filter(Boolean).slice(0, 3)
+    : [];
+}
+
+function normalizeGreetingDraftVariant(variant, index) {
+  if (!variant || typeof variant !== "object" || Array.isArray(variant)) {
+    return null;
+  }
+
+  const text = sanitizeGreetingEditorText(variant.text);
+  if (!text) return null;
+  return {
+    id: sanitizeGreetingUiText(variant.id, 120) || `variant-${index + 1}`,
+    title: sanitizeGreetingUiText(variant.title, 120) || `??????? ${index + 1}`,
+    text,
+    tone: sanitizeGreetingUiText(variant.tone, 80) || "warm",
+    format: sanitizeGreetingUiText(variant.format, 80) || "plain_text",
+  };
+}
+
+function normalizeGreetingDraftInput(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return null;
+  }
+
+  const scenario = input.scenario === "holiday" ? "holiday" : input.scenario === "birthday" ? "birthday" : "";
+  if (!scenario) return null;
+
+  const event = input.event && typeof input.event === "object" && !Array.isArray(input.event) ? input.event : {};
+  const context = input.context && typeof input.context === "object" && !Array.isArray(input.context) ? input.context : {};
+  const bans = input.bans && typeof input.bans === "object" && !Array.isArray(input.bans) ? input.bans : {};
+  return {
+    scenario,
+    holidayType: ["public_holiday", "professional_holiday", "religious_holiday"].includes(input.holidayType) ? input.holidayType : null,
+    recipient: normalizeGreetingDraftPerson(input.recipient),
+    sender: sanitizeGreetingUiText(input.sender, 160),
+    addressMode: input.addressMode === "ty" ? "ty" : "vy",
+    tone: ["warm", "official", "personal", "light_humor", "respectful"].includes(input.tone) ? input.tone : "warm",
+    length: ["short", "medium", "long"].includes(input.length) ? input.length : "medium",
+    format: input.format === "message" || input.format === "toast" ? input.format : "plain_text",
+    variantCount: Math.max(1, Math.min(3, Math.floor(Number(input.variantCount) || 3))),
+    event: {
+      title: sanitizeGreetingUiText(event.title, 240),
+      date: normalizeGreetingDate(event.date),
+      holidayType: ["public_holiday", "professional_holiday", "religious_holiday"].includes(event.holidayType) ? event.holidayType : null,
+      tradition: sanitizeGreetingUiText(event.tradition, 80),
+      description: sanitizeGreetingUiText(event.description, 1200),
+    },
+    context: normalizeGreetingDraftContext(context),
+    bans: {
+      mentionAge: bans.mentionAge === true,
+      personalTopics: Array.isArray(bans.personalTopics)
+        ? bans.personalTopics.map(item => sanitizeGreetingUiText(item, 120)).filter(Boolean).slice(0, 8)
+        : [],
+    },
+  };
+}
+
+function normalizeGreetingDraftPerson(person = {}) {
+  const source = person && typeof person === "object" && !Array.isArray(person) ? person : {};
+  return {
+    name: sanitizeGreetingUiText(source.name, 160),
+    role: sanitizeGreetingUiText(source.role, 160),
+    gender: sanitizeGreetingUiText(source.gender, 40),
+  };
+}
+
+function normalizeGreetingDraftContext(context = {}) {
+  const source = context && typeof context === "object" && !Array.isArray(context) ? context : {};
+  const birthday = source.birthday && typeof source.birthday === "object" && !Array.isArray(source.birthday) ? source.birthday : null;
+  const holiday = source.holiday && typeof source.holiday === "object" && !Array.isArray(source.holiday) ? source.holiday : null;
+  return {
+    personalNote: sanitizeGreetingUiText(source.personalNote, 1200),
+    existingText: sanitizeGreetingEditorText(source.existingText),
+    allowedFacts: Array.isArray(source.allowedFacts)
+      ? source.allowedFacts.map(item => sanitizeGreetingUiText(item, 240)).filter(Boolean).slice(0, 8)
+      : [],
+    birthday: birthday ? {
+      name: sanitizeGreetingUiText(birthday.name, 160),
+      dateOfBirth: normalizeGreetingDate(birthday.dateOfBirth),
+      age: Number.isFinite(Number(birthday.age)) ? Math.max(0, Math.floor(Number(birthday.age))) : null,
+      note: sanitizeGreetingUiText(birthday.note, 1200),
+    } : null,
+    holiday: holiday ? {
+      title: sanitizeGreetingUiText(holiday.title, 240),
+      description: sanitizeGreetingUiText(holiday.description, 1200),
+      source: sanitizeGreetingUiText(holiday.source, 240),
+    } : null,
+  };
+}
+
+function sanitizeGreetingEditorText(value) {
+  return String(value || "").replace(/\r\n/g, "\n").replace(/\n{4,}/g, "\n\n\n").trim().slice(0, 2200);
+}
+
+function normalizeGreetingDraftTimestamp(value) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : "";
 }
 
 async function copyGreetingAssistantText() {

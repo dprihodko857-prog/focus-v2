@@ -208,6 +208,12 @@ test("sync client exposes paid feature entitlements", () => {
 });
 
 test("app shell exposes server-side greeting assistant provider flow", () => {
+  const draftBoundaryStart = appJs.indexOf("function createGreetingAssistantDraftPayload");
+  const draftBoundaryEnd = appJs.indexOf("async function copyGreetingAssistantText", draftBoundaryStart);
+  assert.notEqual(draftBoundaryStart, -1, "Greeting draft payload helper not found.");
+  assert.notEqual(draftBoundaryEnd, -1, "Greeting draft boundary end not found.");
+  const greetingDraftBoundary = appJs.slice(draftBoundaryStart, draftBoundaryEnd);
+
   assert.match(indexHtml, /id="greetingAssistantModal"/);
   assert.match(indexHtml, /id="greetingAssistantBody"/);
   assert.match(indexHtml, /id="greetingAssistantActions"/);
@@ -218,6 +224,15 @@ test("app shell exposes server-side greeting assistant provider flow", () => {
   assert.match(appJs, /scheduleSync\.reviseGreeting/);
   assert.match(appJs, /data-greeting-birthday/);
   assert.match(appJs, /data-greeting-holiday/);
+  assert.match(appJs, /store\[greetingAssistantContext\.key\] = createGreetingAssistantDraftPayload\(greetingAssistantState\)/);
+  assert.match(greetingDraftBoundary, /function normalizeGreetingDraftFields/);
+  assert.match(greetingDraftBoundary, /function normalizeGreetingDraftVariants/);
+  assert.match(greetingDraftBoundary, /function normalizeGreetingDraftInput/);
+  assert.match(greetingDraftBoundary, /sanitizeGreetingEditorText/);
+  assert.doesNotMatch(
+    greetingDraftBoundary,
+    /providerConfigured|disabledMessage|provider:|access_token|authorizationKey|GIGACHAT_/,
+  );
   assert.match(appJs, /Генерация поздравлений пока недоступна\. Анкету можно сохранить и продолжить позднее\./);
   assert.match(appCss, /\.greeting-assistant-shell\s*{/);
   assert.match(appCss, /\.greeting-assistant-variants\s*{/);
