@@ -279,6 +279,13 @@ test("favorite quotes cache persists local favorite quotes", async () => {
         favoritedAt: "2026-08-04T09:00:00.000Z",
       },
     ],
+    pendingActions: [
+      {
+        quoteId: "quote-2",
+        action: "favorite",
+        updatedAt: "2026-08-04T09:05:00.000Z",
+      },
+    ],
     savedAt: "2026-08-04T09:00:00.000Z",
     storageKey: QUOTE_FAVORITES_CACHE_KEY,
   };

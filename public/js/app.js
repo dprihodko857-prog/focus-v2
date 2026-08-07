@@ -1434,8 +1434,10 @@ let quoteSearchQuery = "";
 let favoriteQuotesState = {
   status: "idle",
   quotes: [],
+  pendingActions: [],
   checkedAt: null,
 };
+let pendingQuoteFavoriteFlush = null;
 let quoteHistoryState = {
   status: "idle",
   sets: [],
@@ -1550,6 +1552,7 @@ async function loadDailyQuotes({ force = false } = {}) {
     };
     quoteIndex = Math.min(quoteIndex, Math.max(0, dailyQuotesState.quotes.length - 1));
     await syncFavoriteQuotesFromCache();
+    await flushPendingQuoteFavoriteActions();
     await saveDailyQuotesToHistory(dailyQuotesState);
     renderQuote();
     renderDailyQuotesModal();
@@ -1563,6 +1566,7 @@ async function loadDailyQuotes({ force = false } = {}) {
     };
     quoteIndex = Math.min(quoteIndex, Math.max(0, dailyQuotesState.quotes.length - 1));
     await syncFavoriteQuotesFromCache();
+    await flushPendingQuoteFavoriteActions();
     await saveDailyQuotesToCache(dailyQuotesState);
     await saveDailyQuotesToHistory(dailyQuotesState);
   } else if (!cached) {
@@ -1594,11 +1598,13 @@ async function loadFavoriteQuotes() {
   if (cached) {
     renderDailyQuotesModal();
   }
+  await flushPendingQuoteFavoriteActions();
   const result = await scheduleSync.getFavoriteQuotes();
   if (result.status === "ok") {
     favoriteQuotesState = {
       status: "ok",
       quotes: mergeFavoriteQuotes(favoriteQuotesState.quotes, result.quotes || []),
+      pendingActions: favoriteQuotesState.pendingActions || [],
       checkedAt: result.checkedAt || null,
     };
     applyFavoriteStateToQuoteCollections();
@@ -1744,6 +1750,7 @@ async function syncFavoriteQuotesFromCache() {
       ? "cached"
       : favoriteQuotesState.status,
     quotes: mergeFavoriteQuotes(favoriteQuotesState.quotes, cached.quotes),
+    pendingActions: mergeQuoteFavoritePendingActions(favoriteQuotesState.pendingActions, cached.pendingActions),
     checkedAt: favoriteQuotesState.checkedAt || cached.checkedAt || cached.savedAt || null,
   };
   applyFavoriteStateToQuoteCollections();
@@ -1752,7 +1759,8 @@ async function syncFavoriteQuotesFromCache() {
 
 async function saveFavoriteQuotesToCache(favoritesState) {
   const quotes = mergeFavoriteQuotes(favoritesState.quotes || []);
-  if (!quotes.length) {
+  const pendingActions = mergeQuoteFavoritePendingActions(favoritesState.pendingActions || []);
+  if (!quotes.length && !pendingActions.length) {
     await scheduleStorage.saveFavoriteQuotesCache(null);
     return;
   }
@@ -1760,6 +1768,7 @@ async function saveFavoriteQuotesToCache(favoritesState) {
   const savedAt = new Date().toISOString();
   await scheduleStorage.saveFavoriteQuotesCache({
     quotes,
+    pendingActions,
     checkedAt: favoritesState.checkedAt || savedAt,
     savedAt,
     storageKey: QUOTE_FAVORITES_CACHE_KEY,
@@ -1772,12 +1781,14 @@ function normalizeFavoriteQuotesCache(cache) {
   }
 
   const quotes = mergeFavoriteQuotes(cache.quotes || []);
-  if (!quotes.length) {
+  const pendingActions = mergeQuoteFavoritePendingActions(cache.pendingActions || []);
+  if (!quotes.length && !pendingActions.length) {
     return null;
   }
 
   return {
     quotes,
+    pendingActions,
     checkedAt: cache.checkedAt || null,
     savedAt: cache.savedAt || null,
   };
@@ -1822,6 +1833,99 @@ function normalizeFavoriteQuoteForCache(quote, index) {
     favoritedAt: quote.favoritedAt || quote.createdAt || quote.updatedAt || null,
     isFavorite: true,
   };
+}
+
+function mergeQuoteFavoritePendingActions(...actionLists) {
+  const byQuoteId = new Map();
+  actionLists.flat().forEach(rawAction => {
+    const action = normalizeQuoteFavoritePendingAction(rawAction);
+    if (!action) return;
+    byQuoteId.set(action.quoteId, action);
+  });
+
+  return [...byQuoteId.values()].sort((first, second) => {
+    const firstTime = Date.parse(first.updatedAt || "") || 0;
+    const secondTime = Date.parse(second.updatedAt || "") || 0;
+    if (firstTime !== secondTime) {
+      return firstTime - secondTime;
+    }
+    return first.quoteId.localeCompare(second.quoteId, "ru-RU");
+  });
+}
+
+function normalizeQuoteFavoritePendingAction(action) {
+  if (!action || typeof action !== "object" || Array.isArray(action)) {
+    return null;
+  }
+
+  const quoteId = String(action.quoteId || "").trim();
+  const actionType = action.action === "favorite" || action.action === "unfavorite"
+    ? action.action
+    : "";
+  if (!quoteId || !actionType) {
+    return null;
+  }
+
+  return {
+    quoteId,
+    action: actionType,
+    updatedAt: String(action.updatedAt || "").trim() || null,
+  };
+}
+
+function removeQuoteFavoritePendingAction(actions, quoteId) {
+  const normalizedQuoteId = String(quoteId || "").trim();
+  return mergeQuoteFavoritePendingActions(actions).filter(action => action.quoteId !== normalizedQuoteId);
+}
+
+async function flushPendingQuoteFavoriteActions() {
+  if (pendingQuoteFavoriteFlush) {
+    return pendingQuoteFavoriteFlush;
+  }
+
+  pendingQuoteFavoriteFlush = (async () => {
+    const pendingActions = mergeQuoteFavoritePendingActions(favoriteQuotesState.pendingActions || []);
+    if (!pendingActions.length) {
+      return { status: "idle", synced: 0 };
+    }
+
+    const remainingActions = [];
+    let synced = 0;
+    for (let index = 0; index < pendingActions.length; index += 1) {
+      const action = pendingActions[index];
+      let result = null;
+      try {
+        result = action.action === "unfavorite"
+          ? await scheduleSync.unfavoriteQuote(action.quoteId)
+          : await scheduleSync.favoriteQuote(action.quoteId);
+      } catch {
+        result = { status: "offline" };
+      }
+
+      if (result.status === "saved" || result.status === "invalid") {
+        synced += result.status === "saved" ? 1 : 0;
+        continue;
+      }
+
+      remainingActions.push(action, ...pendingActions.slice(index + 1));
+      break;
+    }
+
+    favoriteQuotesState = {
+      ...favoriteQuotesState,
+      pendingActions: mergeQuoteFavoritePendingActions(remainingActions),
+      checkedAt: new Date().toISOString(),
+    };
+    await saveFavoriteQuotesToCache(favoriteQuotesState);
+    return {
+      status: favoriteQuotesState.pendingActions.length ? "pending" : "ok",
+      synced,
+    };
+  })().finally(() => {
+    pendingQuoteFavoriteFlush = null;
+  });
+
+  return pendingQuoteFavoriteFlush;
 }
 
 function applyFavoriteStateToQuoteCollections() {
@@ -3697,11 +3801,15 @@ async function toggleQuoteFavorite(quoteId) {
 
   const savedOnServer = result.status === "saved";
   const isFavorite = savedOnServer ? result.isFavorite : nextIsFavorite;
+  const pendingAction = isFavorite ? "favorite" : "unfavorite";
   const checkedAt = new Date().toISOString();
   favoriteQuotesState = {
     ...favoriteQuotesState,
     status: savedOnServer ? "ok" : "cached",
     checkedAt,
+    pendingActions: savedOnServer
+      ? removeQuoteFavoritePendingAction(favoriteQuotesState.pendingActions, quoteId)
+      : mergeQuoteFavoritePendingActions(favoriteQuotesState.pendingActions, [{ quoteId, action: pendingAction, updatedAt: checkedAt }]),
     quotes: isFavorite
       ? mergeFavoriteQuotes([
         {
@@ -13035,6 +13143,7 @@ function runOnlineRecoverySync() {
     registerServerPushSubscription(),
     refreshReminderPushStatus(),
     loadDailyQuotes(),
+    flushPendingQuoteFavoriteActions(),
     checkPendingSubscriptionCheckout({ silent: true }),
     refreshAccountEntitlements({ silent: true }),
     refreshEntitlementEvents({ silent: true }),
