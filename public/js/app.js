@@ -774,7 +774,8 @@ const installShortcutTargets = new Set([
   "schedules",
   "diary",
   "useful",
-  "holidays"
+  "holidays",
+  "quotes"
 ]);
 const HOLIDAY_INITIAL_SETUP_DISMISSED_KEY = "focusHolidayInitialSetupDismissed";
 

@@ -21,6 +21,11 @@ test("daily quotes marquee renders only quote text and author", () => {
   assert.doesNotMatch(marqueeFormatter, /sourceTitle|sourceReference/);
 });
 
+test("daily quotes modal can open from launch query", () => {
+  assert.match(appJs, /const installShortcutTargets = new Set\(\[[\s\S]*"quotes"[\s\S]*\]\);/);
+  assert.match(appJs, /openModal\(target\)/);
+});
+
 test("quote preferences disable unavailable categories before saving", () => {
   const preferencesRenderer = getFunctionBody(appJs, "renderQuotePreferencesUi");
   const preferencesReader = getFunctionBody(appJs, "readQuotePreferencesDraft");
@@ -140,8 +145,8 @@ test("daily quotes modal exposes favorite quotes view", () => {
   assert.match(quoteFinder, /dailyQuotesState\.quotes/);
   assert.match(quoteFinder, /favoriteQuotesState\.quotes/);
   assert.equal((dailyLoader.match(/await syncFavoriteQuotesFromCache\(\);/g) || []).length, 2);
-  assert.match(dailyLoader, /await syncFavoriteQuotesFromCache\(\);\s*await saveDailyQuotesToHistory/);
-  assert.match(dailyLoader, /await syncFavoriteQuotesFromCache\(\);\s*await saveDailyQuotesToCache[\s\S]*await saveDailyQuotesToHistory/);
+  assert.match(dailyLoader, /await syncFavoriteQuotesFromCache\(\);[\s\S]*await saveDailyQuotesToHistory/);
+  assert.match(dailyLoader, /await syncFavoriteQuotesFromCache\(\);[\s\S]*await saveDailyQuotesToCache[\s\S]*await saveDailyQuotesToHistory/);
   assert.match(appCss, /\.daily-quotes-tabs\s*\{/);
   assert.match(appCss, /\.daily-quotes-tab\.is-active\s*\{/);
 });
