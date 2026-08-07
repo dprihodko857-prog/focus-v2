@@ -238,7 +238,7 @@ test("Personal Schedule draft review exposes day overview and quick block edits"
 });
 
 test("service worker caches Personal Schedule Planner modules", () => {
-  assert.match(serviceWorker, /focus-pwa-v168/);
+  assert.match(serviceWorker, /focus-pwa-v170/);
   assert.match(serviceWorker, /"\/js\/personal-schedule-planner\.js"/);
   assert.match(serviceWorker, /"\/js\/personal-schedule-ui\.js"/);
 });
