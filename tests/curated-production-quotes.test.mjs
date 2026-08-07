@@ -31,8 +31,8 @@ test("curated production quotes contain only clean quote text and real authors",
   const summary = getCuratedProductionQuoteSummary(quotes);
   const rawIntegrity = inspectRawQuoteCatalog(quotes);
 
-  assert.equal(quotes.length, 34);
-  assert.equal(summary.quoteCount, 34);
+  assert.equal(quotes.length, 44);
+  assert.equal(summary.quoteCount, 44);
   assert.ok(summary.authorCount >= 7);
   assert.ok(summary.sourceCount >= 10);
   assert.equal(new Set(quotes.map(quote => quote.id)).size, quotes.length);
@@ -89,9 +89,9 @@ test("curated quote import replaces generated seed records and preserves manual 
     assert.equal(result.replaceGenerated, true);
     assert.equal(result.preservedQuoteCount, 1);
     assert.equal(result.removedGeneratedQuoteCount, 14);
-    assert.equal(result.curatedQuoteCount, 34);
-    assert.equal(result.importedCuratedQuoteCount, 34);
-    assert.equal(result.totalQuoteCount, 35);
+    assert.equal(result.curatedQuoteCount, 44);
+    assert.equal(result.importedCuratedQuoteCount, 44);
+    assert.equal(result.totalQuoteCount, 45);
     assert.equal(result.audit.blockedQuotes, 0);
 
     const importedAudit = auditProductionQuotes(dbPath, { checkedAt: "2026-08-05T08:30:00.000Z" });
@@ -105,7 +105,7 @@ test("curated quote import replaces generated seed records and preserves manual 
 
     assert.ok(importedCatalog.some(quote => quote.id === "manual-curated-import-quote"));
     assert.equal(importedCatalog.some(quote => String(quote.id).startsWith(`${QUOTE_SEED_ID_PREFIX}-`)), false);
-    assert.equal(importedCatalog.filter(quote => String(quote.id).startsWith(`${CURATED_QUOTE_ID_PREFIX}-`)).length, 34);
+    assert.equal(importedCatalog.filter(quote => String(quote.id).startsWith(`${CURATED_QUOTE_ID_PREFIX}-`)).length, 44);
   } finally {
     rmSync(tempDir, { force: true, recursive: true });
   }
