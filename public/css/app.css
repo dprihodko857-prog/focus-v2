@@ -4970,6 +4970,14 @@ h3 {
   gap: 10px;
   min-width: 0;
 }
+.personal-schedule-import-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
 
 .personal-schedule-import-detail__day strong {
   color: var(--text);
@@ -5372,6 +5380,15 @@ h3 {
 .personal-schedule-history-import[data-ps-import-status="rolled_back"] {
   opacity: .78;
 }
+.personal-schedule-history-import[data-ps-import-status="replaced"] {
+  border-color: rgba(207, 132, 78, .48);
+  opacity: .86;
+}
+
+.personal-schedule-history-import[data-ps-import-status="updated"] {
+  border-color: rgba(95, 144, 115, .5);
+}
+
 
 .personal-schedule-history__list strong,
 .personal-schedule-history__list span {
@@ -6930,11 +6947,13 @@ h3 {
     grid-template-columns: 1fr;
   }
 
+  .personal-schedule-import-detail__actions,
   .personal-schedule-import-result__actions,
   .personal-schedule-history-import__actions {
     justify-content: stretch;
   }
 
+  .personal-schedule-import-detail__actions .secondary-button,
   .personal-schedule-import-result__actions .secondary-button,
   .personal-schedule-history-import__actions .secondary-button {
     width: 100%;

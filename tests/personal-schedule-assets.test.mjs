@@ -76,10 +76,40 @@ test("Personal Rhythm history explains the latest applied import", () => {
   assert.match(plannerUiJs, /function renderLatestImportResult/);
   assert.match(plannerUiJs, /function renderImportScheduleSnapshot/);
   assert.match(plannerUiJs, /const renderImportScheduleDetailStep/);
+  assert.match(plannerUiJs, /const createDraftFromImport/);
+  assert.match(plannerUiJs, /function createDraftFromImportedSchedule/);
+  assert.match(plannerUiJs, /function createImportedScheduleDraftBlock/);
   assert.match(plannerUiJs, /function parseImportScheduleLine/);
   assert.match(plannerUiJs, /function getImportBatchPrimarySchedule/);
+  assert.match(plannerUiJs, /function renderImportReplacementNotice/);
+  assert.match(plannerUiJs, /function renderImportVersionTrail/);
+  assert.match(plannerUiJs, /function renderCompareImportVersionsButton/);
+  assert.match(plannerUiJs, /function compareImportScheduleVersions/);
+  assert.match(plannerUiJs, /function renderImportVersionCompareGroup/);
+  assert.match(plannerUiJs, /function getImportDisplayStatus/);
+  assert.match(plannerUiJs, /function isReplacementRollback/);
+  assert.match(plannerUiJs, /replacesImportBatchId/);
+  assert.match(plannerUiJs, /replacedByImportBatchId/);
+  assert.match(plannerUiJs, /rolledBackReason:\s*"replaced"/);
   assert.match(plannerUiJs, /"import-detail"/);
+  assert.match(plannerUiJs, /"version-compare"/);
   assert.match(plannerUiJs, /data-ps-open-import-schedule/);
+  assert.match(plannerUiJs, /data-ps-compare-imports/);
+  assert.match(plannerUiJs, /data-ps-copy-import-draft/);
+  assert.match(plannerUiJs, /Сравнить версии/);
+  assert.match(plannerUiJs, /Что изменилось в ритме/);
+  assert.match(plannerUiJs, /Добавлено/);
+  assert.match(plannerUiJs, /Убрано/);
+  assert.match(plannerUiJs, /Изменено/);
+  assert.match(plannerUiJs, /Сделать копию для правки/);
+  assert.match(plannerUiJs, /Копия ритма открыта как черновик/);
+  assert.match(plannerUiJs, /source: "import_copy"/);
+  assert.match(plannerUiJs, /personal_schedule_import_replace/);
+  assert.match(plannerUiJs, /Заменён новой версией/);
+  assert.match(plannerUiJs, /Новая версия применена/);
+  assert.match(plannerUiJs, /Открыть старую версию/);
+  assert.match(plannerUiJs, /Открыть новую версию/);
+  assert.match(plannerUiJs, /Старая версия автоматически откатана/);
   assert.match(plannerUiJs, /aria-label="Последний импорт"/);
   assert.match(plannerUiJs, /Добавлено в Focus/);
   assert.match(plannerUiJs, /История ритма дня/);
@@ -104,9 +134,17 @@ test("Personal Rhythm history explains the latest applied import", () => {
   assert.match(appCss, /\.personal-schedule-import-result__destinations-head\s*{/);
   assert.match(appCss, /\.personal-schedule-import-result__destinations\s*{/);
   assert.match(appCss, /\.personal-schedule-import-detail\s*{/);
+  assert.match(appCss, /\.personal-schedule-import-detail__actions\s*{/);
   assert.match(appCss, /\.personal-schedule-import-detail__days\s*{/);
   assert.match(appCss, /\.personal-schedule-import-detail__block\s*{/);
+  assert.match(appCss, /\.personal-schedule-version-compare\s*{/);
+  assert.match(appCss, /\.personal-schedule-version-compare__metrics\s*{/);
+  assert.match(appCss, /\.personal-schedule-version-compare__summary\s*{/);
+  assert.match(appCss, /\.personal-schedule-version-compare__item\[data-ps-compare-change="changed"\]\s*{/);
+  assert.match(appCss, /\.icon-checklist\s*{/);
   assert.match(appCss, /\.personal-schedule-history-import\[data-ps-import-status="rolled_back"\]\s*{/);
+  assert.match(appCss, /\.personal-schedule-history-import\[data-ps-import-status="replaced"\]\s*{/);
+  assert.match(appCss, /\.personal-schedule-history-import\[data-ps-import-status="updated"\]\s*{/);
 });
 
 test("Personal Rhythm goals use understandable structured fields", () => {
@@ -162,7 +200,7 @@ test("Personal Rhythm falls back to a local draft when generation service fails"
 test("Personal Schedule Planner blocks import when existing Focus intervals conflict", () => {
   assert.match(plannerJs, /existingIntervals = \[\]/);
   assert.match(plannerJs, /validatePersonalScheduleDraft\(\{[\s\S]*?existingIntervals,/);
-  assert.match(plannerUiJs, /existingIntervals: getExistingIntervals\(\)/);
+  assert.match(plannerUiJs, /existingIntervals: getExistingIntervalsForDraft\(draft\)/);
   assert.match(plannerUiJs, /function getSelectedDraftValidation\(\)/);
   assert.match(plannerUiJs, /const canImport = hasDraft && validation\?\.ok;/);
   assert.match(plannerUiJs, /data-ps-action="confirm-import" \$\{canImport \? "" : "disabled"\}/);

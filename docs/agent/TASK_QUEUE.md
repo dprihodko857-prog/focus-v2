@@ -7389,3 +7389,106 @@ Only implement tasks with `status: READY` and `owner_gate: not_required` or `own
 - outcome: Implemented locally. Personal Rhythm history can open a full read-only imported rhythm detail with every saved day/block, metrics, footer counts, and rollback for applied batches; current local cache is `focus-pwa-v167`.
 - commit_status: committed_local_checkpoint_6287f31
 - notes: Focused Personal Rhythm tests passed 25/25; expanded affected tests passed 80/80; isolated Playwright smoke passed on desktop and 390px mobile with 4 days, 12 blocks, and no horizontal overflow. Full `npm.cmd run test` passed 298/298. Later committed locally in checkpoint `6287f31`; no server deploy or git push.
+
+## TASK-130
+
+- title: Edit a saved Personal Rhythm import without retaking the survey
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: high
+- source: owner approved continuing the local-only Personal Rhythm plan after the full imported-rhythm view.
+- spec_reference: `docs/specs/personal-rhythm-import-editable-copy.md`
+- spec_status: implemented_local
+- goal: let the user turn a saved imported Personal Rhythm schedule into an editable draft and import it back as a replacement version.
+- out_of_scope:
+  - server deployment
+  - reworking the survey
+  - changing internal `personal_schedule_planner` ids
+  - editing Daily Quotes, Holidays, Diary, Greeting Assistant, or other app sections
+- acceptance_criteria:
+  - full imported rhythm detail exposes `Сделать копию для правки`
+  - the action creates an editable draft from saved `schedule.dayTimes`
+  - copied blocks preserve day, time range, title, inferred category, priority, and rationale
+  - replacement drafts ignore the source schedule during validation so the rhythm does not conflict with itself
+  - confirm-import explains that the old version will be replaced
+  - importing the copied draft rolls back the source batch and applies the new batch
+  - mobile layout keeps action buttons readable without horizontal overflow
+- required_checks:
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs`
+  - focused browser smoke for copy-to-draft and replace import
+- sandbox_level: current_workspace
+- cycle_budget: one local Personal Rhythm edit-from-history task
+- file_limit: Personal Rhythm UI/CSS/tests/docs only
+- command_limit: up to 16 meaningful commands
+- chain_position: 130
+- stop_conditions:
+  - implementation requires server deployment
+  - implementation requires changing another app section
+  - implementation requires backend provider changes
+- areas:
+  - `public/js/personal-schedule-ui.js`
+  - `public/css/app.css`
+  - `tests/personal-schedule-assets.test.mjs`
+  - `docs/specs/personal-rhythm-import-editable-copy.md`
+  - Project Maestro memory
+- dependencies:
+  - TASK-129 full imported rhythm view
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. The full imported-rhythm detail can create an editable copy draft, copied replacement drafts ignore the source schedule during validation, and importing the copy rolls back the source applied batch before applying the updated schedule.
+- commit_status: committed_local_checkpoint
+- notes: Personal Rhythm syntax checks passed; focused Personal Rhythm tests passed 25/25; browser smoke verified copy-to-draft, replacement notice, rollback/apply replacement behavior, and mobile action layout with no overflow. Full `npm.cmd run test` passed 299/299; diff-check passed with LF-to-CRLF warnings only. No server deploy or git push.
+
+## TASK-131
+
+- title: Show Personal Rhythm replacement imports as version history
+- status: DONE
+- owner_gate: approved
+- task_type: product_runtime
+- priority: high
+- source: owner approved continuing the local-only Personal Rhythm plan after editable import copies.
+- spec_reference: `docs/specs/personal-rhythm-import-version-history.md`
+- spec_status: implemented_local
+- goal: make Personal Rhythm history clearly distinguish active updated versions from older versions replaced by a later import.
+- out_of_scope:
+  - server deployment
+  - backend provider changes
+  - reworking survey/generation
+  - editing Daily Quotes, Holidays, Diary, Greeting Assistant, or other app sections
+- acceptance_criteria:
+  - replacement imports store `replacesImportBatchId`
+  - source batches replaced by a later import store `rolledBackReason: "replaced"` and `replacedByImportBatchId`
+  - latest replacement result says `Обновлено в Focus`
+  - history shows `Новая версия применена` and `Заменён новой версией`
+  - rows expose old/new version open actions where both schedules are saved
+  - full rhythm detail explains the version relationship
+  - mobile layout keeps actions readable without overflow
+- required_checks:
+  - `node --check public/js/personal-schedule-ui.js`
+  - `node --check tests/personal-schedule-assets.test.mjs`
+  - `node --test tests/personal-schedule-planner.test.mjs tests/personal-schedule-assets.test.mjs`
+  - focused browser smoke for replacement version history
+- sandbox_level: current_workspace
+- cycle_budget: one local Personal Rhythm version-history task
+- file_limit: Personal Rhythm UI/CSS/tests/docs only
+- command_limit: up to 12 meaningful commands
+- chain_position: 131
+- stop_conditions:
+  - implementation requires server deployment
+  - implementation requires changing another app section
+- areas:
+  - `public/js/personal-schedule-ui.js`
+  - `public/css/app.css`
+  - `tests/personal-schedule-assets.test.mjs`
+  - `docs/specs/personal-rhythm-import-version-history.md`
+  - Project Maestro memory
+- dependencies:
+  - TASK-130 editable import copy
+- design_review_required: true
+- security_review_required: false
+- outcome: Implemented locally. Replacement imports now carry explicit version links, replaced source batches are labeled as replaced rather than manually rolled back, history rows show old/new version actions, and full detail views explain the version relationship.
+- commit_status: committed_local_checkpoint
+- notes: Personal Rhythm syntax checks passed; focused Personal Rhythm tests passed 25/25; browser smoke verified copy-to-draft, replacement import, version labels, `updated`/`replaced` row statuses, old/new version actions, and mobile no-overflow layout. Full `npm.cmd run test` passed 299/299; diff-check passed with LF-to-CRLF warnings only. No server deploy or git push.

@@ -35,6 +35,7 @@ const UI_STEPS = [
   "confirm-import",
   "history",
   "import-detail",
+  "version-compare",
 ];
 
 const INTAKE_STEPS = UI_STEPS.slice(0, UI_STEPS.indexOf("review") + 1);
@@ -87,6 +88,7 @@ export function createPersonalSchedulePlannerUi({
   let currentStep = "mode";
   let bigFiveIndex = 0;
   let selectedImportBatchId = "";
+  let selectedCompareImportIds = { sourceBatchId: "", targetBatchId: "" };
   let bound = false;
   let lastStatus = {
     status: "idle",
@@ -240,6 +242,8 @@ export function createPersonalSchedulePlannerUi({
         return renderHistoryStep();
       case "import-detail":
         return renderImportScheduleDetailStep();
+      case "version-compare":
+        return renderImportVersionCompareStep();
       default:
         return renderModeStep();
     }
@@ -482,7 +486,7 @@ export function createPersonalSchedulePlannerUi({
     const validation = validatePersonalScheduleDraft({
       draft: { blocks: variant.blocks },
       intake: draft.intake,
-      existingIntervals: getExistingIntervals(),
+      existingIntervals: getExistingIntervalsForDraft(draft),
     });
     variant.validation = validation;
     const blocks = sortDraftBlocks(variant.blocks || []);
@@ -523,7 +527,7 @@ export function createPersonalSchedulePlannerUi({
         selectedVariantId: variant.id,
         includeTasks: state.importOptions.includeTasks,
         includeReminders: state.importOptions.includeReminders,
-        existingIntervals: getExistingIntervals(),
+        existingIntervals: getExistingIntervalsForDraft(draft),
         now: now(),
       })
       : { ok: false, batch: null };
@@ -533,6 +537,7 @@ export function createPersonalSchedulePlannerUi({
       <div class="personal-schedule-review">
         <h3>Что попадёт в Focus</h3>
         <p>По умолчанию добавляется одно расписание с блоками по дням. Задачи и напоминания остаются выключенными, чтобы не заполнять сегодняшние дела лишними карточками.</p>
+        ${renderImportReplacementNotice(draft)}
         ${renderImportConfirmationPlan({ draft, variant, blocks, entities })}
         ${renderImportImpactList(entities)}
         ${batchPreview.ok ? "" : renderValidationErrors(batchPreview.errors || ["validation_failed"])}
@@ -594,7 +599,6 @@ export function createPersonalSchedulePlannerUi({
     }
     const blockCount = getImportScheduleBlockCount(dayTimes);
     const counts = getImportBatchEntityCounts(batch);
-    const rolledBack = batch.status === "rolled_back";
     return `
       <section class="personal-schedule-import-detail" aria-label="Полный ритм дня">
         <header class="personal-schedule-import-detail__head">
@@ -606,17 +610,68 @@ export function createPersonalSchedulePlannerUi({
           <div class="personal-schedule-import-detail__metrics" aria-label="Сводка расписания">
             ${renderImportDetailMetric("Дни", formatImportCount(dayTimes.length, ["день", "дня", "дней"]))}
             ${renderImportDetailMetric("Блоки", formatImportCount(blockCount, ["блок", "блока", "блоков"]))}
-            ${renderImportDetailMetric("Статус", rolledBack ? "Откатан" : "В Focus")}
+            ${renderImportDetailMetric("Статус", getImportStatusLabel(batch))}
           </div>
         </header>
         ${schedule.meta ? `<p class="personal-schedule-import-detail__meta">${escape(schedule.meta)}</p>` : ""}
+        ${renderImportVersionTrail(batch)}
         <div class="personal-schedule-import-detail__days" aria-label="Все дни расписания">
           ${dayTimes.map(renderImportScheduleDetailDay).join("")}
         </div>
         <footer class="personal-schedule-import-detail__footer">
           <span>${escape(formatImportScheduleScope(dayTimes.length, blockCount))} · задач: ${escape(String(counts.tasks))} · напоминаний: ${escape(String(counts.reminders))}</span>
-          ${batch.status === "applied" ? `<button class="secondary-button secondary-button--compact" type="button" data-ps-rollback="${escape(batch.id)}">Откатить импорт</button>` : ""}
+          <div class="personal-schedule-import-detail__actions">
+            ${renderCompareImportVersionsButton(batch, "Сравнить версии")}
+            <button class="secondary-button secondary-button--compact" type="button" data-ps-copy-import-draft="${escape(batch.id)}">Сделать копию для правки</button>
+            ${batch.status === "applied" ? `<button class="secondary-button secondary-button--compact" type="button" data-ps-rollback="${escape(batch.id)}">Откатить импорт</button>` : ""}
+          </div>
         </footer>
+      </section>
+    `;
+  };
+
+  const renderImportVersionCompareStep = () => {
+    const { sourceBatch, targetBatch } = getSelectedCompareImportBatches();
+    const comparison = compareImportScheduleVersions(sourceBatch, targetBatch);
+    if (!comparison) {
+      return `
+        <div class="personal-schedule-review">
+          <strong>Пара версий не найдена.</strong>
+          <span>Вернитесь к истории и выберите сравнение у замененной версии ритма.</span>
+        </div>
+      `;
+    }
+    return `
+      <section class="personal-schedule-version-compare" aria-label="Сравнение версий ритма">
+        <header class="personal-schedule-version-compare__head">
+          <div>
+            <span class="modal-kicker">Сравнение версий</span>
+            <h3>Что изменилось в ритме</h3>
+            <p>Старая версия сравнивается с новой по дням, времени и названию блоков. Это помогает быстро понять, что изменилось после правки.</p>
+          </div>
+          <div class="personal-schedule-version-compare__metrics" aria-label="Сводка изменений">
+            ${renderImportDetailMetric("Старая", formatImportScheduleScope(comparison.source.dayCount, comparison.source.blockCount))}
+            ${renderImportDetailMetric("Новая", formatImportScheduleScope(comparison.target.dayCount, comparison.target.blockCount))}
+            ${renderImportDetailMetric("Изменения", formatImportCount(comparison.changeCount, ["изменение", "изменения", "изменений"]))}
+          </div>
+        </header>
+        <div class="personal-schedule-version-compare__summary">
+          <article>
+            <span>Было</span>
+            <strong>${escape(formatDateTime(sourceBatch.appliedAt || sourceBatch.createdAt))}</strong>
+            <small>${escape(getImportBatchPrimarySchedule(sourceBatch)?.meta || getImportStatusLabel(sourceBatch))}</small>
+          </article>
+          <article>
+            <span>Стало</span>
+            <strong>${escape(formatDateTime(targetBatch.appliedAt || targetBatch.createdAt))}</strong>
+            <small>${escape(getImportBatchPrimarySchedule(targetBatch)?.meta || getImportStatusLabel(targetBatch))}</small>
+          </article>
+        </div>
+        <div class="personal-schedule-version-compare__groups">
+          ${renderImportVersionCompareGroup("Добавлено", comparison.added, "Новых блоков нет.")}
+          ${renderImportVersionCompareGroup("Убрано", comparison.removed, "Удаленных блоков нет.")}
+          ${renderImportVersionCompareGroup("Изменено", comparison.changed, "Измененных блоков нет.")}
+        </div>
       </section>
     `;
   };
@@ -647,6 +702,9 @@ export function createPersonalSchedulePlannerUi({
         : `<button class="secondary-button" type="button" data-ps-action="back">Назад</button>`;
     }
     if (currentStep === "import-detail") {
+      return `<button class="secondary-button" type="button" data-ps-action="history">К истории</button>`;
+    }
+    if (currentStep === "version-compare") {
       return `<button class="secondary-button" type="button" data-ps-action="history">К истории</button>`;
     }
     if (currentStep === "review") {
@@ -793,6 +851,21 @@ export function createPersonalSchedulePlannerUi({
       return;
     }
 
+    const compareImports = event.target.closest("[data-ps-compare-imports]");
+    if (compareImports) {
+      const [sourceBatchId = "", targetBatchId = ""] = String(compareImports.dataset.psCompareImports || "").split("::");
+      selectedCompareImportIds = { sourceBatchId, targetBatchId };
+      currentStep = "version-compare";
+      render();
+      return;
+    }
+
+    const copyImportDraft = event.target.closest("[data-ps-copy-import-draft]");
+    if (copyImportDraft) {
+      createDraftFromImport(copyImportDraft.dataset.psCopyImportDraft);
+      return;
+    }
+
     const rollback = event.target.closest("[data-ps-rollback]");
     if (rollback) {
       rollbackImport(rollback.dataset.psRollback);
@@ -931,6 +1004,8 @@ export function createPersonalSchedulePlannerUi({
       currentStep = "draft";
     } else if (currentStep === "import-detail") {
       currentStep = "history";
+    } else if (currentStep === "version-compare") {
+      currentStep = "history";
     } else if (currentStep === "draft") {
       currentStep = "review";
     } else if (currentStep === "history") {
@@ -1042,6 +1117,31 @@ export function createPersonalSchedulePlannerUi({
     return "service_unavailable";
   };
 
+  const createDraftFromImport = async batchId => {
+    const batch = state.importBatches.find(item => item.id === batchId) || getSelectedImportBatch();
+    const schedule = getImportBatchPrimarySchedule(batch);
+    const dayTimes = getImportScheduleDayTimes(schedule);
+    if (!batch || !schedule || !dayTimes.length) {
+      showStatus("Сохраненный ритм не найден.");
+      render();
+      return;
+    }
+    const draft = createDraftFromImportedSchedule(batch, schedule, dayTimes);
+    if (!draft) {
+      showStatus("Не удалось собрать черновик из сохраненного ритма.");
+      render();
+      return;
+    }
+    selectedImportBatchId = batch.id || selectedImportBatchId;
+    await commitGeneratedDraft({
+      draft,
+      revision: true,
+      provider: "import_copy",
+      promptVersion: draft.promptVersion || PERSONAL_SCHEDULE_PROMPT_VERSION,
+      statusMessage: "Копия ритма открыта как черновик. Проверьте блоки перед импортом.",
+    });
+  };
+
   const importDraft = async () => {
     const draft = getSelectedDraft();
     const variant = getSelectedVariant(draft);
@@ -1056,7 +1156,7 @@ export function createPersonalSchedulePlannerUi({
       selectedVariantId: variant.id,
       includeTasks: state.importOptions.includeTasks,
       includeReminders: state.importOptions.includeReminders,
-      existingIntervals: getExistingIntervals(),
+      existingIntervals: getExistingIntervalsForDraft(draft),
       now: now(),
     });
     if (!batchResult.ok) {
@@ -1072,23 +1172,36 @@ export function createPersonalSchedulePlannerUi({
     }
 
     const data = getExistingData();
+    const replacement = getReplacementImportRollback(draft, data, batchResult.batch?.id || "");
+    const baseCollections = replacement?.collections || data;
     const applied = applyPersonalScheduleImportBatch({
-      batch: batchResult.batch,
-      schedules: data.schedules,
-      tasks: data.tasks,
-      reminders: data.reminders,
+      batch: replacement ? {
+        ...batchResult.batch,
+        replacesImportBatchId: replacement.batch.id,
+        replacementSource: "import_copy",
+      } : batchResult.batch,
+      schedules: baseCollections.schedules,
+      tasks: baseCollections.tasks,
+      reminders: baseCollections.reminders,
       now: now(),
     });
     state.status = applied.status;
-    state.importBatches = [applied.batch, ...state.importBatches].slice(0, 20);
+    state.importBatches = [
+      applied.batch,
+      ...state.importBatches
+        .map(batch => replacement?.batch && batch.id === replacement.batch.id ? replacement.batch : batch)
+        .filter(batch => batch.id !== applied.batch.id),
+    ].slice(0, 20);
     setCollections({
       schedules: applied.schedules,
       tasks: applied.tasks,
       reminders: applied.reminders,
-      reason: "personal_schedule_import",
+      reason: replacement ? "personal_schedule_import_replace" : "personal_schedule_import",
     });
     await save();
-    showStatus("Расписание импортировано в Focus. Его можно откатить из истории планировщика.");
+    showStatus(replacement
+      ? "Обновленная версия ритма импортирована в Focus. Старая версия откатана."
+      : "Расписание импортировано в Focus. Его можно откатить из истории ритма дня.");
     currentStep = "history";
     render();
   };
@@ -1179,10 +1292,12 @@ export function createPersonalSchedulePlannerUi({
     return lastStatus;
   };
 
-  const getExistingIntervals = () => {
+  const getExistingIntervals = ({ excludeScheduleIds = [] } = {}) => {
     const data = getExistingData();
+    const excludedSchedules = new Set(excludeScheduleIds.map(String));
     return collectPersonalScheduleExistingIntervals({
-      schedules: data.schedules,
+      schedules: (Array.isArray(data.schedules) ? data.schedules : [])
+        .filter(schedule => !excludedSchedules.has(String(schedule?.id || ""))),
       reminders: data.reminders,
       tasks: data.tasks,
       birthdays: data.birthdays,
@@ -1206,6 +1321,48 @@ export function createPersonalSchedulePlannerUi({
     importBatches: state.importBatches,
     now: now(),
   }).removedCount;
+  const getExistingIntervalsForDraft = draft => getExistingIntervals({
+    excludeScheduleIds: getDraftReplacementScheduleIds(draft),
+  });
+  const getDraftReplacementBatchId = draft => draft?.source === "import_copy"
+    ? String(draft.replacesImportBatchId || draft.sourceImportBatchId || "")
+    : "";
+  const getDraftReplacementImportBatch = draft => {
+    const batchId = getDraftReplacementBatchId(draft);
+    if (!batchId) return null;
+    return state.importBatches.find(batch => batch.id === batchId && batch.status === "applied") || null;
+  };
+  const getDraftReplacementScheduleIds = draft => {
+    const batch = getDraftReplacementImportBatch(draft);
+    if (!batch) return [];
+    const fromIds = Array.isArray(batch.importedIds?.schedules) ? batch.importedIds.schedules : [];
+    const fromEntities = Array.isArray(batch.entities?.schedules) ? batch.entities.schedules.map(schedule => schedule?.id) : [];
+    return [...new Set([...fromIds, ...fromEntities].map(String).filter(Boolean))];
+  };
+  const getReplacementImportRollback = (draft, data, replacedByImportBatchId = "") => {
+    const batch = getDraftReplacementImportBatch(draft);
+    if (!batch) return null;
+    const rolledBack = rollbackPersonalScheduleImportBatch({
+      batch,
+      schedules: data.schedules,
+      tasks: data.tasks,
+      reminders: data.reminders,
+      now: now(),
+    });
+    return {
+      batch: {
+        ...rolledBack.batch,
+        rolledBackReason: "replaced",
+        replacedByImportBatchId,
+        replacedAt: rolledBack.batch.rolledBackAt,
+      },
+      collections: {
+        schedules: rolledBack.schedules,
+        tasks: rolledBack.tasks,
+        reminders: rolledBack.reminders,
+      },
+    };
+  };
 
   const getDefaultStepForState = () => {
     if (state.status === "draft_ready" || state.status === "ready_to_import" || state.status === "validation_failed") return "draft";
@@ -1357,7 +1514,7 @@ export function createPersonalSchedulePlannerUi({
     variant.validation = validatePersonalScheduleDraft({
       draft: { blocks: variant.blocks },
       intake: draft.intake,
-      existingIntervals: getExistingIntervals(),
+      existingIntervals: getExistingIntervalsForDraft(draft),
     });
     return variant.validation;
   };
@@ -1631,6 +1788,15 @@ export function createPersonalSchedulePlannerUi({
     `;
   }
 
+  function renderImportReplacementNotice(draft) {
+    if (!getDraftReplacementImportBatch(draft)) return "";
+    return `
+      <div class="voice-status voice-status--warn">
+        Это копия сохраненного ритма. При импорте старая версия будет откатана, а новая станет текущей.
+      </div>
+    `;
+  }
+
   function renderImportConfirmationPlan({ draft, variant, blocks, entities }) {
     const stats = getDraftOverviewStats(blocks);
     const scheduleCount = entities.schedules?.length || 0;
@@ -1732,11 +1898,12 @@ export function createPersonalSchedulePlannerUi({
         <header class="personal-schedule-import-result__head">
           <div>
             <span class="modal-kicker">Последний импорт</span>
-            <h4>${rolledBack ? "Импорт откатан" : "Добавлено в Focus"}</h4>
-            <p>${rolledBack ? "Эта пачка уже убрана из Focus. Черновик остался в истории, его можно открыть и импортировать заново." : "Пачка добавлена в Focus. Ниже видно, какие объекты созданы и где их искать."}</p>
+            <h4>${escape(getImportResultTitle(batch))}</h4>
+            <p>${escape(getImportResultDescription(batch))}</p>
           </div>
           <div class="personal-schedule-import-result__actions">
             ${renderOpenImportScheduleButton(batch, "Открыть полный ритм")}
+            ${renderCompareImportVersionsButton(batch, "Сравнить версии")}
             ${batch?.status === "applied" ? `<button class="secondary-button secondary-button--compact" type="button" data-ps-rollback="${escape(batch.id)}">Откатить импорт</button>` : ""}
           </div>
         </header>
@@ -1767,17 +1934,20 @@ export function createPersonalSchedulePlannerUi({
 
   function renderImportHistoryRow(batch) {
     const counts = getImportBatchEntityCounts(batch);
-    const rolledBack = batch?.status === "rolled_back";
     const dateText = formatDateTime(batch?.appliedAt || batch?.rolledBackAt || batch?.createdAt);
+    const replacementBatch = getReplacementTargetBatch(batch);
     return `
-      <article class="personal-schedule-history-import" data-ps-import-status="${escape(batch?.status || "unknown")}">
+      <article class="personal-schedule-history-import" data-ps-import-status="${escape(getImportDisplayStatus(batch))}">
         <div>
-          <strong>${rolledBack ? "Импорт откатан" : "Импорт применен"}</strong>
+          <strong>${escape(getImportHistoryTitle(batch))}</strong>
           <span>${escape(dateText)} · расписаний: ${escape(String(counts.schedules))}, задач: ${escape(String(counts.tasks))}, напоминаний: ${escape(String(counts.reminders))}</span>
+          ${renderImportHistoryVersionSummary(batch)}
           ${renderImportHistoryScheduleSummary(batch)}
         </div>
         <div class="personal-schedule-history-import__actions">
-          ${renderOpenImportScheduleButton(batch, "Открыть ритм")}
+          ${renderOpenImportScheduleButton(batch, isReplacementRollback(batch) ? "Открыть старую версию" : "Открыть ритм")}
+          ${replacementBatch ? renderOpenImportScheduleButton(replacementBatch, "Открыть новую версию") : ""}
+          ${renderCompareImportVersionsButton(batch, "Сравнить версии")}
           ${batch?.status === "applied" ? `<button class="secondary-button secondary-button--compact" type="button" data-ps-rollback="${escape(batch.id)}">Откатить</button>` : ""}
         </div>
       </article>
@@ -1789,6 +1959,17 @@ export function createPersonalSchedulePlannerUi({
     return `
       <button class="secondary-button secondary-button--compact" type="button" data-ps-open-import-schedule="${escape(batch.id)}">
         <span class="icon icon-calendar" aria-hidden="true"></span>${escape(label)}
+      </button>
+    `;
+  }
+
+  function renderCompareImportVersionsButton(batch, label = "Сравнить версии") {
+    const pair = getImportVersionComparePair(batch);
+    if (!pair || !canCompareImportSchedules(pair.sourceBatch, pair.targetBatch)) return "";
+    const pairId = `${pair.sourceBatch.id}::${pair.targetBatch.id}`;
+    return `
+      <button class="secondary-button secondary-button--compact" type="button" data-ps-compare-imports="${escape(pairId)}">
+        <span class="icon icon-checklist" aria-hidden="true"></span>${escape(label)}
       </button>
     `;
   }
@@ -1844,6 +2025,262 @@ export function createPersonalSchedulePlannerUi({
     return `<small class="personal-schedule-history-import__summary">Расписание: ${escape(formatImportScheduleScope(dayTimes.length, blockCount))} · первый день: ${escape(firstDay)}</small>`;
   }
 
+  function renderImportHistoryVersionSummary(batch) {
+    if (isReplacementRollback(batch)) {
+      const replacementBatch = getReplacementTargetBatch(batch);
+      const replacementDate = replacementBatch ? formatDateTime(replacementBatch.appliedAt || replacementBatch.createdAt) : "";
+      return `<small class="personal-schedule-history-import__summary">Заменён новой версией${replacementDate ? ` от ${escape(replacementDate)}` : ""}. Старая сетка сохранена для просмотра.</small>`;
+    }
+    if (isReplacementImport(batch)) {
+      const sourceBatch = getImportBatchById(batch.replacesImportBatchId);
+      const sourceDate = sourceBatch ? formatDateTime(sourceBatch.appliedAt || sourceBatch.createdAt) : "";
+      return `<small class="personal-schedule-history-import__summary">Новая версия${sourceDate ? ` вместо импорта от ${escape(sourceDate)}` : ""}.</small>`;
+    }
+    return "";
+  }
+
+  function renderImportVersionTrail(batch) {
+    if (isReplacementRollback(batch)) {
+      const replacementBatch = getReplacementTargetBatch(batch);
+      return `<p class="personal-schedule-import-detail__meta">Эта версия заменена новой${replacementBatch ? ` от ${escape(formatDateTime(replacementBatch.appliedAt || replacementBatch.createdAt))}` : ""}. В Focus активна новая версия, а эта сохранена только для просмотра.</p>`;
+    }
+    if (isReplacementImport(batch)) {
+      const sourceBatch = getImportBatchById(batch.replacesImportBatchId);
+      return `<p class="personal-schedule-import-detail__meta">Это обновленная версия${sourceBatch ? ` вместо импорта от ${escape(formatDateTime(sourceBatch.appliedAt || sourceBatch.createdAt))}` : ""}. Старая версия автоматически откатана.</p>`;
+    }
+    return "";
+  }
+
+  function getImportDisplayStatus(batch) {
+    if (isReplacementRollback(batch)) return "replaced";
+    if (isReplacementImport(batch)) return "updated";
+    return batch?.status || "unknown";
+  }
+
+  function getImportStatusLabel(batch) {
+    if (isReplacementRollback(batch)) return "Заменён";
+    if (isReplacementImport(batch)) return "Новая версия";
+    if (batch?.status === "rolled_back") return "Откатан";
+    if (batch?.status === "applied") return "В Focus";
+    return "Черновик";
+  }
+
+  function getImportResultTitle(batch) {
+    if (isReplacementRollback(batch)) return "Заменён новой версией";
+    if (isReplacementImport(batch)) return "Обновлено в Focus";
+    if (batch?.status === "rolled_back") return "Импорт откатан";
+    return "Добавлено в Focus";
+  }
+
+  function getImportResultDescription(batch) {
+    if (isReplacementRollback(batch)) {
+      return "Эта версия уже заменена. Старая сетка сохранена в истории, а в Focus активна новая версия.";
+    }
+    if (isReplacementImport(batch)) {
+      return "Новая версия ритма добавлена в Focus, а предыдущая версия автоматически откатана.";
+    }
+    if (batch?.status === "rolled_back") {
+      return "Эта пачка уже убрана из Focus. Черновик остался в истории, его можно открыть и импортировать заново.";
+    }
+    return "Пачка добавлена в Focus. Ниже видно, какие объекты созданы и где их искать.";
+  }
+
+  function getImportHistoryTitle(batch) {
+    if (isReplacementRollback(batch)) return "Заменён новой версией";
+    if (isReplacementImport(batch)) return "Новая версия применена";
+    if (batch?.status === "rolled_back") return "Импорт откатан";
+    return "Импорт применен";
+  }
+
+  function isReplacementRollback(batch) {
+    return batch?.status === "rolled_back" && batch?.rolledBackReason === "replaced";
+  }
+
+  function isReplacementImport(batch) {
+    return batch?.status === "applied" && Boolean(batch?.replacesImportBatchId);
+  }
+
+  function getReplacementTargetBatch(batch) {
+    if (!isReplacementRollback(batch) || !batch?.replacedByImportBatchId) return null;
+    return getImportBatchById(batch.replacedByImportBatchId);
+  }
+
+  function getImportBatchById(batchId) {
+    return state.importBatches.find(batch => batch.id === batchId) || null;
+  }
+
+  function getImportVersionComparePair(batch) {
+    if (isReplacementImport(batch)) {
+      const sourceBatch = getImportBatchById(batch.replacesImportBatchId);
+      return sourceBatch ? { sourceBatch, targetBatch: batch } : null;
+    }
+    if (isReplacementRollback(batch)) {
+      const targetBatch = getReplacementTargetBatch(batch);
+      return targetBatch ? { sourceBatch: batch, targetBatch } : null;
+    }
+    return null;
+  }
+
+  function canCompareImportSchedules(sourceBatch, targetBatch) {
+    const sourceSchedule = getImportBatchPrimarySchedule(sourceBatch);
+    const targetSchedule = getImportBatchPrimarySchedule(targetBatch);
+    return Boolean(
+      getImportScheduleDayTimes(sourceSchedule).length
+      && getImportScheduleDayTimes(targetSchedule).length,
+    );
+  }
+
+  function getSelectedCompareImportBatches() {
+    const sourceBatch = getImportBatchById(selectedCompareImportIds.sourceBatchId);
+    const targetBatch = getImportBatchById(selectedCompareImportIds.targetBatchId);
+    if (sourceBatch && targetBatch) return { sourceBatch, targetBatch };
+    return getDefaultCompareImportPair() || { sourceBatch: null, targetBatch: null };
+  }
+
+  function getDefaultCompareImportPair() {
+    const replacementBatch = state.importBatches.find(isReplacementImport);
+    if (replacementBatch) return getImportVersionComparePair(replacementBatch);
+    const replacedBatch = state.importBatches.find(isReplacementRollback);
+    return replacedBatch ? getImportVersionComparePair(replacedBatch) : null;
+  }
+
+  function compareImportScheduleVersions(sourceBatch, targetBatch) {
+    const sourceSchedule = getImportBatchPrimarySchedule(sourceBatch);
+    const targetSchedule = getImportBatchPrimarySchedule(targetBatch);
+    const sourceDayTimes = getImportScheduleDayTimes(sourceSchedule);
+    const targetDayTimes = getImportScheduleDayTimes(targetSchedule);
+    const sourceBlocks = flattenImportScheduleBlocks(sourceSchedule);
+    const targetBlocks = flattenImportScheduleBlocks(targetSchedule);
+    if (!sourceBlocks.length || !targetBlocks.length) return null;
+
+    const matchedSourceIds = new Set();
+    const matchedTargetIds = new Set();
+
+    for (const targetBlock of targetBlocks) {
+      const sourceBlock = sourceBlocks.find(block => !matchedSourceIds.has(block.id) && block.exactKey === targetBlock.exactKey);
+      if (sourceBlock) {
+        matchedSourceIds.add(sourceBlock.id);
+        matchedTargetIds.add(targetBlock.id);
+      }
+    }
+
+    const changed = [];
+    for (const targetBlock of targetBlocks) {
+      if (matchedTargetIds.has(targetBlock.id)) continue;
+      const sourceBlock = findCompareBlockMatch(sourceBlocks, matchedSourceIds, targetBlock, "dayTitleKey")
+        || findCompareBlockMatch(sourceBlocks, matchedSourceIds, targetBlock, "dayTimeKey");
+      if (!sourceBlock) continue;
+      matchedSourceIds.add(sourceBlock.id);
+      matchedTargetIds.add(targetBlock.id);
+      changed.push({ type: "changed", source: sourceBlock, target: targetBlock });
+    }
+
+    const added = targetBlocks
+      .filter(block => !matchedTargetIds.has(block.id))
+      .map(block => ({ type: "added", block }));
+    const removed = sourceBlocks
+      .filter(block => !matchedSourceIds.has(block.id))
+      .map(block => ({ type: "removed", block }));
+
+    return {
+      source: {
+        dayCount: sourceDayTimes.length,
+        blockCount: sourceBlocks.length,
+      },
+      target: {
+        dayCount: targetDayTimes.length,
+        blockCount: targetBlocks.length,
+      },
+      added: sortImportCompareItems(added),
+      removed: sortImportCompareItems(removed),
+      changed: sortImportCompareItems(changed),
+      changeCount: added.length + removed.length + changed.length,
+    };
+  }
+
+  function findCompareBlockMatch(blocks, matchedIds, targetBlock, keyName) {
+    return blocks.find(block => !matchedIds.has(block.id) && block[keyName] === targetBlock[keyName]) || null;
+  }
+
+  function flattenImportScheduleBlocks(schedule) {
+    return getImportScheduleDayTimes(schedule).flatMap((day, dayIndex) => {
+      const dayLabel = String(day?.day || `День ${dayIndex + 1}`);
+      const dayKey = normalizeImportCompareText(dayLabel) || `day-${dayIndex + 1}`;
+      return (Array.isArray(day?.times) ? day.times : []).map((value, blockIndex) => {
+        const parsed = parseImportScheduleLine(value);
+        const range = parseImportedScheduleTimeRange(parsed.timeRange);
+        const title = parsed.title || "Блок расписания";
+        const timeRange = parsed.timeRange || "";
+        const titleKey = normalizeImportCompareText(title);
+        const timeKey = normalizeImportCompareText(timeRange);
+        return {
+          id: `${dayIndex}:${blockIndex}:${timeKey}:${titleKey}`,
+          day: dayLabel,
+          dayIndex,
+          title,
+          timeRange,
+          startMinute: range?.startMinute ?? (blockIndex * 10),
+          exactKey: `${dayKey}|${timeKey}|${titleKey}`,
+          dayTitleKey: `${dayKey}|${titleKey}`,
+          dayTimeKey: `${dayKey}|${timeKey}`,
+        };
+      });
+    });
+  }
+
+  function normalizeImportCompareText(value) {
+    return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
+  }
+
+  function sortImportCompareItems(items) {
+    return [...items].sort((left, right) => {
+      const leftBlock = left.target || left.block || left.source;
+      const rightBlock = right.target || right.block || right.source;
+      return (leftBlock.dayIndex - rightBlock.dayIndex)
+        || (leftBlock.startMinute - rightBlock.startMinute)
+        || leftBlock.title.localeCompare(rightBlock.title, "ru");
+    });
+  }
+
+  function renderImportVersionCompareGroup(title, items, emptyText) {
+    return `
+      <section class="personal-schedule-version-compare__group">
+        <header>
+          <strong>${escape(title)}</strong>
+          <small>${escape(formatImportCount(items.length, ["блок", "блока", "блоков"]))}</small>
+        </header>
+        <div class="personal-schedule-version-compare__items">
+          ${items.length ? items.map(renderImportVersionCompareItem).join("") : `<p class="modal-hint">${escape(emptyText)}</p>`}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderImportVersionCompareItem(item) {
+    if (item.type === "changed") {
+      return `
+        <article class="personal-schedule-version-compare__item" data-ps-compare-change="changed">
+          <span>${escape(item.target.day)}</span>
+          <strong>${escape(item.target.title)}</strong>
+          <small>Было: ${escape(formatImportCompareBlock(item.source))}</small>
+          <small>Стало: ${escape(formatImportCompareBlock(item.target))}</small>
+        </article>
+      `;
+    }
+    const block = item.block;
+    return `
+      <article class="personal-schedule-version-compare__item" data-ps-compare-change="${escape(item.type)}">
+        <span>${escape(block.day)}</span>
+        <strong>${escape(block.title)}</strong>
+        <small>${escape(block.timeRange || "Время не указано")}</small>
+      </article>
+    `;
+  }
+
+  function formatImportCompareBlock(block) {
+    return [block.day, block.timeRange, block.title].filter(Boolean).join(" · ");
+  }
+
   function renderImportDetailMetric(label, value) {
     return `
       <article class="personal-schedule-import-detail__metric">
@@ -1886,6 +2323,123 @@ export function createPersonalSchedulePlannerUi({
       timeRange: match[1].replace(/\s*([-–—])\s*/g, "$1"),
       title: match[2] || "Блок расписания",
     };
+  }
+
+  function createDraftFromImportedSchedule(batch, schedule, dayTimes) {
+    const sourceDraft = state.drafts.find(draft => draft.id === batch?.draftId) || null;
+    const sourceIntake = normalizePersonalScheduleIntake(sourceDraft?.intake || state.intake, now());
+    const createdAt = now().toISOString();
+    const blocks = sortDraftBlocks(dayTimes.flatMap((day, dayIndex) => (
+      (Array.isArray(day?.times) ? day.times : [])
+        .map((value, blockIndex) => createImportedScheduleDraftBlock(value, day, dayIndex, blockIndex))
+        .filter(Boolean)
+    )));
+    if (!blocks.length) return null;
+
+    const variantId = createUiId("personal-schedule-variant");
+    const draft = {
+      id: createUiId("personal-schedule-draft"),
+      status: "draft_ready",
+      promptVersion: sourceDraft?.promptVersion || PERSONAL_SCHEDULE_PROMPT_VERSION,
+      bigFiveVersion: sourceDraft?.bigFiveVersion || "import-copy",
+      createdAt,
+      updatedAt: createdAt,
+      intake: structuredCloneSafe(sourceIntake),
+      normalizedProfile: structuredCloneSafe(sourceDraft?.normalizedProfile || state.normalizedProfile || normalizePersonalScheduleProfile(sourceIntake, state.bigFive.scores)),
+      source: "import_copy",
+      sourceImportBatchId: batch.id,
+      replacesImportBatchId: batch.id,
+      sourceScheduleId: schedule.id || "",
+      variants: [{
+        id: variantId,
+        title: "Копия сохраненного ритма",
+        summary: "Все блоки из выбранного импорта открыты для правки.",
+        recommendationReason: `Основано на импорте от ${formatDateTime(batch?.appliedAt || batch?.createdAt)}.`,
+        blocks,
+        validation: null,
+      }],
+      recommendedVariantId: variantId,
+      selectedVariantId: variantId,
+    };
+    draft.variants[0].validation = validatePersonalScheduleDraft({
+      draft: { blocks },
+      intake: draft.intake,
+      existingIntervals: getExistingIntervalsForDraft(draft),
+    });
+    return draft;
+  }
+
+  function createImportedScheduleDraftBlock(value, day, dayIndex, blockIndex) {
+    const parsed = parseImportScheduleLine(value);
+    const range = parseImportedScheduleTimeRange(parsed.timeRange);
+    if (!range) return null;
+    const title = parsed.title || "Блок расписания";
+    const category = inferImportedScheduleBlockCategory(title);
+    return {
+      id: createUiId("personal-schedule-block"),
+      title: title.slice(0, 120),
+      category,
+      priority: inferImportedScheduleBlockPriority(title, category),
+      weekday: getImportScheduleWeekday(day?.day, dayIndex),
+      weekdayLabel: getPersonalScheduleWeekdayLabel(getImportScheduleWeekday(day?.day, dayIndex)),
+      startTime: formatTimeFromMinutes(range.startMinute),
+      endTime: formatTimeFromMinutes(range.endMinute),
+      startMinute: range.startMinute,
+      endMinute: range.endMinute,
+      durationMinutes: Math.max(MIN_BLOCK_MINUTES, range.endMinute - range.startMinute),
+      flexibility: "semi_flexible",
+      rationale: `Скопировано из сохраненного ритма, блок ${blockIndex + 1}.`,
+      source: "import_copy",
+    };
+  }
+
+  function parseImportedScheduleTimeRange(value) {
+    const match = String(value || "").match(/^(\d{1,2}:\d{2})[-–—](\d{1,2}:\d{2})$/);
+    if (!match) return null;
+    const startMinute = parseTimeToMinutes(match[1]);
+    const endMinute = parseTimeToMinutes(match[2]);
+    if (!Number.isFinite(startMinute) || !Number.isFinite(endMinute) || endMinute <= startMinute) return null;
+    return { startMinute, endMinute };
+  }
+
+  function getImportScheduleWeekday(value, fallbackIndex = 0) {
+    const text = String(value || "").trim().toLowerCase();
+    const weekdays = {
+      "понедельник": 1,
+      "пн": 1,
+      "вторник": 2,
+      "вт": 2,
+      "среда": 3,
+      "ср": 3,
+      "четверг": 4,
+      "чт": 4,
+      "пятница": 5,
+      "пт": 5,
+      "суббота": 6,
+      "сб": 6,
+      "воскресенье": 7,
+      "вс": 7,
+    };
+    return weekdays[text] || ((fallbackIndex % 7) + 1);
+  }
+
+  function inferImportedScheduleBlockCategory(title) {
+    const text = String(title || "").toLowerCase();
+    if (/(главн|фокус|глубок|приоритет|концентр)/.test(text)) return "focus";
+    if (/(работ|встреч|созвон)/.test(text)) return "work";
+    if (/(учеб|курс|обуч|читать|лекци)/.test(text)) return "study";
+    if (/(спорт|движ|трениров|зарядк|прогул)/.test(text)) return "sport";
+    if (/(дом|быт|семь|семья)/.test(text)) return "home";
+    if (/(здоров|врач|сон)/.test(text)) return "health";
+    if (/(отдых|восстанов|буфер|перерыв)/.test(text)) return "rest";
+    return "goal";
+  }
+
+  function inferImportedScheduleBlockPriority(title, category) {
+    const text = String(title || "").toLowerCase();
+    if (category === "focus" || /(главн|важн|приоритет)/.test(text)) return "high";
+    if (category === "rest" || /(буфер|перерыв)/.test(text)) return "low";
+    return "medium";
   }
 
   function getImportBatchEntityCounts(batch) {
@@ -2038,7 +2592,7 @@ export function createPersonalSchedulePlannerUi({
     const validation = validatePersonalScheduleDraft({
       draft: { blocks: variant.blocks },
       intake: draft.intake,
-      existingIntervals: getExistingIntervals(),
+      existingIntervals: getExistingIntervalsForDraft(draft),
     });
     variant.validation = validation;
     return validation;
@@ -2126,6 +2680,12 @@ function withRuntimeDefaults(nextState) {
       ...(nextState?.importOptions && typeof nextState.importOptions === "object" ? nextState.importOptions : {}),
     },
   };
+}
+
+function createUiId(prefix) {
+  const random = globalThis.crypto?.randomUUID?.()
+    || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}-${random}`;
 }
 
 function coerceInputValue(input) {
