@@ -105,6 +105,7 @@ test("daily quote cards expose explicit favorite, share and copy actions", () =>
 });
 
 test("daily quotes modal exposes favorite quotes view", () => {
+  const dailyLoader = getFunctionBody(appJs, "loadDailyQuotes");
   const modalRenderer = getFunctionBody(appJs, "renderDailyQuotesModal");
   const favoriteLoader = getFunctionBody(appJs, "loadFavoriteQuotes");
   const favoriteCacheLoader = getFunctionBody(appJs, "loadFavoriteQuotesFromCache");
@@ -138,6 +139,9 @@ test("daily quotes modal exposes favorite quotes view", () => {
   assert.match(favoriteAction, /локальное избранное/);
   assert.match(quoteFinder, /dailyQuotesState\.quotes/);
   assert.match(quoteFinder, /favoriteQuotesState\.quotes/);
+  assert.equal((dailyLoader.match(/await syncFavoriteQuotesFromCache\(\);/g) || []).length, 2);
+  assert.match(dailyLoader, /await syncFavoriteQuotesFromCache\(\);\s*await saveDailyQuotesToHistory/);
+  assert.match(dailyLoader, /await syncFavoriteQuotesFromCache\(\);\s*await saveDailyQuotesToCache[\s\S]*await saveDailyQuotesToHistory/);
   assert.match(appCss, /\.daily-quotes-tabs\s*\{/);
   assert.match(appCss, /\.daily-quotes-tab\.is-active\s*\{/);
 });
@@ -262,7 +266,26 @@ function getFunctionBody(source, functionName) {
   const start = source.indexOf(`function ${functionName}(`);
   assert.notEqual(start, -1, `Function ${functionName} not found.`);
 
-  const openBrace = source.indexOf("{", start);
+  const openParameters = source.indexOf("(", start);
+  assert.notEqual(openParameters, -1, `Function ${functionName} parameters not found.`);
+
+  let parameterDepth = 0;
+  let closeParameters = -1;
+  for (let index = openParameters; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === "(") {
+      parameterDepth += 1;
+    } else if (char === ")") {
+      parameterDepth -= 1;
+      if (parameterDepth === 0) {
+        closeParameters = index;
+        break;
+      }
+    }
+  }
+  assert.notEqual(closeParameters, -1, `Function ${functionName} parameters are not closed.`);
+
+  const openBrace = source.indexOf("{", closeParameters);
   assert.notEqual(openBrace, -1, `Function ${functionName} body not found.`);
 
   let depth = 0;

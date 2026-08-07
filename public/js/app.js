@@ -1548,6 +1548,7 @@ async function loadDailyQuotes({ force = false } = {}) {
       status: "cached",
     };
     quoteIndex = Math.min(quoteIndex, Math.max(0, dailyQuotesState.quotes.length - 1));
+    await syncFavoriteQuotesFromCache();
     await saveDailyQuotesToHistory(dailyQuotesState);
     renderQuote();
     renderDailyQuotesModal();
@@ -1560,6 +1561,7 @@ async function loadDailyQuotes({ force = false } = {}) {
       status: "ok",
     };
     quoteIndex = Math.min(quoteIndex, Math.max(0, dailyQuotesState.quotes.length - 1));
+    await syncFavoriteQuotesFromCache();
     await saveDailyQuotesToCache(dailyQuotesState);
     await saveDailyQuotesToHistory(dailyQuotesState);
   } else if (!cached) {
