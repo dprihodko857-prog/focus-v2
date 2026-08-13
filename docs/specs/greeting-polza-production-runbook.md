@@ -4,6 +4,7 @@ Status: production activation guide only. This runbook does not approve deployme
 
 Scope: Focus Greeting Assistant only. Development and CI must continue to use `MockGreetingAIProvider` or `DisabledGreetingAIProvider` without real credentials.
 
+Use `docs/specs/greeting-production-readiness-checklist.md` as the final keyless readiness gate before asking anyone to install a real provider key.
 Use `docs/specs/greeting-polza-operator-handoff.md` as the short operator checklist for the actual activation order.
 
 ## External Contract

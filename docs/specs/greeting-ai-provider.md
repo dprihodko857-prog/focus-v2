@@ -170,6 +170,7 @@ Use `docs/specs/greeting-model-comparison.md` as the production-only comparison 
 Use `docs/specs/greeting-assistant-technical-acceptance.md` as the current accepted technical snapshot for the Greeting Assistant section.
 Use `docs/specs/greeting-polza-operator-handoff.md` as the short operator checklist for model comparison, activation, verification, live smoke, and rollback order.
 Use `docs/specs/greeting-polza-production-runbook.md` for the separate production activation procedure after model selection and owner approval.
+Use `docs/specs/greeting-production-readiness-checklist.md` as the final keyless readiness gate before asking anyone to install a real provider key.
 
 ## Server Validation
 

@@ -10,6 +10,7 @@ Scope: Focus Greeting Assistant only.
 - Keep local development and CI on `FOCUS_GREETING_AI_PROVIDER=mock` or `FOCUS_GREETING_AI_PROVIDER=disabled`.
 - Do not paste API keys into chat, shell history, screenshots, docs, `.env.example`, frontend code, mobile code, or git.
 - Do not expose model ids, provider base URLs, bearer tokens, or provider metadata to clients.
+- Use `docs/specs/greeting-production-readiness-checklist.md` as the final keyless readiness gate before asking anyone to install a real provider key.
 - Use `docs/specs/greeting-polza-production-runbook.md` for full context and `docs/specs/greeting-polza-production-smoke-report.md` for the final activation record.
 
 ## 1. Model Comparison Environment

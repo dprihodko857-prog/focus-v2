@@ -10,6 +10,7 @@ const syncService = readFileSync("server/focus-v2-sync.service", "utf8");
 const providerDoc = readFileSync("docs/specs/greeting-ai-provider.md", "utf8");
 const acceptanceDoc = readFileSync("docs/specs/greeting-assistant-technical-acceptance.md", "utf8");
 const comparisonDoc = readFileSync("docs/specs/greeting-model-comparison.md", "utf8");
+const readinessChecklistDoc = readFileSync("docs/specs/greeting-production-readiness-checklist.md", "utf8");
 const runbookDoc = readFileSync("docs/specs/greeting-polza-production-runbook.md", "utf8");
 const operatorHandoffDoc = readFileSync("docs/specs/greeting-polza-operator-handoff.md", "utf8");
 const smokeReportDoc = readFileSync("docs/specs/greeting-polza-production-smoke-report.md", "utf8");
@@ -105,7 +106,10 @@ test("production docs point operators to server-only Polza configuration", () =>
   assert.match(providerDoc, /docs\/specs\/greeting-assistant-technical-acceptance\.md/);
   assert.match(providerDoc, /docs\/specs\/greeting-polza-production-runbook\.md/);
   assert.match(providerDoc, /docs\/specs\/greeting-polza-operator-handoff\.md/);
+  assert.match(providerDoc, /docs\/specs\/greeting-production-readiness-checklist\.md/);
   assert.match(runbookDoc, /docs\/specs\/greeting-polza-operator-handoff\.md/);
+  assert.match(runbookDoc, /docs\/specs\/greeting-production-readiness-checklist\.md/);
+  assert.match(operatorHandoffDoc, /docs\/specs\/greeting-production-readiness-checklist\.md/);
   assert.match(providerDoc, /FOCUS_GREETING_AI_PROVIDER=polza/);
   assert.match(providerDoc, /FOCUS_POLZA_PRODUCTION_ENABLED=true/);
   assert.match(providerDoc, /FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true/);
@@ -115,6 +119,51 @@ test("production docs point operators to server-only Polza configuration", () =>
   assert.match(comparisonDoc, /FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED=true/);
   assert.match(comparisonDoc, /FOCUS_POLZA_MODEL=<candidate model id>/);
   assert.match(comparisonDoc, /Initial low-cost ChatGPT candidate: `openai\/gpt-4o-mini`/);
+});
+
+test("production readiness checklist captures the final keyless gate", () => {
+  [
+    "Greeting Production Readiness Checklist",
+    "final keyless readiness gate",
+    "Focus section \"Compose greeting\" only",
+    "FOCUS_GREETING_AI_PROVIDER=mock",
+    "MockGreetingAIProvider",
+    "DisabledGreetingAIProvider",
+    "PolzaGreetingAIProvider",
+    "GigaChatGreetingAIProvider",
+    "YandexGreetingAIProvider",
+    "OpenAIGreetingAIProvider",
+    "npm run greeting:preflight",
+    "npm run test:greeting",
+    "npm run test:greeting:server",
+    "liveProviderCallPerformed: false",
+    "client-boundary",
+    "production-readiness-smoke",
+    ".env.example",
+    "FOCUS_GREETING_AI_PROVIDER=polza",
+    "FOCUS_POLZA_PRODUCTION_ENABLED=true",
+    "FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true",
+    "FOCUS_POLZA_MODEL",
+    "docs/specs/greeting-model-comparison.md",
+    "docs/specs/greeting-polza-production-smoke-report.md",
+    "FOCUS_GREETING_AI_PROVIDER=disabled",
+    "No real Polza key is requested in chat.",
+    "No live Polza or GigaChat call is part of development, CI, mock smoke, disabled smoke, or this readiness checklist.",
+    "docs/specs/greeting-polza-production-runbook.md",
+  ].forEach(marker => {
+    assert.match(readinessChecklistDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  [
+    "Provider output can save drafts",
+    "Any local or CI test requires a live provider call.",
+    "Any report, doc, screenshot, terminal output, or chat message contains a real API key or bearer token.",
+  ].forEach(marker => {
+    assert.match(readinessChecklistDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  assert.doesNotMatch(readinessChecklistDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
+  assert.doesNotMatch(readinessChecklistDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
 });
 
 test("local browser smoke evidence stays mock disabled and ignored", () => {
@@ -315,6 +364,7 @@ test("technical acceptance snapshot captures implemented greeting assistant gate
     "scripts/greeting-model-comparison-runner.mjs",
     "scripts/greeting-production-preflight.mjs",
     "docs/specs/greeting-model-comparison.md",
+    "docs/specs/greeting-production-readiness-checklist.md",
     "docs/specs/greeting-polza-production-runbook.md",
     "docs/specs/greeting-polza-operator-handoff.md",
     "docs/specs/greeting-polza-production-smoke-report.md",
