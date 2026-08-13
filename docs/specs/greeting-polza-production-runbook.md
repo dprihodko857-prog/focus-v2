@@ -65,9 +65,10 @@ Compatibility aliases such as `POLZA_API_KEY` and `POLZA_MODEL` are accepted by 
 5. Restart only the Focus backend service after secrets are installed.
 6. Verify `GET /api/health` returns `{"ok":true,"service":"focus-sync"}`.
 7. Verify `GET /api/sync/greetings/status` through an authenticated Focus session returns `providerConfigured: true` and `provider: "polza"`.
-8. Confirm the status response does not include model id, API key, bearer token, base URL, provider metadata, draft fields, birthday mutations, reminder fields, delivery fields, or sent-status fields.
-9. Run one approved live Greeting Assistant smoke from the Focus UI.
-10. Record sanitized activation notes with `docs/specs/greeting-polza-production-smoke-report.md`: date, deployed source id, selected model id, provider status result, latency, cost estimate, and smoke pass/fail. Never record the key.
+8. Verify `GET /api/sync/greetings/readiness` returns `readinessStatus: "ready"` and `checks.liveProviderCallPerformed: false`.
+9. Confirm the status and readiness responses do not include model id, API key, bearer token, base URL, provider metadata, draft fields, birthday mutations, reminder fields, delivery fields, or sent-status fields.
+10. Run one approved live Greeting Assistant smoke from the Focus UI.
+11. Record sanitized activation notes with `docs/specs/greeting-polza-production-smoke-report.md`: date, deployed source id, selected model id, provider status result, latency, cost estimate, and smoke pass/fail. Never record the key.
 
 ## Approved Live Smoke
 
@@ -92,7 +93,7 @@ If Polza activation fails or the provider becomes unavailable, do not switch pro
 FOCUS_GREETING_AI_PROVIDER=disabled
 ```
 
-Then restart the backend and verify `/api/sync/greetings/status` returns `providerConfigured: false` with the unavailable message. Users must still be able to save the questionnaire and continue later.
+Then restart the backend and verify `/api/sync/greetings/status` returns `providerConfigured: false` with the unavailable message, and `/api/sync/greetings/readiness` returns `readinessStatus: "disabled"`. Users must still be able to save the questionnaire and continue later.
 
 If the key may have been exposed, rotate it in Polza before any reactivation.
 

@@ -22,7 +22,9 @@ Do not paste or record provider keys, bearer tokens, authorization headers, raw 
 - [ ] `GET /api/health` returned `{"ok":true,"service":"focus-sync"}`.
 - [ ] Authenticated `GET /api/sync/greetings/status` returned `providerConfigured: true`.
 - [ ] Authenticated `GET /api/sync/greetings/status` returned `provider: "polza"`.
-- [ ] Status response did not include model id, API key, bearer token, base URL, provider metadata, draft fields, birthday mutations, reminder fields, delivery fields, or sent-status fields.
+- [ ] Authenticated `GET /api/sync/greetings/readiness` returned `readinessStatus: "ready"`.
+- [ ] Readiness response returned `checks.liveProviderCallPerformed: false`.
+- [ ] Status and readiness responses did not include model id, API key, bearer token, base URL, provider metadata, draft fields, birthday mutations, reminder fields, delivery fields, or sent-status fields.
 - [ ] Frontend and mobile traffic used only Focus backend greeting endpoints.
 - [ ] No frontend or mobile request was sent directly to `https://polza.ai/api/v1/chat/completions`.
 
@@ -76,7 +78,7 @@ Record only sanitized values. Do not copy raw provider payloads if they contain 
 
 - Keep Polza enabled: yes/no
 - Roll back to controlled disabled state: yes/no
-- If rollback is needed, set `FOCUS_GREETING_AI_PROVIDER=disabled`, restart the backend, and verify `providerConfigured: false` with the unavailable message.
+- If rollback is needed, set `FOCUS_GREETING_AI_PROVIDER=disabled`, restart the backend, and verify `providerConfigured: false` with the unavailable message and `readinessStatus: "disabled"`.
 - Key rotation required: yes/no
 - Follow-up owner decision required: yes/no
 

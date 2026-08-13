@@ -2171,6 +2171,82 @@ test("sync greeting status reports mock readiness without provider model or secr
   }
 });
 
+test("sync greeting readiness reports safe Polza diagnostics without live provider calls", async () => {
+  const db = createSyncDatabase(":memory:");
+  let liveProviderCalls = 0;
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-06T09:05:00.000Z",
+    greetingAIProvider: new PolzaGreetingAIProvider({
+      apiKey: "sk-polza-test-api-key-with-enough-length",
+      model: "openai/gpt-4o-mini",
+      baseUrl: "https://polza.test/api/v1",
+      fetchImpl: async () => {
+        liveProviderCalls += 1;
+        throw new Error("Readiness must not call the live provider.");
+      },
+    }),
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-greeting-readiness-polza";
+  createTestAccount(db, accountId, "2026-08-06T08:00:00.000Z");
+
+  try {
+    const response = await fetch(`${baseUrl}/api/sync/greetings/readiness`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.deepEqual(result, {
+      accountId,
+      featureKey: "greetingAssistant",
+      providerConfigured: true,
+      provider: "polza",
+      promptVersion: GREETING_PROMPT_VERSION,
+      readinessStatus: "ready",
+      disabledMessage: null,
+      checks: {
+        providerContractReady: true,
+        generationAvailable: true,
+        revisionAvailable: true,
+        serverValidationRequired: true,
+        structuredResultRequired: true,
+        backendOnlyProviderAccess: true,
+        liveProviderCallPerformed: false,
+        clientSecretsExposed: false,
+        clientModelSelectionAllowed: false,
+        providerSideEffectsAllowed: false,
+      },
+      checkedAt: "2026-08-06T09:05:00.000Z",
+    });
+    assert.equal(liveProviderCalls, 0);
+    assertNoGreetingApiBoundaryLeaks(result);
+
+    const serialized = JSON.stringify(result);
+    assert.equal(serialized.includes("openai/gpt-4o-mini"), false);
+    assert.equal(serialized.includes("sk-polza-test-api-key-with-enough-length"), false);
+    assert.equal(serialized.includes("polza.test"), false);
+    assert.equal("providerModel" in result, false);
+    assert.equal("providerTimeoutMs" in result, false);
+
+    const methodResponse = await fetch(`${baseUrl}/api/sync/greetings/readiness`, {
+      method: "POST",
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(methodResponse.status, 405);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("sync greeting generation validates request and returns server-validated mock variants", async () => {
   const db = createSyncDatabase(":memory:");
   let idCounter = 0;
@@ -2251,6 +2327,36 @@ test("sync greeting endpoints expose controlled disabled state when provider is 
       checkedAt: "2026-08-06T09:05:00.000Z",
     });
 
+    const readinessResponse = await fetch(`${baseUrl}/api/sync/greetings/readiness`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(readinessResponse.status, 200);
+    assert.deepEqual(await readinessResponse.json(), {
+      accountId,
+      featureKey: "greetingAssistant",
+      providerConfigured: false,
+      provider: null,
+      promptVersion: GREETING_PROMPT_VERSION,
+      readinessStatus: "disabled",
+      disabledMessage: GREETING_DISABLED_MESSAGE,
+      checks: {
+        providerContractReady: true,
+        generationAvailable: false,
+        revisionAvailable: false,
+        serverValidationRequired: true,
+        structuredResultRequired: true,
+        backendOnlyProviderAccess: true,
+        liveProviderCallPerformed: false,
+        clientSecretsExposed: false,
+        clientModelSelectionAllowed: false,
+        providerSideEffectsAllowed: false,
+      },
+      checkedAt: "2026-08-06T09:05:00.000Z",
+    });
+
     const generateResponse = await fetch(`${baseUrl}/api/sync/greetings/generate`, {
       method: "POST",
       headers: {
@@ -2316,6 +2422,15 @@ test("sync greeting API boundary strips provider metadata and ignores provider s
     });
     assert.equal(statusResponse.status, 200);
     assertNoGreetingApiBoundaryLeaks(await statusResponse.json());
+
+    const readinessResponse = await fetch(`${baseUrl}/api/sync/greetings/readiness`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(readinessResponse.status, 200);
+    assertNoGreetingApiBoundaryLeaks(await readinessResponse.json());
 
     const generateResponse = await fetch(`${baseUrl}/api/sync/greetings/generate`, {
       method: "POST",
@@ -5734,8 +5849,10 @@ function assertNoGreetingApiBoundaryLeaks(payload) {
   const forbiddenKeys = new Set([
     "model",
     "providerModel",
+    "apiKey",
     "authorizationKey",
     "accessToken",
+    "access_token",
     "baseUrl",
     "oauthUrl",
     "draft",

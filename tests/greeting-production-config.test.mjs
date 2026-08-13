@@ -77,6 +77,9 @@ test("production runbook documents approved server-only Polza activation", () =>
     "FOCUS_GREETING_AI_PROVIDER=disabled",
     "/api/health",
     "/api/sync/greetings/status",
+    "/api/sync/greetings/readiness",
+    "readinessStatus: \"ready\"",
+    "checks.liveProviderCallPerformed: false",
     "docs/specs/greeting-model-comparison.md",
     "docs/specs/greeting-polza-production-smoke-report.md",
   ].forEach(marker => {
@@ -103,6 +106,8 @@ test("production smoke report template captures sanitized live activation eviden
     "Secret installation method",
     "providerConfigured: true",
     "provider: \"polza\"",
+    "readinessStatus: \"ready\"",
+    "checks.liveProviderCallPerformed: false",
     "https://polza.ai/api/v1/chat/completions",
     "localStorage",
     "server validation passed",
@@ -111,6 +116,7 @@ test("production smoke report template captures sanitized live activation eviden
     "Cost per request source",
     "FOCUS_GREETING_AI_PROVIDER=disabled",
     "providerConfigured: false",
+    "readinessStatus: \"disabled\"",
   ].forEach(marker => {
     assert.match(smokeReportDoc, new RegExp(escapeRegExp(marker)));
   });

@@ -174,12 +174,14 @@ Provider failures return safe status/reason metadata without saving generated te
 
 Greeting API responses are allowlisted by Focus backend. Provider-returned metadata is not forwarded to clients.
 
-The `/api/sync/greetings/status`, `/generate`, and `/revise` responses must not include:
+The `/api/sync/greetings/status`, `/readiness`, `/generate`, and `/revise` responses must not include:
 
 - production model names;
 - authorization keys or access tokens;
 - provider base URLs or OAuth URLs;
 - provider-side draft, birthday, reminder, delivery, or sent-status fields.
+
+The authenticated `/api/sync/greetings/readiness` endpoint is a backend self-check. It reports only safe readiness facts: provider configured boolean, provider adapter name, prompt version, controlled disabled state, and invariant checks such as server validation required, backend-only provider access, no live provider call performed, no client model selection, and no provider side effects.
 
 Provider output can only return generated text variants after server validation. Draft saving, copying, birthday edits, holiday edits, reminder creation, message sending, and sent status changes remain separate Focus business actions after explicit user input.
 

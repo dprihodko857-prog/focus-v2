@@ -84,6 +84,7 @@ const PROVIDER_EVENT_PART_PATTERN = /^[a-zA-Z0-9_.:-]{1,120}$/;
 const PROVIDER_EVENT_KEY_PATTERN = /^[a-zA-Z0-9_.:-]{1,420}$/;
 const MAX_PROCESSED_PROVIDER_EVENTS = 500;
 const VOICE_TRANSCRIPTION_FEATURE_KEY = "voiceTranscription";
+const GREETING_ASSISTANT_FEATURE_KEY = "greetingAssistant";
 const PAID_FEATURE_KEYS = new Set([VOICE_TRANSCRIPTION_FEATURE_KEY]);
 const QUOTES_PER_DAY = 5;
 const QUOTE_REPEAT_WINDOWS_DAYS = [90, 60, 30, 0];
@@ -4663,6 +4664,23 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     return;
   }
 
+  if (url.pathname === "/api/sync/greetings/readiness") {
+    const accountContext = getExistingAccountContext({ request, response, db, now });
+    if (!accountContext) return;
+
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "method_not_allowed" });
+      return;
+    }
+
+    sendJson(response, 200, createGreetingReadinessDiagnostics({
+      accountId: accountContext.accountId,
+      checkedAt: accountContext.checkedAt,
+      provider: greetingAIProvider,
+    }));
+    return;
+  }
+
   if (url.pathname === "/api/sync/greetings/generate") {
     const accountContext = getExistingAccountContext({ request, response, db, now });
     if (!accountContext) return;
@@ -6866,6 +6884,38 @@ function isGreetingAIProviderConfigured(provider) {
 function getGreetingAIProviderName(provider) {
   const name = sanitizeStoredName(provider?.provider || "");
   return name || "custom";
+}
+
+function createGreetingReadinessDiagnostics({ accountId, checkedAt, provider }) {
+  const providerContractReady = Boolean(
+    provider
+    && typeof provider.generateGreeting === "function"
+    && typeof provider.reviseGreeting === "function",
+  );
+  const providerConfigured = providerContractReady && isGreetingAIProviderConfigured(provider);
+
+  return {
+    accountId,
+    featureKey: GREETING_ASSISTANT_FEATURE_KEY,
+    providerConfigured,
+    provider: providerConfigured ? getGreetingAIProviderName(provider) : null,
+    promptVersion: GREETING_PROMPT_VERSION,
+    readinessStatus: providerConfigured ? "ready" : "disabled",
+    disabledMessage: providerConfigured ? null : GREETING_DISABLED_MESSAGE,
+    checks: {
+      providerContractReady,
+      generationAvailable: providerConfigured,
+      revisionAvailable: providerConfigured,
+      serverValidationRequired: true,
+      structuredResultRequired: true,
+      backendOnlyProviderAccess: true,
+      liveProviderCallPerformed: false,
+      clientSecretsExposed: false,
+      clientModelSelectionAllowed: false,
+      providerSideEffectsAllowed: false,
+    },
+    checkedAt,
+  };
 }
 
 function createGreetingProviderUnavailableResponse({ accountId, checkedAt }) {
