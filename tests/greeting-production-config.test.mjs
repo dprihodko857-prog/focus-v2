@@ -91,6 +91,7 @@ test("production runbook documents approved server-only Polza activation", () =>
     "checks.liveProviderCallPerformed: false",
     "docs/specs/greeting-model-comparison.md",
     "tests\\greeting-production-readiness-smoke.test.mjs",
+    "approved fake-fetch ready/generate paths",
     "docs/specs/greeting-polza-production-smoke-report.md",
   ].forEach(marker => {
     assert.match(runbookDoc, new RegExp(escapeRegExp(marker)));
