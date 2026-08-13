@@ -109,7 +109,7 @@ test("polza env provider stays disabled without production gates and performs no
   }
 });
 
-test("approved polza env provider reports ready and generates through fake adapter without response leaks", async () => {
+test("approved polza env provider reports ready and generates/revises through fake adapter without response leaks", async () => {
   const db = createSyncDatabase(":memory:");
   const providerCalls = [];
   const provider = createGreetingAIProviderFromEnv({
@@ -189,14 +189,39 @@ test("approved polza env provider reports ready and generates through fake adapt
     assertNoGreetingBoundaryLeaks(generated);
 
     assert.equal(providerCalls.length, 1);
-    assert.equal(providerCalls[0].url, "https://llm-provider.test/api/v1/chat/completions");
-    assert.equal(providerCalls[0].options.headers.Authorization, "Bearer fake-polza-production-key-with-enough-length");
-    const providerRequest = JSON.parse(providerCalls[0].options.body);
-    assert.equal(providerRequest.model, "openai/gpt-4o-mini");
-    assert.equal(providerRequest.response_format.type, "json_schema");
-    assert.equal(providerRequest.messages[0].role, "system");
-    assert.equal(providerRequest.messages[1].role, "user");
-    assert.doesNotMatch(providerCalls[0].options.body, /fake-polza-production-key-with-enough-length/);
+    assertProviderCallShape(providerCalls[0]);
+
+    const reviseResponse = await fetch(`${baseUrl}/api/sync/greetings/revise`, {
+      method: "POST",
+      headers: {
+        ...createAccountHeaders(accountId),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(createGreetingRevisionRequest({
+        sourceText: generated.variants[0].text,
+      })),
+    });
+    assert.equal(reviseResponse.status, 200);
+    const revised = await reviseResponse.json();
+    assert.equal(revised.status, "generated");
+    assert.equal(revised.provider, "polza");
+    assert.equal(revised.promptVersion, GREETING_PROMPT_VERSION);
+    assert.equal(revised.variants.length, 3);
+    assert.equal(revised.safety.validated, true);
+    assert.deepEqual(revised.usage, {
+      promptTokens: 17,
+      completionTokens: 29,
+      totalTokens: 46,
+    });
+    assertNoGreetingBoundaryLeaks(revised);
+
+    assert.equal(providerCalls.length, 2);
+    assertProviderCallShape(providerCalls[1]);
+    const revisionProviderRequest = JSON.parse(providerCalls[1].options.body);
+    const revisionInput = JSON.parse(revisionProviderRequest.messages[1].content);
+    assert.equal(revisionInput.instruction, "Make the text warmer.");
+    assert.equal(revisionInput.sourceText, generated.variants[0].text);
+    assert.equal(revisionInput.baseInput.scenario, "birthday");
   } finally {
     await close(server);
     db.close();
@@ -254,6 +279,26 @@ function createBirthdayGreetingRequest() {
     variantCount: 3,
     promptVersion: GREETING_PROMPT_VERSION,
   };
+}
+
+function createGreetingRevisionRequest({ sourceText = "Maria, happy birthday." } = {}) {
+  return {
+    sourceText,
+    instruction: "Make the text warmer.",
+    baseInput: createBirthdayGreetingRequest(),
+    promptVersion: GREETING_PROMPT_VERSION,
+  };
+}
+
+function assertProviderCallShape(call) {
+  assert.equal(call.url, "https://llm-provider.test/api/v1/chat/completions");
+  assert.equal(call.options.headers.Authorization, "Bearer fake-polza-production-key-with-enough-length");
+  const providerRequest = JSON.parse(call.options.body);
+  assert.equal(providerRequest.model, "openai/gpt-4o-mini");
+  assert.equal(providerRequest.response_format.type, "json_schema");
+  assert.equal(providerRequest.messages[0].role, "system");
+  assert.equal(providerRequest.messages[1].role, "user");
+  assert.doesNotMatch(call.options.body, /fake-polza-production-key-with-enough-length/);
 }
 
 function createOpenAICompatibleCompletionResponse() {
