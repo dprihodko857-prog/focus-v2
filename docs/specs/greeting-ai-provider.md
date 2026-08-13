@@ -61,6 +61,18 @@ Verified without credentials and without live provider calls:
 
 Smoke artifacts are written under ignored `output/playwright/` paths and must not be treated as production source.
 
+## Server Fake-Fetch Coverage
+
+`tests/focus-sync-server.test.mjs` covers `GigaChatGreetingAIProvider` without live API calls:
+
+- server token cache and structured chat payload;
+- token refresh after 401/403 provider auth failure;
+- limited retry for transient chat failures;
+- timeout mapped to a safe failed result;
+- local rate limiting before chat calls;
+- HTTP provider errors mapped to safe reasons;
+- shared server validation rejecting invalid structured output.
+
 ## Production GigaChat Setup
 
 Use server-side environment variables or the existing server secrets mechanism. Never commit these values.

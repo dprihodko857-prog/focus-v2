@@ -2326,6 +2326,209 @@ test("GigaChat greeting provider uses server token cache and structured chat pay
   assert.equal(calls[1].options.headers.Authorization, "Bearer access-token-with-enough-length");
 });
 
+test("GigaChat greeting provider refreshes token after provider auth failure", async () => {
+  const calls = [];
+  const now = new Date("2026-08-06T09:05:00.000Z");
+  const tokens = [
+    "access-token-one-with-enough-length",
+    "access-token-two-with-enough-length",
+  ];
+  const provider = new GigaChatGreetingAIProvider({
+    authorizationKey: "test-authorization-key-with-enough-length",
+    scope: "GIGACHAT_API_PERS",
+    model: "GigaChat-Test",
+    baseUrl: "https://gigachat.test",
+    oauthUrl: "https://gigachat-auth.test/oauth",
+    timeoutMs: 5000,
+    retryAttempts: 0,
+    rateLimitPerMinute: 30,
+    now: () => now,
+    createId: () => `rq-${calls.length + 1}`,
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url, options });
+      if (url === "https://gigachat-auth.test/oauth") {
+        return createGigaChatTokenResponse(tokens[calls.filter(call => call.url === url).length - 1], now);
+      }
+      if (calls.filter(call => call.url === "https://gigachat.test/v1/chat/completions").length === 1) {
+        return jsonResponse(401, { message: "expired token" });
+      }
+      return createGigaChatCompletionResponse();
+    },
+  });
+
+  const result = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(result.status, "generated");
+  const tokenCalls = calls.filter(call => call.url === "https://gigachat-auth.test/oauth");
+  const chatCalls = calls.filter(call => call.url === "https://gigachat.test/v1/chat/completions");
+  assert.equal(tokenCalls.length, 2);
+  assert.equal(chatCalls.length, 2);
+  assert.equal(chatCalls[0].options.headers.Authorization, "Bearer access-token-one-with-enough-length");
+  assert.equal(chatCalls[1].options.headers.Authorization, "Bearer access-token-two-with-enough-length");
+});
+
+test("GigaChat greeting provider retries transient chat failures before returning structured result", async () => {
+  const calls = [];
+  const now = new Date("2026-08-06T09:05:00.000Z");
+  const provider = new GigaChatGreetingAIProvider({
+    authorizationKey: "test-authorization-key-with-enough-length",
+    scope: "GIGACHAT_API_PERS",
+    model: "GigaChat-Test",
+    baseUrl: "https://gigachat.test",
+    oauthUrl: "https://gigachat-auth.test/oauth",
+    timeoutMs: 5000,
+    retryAttempts: 1,
+    rateLimitPerMinute: 30,
+    now: () => now,
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url, options });
+      if (url === "https://gigachat-auth.test/oauth") {
+        return createGigaChatTokenResponse("access-token-with-enough-length", now);
+      }
+      const chatCalls = calls.filter(call => call.url === "https://gigachat.test/v1/chat/completions");
+      return chatCalls.length === 1
+        ? jsonResponse(500, { message: "temporary unavailable" })
+        : createGigaChatCompletionResponse();
+    },
+  });
+
+  const result = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(result.status, "generated");
+  assert.equal(calls.filter(call => call.url === "https://gigachat-auth.test/oauth").length, 1);
+  assert.equal(calls.filter(call => call.url === "https://gigachat.test/v1/chat/completions").length, 2);
+});
+
+test("GigaChat greeting provider maps timeout to safe failed result", async () => {
+  const now = new Date("2026-08-06T09:05:00.000Z");
+  const provider = new GigaChatGreetingAIProvider({
+    authorizationKey: "test-authorization-key-with-enough-length",
+    scope: "GIGACHAT_API_PERS",
+    model: "GigaChat-Test",
+    baseUrl: "https://gigachat.test",
+    oauthUrl: "https://gigachat-auth.test/oauth",
+    timeoutMs: 1,
+    retryAttempts: 1,
+    rateLimitPerMinute: 30,
+    now: () => now,
+    fetchImpl: async (url, options = {}) => {
+      if (url === "https://gigachat-auth.test/oauth") {
+        return createGigaChatTokenResponse("access-token-with-enough-length", now);
+      }
+      return new Promise((resolve, reject) => {
+        const abort = () => {
+          const error = new Error("aborted");
+          error.name = "AbortError";
+          reject(error);
+        };
+        if (options.signal?.aborted) {
+          abort();
+          return;
+        }
+        options.signal?.addEventListener("abort", abort, { once: true });
+      });
+    },
+  });
+
+  const result = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.reason, "provider_timeout");
+  assert.deepEqual(result.variants, []);
+});
+
+test("GigaChat greeting provider applies local rate limiting before chat calls", async () => {
+  const baseMs = Date.parse("2026-08-06T09:05:00.000Z");
+  let currentMs = baseMs;
+  const calls = [];
+  const provider = new GigaChatGreetingAIProvider({
+    authorizationKey: "test-authorization-key-with-enough-length",
+    scope: "GIGACHAT_API_PERS",
+    model: "GigaChat-Test",
+    baseUrl: "https://gigachat.test",
+    oauthUrl: "https://gigachat-auth.test/oauth",
+    timeoutMs: 5000,
+    retryAttempts: 0,
+    rateLimitPerMinute: 1,
+    now: () => new Date(currentMs),
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url, options, calledAt: Date.now() });
+      if (url === "https://gigachat-auth.test/oauth") {
+        return createGigaChatTokenResponse("access-token-with-enough-length", new Date(baseMs));
+      }
+      return createGigaChatCompletionResponse();
+    },
+  });
+
+  await provider.generateGreeting(createBirthdayGreetingRequest());
+  currentMs = baseMs + 59_980;
+  const beforeSecondRequest = Date.now();
+  const second = await provider.generateGreeting(createBirthdayGreetingRequest({ recipientName: "РђРЅРЅР°" }));
+
+  assert.equal(second.status, "generated");
+  assert.equal(calls.filter(call => call.url === "https://gigachat.test/v1/chat/completions").length, 2);
+  assert.ok(Date.now() - beforeSecondRequest >= 10);
+});
+
+test("GigaChat greeting provider maps provider HTTP errors to safe failed results", async () => {
+  const now = new Date("2026-08-06T09:05:00.000Z");
+  const provider = new GigaChatGreetingAIProvider({
+    authorizationKey: "test-authorization-key-with-enough-length",
+    scope: "GIGACHAT_API_PERS",
+    model: "GigaChat-Test",
+    baseUrl: "https://gigachat.test",
+    oauthUrl: "https://gigachat-auth.test/oauth",
+    timeoutMs: 5000,
+    retryAttempts: 0,
+    rateLimitPerMinute: 30,
+    now: () => now,
+    fetchImpl: async url => {
+      if (url === "https://gigachat-auth.test/oauth") {
+        return createGigaChatTokenResponse("access-token-with-enough-length", now);
+      }
+      return jsonResponse(429, { message: "too many requests" });
+    },
+  });
+
+  const result = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.reason, "provider_rate_limited");
+  assert.deepEqual(result.variants, []);
+});
+
+test("GigaChat greeting provider rejects invalid structured output with server validation", async () => {
+  const now = new Date("2026-08-06T09:05:00.000Z");
+  const provider = new GigaChatGreetingAIProvider({
+    authorizationKey: "test-authorization-key-with-enough-length",
+    scope: "GIGACHAT_API_PERS",
+    model: "GigaChat-Test",
+    baseUrl: "https://gigachat.test",
+    oauthUrl: "https://gigachat-auth.test/oauth",
+    timeoutMs: 5000,
+    retryAttempts: 0,
+    rateLimitPerMinute: 30,
+    now: () => now,
+    fetchImpl: async url => {
+      if (url === "https://gigachat-auth.test/oauth") {
+        return createGigaChatTokenResponse("access-token-with-enough-length", now);
+      }
+      return createGigaChatCompletionResponse({
+        variants: [
+          { id: "one", title: "One", text: "access_token should never appear in a greeting", tone: "warm", format: "plain_text" },
+        ],
+      });
+    },
+  });
+
+  const result = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.reason, "provider_validation_failed");
+  assert.deepEqual(result.variants, []);
+  assert.ok(result.errors.includes("secret_leak_marker"));
+});
+
 test("sync transcription events endpoint lists diagnostics without audio or text payloads", async () => {
   const db = createSyncDatabase(":memory:");
   const server = createFocusSyncServer({
@@ -5122,6 +5325,58 @@ function jsonResponse(status, body) {
       return body;
     },
   };
+}
+
+function createGigaChatTokenResponse(accessToken, now = new Date("2026-08-06T09:05:00.000Z")) {
+  return jsonResponse(200, {
+    access_token: accessToken,
+    expires_at: now.getTime() + 30 * 60 * 1000,
+  });
+}
+
+function createGigaChatCompletionResponse({
+  variants = createGigaChatCompletionVariants(),
+  warnings = [],
+  usage = { prompt_tokens: 12, completion_tokens: 24, total_tokens: 36 },
+} = {}) {
+  return jsonResponse(200, {
+    choices: [{
+      message: {
+        content: JSON.stringify({
+          status: "generated",
+          variants,
+          warnings,
+        }),
+      },
+    }],
+    usage,
+  });
+}
+
+function createGigaChatCompletionVariants() {
+  return [
+    {
+      id: "one",
+      title: "One",
+      text: "Maria, congratulations on the birthday. Wishing calm focus and steady support.",
+      tone: "warm",
+      format: "plain_text",
+    },
+    {
+      id: "two",
+      title: "Two",
+      text: "Maria, happy birthday. May the day bring warmth, attention, and good conversations.",
+      tone: "warm",
+      format: "plain_text",
+    },
+    {
+      id: "three",
+      title: "Three",
+      text: "Maria, wishing you a kind birthday with simple joys and a peaceful rhythm.",
+      tone: "warm",
+      format: "plain_text",
+    },
+  ];
 }
 
 function createTestAccount(db, accountId, createdAt = "2026-07-10T00:00:00.000Z") {
