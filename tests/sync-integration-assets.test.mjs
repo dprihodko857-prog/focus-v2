@@ -219,9 +219,11 @@ test("app shell exposes server-side greeting assistant provider flow", () => {
   assert.match(indexHtml, /id="greetingAssistantActions"/);
   assert.match(appJs, /function openGreetingAssistantFromBirthday/);
   assert.match(appJs, /function openGreetingAssistantFromHoliday/);
-  assert.match(appJs, /scheduleSync\.getGreetingStatus/);
+  assert.match(appJs, /scheduleSync\.getGreetingReadiness/);
   assert.match(appJs, /scheduleSync\.generateGreeting/);
   assert.match(appJs, /scheduleSync\.reviseGreeting/);
+  assert.match(appJs, /data-greeting-readiness="ready"/);
+  assert.match(appJs, /body\.dataset\.readiness = greetingAssistantState\.readinessStatus/);
   assert.match(appJs, /data-greeting-birthday/);
   assert.match(appJs, /data-greeting-holiday/);
   assert.match(appJs, /store\[greetingAssistantContext\.key\] = createGreetingAssistantDraftPayload\(greetingAssistantState\)/);
@@ -238,12 +240,15 @@ test("app shell exposes server-side greeting assistant provider flow", () => {
   assert.match(appCss, /\.greeting-assistant-variants\s*{/);
   assert.match(appCss, /\.greeting-disabled-note\s*{/);
   assert.match(syncJs, /async getGreetingStatus\(\)/);
+  assert.match(syncJs, /async getGreetingReadiness\(\)/);
   assert.match(syncJs, /async generateGreeting\(requestBody = \{\}\)/);
   assert.match(syncJs, /async reviseGreeting\(requestBody = \{\}\)/);
   assert.match(syncJs, /\/sync\/greetings\/status/);
+  assert.match(syncJs, /\/sync\/greetings\/readiness/);
   assert.match(syncJs, /\/sync\/greetings\/generate/);
   assert.match(syncJs, /\/sync\/greetings\/revise/);
   assert.match(serverJs, /\/api\/sync\/greetings\/status/);
+  assert.match(serverJs, /\/api\/sync\/greetings\/readiness/);
   assert.match(serverJs, /\/api\/sync\/greetings\/generate/);
   assert.match(serverJs, /\/api\/sync\/greetings\/revise/);
   assert.match(greetingProviderTypes, /interface GreetingAIProvider/);

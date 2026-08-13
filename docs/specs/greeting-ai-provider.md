@@ -45,6 +45,7 @@ The Greeting Assistant section is ready for the first mock-backed release when t
 - `DisabledGreetingAIProvider` shows the controlled unavailable state and still allows saving the questionnaire;
 - `generateGreeting` and `reviseGreeting` use the shared `GreetingAIProvider` contract;
 - generated and revised provider results pass shared server validation before they reach UI;
+- Greeting Assistant UI enables generation and revision only after backend readiness reports safe generation availability;
 - provider output cannot save drafts, copy text, edit birthdays/holidays, create reminders, send messages, or mark a greeting as sent;
 - Greeting Assistant drafts persist only UI-safe form fields, variants, editor text, and normalized input context;
 - browser smoke covers mock generation/revision/copy/save/reopen and mobile disabled state;
@@ -84,6 +85,7 @@ Verified without credentials and without live provider calls:
 - `FOCUS_GREETING_AI_PROVIDER=mock`: full Greeting Assistant flow from a birthday record, generate 3 variants, revise, copy, save draft, reopen, restore draft, and confirm localStorage has no provider credentials.
 - `FOCUS_GREETING_AI_PROVIDER=disabled`: mobile controlled disabled state, generation button disabled, copy button disabled, questionnaire draft can still be saved, and localStorage has no provider credentials.
 - `/api/sync/greetings/readiness`: mock mode returns `readinessStatus: "ready"` and disabled mode returns `readinessStatus: "disabled"` through Focus backend only, with no model id, API key, bearer token, base URL, provider metadata, or live provider call.
+- Greeting Assistant modal uses backend readiness for its `data-readiness` UI state and generation/revision button gating.
 - Browser smoke runner: `output/playwright/greeting-assistant-smoke.mjs` served local mock API responses on `127.0.0.1:8096`, used local Chrome, and made no live provider calls.
 - Smoke screenshots:
   - `output/playwright/greeting-polza-mock-smoke.png`
@@ -189,6 +191,8 @@ Provider output can only return generated text variants after server validation.
 ## Client Boundary
 
 Focus frontend and mobile clients call only Focus backend greeting endpoints. The sync client allowlists outbound greeting request fields before JSON serialization, so provider-only fields such as model names, tokens, authorization keys, provider URLs, and OAuth URLs are not sent from the client even if they are accidentally present in a caller object.
+
+Greeting Assistant UI reads `/api/sync/greetings/readiness` before generation controls become available. The UI treats missing, offline, unsafe, or disabled readiness as the controlled disabled state and still lets the user save the questionnaire draft.
 
 Greeting drafts persist only UI-safe form fields, selected variants, editor text, and normalized input context. Provider availability state, disabled messages, provider metadata, model names, tokens, and URLs are not stored in Greeting Assistant drafts.
 

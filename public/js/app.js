@@ -5191,6 +5191,8 @@ function createEmptyGreetingAssistantState() {
     status: "idle",
     providerConfigured: false,
     provider: null,
+    readinessStatus: "disabled",
+    readinessChecks: createGreetingAssistantReadinessChecks(null, false),
     disabledMessage: GREETING_DISABLED_MESSAGE,
     fields: null,
     variants: [],
@@ -5265,14 +5267,21 @@ function prepareGreetingAssistantState() {
 
 async function refreshGreetingAssistantStatus() {
   if (!greetingAssistantContext) return;
-  const result = await scheduleSync.getGreetingStatus();
+  const result = await scheduleSync.getGreetingReadiness();
+  const providerConfigured = result.providerConfigured === true;
+  const readinessChecks = createGreetingAssistantReadinessChecks(result.checks, providerConfigured);
+  const generationAvailable = providerConfigured
+    && result.readinessStatus === "ready"
+    && readinessChecks.generationAvailable === true;
   greetingAssistantState = {
     ...greetingAssistantState,
-    providerConfigured: result.providerConfigured === true,
+    providerConfigured,
     provider: result.provider || null,
+    readinessStatus: generationAvailable ? "ready" : "disabled",
+    readinessChecks,
     disabledMessage: result.disabledMessage || GREETING_DISABLED_MESSAGE,
     checkedAt: result.checkedAt || "",
-    status: result.providerConfigured === true
+    status: generationAvailable
       ? ["checking", "disabled"].includes(greetingAssistantState.status)
         ? greetingAssistantState.variants.length ? "draft" : "ready"
         : greetingAssistantState.status
@@ -5298,23 +5307,14 @@ function renderGreetingAssistant() {
 
   const fields = greetingAssistantState.fields || getDefaultGreetingAssistantFields(greetingAssistantContext);
   const isBusy = greetingAssistantState.status === "generating" || greetingAssistantState.status === "revising";
-  const canGenerate = greetingAssistantState.providerConfigured && !isBusy;
+  const canGenerate = isGreetingAssistantGenerationAvailable() && !isBusy;
   const hasText = Boolean(getGreetingAssistantEditorText({ preferDom: false }));
   title.textContent = greetingAssistantContext.title;
   status.textContent = getGreetingAssistantStatusText();
   body.dataset.state = greetingAssistantState.status;
+  body.dataset.readiness = greetingAssistantState.readinessStatus || "disabled";
   body.innerHTML = `
-    ${greetingAssistantState.providerConfigured ? `
-      <div class="greeting-status-card">
-        <strong>${escapeHtml(greetingAssistantContext.subtitle || "Анкета готова")}</strong>
-        <span>Анкета готова к генерации.</span>
-      </div>
-    ` : `
-      <div class="greeting-disabled-note">
-        <strong>${escapeHtml(GREETING_DISABLED_MESSAGE)}</strong>
-        <span>Заполненные поля останутся в черновике.</span>
-      </div>
-    `}
+    ${renderGreetingReadinessNotice()}
     <div class="greeting-assistant-form">
       <label class="greeting-field">
         <span>Кому</span>
@@ -5385,6 +5385,52 @@ function renderGreetingOption(value, label, selectedValue) {
   return `<option value="${escapeHtml(value)}" ${selectedValue === value ? "selected" : ""}>${escapeHtml(label)}</option>`;
 }
 
+function renderGreetingReadinessNotice() {
+  if (greetingAssistantState.status === "checking") {
+    return `
+      <div class="greeting-status-card" data-greeting-readiness="checking">
+        <strong>${escapeHtml(greetingAssistantContext.subtitle || "Анкета готова")}</strong>
+        <span>Проверяем доступность генерации на сервере.</span>
+      </div>
+    `;
+  }
+
+  if (isGreetingAssistantGenerationAvailable()) {
+    return `
+      <div class="greeting-status-card" data-greeting-readiness="ready">
+        <strong>${escapeHtml(greetingAssistantContext.subtitle || "Анкета готова")}</strong>
+        <span>Серверная генерация доступна.</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="greeting-disabled-note" data-greeting-readiness="disabled">
+      <strong>${escapeHtml(greetingAssistantState.disabledMessage || GREETING_DISABLED_MESSAGE)}</strong>
+      <span>Заполненные поля останутся в черновике.</span>
+    </div>
+  `;
+}
+
+function isGreetingAssistantGenerationAvailable() {
+  const checks = greetingAssistantState.readinessChecks || {};
+  return greetingAssistantState.providerConfigured === true
+    && greetingAssistantState.readinessStatus === "ready"
+    && checks.generationAvailable === true
+    && checks.serverValidationRequired !== false
+    && checks.structuredResultRequired !== false
+    && checks.backendOnlyProviderAccess !== false
+    && checks.liveProviderCallPerformed !== true
+    && checks.clientSecretsExposed !== true
+    && checks.clientModelSelectionAllowed !== true
+    && checks.providerSideEffectsAllowed !== true;
+}
+
+function isGreetingAssistantRevisionAvailable() {
+  const checks = greetingAssistantState.readinessChecks || {};
+  return isGreetingAssistantGenerationAvailable() && checks.revisionAvailable === true;
+}
+
 function renderGreetingVariants() {
   const variants = greetingAssistantState.variants || [];
   if (!variants.length) return "";
@@ -5412,12 +5458,28 @@ function renderGreetingEditor() {
       <textarea id="greetingEditorText" data-greeting-field="editorText">${escapeHtml(editorText)}</textarea>
       <input class="greeting-revision-input" id="greetingRevisionInstruction" type="text" value="${escapeHtml(greetingAssistantState.revisionInstruction || "")}" data-greeting-field="revisionInstruction" placeholder="Что изменить в тексте">
       <div class="greeting-quick-actions">
-        <button class="secondary-button secondary-button--compact" type="button" data-greeting-action="revise" data-greeting-revision="Сделай текст теплее" ${greetingAssistantState.providerConfigured ? "" : "disabled"}>Теплее</button>
-        <button class="secondary-button secondary-button--compact" type="button" data-greeting-action="revise" data-greeting-revision="Сделай текст официальнее" ${greetingAssistantState.providerConfigured ? "" : "disabled"}>Официальнее</button>
-        <button class="secondary-button secondary-button--compact" type="button" data-greeting-action="revise" ${greetingAssistantState.providerConfigured ? "" : "disabled"}>Применить правку</button>
+        <button class="secondary-button secondary-button--compact" type="button" data-greeting-action="revise" data-greeting-revision="Сделай текст теплее" ${isGreetingAssistantRevisionAvailable() ? "" : "disabled"}>Теплее</button>
+        <button class="secondary-button secondary-button--compact" type="button" data-greeting-action="revise" data-greeting-revision="Сделай текст официальнее" ${isGreetingAssistantRevisionAvailable() ? "" : "disabled"}>Официальнее</button>
+        <button class="secondary-button secondary-button--compact" type="button" data-greeting-action="revise" ${isGreetingAssistantRevisionAvailable() ? "" : "disabled"}>Применить правку</button>
       </div>
     </section>
   `;
+}
+
+function createGreetingAssistantReadinessChecks(checks, providerConfigured = false) {
+  const source = checks && typeof checks === "object" && !Array.isArray(checks) ? checks : {};
+  return {
+    providerContractReady: source.providerContractReady === true,
+    generationAvailable: source.generationAvailable === true && providerConfigured,
+    revisionAvailable: source.revisionAvailable === true && providerConfigured,
+    serverValidationRequired: source.serverValidationRequired !== false,
+    structuredResultRequired: source.structuredResultRequired !== false,
+    backendOnlyProviderAccess: source.backendOnlyProviderAccess !== false,
+    liveProviderCallPerformed: source.liveProviderCallPerformed === true,
+    clientSecretsExposed: source.clientSecretsExposed === true,
+    clientModelSelectionAllowed: source.clientModelSelectionAllowed === true,
+    providerSideEffectsAllowed: source.providerSideEffectsAllowed === true,
+  };
 }
 
 function getGreetingAssistantStatusText() {
@@ -5540,7 +5602,7 @@ function buildGreetingGenerationInput() {
 
 async function generateGreetingAssistant() {
   if (!greetingAssistantContext) return;
-  if (!greetingAssistantState.providerConfigured) {
+  if (!isGreetingAssistantGenerationAvailable()) {
     greetingAssistantState.status = "disabled";
     renderGreetingAssistant();
     return;
@@ -5585,7 +5647,7 @@ async function reviseGreetingAssistant(button) {
     renderGreetingAssistant();
     return;
   }
-  if (!greetingAssistantState.providerConfigured) {
+  if (!isGreetingAssistantRevisionAvailable()) {
     greetingAssistantState.status = "disabled";
     renderGreetingAssistant();
     return;
@@ -5617,6 +5679,7 @@ function applyGreetingAssistantResult(result, input) {
       status: "generated",
       providerConfigured: true,
       provider: result.provider || greetingAssistantState.provider,
+      readinessStatus: "ready",
       variants,
       selectedVariantId: firstVariant.id,
       editorText: firstVariant.text,
@@ -5630,6 +5693,9 @@ function applyGreetingAssistantResult(result, input) {
       ...greetingAssistantState,
       status: "disabled",
       providerConfigured: false,
+      provider: null,
+      readinessStatus: "disabled",
+      readinessChecks: createGreetingAssistantReadinessChecks(null, false),
       disabledMessage: result.disabledMessage || GREETING_DISABLED_MESSAGE,
       errors: [],
     };
@@ -12132,6 +12198,9 @@ function bindControls(initialLaunchTarget = "") {
           ...greetingAssistantState,
           status: "disabled",
           providerConfigured: false,
+          provider: null,
+          readinessStatus: "disabled",
+          readinessChecks: createGreetingAssistantReadinessChecks(null, false),
           disabledMessage: GREETING_DISABLED_MESSAGE,
         };
         renderGreetingAssistant();
