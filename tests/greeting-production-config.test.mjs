@@ -6,6 +6,7 @@ import { createGreetingAIProviderFromEnv } from "../server/greeting-ai-provider.
 
 const envExample = readFileSync(".env.example", "utf8");
 const providerDoc = readFileSync("docs/specs/greeting-ai-provider.md", "utf8");
+const acceptanceDoc = readFileSync("docs/specs/greeting-assistant-technical-acceptance.md", "utf8");
 const comparisonDoc = readFileSync("docs/specs/greeting-model-comparison.md", "utf8");
 const runbookDoc = readFileSync("docs/specs/greeting-polza-production-runbook.md", "utf8");
 const operatorHandoffDoc = readFileSync("docs/specs/greeting-polza-operator-handoff.md", "utf8");
@@ -63,6 +64,7 @@ test("committed env example keeps Greeting Assistant on mock by default", async 
 
 test("production docs point operators to server-only Polza configuration", () => {
   assert.match(providerDoc, /\.env\.example/);
+  assert.match(providerDoc, /docs\/specs\/greeting-assistant-technical-acceptance\.md/);
   assert.match(providerDoc, /docs\/specs\/greeting-polza-production-runbook\.md/);
   assert.match(providerDoc, /docs\/specs\/greeting-polza-operator-handoff\.md/);
   assert.match(runbookDoc, /docs\/specs\/greeting-polza-operator-handoff\.md/);
@@ -197,6 +199,57 @@ test("operator handoff documents production activation order without secrets", (
 
   assert.doesNotMatch(operatorHandoffDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
   assert.doesNotMatch(operatorHandoffDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
+});
+
+test("technical acceptance snapshot captures implemented greeting assistant gates", () => {
+  [
+    "Greeting Assistant Technical Acceptance Snapshot",
+    "accepted for mock-backed release and production-provider preparation",
+    "Polza.ai production traffic is not approved or activated by this document",
+    "Focus section \"Compose greeting\" only",
+    "GreetingAIProvider",
+    "generateGreeting",
+    "reviseGreeting",
+    "MockGreetingAIProvider",
+    "DisabledGreetingAIProvider",
+    "PolzaGreetingAIProvider",
+    "GigaChatGreetingAIProvider",
+    "YandexGreetingAIProvider",
+    "OpenAIGreetingAIProvider",
+    "FOCUS_POLZA_PRODUCTION_ENABLED=true",
+    "FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true",
+    "FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED=true",
+    "/api/sync/greetings/status",
+    "/api/sync/greetings/readiness",
+    "/api/sync/greetings/generate",
+    "/api/sync/greetings/revise",
+    "Генерация поздравлений пока недоступна. Анкету можно сохранить и продолжить позднее.",
+    "tests\\greeting-client-boundary.test.mjs",
+    "tests\\greeting-readiness-client.test.mjs",
+    "tests\\greeting-production-config.test.mjs",
+    "tests\\greeting-production-readiness-smoke.test.mjs",
+    "tests\\greeting-model-comparison.test.mjs",
+    "tests\\greeting-model-comparison-runner.test.mjs",
+    "scripts/greeting-model-comparison-runner.mjs",
+    "docs/specs/greeting-model-comparison.md",
+    "docs/specs/greeting-polza-production-runbook.md",
+    "docs/specs/greeting-polza-operator-handoff.md",
+    "docs/specs/greeting-polza-production-smoke-report.md",
+  ].forEach(marker => {
+    assert.match(acceptanceDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  [
+    "No real Polza or GigaChat credentials are committed.",
+    "No live provider calls are part of local development or CI.",
+    "No client-side provider integration is accepted.",
+    "No provider output can perform Focus business actions without explicit user action through existing Focus workflows.",
+  ].forEach(marker => {
+    assert.match(acceptanceDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  assert.doesNotMatch(acceptanceDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
+  assert.doesNotMatch(acceptanceDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
 });
 
 test("frontend assets do not include production provider config names or endpoints", () => {
