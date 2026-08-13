@@ -62,6 +62,8 @@ FOCUS_POLZA_API_KEY=<server secret>
 FOCUS_POLZA_MODEL=<selected model id>
 ```
 
+For the current systemd deployment, `server/focus-v2-sync.service` reads server-only values through `EnvironmentFile=-/opt/focus-v2/data/focus-v2.env`. Put secret values in the deployment secrets vault or that server-only env file, not in the committed unit file.
+
 Optional production values:
 
 ```text

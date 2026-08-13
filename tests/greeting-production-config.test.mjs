@@ -5,6 +5,7 @@ import { test } from "node:test";
 import { createGreetingAIProviderFromEnv } from "../server/greeting-ai-provider.mjs";
 
 const envExample = readFileSync(".env.example", "utf8");
+const syncService = readFileSync("server/focus-v2-sync.service", "utf8");
 const providerDoc = readFileSync("docs/specs/greeting-ai-provider.md", "utf8");
 const acceptanceDoc = readFileSync("docs/specs/greeting-assistant-technical-acceptance.md", "utf8");
 const comparisonDoc = readFileSync("docs/specs/greeting-model-comparison.md", "utf8");
@@ -60,6 +61,15 @@ test("committed env example keeps Greeting Assistant on mock by default", async 
   assert.equal(result.status, "generated");
   assert.equal(result.provider, "mock");
   assert.equal(result.variants.length, 3);
+});
+
+test("deployment service keeps greeting provider secrets out of committed unit config", () => {
+  assert.match(syncService, /EnvironmentFile=-\/opt\/focus-v2\/data\/focus-v2\.env/);
+  assert.match(syncService, /ExecStart=\/usr\/bin\/node \/opt\/focus-v2\/server\/sync-server\.mjs/);
+  assert.doesNotMatch(syncService, /FOCUS_GREETING_AI_PROVIDER=polza/);
+  assert.doesNotMatch(syncService, /FOCUS_POLZA_|POLZA_API_KEY|POLZA_MODEL|FOCUS_GIGACHAT_AUTHORIZATION_KEY|GIGACHAT_AUTHORIZATION_KEY/);
+  assert.doesNotMatch(syncService, /openai\/gpt-4o-mini|sk-polza-|sk-proj-|Bearer\s+/iu);
+  assert.doesNotMatch(syncService, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
 });
 
 test("production docs point operators to server-only Polza configuration", () => {
@@ -167,6 +177,8 @@ test("operator handoff documents production activation order without secrets", (
     "FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true",
     "FOCUS_POLZA_API_KEY=<server secret>",
     "FOCUS_POLZA_MODEL=<selected model id>",
+    "server/focus-v2-sync.service",
+    "EnvironmentFile=-/opt/focus-v2/data/focus-v2.env",
     "node scripts/greeting-model-comparison-runner.mjs summary",
     "node scripts/greeting-model-comparison-runner.mjs run --provider=env",
     "tests\\greeting-production-readiness-smoke.test.mjs",
