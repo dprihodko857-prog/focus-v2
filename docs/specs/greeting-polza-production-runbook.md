@@ -67,7 +67,7 @@ Compatibility aliases such as `POLZA_API_KEY` and `POLZA_MODEL` are accepted by 
 7. Verify `GET /api/sync/greetings/status` through an authenticated Focus session returns `providerConfigured: true` and `provider: "polza"`.
 8. Confirm the status response does not include model id, API key, bearer token, base URL, provider metadata, draft fields, birthday mutations, reminder fields, delivery fields, or sent-status fields.
 9. Run one approved live Greeting Assistant smoke from the Focus UI.
-10. Record sanitized activation notes: date, deployed source id, selected model id, provider status result, latency, cost estimate, and smoke pass/fail. Never record the key.
+10. Record sanitized activation notes with `docs/specs/greeting-polza-production-smoke-report.md`: date, deployed source id, selected model id, provider status result, latency, cost estimate, and smoke pass/fail. Never record the key.
 
 ## Approved Live Smoke
 
@@ -117,3 +117,5 @@ node --test --test-name-pattern "Polza greeting provider|Greeting provider env f
 ```
 
 Run the browser smoke in mock and disabled modes only until production activation is explicitly approved.
+
+Use `docs/specs/greeting-polza-production-smoke-report.md` as the production-only reporting template after an approved live smoke.

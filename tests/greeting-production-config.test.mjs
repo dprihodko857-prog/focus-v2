@@ -8,6 +8,7 @@ const envExample = readFileSync(".env.example", "utf8");
 const providerDoc = readFileSync("docs/specs/greeting-ai-provider.md", "utf8");
 const comparisonDoc = readFileSync("docs/specs/greeting-model-comparison.md", "utf8");
 const runbookDoc = readFileSync("docs/specs/greeting-polza-production-runbook.md", "utf8");
+const smokeReportDoc = readFileSync("docs/specs/greeting-polza-production-smoke-report.md", "utf8");
 const clientShell = [
   readFileSync("public/index.html", "utf8"),
   readFileSync("public/js/app.js", "utf8"),
@@ -77,6 +78,7 @@ test("production runbook documents approved server-only Polza activation", () =>
     "/api/health",
     "/api/sync/greetings/status",
     "docs/specs/greeting-model-comparison.md",
+    "docs/specs/greeting-polza-production-smoke-report.md",
   ].forEach(marker => {
     assert.match(runbookDoc, new RegExp(escapeRegExp(marker)));
   });
@@ -90,6 +92,41 @@ test("production runbook documents approved server-only Polza activation", () =>
   assert.match(runbookDoc, /Users must still be able to save the questionnaire and continue later/);
   assert.doesNotMatch(runbookDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
   assert.doesNotMatch(runbookDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
+});
+
+test("production smoke report template captures sanitized live activation evidence", () => {
+  [
+    "Owner approval reference",
+    "Approved environment",
+    "Deployed source id",
+    "Selected model id",
+    "Secret installation method",
+    "providerConfigured: true",
+    "provider: \"polza\"",
+    "https://polza.ai/api/v1/chat/completions",
+    "localStorage",
+    "server validation passed",
+    "Average latency",
+    "Estimated cost per generate request",
+    "Cost per request source",
+    "FOCUS_GREETING_AI_PROVIDER=disabled",
+    "providerConfigured: false",
+  ].forEach(marker => {
+    assert.match(smokeReportDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  [
+    "No API key or token appeared in Focus UI",
+    "No model id appeared in Focus UI",
+    "No provider base URL appeared in Focus UI",
+    "Those actions happened only after explicit user action through Focus business logic",
+    "Do not paste or record provider keys",
+  ].forEach(marker => {
+    assert.match(smokeReportDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  assert.doesNotMatch(smokeReportDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
+  assert.doesNotMatch(smokeReportDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
 });
 
 test("frontend assets do not include production provider config names or endpoints", () => {
