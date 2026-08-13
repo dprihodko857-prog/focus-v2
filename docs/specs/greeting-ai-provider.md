@@ -83,6 +83,7 @@ Verified without credentials and without live provider calls:
 
 - `FOCUS_GREETING_AI_PROVIDER=mock`: full Greeting Assistant flow from a birthday record, generate 3 variants, revise, copy, save draft, reopen, restore draft, and confirm localStorage has no provider credentials.
 - `FOCUS_GREETING_AI_PROVIDER=disabled`: mobile controlled disabled state, generation button disabled, copy button disabled, questionnaire draft can still be saved, and localStorage has no provider credentials.
+- `/api/sync/greetings/readiness`: mock mode returns `readinessStatus: "ready"` and disabled mode returns `readinessStatus: "disabled"` through Focus backend only, with no model id, API key, bearer token, base URL, provider metadata, or live provider call.
 - Browser smoke runner: `output/playwright/greeting-assistant-smoke.mjs` served local mock API responses on `127.0.0.1:8096`, used local Chrome, and made no live provider calls.
 - Smoke screenshots:
   - `output/playwright/greeting-polza-mock-smoke.png`
