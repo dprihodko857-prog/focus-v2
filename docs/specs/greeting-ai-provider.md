@@ -162,6 +162,7 @@ Production-only remaining work:
 - keep live provider calls out of local development and CI.
 
 Use `docs/specs/greeting-model-comparison.md` as the production-only comparison matrix and decision-record template.
+Use `docs/specs/greeting-polza-operator-handoff.md` as the short operator checklist for model comparison, activation, verification, live smoke, and rollback order.
 Use `docs/specs/greeting-polza-production-runbook.md` for the separate production activation procedure after model selection and owner approval.
 
 ## Server Validation

@@ -8,6 +8,7 @@ const envExample = readFileSync(".env.example", "utf8");
 const providerDoc = readFileSync("docs/specs/greeting-ai-provider.md", "utf8");
 const comparisonDoc = readFileSync("docs/specs/greeting-model-comparison.md", "utf8");
 const runbookDoc = readFileSync("docs/specs/greeting-polza-production-runbook.md", "utf8");
+const operatorHandoffDoc = readFileSync("docs/specs/greeting-polza-operator-handoff.md", "utf8");
 const smokeReportDoc = readFileSync("docs/specs/greeting-polza-production-smoke-report.md", "utf8");
 const clientShell = [
   readFileSync("public/index.html", "utf8"),
@@ -63,6 +64,8 @@ test("committed env example keeps Greeting Assistant on mock by default", async 
 test("production docs point operators to server-only Polza configuration", () => {
   assert.match(providerDoc, /\.env\.example/);
   assert.match(providerDoc, /docs\/specs\/greeting-polza-production-runbook\.md/);
+  assert.match(providerDoc, /docs\/specs\/greeting-polza-operator-handoff\.md/);
+  assert.match(runbookDoc, /docs\/specs\/greeting-polza-operator-handoff\.md/);
   assert.match(providerDoc, /FOCUS_GREETING_AI_PROVIDER=polza/);
   assert.match(providerDoc, /FOCUS_POLZA_PRODUCTION_ENABLED=true/);
   assert.match(providerDoc, /FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true/);
@@ -149,6 +152,51 @@ test("production smoke report template captures sanitized live activation eviden
 
   assert.doesNotMatch(smokeReportDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
   assert.doesNotMatch(smokeReportDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
+});
+
+test("operator handoff documents production activation order without secrets", () => {
+  [
+    "Greeting Polza.ai Operator Handoff",
+    "Do not paste API keys into chat",
+    "FOCUS_GREETING_AI_PROVIDER=disabled",
+    "FOCUS_GREETING_AI_PROVIDER=polza",
+    "FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED=true",
+    "FOCUS_POLZA_PRODUCTION_ENABLED=true",
+    "FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true",
+    "FOCUS_POLZA_API_KEY=<server secret>",
+    "FOCUS_POLZA_MODEL=<selected model id>",
+    "node scripts/greeting-model-comparison-runner.mjs summary",
+    "node scripts/greeting-model-comparison-runner.mjs run --provider=env",
+    "tests\\greeting-production-readiness-smoke.test.mjs",
+    "GET /api/health",
+    "GET /api/sync/greetings/status",
+    "GET /api/sync/greetings/readiness",
+    "providerConfigured: true",
+    "readinessStatus: \"ready\"",
+    "checks.liveProviderCallPerformed: false",
+    "docs/specs/greeting-polza-production-smoke-report.md",
+    "FOCUS_POLZA_PRODUCTION_ENABLED=false",
+    "FOCUS_POLZA_MODEL_COMPARISON_APPROVED=false",
+  ].forEach(marker => {
+    assert.match(operatorHandoffDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  [
+    "Polza stays disabled when production gates are missing.",
+    "Fake-fetch `/generate` and `/revise` pass server validation.",
+    "Provider failure, timeout, and malformed output return safe failed responses.",
+    "Birthday and reminder data are unchanged by provider output or provider failures.",
+    "UI shows the controlled disabled state and still allows saving the questionnaire.",
+  ].forEach(marker => {
+    assert.match(operatorHandoffDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  requiredPolzaEnvNames.forEach(name => {
+    assert.match(operatorHandoffDoc, new RegExp(escapeRegExp(name)));
+  });
+
+  assert.doesNotMatch(operatorHandoffDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
+  assert.doesNotMatch(operatorHandoffDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
 });
 
 test("frontend assets do not include production provider config names or endpoints", () => {
