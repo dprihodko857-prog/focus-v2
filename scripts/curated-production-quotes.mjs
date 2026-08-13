@@ -1,4 +1,6 @@
-import { pathToFileURL } from "node:url";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { createSyncDatabase } from "../server/sync-server.mjs";
 
@@ -6,6 +8,9 @@ export const CURATED_QUOTE_ID_PREFIX = "curated-quote";
 export const CURATED_QUOTE_CREATED_AT = "2026-08-05T00:00:00.000Z";
 export const CURATED_QUOTE_PREVIEW_CATEGORY_MINIMUM = 5;
 export const RETIRED_GENERATED_QUOTE_ID_PREFIXES = ["focus-seed"];
+
+const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
+const BULK_CURATED_QUOTES_PATH = join(CURRENT_DIR, "curated-production-quotes.bulk.json");
 
 const WIKISOURCE_URLS = {
   chekhovLetters: "https://ru.wikisource.org/wiki/%D0%9F%D0%B5%D1%80%D0%B5%D0%BF%D0%B8%D1%81%D0%BA%D0%B0_%D0%90._%D0%9F._%D0%A7%D0%B5%D1%85%D0%BE%D0%B2%D0%B0_%D0%B8_%D0%90%D0%BB._%D0%9F._%D0%A7%D0%B5%D1%85%D0%BE%D0%B2%D0%B0_(%D0%A7%D0%B5%D1%85%D0%BE%D0%B2)",
@@ -47,7 +52,7 @@ const WIKISOURCE_URLS = {
   lomonosovEvening: "https://ru.wikisource.org/wiki/%D0%92%D0%B5%D1%87%D0%B5%D1%80%D0%BD%D0%B5%D0%B5_%D1%80%D0%B0%D0%B7%D0%BC%D1%8B%D1%88%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5_%D0%BE_%D0%91%D0%BE%D0%B6%D0%B8%D0%B5%D0%BC_%D0%B2%D0%B5%D0%BB%D0%B8%D1%87%D0%B5%D1%81%D1%82%D0%B2%D0%B5_%D0%BF%D1%80%D0%B8_%D1%81%D0%BB%D1%83%D1%87%D0%B0%D0%B5_%D0%B2%D0%B5%D0%BB%D0%B8%D0%BA%D0%BE%D0%B3%D0%BE_%D1%81%D0%B5%D0%B2%D0%B5%D1%80%D0%BD%D0%BE%D0%B3%D0%BE_%D1%81%D0%B8%D1%8F%D0%BD%D0%B8%D1%8F_(%D0%9B%D0%BE%D0%BC%D0%BE%D0%BD%D0%BE%D1%81%D0%BE%D0%B2)",
 };
 
-export const CURATED_PRODUCTION_QUOTES = [
+export const MANUAL_CURATED_PRODUCTION_QUOTES = [
   quote({
     slug: "chekhov-brevity",
     text: "Краткость — сестра таланта.",
@@ -754,6 +759,11 @@ export const CURATED_PRODUCTION_QUOTES = [
   }),
 ];
 
+export const CURATED_PRODUCTION_QUOTES = [
+  ...MANUAL_CURATED_PRODUCTION_QUOTES,
+  ...readBulkCuratedProductionQuotes().map(quote),
+];
+
 export function createCuratedProductionQuotes() {
   return CURATED_PRODUCTION_QUOTES.map(quoteRecord => ({
     ...quoteRecord,
@@ -882,6 +892,18 @@ function quote({
     updatedAt: CURATED_QUOTE_CREATED_AT,
     categoryCodes,
   };
+}
+
+function readBulkCuratedProductionQuotes() {
+  if (!existsSync(BULK_CURATED_QUOTES_PATH)) {
+    return [];
+  }
+
+  const parsed = JSON.parse(readFileSync(BULK_CURATED_QUOTES_PATH, "utf8"));
+  if (!Array.isArray(parsed)) {
+    throw new Error("Bulk curated quotes file must contain an array.");
+  }
+  return parsed;
 }
 
 function isCuratedQuote(quoteRecord) {
