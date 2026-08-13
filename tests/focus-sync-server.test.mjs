@@ -2269,6 +2269,161 @@ test("sync greeting endpoints expose controlled disabled state when provider is 
   }
 });
 
+test("sync greeting API boundary strips provider metadata and ignores provider side effects", async () => {
+  const db = createSyncDatabase(":memory:");
+  const providerCalls = [];
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-06T09:05:00.000Z",
+    greetingAIProvider: {
+      provider: "boundary",
+      async generateGreeting(input) {
+        providerCalls.push({ operation: "generate", input });
+        return createLeakyGreetingProviderResult();
+      },
+      async reviseGreeting(input) {
+        providerCalls.push({ operation: "revise", input });
+        return createLeakyGreetingProviderResult();
+      },
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-greeting-boundary";
+  createTestAccount(db, accountId, "2026-08-06T08:00:00.000Z");
+  const birthdaySnapshot = [{
+    id: "birthday-boundary",
+    name: "РњР°СЂРёСЏ",
+    dateOfBirth: "1990-08-06",
+    reminderEnabled: true,
+  }];
+  const reminderSnapshot = [{
+    id: "reminder-boundary",
+    title: "Поздравить Марию",
+    scheduledAt: "2026-08-06T09:00:00.000Z",
+  }];
+
+  try {
+    await putSyncSnapshot(`${baseUrl}/api/sync/birthdays`, accountId, { birthdays: birthdaySnapshot });
+    await putSyncSnapshot(`${baseUrl}/api/sync/reminders`, accountId, { reminders: reminderSnapshot });
+
+    const statusResponse = await fetch(`${baseUrl}/api/sync/greetings/status`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal(statusResponse.status, 200);
+    assertNoGreetingApiBoundaryLeaks(await statusResponse.json());
+
+    const generateResponse = await fetch(`${baseUrl}/api/sync/greetings/generate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createBirthdayGreetingRequest()),
+    });
+    assert.equal(generateResponse.status, 200);
+    const generated = await generateResponse.json();
+    assert.equal(generated.status, "generated");
+    assert.deepEqual(generated.usage, { promptTokens: 9, completionTokens: 4, totalTokens: 13 });
+    assertNoGreetingApiBoundaryLeaks(generated);
+
+    const reviseResponse = await fetch(`${baseUrl}/api/sync/greetings/revise`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createGreetingRevisionRequest()),
+    });
+    assert.equal(reviseResponse.status, 200);
+    const revised = await reviseResponse.json();
+    assert.equal(revised.status, "generated");
+    assert.deepEqual(revised.usage, { promptTokens: 9, completionTokens: 4, totalTokens: 13 });
+    assertNoGreetingApiBoundaryLeaks(revised);
+
+    const birthdaysResponse = await fetch(`${baseUrl}/api/sync/birthdays`, {
+      headers: {
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+    });
+    assert.equal((await birthdaysResponse.json()).birthdays.length, 1);
+    assert.deepEqual(db.getBirthdaySnapshot(accountId).birthdays, birthdaySnapshot);
+    assert.deepEqual(db.getReminderSnapshot(accountId).reminders, reminderSnapshot);
+    assert.deepEqual(providerCalls.map(call => call.operation), ["generate", "revise"]);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
+test("sync greeting API boundary strips provider metadata from unavailable and invalid provider results", async () => {
+  const db = createSyncDatabase(":memory:");
+  const server = createFocusSyncServer({
+    db,
+    now: () => "2026-08-06T09:05:00.000Z",
+    greetingAIProvider: {
+      provider: "boundary",
+      async generateGreeting() {
+        return {
+          ...createLeakyGreetingProviderResult(),
+          status: "provider_not_configured",
+          message: "boundary-access-token-secret",
+        };
+      },
+      async reviseGreeting() {
+        return {
+          ...createLeakyGreetingProviderResult(),
+          status: "invalid_request",
+          errors: ["boundary-authorization-key-secret"],
+        };
+      },
+    },
+  });
+  const baseUrl = await listen(server);
+  const accountId = "account-greeting-boundary-failures";
+  createTestAccount(db, accountId, "2026-08-06T08:00:00.000Z");
+
+  try {
+    const unavailableResponse = await fetch(`${baseUrl}/api/sync/greetings/generate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createBirthdayGreetingRequest()),
+    });
+    assert.equal(unavailableResponse.status, 503);
+    const unavailable = await unavailableResponse.json();
+    assert.equal(unavailable.status, "provider_not_configured");
+    assert.equal(unavailable.disabledMessage, GREETING_DISABLED_MESSAGE);
+    assertNoGreetingApiBoundaryLeaks(unavailable);
+
+    const invalidResponse = await fetch(`${baseUrl}/api/sync/greetings/revise`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-focus-account": accountId,
+        "x-focus-device": "desktop",
+      },
+      body: JSON.stringify(createGreetingRevisionRequest()),
+    });
+    assert.equal(invalidResponse.status, 400);
+    const invalid = await invalidResponse.json();
+    assert.equal(invalid.status, "invalid_request");
+    assert.deepEqual(invalid.errors, ["provider_invalid_request"]);
+    assertNoGreetingApiBoundaryLeaks(invalid);
+  } finally {
+    await close(server);
+    db.close();
+  }
+});
+
 test("GigaChat greeting provider uses server token cache and structured chat payload", async () => {
   const calls = [];
   const now = new Date("2026-08-06T09:05:00.000Z");
@@ -5327,6 +5482,104 @@ function jsonResponse(status, body) {
   };
 }
 
+async function putSyncSnapshot(url, accountId, body) {
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "content-type": "application/json",
+      "x-focus-account": accountId,
+      "x-focus-device": "desktop",
+    },
+    body: JSON.stringify(body),
+  });
+  assert.equal(response.status, 200);
+  return response.json();
+}
+
+function createLeakyGreetingProviderResult() {
+  return {
+    status: "generated",
+    provider: "boundary",
+    promptVersion: GREETING_PROMPT_VERSION,
+    variants: createGigaChatCompletionVariants(),
+    safety: {
+      validated: true,
+      validationVersion: "provider-claimed-validation",
+    },
+    warnings: [],
+    checkedAt: "2026-08-06T09:05:00.000Z",
+    usage: {
+      promptTokens: 9,
+      completionTokens: 4,
+      totalTokens: 13,
+      accessToken: "boundary-access-token-secret",
+      baseUrl: "https://boundary-gigachat-secret.test",
+    },
+    model: "boundary-production-model-secret",
+    providerModel: "boundary-provider-model-secret",
+    authorizationKey: "boundary-authorization-key-secret",
+    accessToken: "boundary-access-token-secret",
+    baseUrl: "https://boundary-gigachat-secret.test",
+    oauthUrl: "https://boundary-oauth-secret.test",
+    draft: { id: "draft-provider-secret", text: "provider tried to save a draft" },
+    birthday: { id: "birthday-provider-secret", name: "Provider Mutation" },
+    birthdays: [{ id: "birthday-provider-secret" }],
+    reminder: { id: "reminder-provider-secret" },
+    reminders: [{ id: "reminder-provider-secret" }],
+    sentStatus: "Отправлено",
+  };
+}
+
+function assertNoGreetingApiBoundaryLeaks(payload) {
+  const forbiddenKeys = new Set([
+    "model",
+    "providerModel",
+    "authorizationKey",
+    "accessToken",
+    "baseUrl",
+    "oauthUrl",
+    "draft",
+    "birthday",
+    "birthdays",
+    "reminder",
+    "reminders",
+    "sentStatus",
+  ]);
+  const keys = collectJsonKeys(payload);
+  for (const key of keys) {
+    assert.equal(forbiddenKeys.has(key), false, `Greeting API leaked forbidden key: ${key}`);
+  }
+
+  const serialized = JSON.stringify(payload);
+  [
+    "boundary-production-model-secret",
+    "boundary-provider-model-secret",
+    "boundary-authorization-key-secret",
+    "boundary-access-token-secret",
+    "https://boundary-gigachat-secret.test",
+    "https://boundary-oauth-secret.test",
+    "draft-provider-secret",
+    "birthday-provider-secret",
+    "reminder-provider-secret",
+    "Отправлено",
+  ].forEach(secretValue => {
+    assert.equal(serialized.includes(secretValue), false, `Greeting API leaked forbidden value: ${secretValue}`);
+  });
+}
+
+function collectJsonKeys(value, keys = []) {
+  if (Array.isArray(value)) {
+    value.forEach(item => collectJsonKeys(item, keys));
+    return keys;
+  }
+  if (!value || typeof value !== "object") return keys;
+  Object.entries(value).forEach(([key, child]) => {
+    keys.push(key);
+    collectJsonKeys(child, keys);
+  });
+  return keys;
+}
+
 function createGigaChatTokenResponse(accessToken, now = new Date("2026-08-06T09:05:00.000Z")) {
   return jsonResponse(200, {
     access_token: accessToken,
@@ -5585,6 +5838,14 @@ function createBirthdayGreetingRequest({ recipientName = "Мария" } = {}) {
     format: "plain_text",
     variantCount: 3,
     promptVersion: GREETING_PROMPT_VERSION,
+  };
+}
+
+function createGreetingRevisionRequest({ recipientName = "Мария" } = {}) {
+  return {
+    sourceText: "Мария, поздравляю с днем рождения.",
+    instruction: "Сделай теплее.",
+    baseInput: createBirthdayGreetingRequest({ recipientName }),
   };
 }
 

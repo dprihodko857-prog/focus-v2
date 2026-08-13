@@ -4718,23 +4718,19 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     }
 
     if (generationResult?.status === "provider_not_configured") {
-      sendJson(response, 503, {
-        error: "provider_not_configured",
+      sendJson(response, 503, createGreetingProviderUnavailableResponse({
         accountId: accountContext.accountId,
-        ...generationResult,
-        provider: null,
-        message: generationResult.message || GREETING_DISABLED_MESSAGE,
-        disabledMessage: generationResult.message || GREETING_DISABLED_MESSAGE,
-      });
+        checkedAt: accountContext.checkedAt,
+      }));
       return;
     }
 
     if (generationResult?.status === "invalid_request") {
-      sendJson(response, 400, {
-        error: "invalid_greeting_request",
+      sendJson(response, 400, createGreetingProviderInvalidResponse({
         accountId: accountContext.accountId,
-        ...generationResult,
-      });
+        checkedAt: accountContext.checkedAt,
+        error: "invalid_greeting_request",
+      }));
       return;
     }
 
@@ -4757,7 +4753,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       accountId: accountContext.accountId,
       checkedAt: accountContext.checkedAt,
       ...resultValidation.result,
-      usage: generationResult.usage || null,
+      usage: normalizeGreetingApiUsage(generationResult.usage),
     });
     return;
   }
@@ -4817,23 +4813,19 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
     }
 
     if (revisionResult?.status === "provider_not_configured") {
-      sendJson(response, 503, {
-        error: "provider_not_configured",
+      sendJson(response, 503, createGreetingProviderUnavailableResponse({
         accountId: accountContext.accountId,
-        ...revisionResult,
-        provider: null,
-        message: revisionResult.message || GREETING_DISABLED_MESSAGE,
-        disabledMessage: revisionResult.message || GREETING_DISABLED_MESSAGE,
-      });
+        checkedAt: accountContext.checkedAt,
+      }));
       return;
     }
 
     if (revisionResult?.status === "invalid_request") {
-      sendJson(response, 400, {
-        error: "invalid_greeting_revision_request",
+      sendJson(response, 400, createGreetingProviderInvalidResponse({
         accountId: accountContext.accountId,
-        ...revisionResult,
-      });
+        checkedAt: accountContext.checkedAt,
+        error: "invalid_greeting_revision_request",
+      }));
       return;
     }
 
@@ -4856,7 +4848,7 @@ async function routeRequest({ request, response, db, now, createId, pushPublicKe
       accountId: accountContext.accountId,
       checkedAt: accountContext.checkedAt,
       ...resultValidation.result,
-      usage: revisionResult.usage || null,
+      usage: normalizeGreetingApiUsage(revisionResult.usage),
     });
     return;
   }
@@ -6874,6 +6866,52 @@ function isGreetingAIProviderConfigured(provider) {
 function getGreetingAIProviderName(provider) {
   const name = sanitizeStoredName(provider?.provider || "");
   return name || "custom";
+}
+
+function createGreetingProviderUnavailableResponse({ accountId, checkedAt }) {
+  return {
+    error: "provider_not_configured",
+    status: "provider_not_configured",
+    accountId,
+    provider: null,
+    promptVersion: GREETING_PROMPT_VERSION,
+    message: GREETING_DISABLED_MESSAGE,
+    disabledMessage: GREETING_DISABLED_MESSAGE,
+    variants: [],
+    checkedAt,
+  };
+}
+
+function createGreetingProviderInvalidResponse({ accountId, checkedAt, error }) {
+  return {
+    error,
+    status: "invalid_request",
+    accountId,
+    promptVersion: GREETING_PROMPT_VERSION,
+    errors: ["provider_invalid_request"],
+    variants: [],
+    checkedAt,
+  };
+}
+
+function normalizeGreetingApiUsage(usage) {
+  if (!isPlainObject(usage)) return null;
+
+  const promptTokens = normalizeGreetingApiUsageCount(usage.promptTokens ?? usage.prompt_tokens ?? usage.inputTokens ?? usage.input_tokens);
+  const completionTokens = normalizeGreetingApiUsageCount(usage.completionTokens ?? usage.completion_tokens ?? usage.outputTokens ?? usage.output_tokens);
+  const totalTokens = normalizeGreetingApiUsageCount(usage.totalTokens ?? usage.total_tokens);
+  if (promptTokens === null && completionTokens === null && totalTokens === null) return null;
+
+  return {
+    promptTokens: promptTokens ?? 0,
+    completionTokens: completionTokens ?? 0,
+    totalTokens: totalTokens ?? 0,
+  };
+}
+
+function normalizeGreetingApiUsageCount(value) {
+  const count = Math.floor(Number(value));
+  return Number.isFinite(count) && count >= 0 ? count : null;
 }
 
 function getScheduleSnapshot(db, accountId) {

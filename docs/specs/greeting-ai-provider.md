@@ -121,6 +121,19 @@ Every provider result goes through the same server validation:
 
 Provider failures return safe status/reason metadata without saving generated text.
 
+## API Boundary
+
+Greeting API responses are allowlisted by Focus backend. Provider-returned metadata is not forwarded to clients.
+
+The `/api/sync/greetings/status`, `/generate`, and `/revise` responses must not include:
+
+- production model names;
+- authorization keys or access tokens;
+- provider base URLs or OAuth URLs;
+- provider-side draft, birthday, reminder, delivery, or sent-status fields.
+
+Provider output can only return generated text variants after server validation. Draft saving, copying, birthday edits, holiday edits, reminder creation, message sending, and sent status changes remain separate Focus business actions after explicit user input.
+
 ## Model Comparison Before Production
 
 Before enabling a production model, compare candidate GigaChat models on at least these scenarios:
