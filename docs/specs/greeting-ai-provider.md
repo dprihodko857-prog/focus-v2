@@ -110,6 +110,7 @@ Legacy `GigaChatGreetingAIProvider` fake-fetch coverage remains in place for tok
 ## Production Polza.ai Setup
 
 Use server-side environment variables or the existing server secrets mechanism. Never commit these values.
+The committed `.env.example` lists the server-only variables with production values left commented or empty; do not place real keys there.
 
 Required:
 
