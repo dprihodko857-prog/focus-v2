@@ -7,6 +7,7 @@ import { createGreetingAIProviderFromEnv } from "../server/greeting-ai-provider.
 const envExample = readFileSync(".env.example", "utf8");
 const providerDoc = readFileSync("docs/specs/greeting-ai-provider.md", "utf8");
 const comparisonDoc = readFileSync("docs/specs/greeting-model-comparison.md", "utf8");
+const runbookDoc = readFileSync("docs/specs/greeting-polza-production-runbook.md", "utf8");
 const clientShell = [
   readFileSync("public/index.html", "utf8"),
   readFileSync("public/js/app.js", "utf8"),
@@ -57,11 +58,38 @@ test("committed env example keeps Greeting Assistant on mock by default", async 
 
 test("production docs point operators to server-only Polza configuration", () => {
   assert.match(providerDoc, /\.env\.example/);
+  assert.match(providerDoc, /docs\/specs\/greeting-polza-production-runbook\.md/);
   assert.match(providerDoc, /FOCUS_GREETING_AI_PROVIDER=polza/);
   assert.match(providerDoc, /FOCUS_POLZA_API_KEY=<server secret>/);
   assert.match(providerDoc, /FOCUS_POLZA_MODEL=<model id selected by server configuration>/);
   assert.match(comparisonDoc, /FOCUS_POLZA_MODEL=<candidate model id>/);
   assert.match(comparisonDoc, /Initial low-cost ChatGPT candidate: `openai\/gpt-4o-mini`/);
+});
+
+test("production runbook documents approved server-only Polza activation", () => {
+  [
+    "https://polza.ai/docs/api-reference/introduction",
+    "https://polza.ai/docs/api-reference/chat/completions",
+    "FOCUS_GREETING_AI_PROVIDER=polza",
+    "FOCUS_POLZA_API_KEY=<server secret>",
+    "FOCUS_POLZA_MODEL=<selected model id>",
+    "FOCUS_GREETING_AI_PROVIDER=disabled",
+    "/api/health",
+    "/api/sync/greetings/status",
+    "docs/specs/greeting-model-comparison.md",
+  ].forEach(marker => {
+    assert.match(runbookDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  requiredPolzaEnvNames.forEach(name => {
+    assert.match(runbookDoc, new RegExp(escapeRegExp(name)));
+  });
+
+  assert.match(runbookDoc, /Do not make frontend, mobile, local development, or CI calls directly to Polza/);
+  assert.match(runbookDoc, /Run only after owner approval and after secrets are installed on the server/);
+  assert.match(runbookDoc, /Users must still be able to save the questionnaire and continue later/);
+  assert.doesNotMatch(runbookDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
+  assert.doesNotMatch(runbookDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
 });
 
 test("frontend assets do not include production provider config names or endpoints", () => {
@@ -100,4 +128,8 @@ function parseEnvExample(source) {
 function createIncrementingId() {
   let index = 0;
   return () => `env-example-greeting-${index += 1}`;
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
