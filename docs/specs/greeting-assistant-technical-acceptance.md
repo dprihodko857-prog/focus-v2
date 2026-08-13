@@ -69,23 +69,20 @@ Controlled disabled copy:
 Core contract and fake-fetch provider coverage:
 
 ```text
-node --test --test-name-pattern "Polza greeting provider|GigaChat greeting provider|Greeting provider env factory|sync greeting" tests\focus-sync-server.test.mjs
+npm run test:greeting:server
 ```
 
 Client and production boundary coverage:
 
 ```text
-node --test tests\greeting-client-boundary.test.mjs
-node --test tests\greeting-readiness-client.test.mjs
-node --test tests\greeting-production-config.test.mjs
-node --test tests\greeting-production-readiness-smoke.test.mjs
+npm run test:greeting
 ```
 
 Model comparison runner coverage:
 
 ```text
-node --test tests\greeting-model-comparison.test.mjs tests\greeting-model-comparison-runner.test.mjs
-node scripts\greeting-model-comparison-runner.mjs run --provider=mock --candidate=mock --scenario=birthday-short --no-revisions --out=output\greeting-model-comparison\mock-smoke.jsonl
+npm run test:greeting
+npm run greeting:comparison:mock
 ```
 
 Accepted fake-fetch smoke coverage includes:

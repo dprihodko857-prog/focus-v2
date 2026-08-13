@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "test:greeting": "node --test tests/greeting-client-boundary.test.mjs tests/greeting-readiness-client.test.mjs tests/greeting-production-config.test.mjs tests/greeting-production-readiness-smoke.test.mjs tests/greeting-model-comparison.test.mjs tests/greeting-model-comparison-runner.test.mjs",
+    "test:greeting:server": "node --test --test-name-pattern \"Polza greeting provider|GigaChat greeting provider|Greeting provider env factory|sync greeting\" tests/focus-sync-server.test.mjs",
+    "greeting:comparison:mock": "node scripts/greeting-model-comparison-runner.mjs run --provider=mock --candidate=mock --scenario=birthday-short --no-revisions --out=output/greeting-model-comparison/mock-smoke.jsonl"
   },
   "dependencies": {
     "web-push": "3.6.7"

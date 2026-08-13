@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 import { createGreetingAIProviderFromEnv } from "../server/greeting-ai-provider.mjs";
 
+const packageManifest = JSON.parse(readFileSync("package.json", "utf8"));
 const envExample = readFileSync(".env.example", "utf8");
 const syncService = readFileSync("server/focus-v2-sync.service", "utf8");
 const providerDoc = readFileSync("docs/specs/greeting-ai-provider.md", "utf8");
@@ -72,6 +73,30 @@ test("deployment service keeps greeting provider secrets out of committed unit c
   assert.doesNotMatch(syncService, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
 });
 
+test("package scripts expose greeting acceptance commands without live provider calls", () => {
+  const scripts = packageManifest.scripts || {};
+  assert.match(scripts["test:greeting"], /tests\/greeting-client-boundary\.test\.mjs/);
+  assert.match(scripts["test:greeting"], /tests\/greeting-readiness-client\.test\.mjs/);
+  assert.match(scripts["test:greeting"], /tests\/greeting-production-config\.test\.mjs/);
+  assert.match(scripts["test:greeting"], /tests\/greeting-production-readiness-smoke\.test\.mjs/);
+  assert.match(scripts["test:greeting"], /tests\/greeting-model-comparison\.test\.mjs/);
+  assert.match(scripts["test:greeting"], /tests\/greeting-model-comparison-runner\.test\.mjs/);
+  assert.match(scripts["test:greeting:server"], /Polza greeting provider\|GigaChat greeting provider\|Greeting provider env factory\|sync greeting/);
+  assert.match(scripts["test:greeting:server"], /tests\/focus-sync-server\.test\.mjs/);
+  assert.match(scripts["greeting:comparison:mock"], /scripts\/greeting-model-comparison-runner\.mjs/);
+  assert.match(scripts["greeting:comparison:mock"], /--provider=mock/);
+  assert.match(scripts["greeting:comparison:mock"], /--candidate=mock/);
+  assert.match(scripts["greeting:comparison:mock"], /--no-revisions/);
+
+  const greetingScripts = [
+    scripts["test:greeting"],
+    scripts["test:greeting:server"],
+    scripts["greeting:comparison:mock"],
+  ].join("\n");
+  assert.doesNotMatch(greetingScripts, /--provider=env|FOCUS_POLZA_|POLZA_API_KEY|FOCUS_GIGACHAT_AUTHORIZATION_KEY/);
+  assert.doesNotMatch(greetingScripts, /sk-polza-|sk-proj-|Bearer\s+|polza\.ai\/api|api\.giga\.chat/iu);
+});
+
 test("production docs point operators to server-only Polza configuration", () => {
   assert.match(providerDoc, /\.env\.example/);
   assert.match(providerDoc, /docs\/specs\/greeting-assistant-technical-acceptance\.md/);
@@ -105,7 +130,8 @@ test("production runbook documents approved server-only Polza activation", () =>
     "readinessStatus: \"ready\"",
     "checks.liveProviderCallPerformed: false",
     "docs/specs/greeting-model-comparison.md",
-    "tests\\greeting-production-readiness-smoke.test.mjs",
+    "npm run test:greeting",
+    "npm run test:greeting:server",
     "approved fake-fetch ready/generate/revise paths",
     "safe failed responses for approved provider failures without birthday or reminder changes",
     "docs/specs/greeting-polza-production-smoke-report.md",
@@ -181,7 +207,8 @@ test("operator handoff documents production activation order without secrets", (
     "EnvironmentFile=-/opt/focus-v2/data/focus-v2.env",
     "node scripts/greeting-model-comparison-runner.mjs summary",
     "node scripts/greeting-model-comparison-runner.mjs run --provider=env",
-    "tests\\greeting-production-readiness-smoke.test.mjs",
+    "npm run test:greeting",
+    "npm run test:greeting:server",
     "GET /api/health",
     "GET /api/sync/greetings/status",
     "GET /api/sync/greetings/readiness",
@@ -236,12 +263,9 @@ test("technical acceptance snapshot captures implemented greeting assistant gate
     "/api/sync/greetings/generate",
     "/api/sync/greetings/revise",
     "Генерация поздравлений пока недоступна. Анкету можно сохранить и продолжить позднее.",
-    "tests\\greeting-client-boundary.test.mjs",
-    "tests\\greeting-readiness-client.test.mjs",
-    "tests\\greeting-production-config.test.mjs",
-    "tests\\greeting-production-readiness-smoke.test.mjs",
-    "tests\\greeting-model-comparison.test.mjs",
-    "tests\\greeting-model-comparison-runner.test.mjs",
+    "npm run test:greeting",
+    "npm run test:greeting:server",
+    "npm run greeting:comparison:mock",
     "scripts/greeting-model-comparison-runner.mjs",
     "docs/specs/greeting-model-comparison.md",
     "docs/specs/greeting-polza-production-runbook.md",
