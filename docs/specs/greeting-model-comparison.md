@@ -10,9 +10,12 @@ For each candidate model:
 
 ```text
 FOCUS_GREETING_AI_PROVIDER=polza
+FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED=true
 FOCUS_POLZA_API_KEY=<server secret>
 FOCUS_POLZA_MODEL=<candidate model id>
 ```
+
+Do not set `FOCUS_POLZA_PRODUCTION_ENABLED=true` or `FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true` during comparison. Those flags are only for final production activation after a candidate passes this matrix.
 
 Keep the API key, model id, base URL, provider response metadata, and authorization-looking values out of client code, localStorage, screenshots, logs intended for users, and committed artifacts.
 

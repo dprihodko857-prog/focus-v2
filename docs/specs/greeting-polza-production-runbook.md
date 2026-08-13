@@ -28,10 +28,13 @@ Before enabling `FOCUS_GREETING_AI_PROVIDER=polza`, all gates must pass:
 - owner explicitly approves production activation and one live smoke;
 - production source includes `PolzaGreetingAIProvider` behind the shared `GreetingAIProvider` contract;
 - the model comparison matrix in `docs/specs/greeting-model-comparison.md` is completed for the selected model;
+- server config includes explicit activation gates: `FOCUS_POLZA_PRODUCTION_ENABLED=true` and `FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true`;
 - expected average latency and cost per request are recorded;
 - `.env.example` remains a placeholder-only committed reference;
 - local and CI checks use fake provider calls only;
 - no provider keys, model ids, provider URLs, tokens, or provider metadata are exposed to client assets or persisted drafts.
+
+For the separate model comparison environment only, `FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED=true` may enable Polza before the final production gates are set. Do not use the evaluation gate for public production traffic.
 
 ## Server Secrets
 
@@ -41,6 +44,8 @@ Required server-only values:
 
 ```text
 FOCUS_GREETING_AI_PROVIDER=polza
+FOCUS_POLZA_PRODUCTION_ENABLED=true
+FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true
 FOCUS_POLZA_API_KEY=<server secret>
 FOCUS_POLZA_MODEL=<selected model id>
 ```
@@ -56,19 +61,22 @@ FOCUS_POLZA_RATE_LIMIT_PER_MINUTE=30
 
 Compatibility aliases such as `POLZA_API_KEY` and `POLZA_MODEL` are accepted by the adapter for migration only. Prefer the `FOCUS_POLZA_*` names for production Focus configuration.
 
+The production gate flags do not have compatibility aliases. If either `FOCUS_POLZA_PRODUCTION_ENABLED` or `FOCUS_POLZA_MODEL_COMPARISON_APPROVED` is absent or false, `FOCUS_GREETING_AI_PROVIDER=polza` resolves to the controlled disabled provider and no Polza request is made.
+
 ## Activation Steps
 
 1. Deploy a source artifact that has passed the mock and fake-fetch Greeting Assistant checks.
 2. Install or rotate `FOCUS_POLZA_API_KEY` only in the server secret store.
 3. Set `FOCUS_POLZA_MODEL` to the selected model id from the completed comparison matrix.
-4. Set conservative timeout, retry, and rate-limit values for the production envelope.
-5. Restart only the Focus backend service after secrets are installed.
-6. Verify `GET /api/health` returns `{"ok":true,"service":"focus-sync"}`.
-7. Verify `GET /api/sync/greetings/status` through an authenticated Focus session returns `providerConfigured: true` and `provider: "polza"`.
-8. Verify `GET /api/sync/greetings/readiness` returns `readinessStatus: "ready"` and `checks.liveProviderCallPerformed: false`.
-9. Confirm the status and readiness responses do not include model id, API key, bearer token, base URL, provider metadata, draft fields, birthday mutations, reminder fields, delivery fields, or sent-status fields.
-10. Run one approved live Greeting Assistant smoke from the Focus UI.
-11. Record sanitized activation notes with `docs/specs/greeting-polza-production-smoke-report.md`: date, deployed source id, selected model id, provider status result, latency, cost estimate, and smoke pass/fail. Never record the key.
+4. Set `FOCUS_POLZA_PRODUCTION_ENABLED=true` and `FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true` only after the owner approval and model comparison record are available.
+5. Set conservative timeout, retry, and rate-limit values for the production envelope.
+6. Restart only the Focus backend service after secrets are installed.
+7. Verify `GET /api/health` returns `{"ok":true,"service":"focus-sync"}`.
+8. Verify `GET /api/sync/greetings/status` through an authenticated Focus session returns `providerConfigured: true` and `provider: "polza"`.
+9. Verify `GET /api/sync/greetings/readiness` returns `readinessStatus: "ready"` and `checks.liveProviderCallPerformed: false`.
+10. Confirm the status and readiness responses do not include model id, API key, bearer token, base URL, provider metadata, draft fields, birthday mutations, reminder fields, delivery fields, or sent-status fields.
+11. Run one approved live Greeting Assistant smoke from the Focus UI.
+12. Record sanitized activation notes with `docs/specs/greeting-polza-production-smoke-report.md`: date, deployed source id, selected model id, provider status result, latency, cost estimate, and smoke pass/fail. Never record the key.
 
 ## Approved Live Smoke
 
@@ -91,6 +99,8 @@ If Polza activation fails or the provider becomes unavailable, do not switch pro
 
 ```text
 FOCUS_GREETING_AI_PROVIDER=disabled
+FOCUS_POLZA_PRODUCTION_ENABLED=false
+FOCUS_POLZA_MODEL_COMPARISON_APPROVED=false
 ```
 
 Then restart the backend and verify `/api/sync/greetings/status` returns `providerConfigured: false` with the unavailable message, and `/api/sync/greetings/readiness` returns `readinessStatus: "disabled"`. Users must still be able to save the questionnaire and continue later.

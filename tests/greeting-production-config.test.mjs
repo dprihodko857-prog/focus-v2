@@ -16,6 +16,9 @@ const clientShell = [
 ].join("\n");
 
 const requiredPolzaEnvNames = [
+  "FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED",
+  "FOCUS_POLZA_PRODUCTION_ENABLED",
+  "FOCUS_POLZA_MODEL_COMPARISON_APPROVED",
   "FOCUS_POLZA_API_KEY",
   "FOCUS_POLZA_MODEL",
   "FOCUS_POLZA_BASE_URL",
@@ -61,8 +64,11 @@ test("production docs point operators to server-only Polza configuration", () =>
   assert.match(providerDoc, /\.env\.example/);
   assert.match(providerDoc, /docs\/specs\/greeting-polza-production-runbook\.md/);
   assert.match(providerDoc, /FOCUS_GREETING_AI_PROVIDER=polza/);
+  assert.match(providerDoc, /FOCUS_POLZA_PRODUCTION_ENABLED=true/);
+  assert.match(providerDoc, /FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true/);
   assert.match(providerDoc, /FOCUS_POLZA_API_KEY=<server secret>/);
   assert.match(providerDoc, /FOCUS_POLZA_MODEL=<model id selected by server configuration>/);
+  assert.match(comparisonDoc, /FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED=true/);
   assert.match(comparisonDoc, /FOCUS_POLZA_MODEL=<candidate model id>/);
   assert.match(comparisonDoc, /Initial low-cost ChatGPT candidate: `openai\/gpt-4o-mini`/);
 });
@@ -72,6 +78,9 @@ test("production runbook documents approved server-only Polza activation", () =>
     "https://polza.ai/docs/api-reference/introduction",
     "https://polza.ai/docs/api-reference/chat/completions",
     "FOCUS_GREETING_AI_PROVIDER=polza",
+    "FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED",
+    "FOCUS_POLZA_PRODUCTION_ENABLED=true",
+    "FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true",
     "FOCUS_POLZA_API_KEY=<server secret>",
     "FOCUS_POLZA_MODEL=<selected model id>",
     "FOCUS_GREETING_AI_PROVIDER=disabled",
@@ -93,6 +102,7 @@ test("production runbook documents approved server-only Polza activation", () =>
   assert.match(runbookDoc, /Do not make frontend, mobile, local development, or CI calls directly to Polza/);
   assert.match(runbookDoc, /Run only after owner approval and after secrets are installed on the server/);
   assert.match(runbookDoc, /Users must still be able to save the questionnaire and continue later/);
+  assert.match(runbookDoc, /no Polza request is made/);
   assert.doesNotMatch(runbookDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
   assert.doesNotMatch(runbookDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
 });
@@ -104,6 +114,9 @@ test("production smoke report template captures sanitized live activation eviden
     "Deployed source id",
     "Selected model id",
     "Secret installation method",
+    "Production gate flags enabled",
+    "FOCUS_POLZA_PRODUCTION_ENABLED=true",
+    "FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true",
     "providerConfigured: true",
     "provider: \"polza\"",
     "readinessStatus: \"ready\"",

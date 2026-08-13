@@ -14,6 +14,7 @@ const DEFAULT_POLZA_BASE_URL = "https://polza.ai/api/v1";
 const DEFAULT_POLZA_TIMEOUT_MS = 30000;
 const DEFAULT_POLZA_RETRY_ATTEMPTS = 2;
 const DEFAULT_POLZA_RATE_LIMIT_PER_MINUTE = 30;
+const POLZA_PRODUCTION_ACTIVATION_TRUE_VALUES = new Set(["1", "true", "yes", "approved", "enabled"]);
 const MAX_GREETING_TEXT_LENGTH = 1800;
 const MAX_GREETING_REQUEST_LENGTH = 32 * 1024;
 
@@ -607,6 +608,10 @@ export function createGreetingAIProviderFromEnv(env = process.env, { fetchImpl =
   }
 
   if (provider === "polza") {
+    if (!isPolzaProductionActivationApproved(env) && !isPolzaModelComparisonEvaluationEnabled(env)) {
+      return new DisabledGreetingAIProvider();
+    }
+
     return new PolzaGreetingAIProvider({
       apiKey: env.FOCUS_POLZA_API_KEY || env.POLZA_API_KEY || env.POLZA_AI_API_KEY || "",
       model: env.FOCUS_POLZA_MODEL || env.POLZA_MODEL || "",
@@ -620,6 +625,15 @@ export function createGreetingAIProviderFromEnv(env = process.env, { fetchImpl =
   }
 
   return new DisabledGreetingAIProvider();
+}
+
+export function isPolzaProductionActivationApproved(env = process.env) {
+  return normalizeServerBoolean(env.FOCUS_POLZA_PRODUCTION_ENABLED) === true
+    && normalizeServerBoolean(env.FOCUS_POLZA_MODEL_COMPARISON_APPROVED) === true;
+}
+
+export function isPolzaModelComparisonEvaluationEnabled(env = process.env) {
+  return normalizeServerBoolean(env.FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED) === true;
 }
 
 export function normalizeGreetingAIProvider(provider, options = {}) {
@@ -1325,6 +1339,10 @@ function normalizeGreetingProviderName(value) {
   if (["gigachat", "giga-chat"].includes(provider)) return "gigachat";
   if (["polza", "polza.ai", "polza-ai", "chatgpt-polza", "polza-chatgpt"].includes(provider)) return "polza";
   return sanitizeProviderName(provider);
+}
+
+function normalizeServerBoolean(value) {
+  return POLZA_PRODUCTION_ACTIVATION_TRUE_VALUES.has(String(value || "").trim().toLocaleLowerCase("en-US"));
 }
 
 function normalizeProviderName(value) {

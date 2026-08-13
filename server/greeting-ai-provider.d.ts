@@ -99,3 +99,16 @@ export class GigaChatGreetingAIProvider implements GreetingAIProvider {
   reviseGreeting(input: GreetingRevisionInput): Promise<GreetingGenerationResult>;
   isConfigured(): boolean;
 }
+
+export function createGreetingAIProviderFromEnv(
+  env?: Record<string, string | undefined>,
+  options?: {
+    fetchImpl?: typeof fetch;
+    now?: () => Date;
+    createId?: () => string;
+  },
+): GreetingAIProvider;
+
+export function isPolzaProductionActivationApproved(env?: Record<string, string | undefined>): boolean;
+
+export function isPolzaModelComparisonEvaluationEnabled(env?: Record<string, string | undefined>): boolean;

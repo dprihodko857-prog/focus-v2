@@ -13,6 +13,7 @@ Use this template only after the model comparison matrix is complete, production
 - Deployed source id:
 - Selected model id:
 - Model comparison record:
+- Production gate flags enabled: yes/no
 - Secret installation method: server secrets vault or `/opt/focus-v2/data/focus-v2.env`
 
 Do not paste or record provider keys, bearer tokens, authorization headers, raw provider responses, provider dashboards, screenshots with secrets, or shell history containing secrets.
@@ -20,6 +21,8 @@ Do not paste or record provider keys, bearer tokens, authorization headers, raw 
 ## Preflight
 
 - [ ] `GET /api/health` returned `{"ok":true,"service":"focus-sync"}`.
+- [ ] `FOCUS_POLZA_PRODUCTION_ENABLED=true` was set only in server secrets/config.
+- [ ] `FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true` was set only after the model comparison record was complete.
 - [ ] Authenticated `GET /api/sync/greetings/status` returned `providerConfigured: true`.
 - [ ] Authenticated `GET /api/sync/greetings/status` returned `provider: "polza"`.
 - [ ] Authenticated `GET /api/sync/greetings/readiness` returned `readinessStatus: "ready"`.

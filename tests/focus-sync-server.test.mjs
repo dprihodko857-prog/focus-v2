@@ -27,6 +27,8 @@ import {
   GREETING_PROMPT_VERSION,
   PolzaGreetingAIProvider,
   createGreetingAIProviderFromEnv,
+  isPolzaModelComparisonEvaluationEnabled,
+  isPolzaProductionActivationApproved,
 } from "../server/greeting-ai-provider.mjs";
 
 import {
@@ -2713,10 +2715,64 @@ test("Polza greeting provider applies local rate limiting before chat calls", as
   assert.ok(Date.now() - beforeSecondRequest >= 10);
 });
 
-test("Greeting provider env factory creates Polza provider from server configuration", async () => {
+test("Greeting provider env factory keeps Polza disabled until production or evaluation gate is approved", async () => {
+  const provider = createGreetingAIProviderFromEnv({
+    FOCUS_GREETING_AI_PROVIDER: "polza",
+    FOCUS_POLZA_API_KEY: "sk-polza-test-api-key-with-enough-length",
+    FOCUS_POLZA_MODEL: "openai/gpt-4o-mini",
+  }, {
+    fetchImpl: async () => {
+      throw new Error("Polza production gate must not call provider fetch");
+    },
+  });
+
+  const result = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(provider instanceof DisabledGreetingAIProvider, true);
+  assert.equal(result.status, "provider_not_configured");
+  assert.equal(result.provider, "disabled");
+  assert.equal(isPolzaProductionActivationApproved({
+    FOCUS_POLZA_PRODUCTION_ENABLED: "true",
+  }), false);
+  assert.equal(isPolzaProductionActivationApproved({
+    FOCUS_POLZA_MODEL_COMPARISON_APPROVED: "true",
+  }), false);
+  assert.equal(isPolzaProductionActivationApproved({
+    FOCUS_POLZA_PRODUCTION_ENABLED: "true",
+    FOCUS_POLZA_MODEL_COMPARISON_APPROVED: "approved",
+  }), true);
+  assert.equal(isPolzaModelComparisonEvaluationEnabled({
+    FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED: "true",
+  }), true);
+});
+
+test("Greeting provider env factory creates Polza provider for approved model comparison evaluation", async () => {
+  const provider = createGreetingAIProviderFromEnv({
+    FOCUS_GREETING_AI_PROVIDER: "polza",
+    FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED: "true",
+    FOCUS_POLZA_API_KEY: "sk-polza-test-api-key-with-enough-length",
+    FOCUS_POLZA_MODEL: "openai/gpt-4o-mini",
+    FOCUS_POLZA_BASE_URL: "https://polza.test/api/v1",
+    FOCUS_POLZA_TIMEOUT_MS: "5000",
+    FOCUS_POLZA_RETRY_ATTEMPTS: "0",
+    FOCUS_POLZA_RATE_LIMIT_PER_MINUTE: "30",
+  }, {
+    now: () => new Date("2026-08-13T09:05:00.000Z"),
+    fetchImpl: async () => createGigaChatCompletionResponse(),
+  });
+
+  const result = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(provider instanceof PolzaGreetingAIProvider, true);
+  assert.equal(result.status, "generated");
+});
+
+test("Greeting provider env factory creates Polza provider from approved server configuration", async () => {
   const calls = [];
   const provider = createGreetingAIProviderFromEnv({
     FOCUS_GREETING_AI_PROVIDER: "polza",
+    FOCUS_POLZA_PRODUCTION_ENABLED: "true",
+    FOCUS_POLZA_MODEL_COMPARISON_APPROVED: "approved",
     FOCUS_POLZA_API_KEY: "sk-polza-test-api-key-with-enough-length",
     FOCUS_POLZA_MODEL: "openai/gpt-4o-mini",
     FOCUS_POLZA_BASE_URL: "https://polza.test/api/v1",

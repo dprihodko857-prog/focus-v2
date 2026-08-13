@@ -119,6 +119,8 @@ Required:
 
 ```text
 FOCUS_GREETING_AI_PROVIDER=polza
+FOCUS_POLZA_PRODUCTION_ENABLED=true
+FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true
 FOCUS_POLZA_API_KEY=<server secret>
 FOCUS_POLZA_MODEL=<model id selected by server configuration>
 ```
@@ -134,12 +136,16 @@ FOCUS_POLZA_RATE_LIMIT_PER_MINUTE=30
 
 Compatibility aliases are accepted for the initial rollout: `POLZA_API_KEY`, `POLZA_AI_API_KEY`, `POLZA_MODEL`, `POLZA_BASE_URL`, `POLZA_TIMEOUT`, `POLZA_TIMEOUT_MS`, `POLZA_RETRY_ATTEMPTS`, `POLZA_RATE_LIMIT_PER_MINUTE`.
 
+For the separate model comparison environment only, `FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED=true` may enable Polza without the final production gates. Production activation still requires `FOCUS_POLZA_PRODUCTION_ENABLED=true` and `FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true`.
+
 Initial low-cost candidate for comparison: `openai/gpt-4o-mini`. Do not hardcode this candidate in UI, draft models, or Greeting Assistant business logic. The selected model must be provided only by server configuration.
 
 Production activation checklist:
 
 - Configure the Polza API key only in server secrets.
 - Set the model name in server config, not in UI or business logic.
+- Set `FOCUS_POLZA_PRODUCTION_ENABLED=true` only after owner approval for production activation.
+- Set `FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true` only after the comparison matrix is complete for the selected model.
 - Verify `/api/sync/greetings/status` does not expose model, key, token, or provider URLs.
 - Run server tests with fake provider calls; do not run live API calls in CI.
 - Run a separate manual production smoke test only in an approved environment.
@@ -148,7 +154,7 @@ Production-only remaining work:
 
 - select candidate Polza/OpenAI-compatible model ids through a separate quality/cost comparison;
 - provision the real Polza API key in the server secrets mechanism, not in source code;
-- configure `FOCUS_GREETING_AI_PROVIDER=polza` and `FOCUS_POLZA_MODEL` only in the production server environment;
+- configure `FOCUS_GREETING_AI_PROVIDER=polza`, `FOCUS_POLZA_MODEL`, `FOCUS_POLZA_PRODUCTION_ENABLED`, and `FOCUS_POLZA_MODEL_COMPARISON_APPROVED` only in the production server environment;
 - confirm timeout, retry, and rate-limit values for the real deployment envelope;
 - run the model comparison matrix in this document on an approved environment;
 - record average latency and cost per request for the selected model;
