@@ -34,6 +34,7 @@ const MAX_TRANSCRIPTION_AUDIO_BASE64_LENGTH = 768 * 1024;
 const MAX_TRANSCRIPTION_DURATION_MS = 60 * 1000;
 const PERSONAL_SCHEDULE_PROMPT_VERSION = "personal-schedule-planner@2026-08-04.v1";
 const MAX_PERSONAL_SCHEDULE_REQUEST_LENGTH = 96 * 1024;
+const GREETING_ASSISTANT_FEATURE_KEY = "greetingAssistant";
 const GREETING_PROMPT_VERSION = "greeting-assistant@2026-08-06.v1";
 const GREETING_DISABLED_MESSAGE = "Генерация поздравлений пока недоступна. Анкету можно сохранить и продолжить позднее.";
 const MAX_GREETING_REQUEST_LENGTH = 32 * 1024;
@@ -1000,6 +1001,25 @@ export function createFocusSyncClient({
           disabledMessage: GREETING_DISABLED_MESSAGE,
           checkedAt: null,
         };
+      }
+    },
+
+    async getGreetingReadiness() {
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, "/sync/greetings/readiness"), {
+          headers: await withHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error("Focus greeting readiness load failed.");
+        }
+
+        return normalizeGreetingReadiness(
+          await response.json(),
+          getStored(ACCOUNT_KEY),
+        );
+      } catch {
+        return createOfflineGreetingReadiness(getStored(ACCOUNT_KEY));
       }
     },
 
@@ -2338,6 +2358,59 @@ function normalizeGreetingResult(result = {}, fallbackAccountId = "") {
         : GREETING_DISABLED_MESSAGE,
     usage: normalizeGreetingUsage(result.usage),
     checkedAt: normalizeIsoTimestamp(result.checkedAt),
+  };
+}
+
+function normalizeGreetingReadiness(result = {}, fallbackAccountId = "") {
+  const providerConfigured = result.providerConfigured === true;
+
+  return {
+    status: "ok",
+    accountId: typeof result.accountId === "string" && result.accountId.trim()
+      ? result.accountId.trim()
+      : fallbackAccountId,
+    featureKey: GREETING_ASSISTANT_FEATURE_KEY,
+    providerConfigured,
+    provider: providerConfigured && typeof result.provider === "string" && result.provider.trim()
+      ? result.provider.trim()
+      : null,
+    promptVersion: typeof result.promptVersion === "string" ? result.promptVersion : GREETING_PROMPT_VERSION,
+    readinessStatus: providerConfigured && result.readinessStatus === "ready" ? "ready" : "disabled",
+    disabledMessage: providerConfigured ? null : GREETING_DISABLED_MESSAGE,
+    checks: normalizeGreetingReadinessChecks(result.checks, providerConfigured),
+    checkedAt: normalizeIsoTimestamp(result.checkedAt),
+  };
+}
+
+function createOfflineGreetingReadiness(accountId = "") {
+  return {
+    status: "offline",
+    accountId,
+    featureKey: GREETING_ASSISTANT_FEATURE_KEY,
+    providerConfigured: false,
+    provider: null,
+    promptVersion: GREETING_PROMPT_VERSION,
+    readinessStatus: "disabled",
+    disabledMessage: GREETING_DISABLED_MESSAGE,
+    checks: normalizeGreetingReadinessChecks(null, false),
+    checkedAt: null,
+  };
+}
+
+function normalizeGreetingReadinessChecks(checks, providerConfigured = false) {
+  const source = checks && typeof checks === "object" && !Array.isArray(checks) ? checks : {};
+
+  return {
+    providerContractReady: source.providerContractReady === true,
+    generationAvailable: source.generationAvailable === true && providerConfigured,
+    revisionAvailable: source.revisionAvailable === true && providerConfigured,
+    serverValidationRequired: source.serverValidationRequired !== false,
+    structuredResultRequired: source.structuredResultRequired !== false,
+    backendOnlyProviderAccess: source.backendOnlyProviderAccess !== false,
+    liveProviderCallPerformed: source.liveProviderCallPerformed === true,
+    clientSecretsExposed: source.clientSecretsExposed === true,
+    clientModelSelectionAllowed: source.clientModelSelectionAllowed === true,
+    providerSideEffectsAllowed: source.providerSideEffectsAllowed === true,
   };
 }
 

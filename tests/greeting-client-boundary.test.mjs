@@ -29,6 +29,7 @@ test("greeting sync methods only call Focus backend and do not expose provider i
   );
 
   assert.match(syncGreetingBoundary, /\/sync\/greetings\/status/);
+  assert.match(syncGreetingBoundary, /\/sync\/greetings\/readiness/);
   assert.match(syncGreetingBoundary, /\/sync\/greetings\/generate/);
   assert.match(syncGreetingBoundary, /\/sync\/greetings\/revise/);
   assert.doesNotMatch(
