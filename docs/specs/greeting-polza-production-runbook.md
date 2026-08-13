@@ -123,7 +123,7 @@ Never expose raw provider error bodies or authorization headers to client respon
 Run without real credentials and without live provider calls:
 
 ```text
-node --test tests\greeting-production-config.test.mjs tests\greeting-client-boundary.test.mjs tests\greeting-model-comparison.test.mjs
+node --test tests\greeting-production-config.test.mjs tests\greeting-production-readiness-smoke.test.mjs tests\greeting-client-boundary.test.mjs tests\greeting-model-comparison.test.mjs
 node --test --test-name-pattern "Polza greeting provider|Greeting provider env factory|sync greeting" tests\focus-sync-server.test.mjs
 ```
 
