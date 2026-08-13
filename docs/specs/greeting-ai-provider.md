@@ -77,12 +77,17 @@ The UI must show:
 
 ## Local Smoke Verification
 
-Last local smoke pass: 2026-08-13.
+Last local smoke pass after the Polza production-direction switch: 2026-08-13.
 
 Verified without credentials and without live provider calls:
 
 - `FOCUS_GREETING_AI_PROVIDER=mock`: full Greeting Assistant flow from a birthday record, generate 3 variants, revise, copy, save draft, reopen, restore draft, and confirm localStorage has no provider credentials.
 - `FOCUS_GREETING_AI_PROVIDER=disabled`: mobile controlled disabled state, generation button disabled, copy button disabled, questionnaire draft can still be saved, and localStorage has no provider credentials.
+- Browser smoke runner: `output/playwright/greeting-assistant-smoke.mjs` served local mock API responses on `127.0.0.1:8096`, used local Chrome, and made no live provider calls.
+- Smoke screenshots:
+  - `output/playwright/greeting-polza-mock-smoke.png`
+  - `output/playwright/greeting-polza-disabled-smoke.png`
+- Runtime resource checks confirmed the frontend did not call `polza.ai`, GigaChat hosts, `chat/completions`, or OAuth endpoints directly.
 
 Smoke artifacts are written under ignored `output/playwright/` paths and must not be treated as production source.
 
