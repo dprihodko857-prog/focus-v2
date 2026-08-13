@@ -37,12 +37,14 @@ Do not commit live JSONL. Copy only sanitized aggregate latency, cost, pass/fail
 Run without real credentials and without live provider calls:
 
 ```text
+npm run greeting:preflight
 npm run test:greeting
 npm run test:greeting:server
 ```
 
 Expected coverage:
 
+- Production preflight checks server-only gates/configuration, frontend boundary markers, and `liveProviderCallPerformed: false`.
 - Polza stays disabled when production gates are missing.
 - Approved fake-fetch Polza path reports readiness `ready`.
 - Fake-fetch `/generate` and `/revise` pass server validation.

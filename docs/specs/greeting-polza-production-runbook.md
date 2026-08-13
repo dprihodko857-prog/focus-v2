@@ -125,9 +125,12 @@ Never expose raw provider error bodies or authorization headers to client respon
 Run without real credentials and without live provider calls:
 
 ```text
+npm run greeting:preflight
 npm run test:greeting
 npm run test:greeting:server
 ```
+
+The preflight report must keep `liveProviderCallPerformed: false`, must not print key/model/base URL values, and must fail if `FOCUS_GREETING_AI_PROVIDER=polza` is selected without the required Polza gates or server-only key/model configuration.
 
 The readiness smoke covers Polza disabled-without-gates, approved fake-fetch ready/generate/revise paths, and safe failed responses for approved provider failures without birthday or reminder changes.
 

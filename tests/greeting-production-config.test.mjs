@@ -79,10 +79,12 @@ test("package scripts expose greeting acceptance commands without live provider 
   assert.match(scripts["test:greeting"], /tests\/greeting-readiness-client\.test\.mjs/);
   assert.match(scripts["test:greeting"], /tests\/greeting-production-config\.test\.mjs/);
   assert.match(scripts["test:greeting"], /tests\/greeting-production-readiness-smoke\.test\.mjs/);
+  assert.match(scripts["test:greeting"], /tests\/greeting-production-preflight\.test\.mjs/);
   assert.match(scripts["test:greeting"], /tests\/greeting-model-comparison\.test\.mjs/);
   assert.match(scripts["test:greeting"], /tests\/greeting-model-comparison-runner\.test\.mjs/);
   assert.match(scripts["test:greeting:server"], /Polza greeting provider\|GigaChat greeting provider\|Greeting provider env factory\|sync greeting/);
   assert.match(scripts["test:greeting:server"], /tests\/focus-sync-server\.test\.mjs/);
+  assert.match(scripts["greeting:preflight"], /scripts\/greeting-production-preflight\.mjs/);
   assert.match(scripts["greeting:comparison:mock"], /scripts\/greeting-model-comparison-runner\.mjs/);
   assert.match(scripts["greeting:comparison:mock"], /--provider=mock/);
   assert.match(scripts["greeting:comparison:mock"], /--candidate=mock/);
@@ -91,6 +93,7 @@ test("package scripts expose greeting acceptance commands without live provider 
   const greetingScripts = [
     scripts["test:greeting"],
     scripts["test:greeting:server"],
+    scripts["greeting:preflight"],
     scripts["greeting:comparison:mock"],
   ].join("\n");
   assert.doesNotMatch(greetingScripts, /--provider=env|FOCUS_POLZA_|POLZA_API_KEY|FOCUS_GIGACHAT_AUTHORIZATION_KEY/);
@@ -108,6 +111,7 @@ test("production docs point operators to server-only Polza configuration", () =>
   assert.match(providerDoc, /FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true/);
   assert.match(providerDoc, /FOCUS_POLZA_API_KEY=<server secret>/);
   assert.match(providerDoc, /FOCUS_POLZA_MODEL=<model id selected by server configuration>/);
+  assert.match(providerDoc, /npm run greeting:preflight/);
   assert.match(comparisonDoc, /FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED=true/);
   assert.match(comparisonDoc, /FOCUS_POLZA_MODEL=<candidate model id>/);
   assert.match(comparisonDoc, /Initial low-cost ChatGPT candidate: `openai\/gpt-4o-mini`/);
@@ -155,6 +159,7 @@ test("production runbook documents approved server-only Polza activation", () =>
     "readinessStatus: \"ready\"",
     "checks.liveProviderCallPerformed: false",
     "docs/specs/greeting-model-comparison.md",
+    "npm run greeting:preflight",
     "npm run test:greeting",
     "npm run test:greeting:server",
     "approved fake-fetch ready/generate/revise paths",
@@ -174,6 +179,7 @@ test("production runbook documents approved server-only Polza activation", () =>
   assert.match(runbookDoc, /Do not make frontend, mobile, local development, or CI calls directly to Polza/);
   assert.match(runbookDoc, /Run only after owner approval and after secrets are installed on the server/);
   assert.match(runbookDoc, /Users must still be able to save the questionnaire and continue later/);
+  assert.match(runbookDoc, /must not print key\/model\/base URL values/);
   assert.match(runbookDoc, /no Polza request is made/);
   assert.doesNotMatch(runbookDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
   assert.doesNotMatch(runbookDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
@@ -235,6 +241,7 @@ test("operator handoff documents production activation order without secrets", (
     "EnvironmentFile=-/opt/focus-v2/data/focus-v2.env",
     "node scripts/greeting-model-comparison-runner.mjs summary",
     "node scripts/greeting-model-comparison-runner.mjs run --provider=env",
+    "npm run greeting:preflight",
     "npm run test:greeting",
     "npm run test:greeting:server",
     "GET /api/health",
@@ -251,6 +258,7 @@ test("operator handoff documents production activation order without secrets", (
   });
 
   [
+    "Production preflight checks server-only gates/configuration, frontend boundary markers, and `liveProviderCallPerformed: false`.",
     "Polza stays disabled when production gates are missing.",
     "Fake-fetch `/generate` and `/revise` pass server validation.",
     "Provider failure, timeout, and malformed output return safe failed responses.",
@@ -291,6 +299,7 @@ test("technical acceptance snapshot captures implemented greeting assistant gate
     "/api/sync/greetings/readiness",
     "/api/sync/greetings/generate",
     "/api/sync/greetings/revise",
+    "npm run greeting:preflight",
     "Генерация поздравлений пока недоступна. Анкету можно сохранить и продолжить позднее.",
     "npm run test:greeting",
     "npm run test:greeting:server",
@@ -304,6 +313,7 @@ test("technical acceptance snapshot captures implemented greeting assistant gate
     "output/greeting-ui-smoke/greeting-disabled-mobile-390.json",
     "output/greeting-ui-smoke/greeting-disabled-mobile-390.png",
     "scripts/greeting-model-comparison-runner.mjs",
+    "scripts/greeting-production-preflight.mjs",
     "docs/specs/greeting-model-comparison.md",
     "docs/specs/greeting-polza-production-runbook.md",
     "docs/specs/greeting-polza-operator-handoff.md",

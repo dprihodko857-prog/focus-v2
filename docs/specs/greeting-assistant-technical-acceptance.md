@@ -75,6 +75,7 @@ npm run test:greeting:server
 Client and production boundary coverage:
 
 ```text
+npm run greeting:preflight
 npm run test:greeting
 ```
 
@@ -87,6 +88,7 @@ npm run greeting:comparison:mock
 
 Accepted fake-fetch smoke coverage includes:
 
+- production preflight for server-only Polza gates/configuration, frontend boundary markers, sanitized report output, and `liveProviderCallPerformed: false`;
 - disabled Polza without production gates and no external fetch;
 - approved fake-fetch Polza readiness `ready`;
 - approved fake-fetch `/generate` and `/revise`;
@@ -113,6 +115,7 @@ Ignored smoke artifacts:
 - `docs/specs/greeting-ai-provider.md`: architecture, contract, adapters, server validation, client boundary, production setup.
 - `docs/specs/greeting-model-comparison.md`: required model comparison matrix and decision-record template.
 - `scripts/greeting-model-comparison-runner.mjs`: executable backend-only comparison runner.
+- `scripts/greeting-production-preflight.mjs`: dry production configuration and client-boundary preflight with no provider call.
 - `docs/specs/greeting-polza-production-runbook.md`: full production activation runbook.
 - `docs/specs/greeting-polza-operator-handoff.md`: short operator checklist.
 - `docs/specs/greeting-polza-production-smoke-report.md`: sanitized live activation evidence template.

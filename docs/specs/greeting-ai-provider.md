@@ -55,6 +55,7 @@ The Greeting Assistant section is ready for the first mock-backed release when t
 Mock-release verification commands:
 
 ```text
+npm run greeting:preflight
 node --test tests\greeting-client-boundary.test.mjs
 node --test --test-name-pattern "app shell exposes server-side greeting assistant provider flow" tests\sync-integration-assets.test.mjs
 node --test --test-name-pattern "sync greeting|Polza greeting provider|GigaChat greeting provider" tests\focus-sync-server.test.mjs
@@ -149,6 +150,7 @@ Production activation checklist:
 - Set the model name in server config, not in UI or business logic.
 - Set `FOCUS_POLZA_PRODUCTION_ENABLED=true` only after owner approval for production activation.
 - Set `FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true` only after the comparison matrix is complete for the selected model.
+- Run `npm run greeting:preflight` against the server-only environment before activation; the report must keep `liveProviderCallPerformed: false`.
 - Verify `/api/sync/greetings/status` does not expose model, key, token, or provider URLs.
 - Run server tests with fake provider calls; do not run live API calls in CI.
 - Run a separate manual production smoke test only in an approved environment.
