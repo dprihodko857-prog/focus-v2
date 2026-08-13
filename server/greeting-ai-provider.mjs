@@ -10,6 +10,10 @@ const DEFAULT_GIGACHAT_TIMEOUT_MS = 30000;
 const DEFAULT_GIGACHAT_RETRY_ATTEMPTS = 2;
 const DEFAULT_GIGACHAT_RATE_LIMIT_PER_MINUTE = 30;
 const GIGACHAT_TOKEN_REFRESH_SKEW_MS = 60 * 1000;
+const DEFAULT_POLZA_BASE_URL = "https://polza.ai/api/v1";
+const DEFAULT_POLZA_TIMEOUT_MS = 30000;
+const DEFAULT_POLZA_RETRY_ATTEMPTS = 2;
+const DEFAULT_POLZA_RATE_LIMIT_PER_MINUTE = 30;
 const MAX_GREETING_TEXT_LENGTH = 1800;
 const MAX_GREETING_REQUEST_LENGTH = 32 * 1024;
 
@@ -379,6 +383,194 @@ export class GigaChatGreetingAIProvider {
   }
 }
 
+export class PolzaGreetingAIProvider {
+  constructor({
+    apiKey,
+    model,
+    baseUrl = DEFAULT_POLZA_BASE_URL,
+    timeoutMs = DEFAULT_POLZA_TIMEOUT_MS,
+    retryAttempts = DEFAULT_POLZA_RETRY_ATTEMPTS,
+    rateLimitPerMinute = DEFAULT_POLZA_RATE_LIMIT_PER_MINUTE,
+    fetchImpl = globalThis.fetch,
+    now = () => new Date(),
+  } = {}) {
+    this.provider = "polza";
+    this.available = true;
+    this.apiKey = sanitizeSecretToken(apiKey);
+    this.model = normalizeProviderName(model);
+    this.baseUrl = normalizeUrl(baseUrl) || DEFAULT_POLZA_BASE_URL;
+    this.timeoutMs = normalizeTimeoutMs(timeoutMs, DEFAULT_POLZA_TIMEOUT_MS);
+    this.retryAttempts = normalizeRetryAttempts(retryAttempts, DEFAULT_POLZA_RETRY_ATTEMPTS);
+    this.rateLimitPerMinute = normalizeRateLimit(rateLimitPerMinute, DEFAULT_POLZA_RATE_LIMIT_PER_MINUTE);
+    this.fetchImpl = fetchImpl;
+    this.now = now;
+    this.rateWindowStartedAt = 0;
+    this.rateWindowCount = 0;
+  }
+
+  async generateGreeting(input = {}) {
+    const normalized = normalizeGreetingGenerationInput(input);
+    if (!normalized.ok) {
+      return createInvalidGreetingResult({
+        provider: this.provider,
+        errors: normalized.errors,
+        input: normalized.input,
+        checkedAt: this.now().toISOString(),
+      });
+    }
+
+    return this.generateStructuredGreeting({
+      operation: "generate",
+      input: normalized.input,
+      checkedAt: this.now().toISOString(),
+    });
+  }
+
+  async reviseGreeting(input = {}) {
+    const normalized = normalizeGreetingRevisionInput(input);
+    if (!normalized.ok) {
+      return createInvalidGreetingResult({
+        provider: this.provider,
+        errors: normalized.errors,
+        input: normalized.input.baseInput,
+        checkedAt: this.now().toISOString(),
+      });
+    }
+
+    return this.generateStructuredGreeting({
+      operation: "revise",
+      input: normalized.input,
+      checkedAt: this.now().toISOString(),
+    });
+  }
+
+  async generateStructuredGreeting({ operation, input, checkedAt }) {
+    const baseInput = operation === "revise" ? input.baseInput : input;
+    if (!this.isConfigured()) {
+      return createDisabledGreetingResult({
+        provider: this.provider,
+        input: baseInput,
+        checkedAt,
+        reason: "provider_not_configured",
+      });
+    }
+
+    try {
+      const payload = operation === "revise"
+        ? createOpenAICompatibleRevisionPayload({ model: this.model, input })
+        : createOpenAICompatibleGenerationPayload({ model: this.model, input });
+      const result = await this.fetchChatCompletion({ payload });
+      const providerResult = parseOpenAICompatibleGreetingResult({
+        body: result.body,
+        provider: this.provider,
+        input: baseInput,
+        checkedAt,
+      });
+      const validation = validateGreetingGenerationResult(providerResult, baseInput);
+
+      if (!validation.ok) {
+        return createProviderFailedGreetingResult({
+          provider: this.provider,
+          reason: "provider_validation_failed",
+          errors: validation.errors,
+          input: baseInput,
+          checkedAt,
+        });
+      }
+
+      return {
+        ...validation.result,
+        usage: normalizeOpenAICompatibleUsage(result.body?.usage),
+      };
+    } catch (error) {
+      return createProviderFailedGreetingResult({
+        provider: this.provider,
+        reason: getProviderFailureReason(error),
+        input: baseInput,
+        checkedAt,
+      });
+    }
+  }
+
+  isConfigured() {
+    return Boolean(this.apiKey && this.model && this.baseUrl && this.fetchImpl);
+  }
+
+  async fetchChatCompletion({ payload }) {
+    const chatUrl = `${this.baseUrl.replace(/\/+$/u, "")}/chat/completions`;
+    const result = await this.fetchJsonWithRetry({
+      url: chatUrl,
+      options: {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify(payload),
+      },
+    });
+
+    if (!result.response.ok) {
+      throw createProviderError(getOpenAICompatibleFailureReason(result.response.status, result.body), result.response.status);
+    }
+
+    return result;
+  }
+
+  async fetchJsonWithRetry({ url, options }) {
+    let lastError = null;
+    const attempts = Math.max(1, this.retryAttempts + 1);
+
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      await this.waitForRateLimit();
+
+      try {
+        const result = await fetchJsonWithTimeout({
+          fetchImpl: this.fetchImpl,
+          url,
+          options,
+          timeoutMs: this.timeoutMs,
+        });
+
+        if (!shouldRetryProviderResponse(result.response.status) || attempt === attempts - 1) {
+          return result;
+        }
+      } catch (error) {
+        lastError = error;
+        if (isAbortError(error) || attempt === attempts - 1) {
+          throw error;
+        }
+      }
+
+      await sleep(getRetryDelayMs(attempt));
+    }
+
+    throw lastError || createProviderError("provider_error");
+  }
+
+  async waitForRateLimit() {
+    if (!this.rateLimitPerMinute) return;
+
+    const nowMs = this.now().getTime();
+    if (!this.rateWindowStartedAt || nowMs - this.rateWindowStartedAt >= 60 * 1000) {
+      this.rateWindowStartedAt = nowMs;
+      this.rateWindowCount = 0;
+    }
+
+    if (this.rateWindowCount >= this.rateLimitPerMinute) {
+      const waitMs = Math.max(0, 60 * 1000 - (nowMs - this.rateWindowStartedAt));
+      if (waitMs > 0) {
+        await sleep(waitMs);
+      }
+      this.rateWindowStartedAt = this.now().getTime();
+      this.rateWindowCount = 0;
+    }
+
+    this.rateWindowCount += 1;
+  }
+}
+
 export function createGreetingAIProviderFromEnv(env = process.env, { fetchImpl = globalThis.fetch, now = () => new Date(), createId = randomUUID } = {}) {
   const provider = normalizeGreetingProviderName(
     env.FOCUS_GREETING_AI_PROVIDER ||
@@ -414,6 +606,19 @@ export function createGreetingAIProviderFromEnv(env = process.env, { fetchImpl =
     });
   }
 
+  if (provider === "polza") {
+    return new PolzaGreetingAIProvider({
+      apiKey: env.FOCUS_POLZA_API_KEY || env.POLZA_API_KEY || env.POLZA_AI_API_KEY || "",
+      model: env.FOCUS_POLZA_MODEL || env.POLZA_MODEL || "",
+      baseUrl: env.FOCUS_POLZA_BASE_URL || env.POLZA_BASE_URL || DEFAULT_POLZA_BASE_URL,
+      timeoutMs: env.FOCUS_POLZA_TIMEOUT_MS || env.POLZA_TIMEOUT_MS || parseTimeoutSecondsEnv(env.FOCUS_POLZA_TIMEOUT || env.POLZA_TIMEOUT),
+      retryAttempts: env.FOCUS_POLZA_RETRY_ATTEMPTS || env.POLZA_RETRY_ATTEMPTS,
+      rateLimitPerMinute: env.FOCUS_POLZA_RATE_LIMIT_PER_MINUTE || env.POLZA_RATE_LIMIT_PER_MINUTE,
+      fetchImpl,
+      now,
+    });
+  }
+
   return new DisabledGreetingAIProvider();
 }
 
@@ -422,7 +627,7 @@ export function normalizeGreetingAIProvider(provider, options = {}) {
     return new DisabledGreetingAIProvider();
   }
 
-  if (provider instanceof MockGreetingAIProvider || provider instanceof DisabledGreetingAIProvider || provider instanceof GigaChatGreetingAIProvider) {
+  if (provider instanceof MockGreetingAIProvider || provider instanceof DisabledGreetingAIProvider || provider instanceof GigaChatGreetingAIProvider || provider instanceof PolzaGreetingAIProvider) {
     return provider;
   }
 
@@ -443,6 +648,13 @@ export function normalizeGreetingAIProvider(provider, options = {}) {
     const name = normalizeGreetingProviderName(provider.provider);
     if (name === "mock") return new MockGreetingAIProvider(options);
     if (name === "disabled") return new DisabledGreetingAIProvider(provider);
+    if (name === "polza") {
+      return new PolzaGreetingAIProvider({
+        ...provider,
+        fetchImpl: provider.fetchImpl || options.fetchImpl,
+        now: provider.now || options.now,
+      });
+    }
     if (name === "gigachat") {
       return new GigaChatGreetingAIProvider({
         ...provider,
@@ -759,6 +971,14 @@ function createGigaChatRevisionPayload({ model, input }) {
   });
 }
 
+function createOpenAICompatibleGenerationPayload({ model, input }) {
+  return createGigaChatGenerationPayload({ model, input });
+}
+
+function createOpenAICompatibleRevisionPayload({ model, input }) {
+  return createGigaChatRevisionPayload({ model, input });
+}
+
 function createGigaChatPayload({ model, instruction, input }) {
   return {
     model,
@@ -875,6 +1095,10 @@ function parseJsonObject(content) {
   }
 }
 
+function parseOpenAICompatibleGreetingResult({ body, provider, input, checkedAt }) {
+  return parseGigaChatGreetingResult({ body, provider, input, checkedAt });
+}
+
 function createDisabledGreetingResult({ provider, input, checkedAt, message = GREETING_DISABLED_MESSAGE, reason = "provider_not_configured" }) {
   return {
     status: "provider_not_configured",
@@ -933,7 +1157,7 @@ function validateGreetingText(text, input) {
   if (RU_PROFANITY_MARKERS.some(marker => normalizedText.includes(marker))) {
     errors.push("profanity_detected");
   }
-  if (/\b(?:authorization|access_token|bearer|gigachat_auth|api[_-]?key)\b/iu.test(text)) {
+  if (/(?:\b(?:authorization|access_token|bearer|gigachat_auth|polza[_-]?api|api[_-]?key)\b|sk-polza-)/iu.test(text)) {
     errors.push("secret_leak_marker");
   }
   if (input?.bans?.mentionAge && /\b\d{1,3}\s*(?:лет|года|год|годик|годиков)\b/giu.test(text)) {
@@ -1008,7 +1232,26 @@ function getGigaChatFailureReason(statusCode, body) {
   return "provider_error";
 }
 
+function getOpenAICompatibleFailureReason(statusCode, body) {
+  const error = body?.error;
+  const providerCode = sanitizeText(
+    (isPlainObject(error) ? error.code || error.message || error.type : error) || body?.message || "",
+    120,
+  );
+  if (statusCode === 401 || statusCode === 403) return "provider_auth_failed";
+  if (statusCode === 402) return "provider_payment_required";
+  if (statusCode === 408) return "provider_timeout";
+  if (statusCode === 429) return "provider_rate_limited";
+  if (statusCode >= 500) return "provider_unavailable";
+  if (providerCode) return "provider_error";
+  return "provider_error";
+}
+
 function normalizeGigaChatUsage(usage = {}) {
+  return normalizeOpenAICompatibleUsage(usage);
+}
+
+function normalizeOpenAICompatibleUsage(usage = {}) {
   if (!isPlainObject(usage)) return null;
   const promptTokens = normalizeNonNegativeInteger(usage.prompt_tokens ?? usage.input_tokens);
   const completionTokens = normalizeNonNegativeInteger(usage.completion_tokens ?? usage.output_tokens);
@@ -1056,21 +1299,21 @@ function parseTimeoutSecondsEnv(value) {
   return Number.isFinite(seconds) ? seconds * 1000 : "";
 }
 
-function normalizeTimeoutMs(value) {
+function normalizeTimeoutMs(value, fallback = DEFAULT_GIGACHAT_TIMEOUT_MS) {
   const timeoutMs = Math.floor(Number(value));
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return DEFAULT_GIGACHAT_TIMEOUT_MS;
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return fallback;
   return Math.min(timeoutMs, 120000);
 }
 
-function normalizeRetryAttempts(value) {
+function normalizeRetryAttempts(value, fallback = DEFAULT_GIGACHAT_RETRY_ATTEMPTS) {
   const attempts = Math.floor(Number(value));
-  if (!Number.isFinite(attempts) || attempts < 0) return DEFAULT_GIGACHAT_RETRY_ATTEMPTS;
+  if (!Number.isFinite(attempts) || attempts < 0) return fallback;
   return Math.min(attempts, 3);
 }
 
-function normalizeRateLimit(value) {
+function normalizeRateLimit(value, fallback = DEFAULT_GIGACHAT_RATE_LIMIT_PER_MINUTE) {
   const limit = Math.floor(Number(value));
-  if (!Number.isFinite(limit) || limit <= 0) return DEFAULT_GIGACHAT_RATE_LIMIT_PER_MINUTE;
+  if (!Number.isFinite(limit) || limit <= 0) return fallback;
   return Math.min(limit, 120);
 }
 
@@ -1080,12 +1323,13 @@ function normalizeGreetingProviderName(value) {
   if (["mock", "local", "test"].includes(provider)) return "mock";
   if (["disabled", "none", "off"].includes(provider)) return "disabled";
   if (["gigachat", "giga-chat"].includes(provider)) return "gigachat";
+  if (["polza", "polza.ai", "polza-ai", "chatgpt-polza", "polza-chatgpt"].includes(provider)) return "polza";
   return sanitizeProviderName(provider);
 }
 
 function normalizeProviderName(value) {
   const name = String(value || "").trim();
-  return /^[a-zA-Z0-9_.:-]{1,160}$/u.test(name) ? name : "";
+  return /^[a-zA-Z0-9_.:/-]{1,160}$/u.test(name) ? name : "";
 }
 
 function sanitizeProviderName(value) {

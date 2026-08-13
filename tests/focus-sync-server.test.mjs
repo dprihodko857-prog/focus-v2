@@ -25,6 +25,8 @@ import {
   GigaChatGreetingAIProvider,
   GREETING_DISABLED_MESSAGE,
   GREETING_PROMPT_VERSION,
+  PolzaGreetingAIProvider,
+  createGreetingAIProviderFromEnv,
 } from "../server/greeting-ai-provider.mjs";
 
 import {
@@ -2422,6 +2424,204 @@ test("sync greeting API boundary strips provider metadata from unavailable and i
     await close(server);
     db.close();
   }
+});
+
+test("Polza greeting provider uses OpenAI-compatible chat completions and structured output", async () => {
+  const calls = [];
+  const now = new Date("2026-08-13T09:05:00.000Z");
+  const provider = new PolzaGreetingAIProvider({
+    apiKey: "sk-polza-test-api-key-with-enough-length",
+    model: "openai/gpt-4o-mini",
+    baseUrl: "https://polza.test/api/v1",
+    timeoutMs: 5000,
+    retryAttempts: 0,
+    rateLimitPerMinute: 30,
+    now: () => now,
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url, options });
+      return createGigaChatCompletionResponse({
+        usage: { prompt_tokens: 14, completion_tokens: 28, total_tokens: 42 },
+      });
+    },
+  });
+
+  const result = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(result.status, "generated");
+  assert.equal(result.provider, "polza");
+  assert.deepEqual(result.usage, { promptTokens: 14, completionTokens: 28, totalTokens: 42 });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "https://polza.test/api/v1/chat/completions");
+  assert.equal(calls[0].options.headers.Authorization, "Bearer sk-polza-test-api-key-with-enough-length");
+  const body = JSON.parse(calls[0].options.body);
+  assert.equal(body.model, "openai/gpt-4o-mini");
+  assert.equal(body.response_format.type, "json_schema");
+  assert.equal(body.response_format.strict, true);
+  assert.equal(body.messages[0].role, "system");
+  assert.equal(body.messages[1].role, "user");
+  assert.doesNotMatch(calls[0].options.body, /sk-polza-test-api-key/);
+});
+
+test("Polza greeting provider is unavailable until server key and model are configured", async () => {
+  const provider = new PolzaGreetingAIProvider({
+    apiKey: "",
+    model: "openai/gpt-4o-mini",
+    fetchImpl: async () => {
+      throw new Error("fetch must not be called");
+    },
+  });
+
+  const result = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(result.status, "provider_not_configured");
+  assert.equal(result.provider, "polza");
+  assert.equal(result.message, GREETING_DISABLED_MESSAGE);
+});
+
+test("Polza greeting provider maps provider HTTP errors to safe failed results", async () => {
+  const now = new Date("2026-08-13T09:05:00.000Z");
+  const paymentRequiredProvider = new PolzaGreetingAIProvider({
+    apiKey: "sk-polza-test-api-key-with-enough-length",
+    model: "openai/gpt-4o-mini",
+    baseUrl: "https://polza.test/api/v1",
+    timeoutMs: 5000,
+    retryAttempts: 0,
+    rateLimitPerMinute: 30,
+    now: () => now,
+    fetchImpl: async () => jsonResponse(402, { error: { code: "insufficient_funds" } }),
+  });
+  const rateLimitedProvider = new PolzaGreetingAIProvider({
+    apiKey: "sk-polza-test-api-key-with-enough-length",
+    model: "openai/gpt-4o-mini",
+    baseUrl: "https://polza.test/api/v1",
+    timeoutMs: 5000,
+    retryAttempts: 0,
+    rateLimitPerMinute: 30,
+    now: () => now,
+    fetchImpl: async () => jsonResponse(429, { error: { message: "too many requests" } }),
+  });
+
+  const paymentRequired = await paymentRequiredProvider.generateGreeting(createBirthdayGreetingRequest());
+  const rateLimited = await rateLimitedProvider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(paymentRequired.status, "failed");
+  assert.equal(paymentRequired.reason, "provider_payment_required");
+  assert.deepEqual(paymentRequired.variants, []);
+  assert.equal(rateLimited.status, "failed");
+  assert.equal(rateLimited.reason, "provider_rate_limited");
+  assert.deepEqual(rateLimited.variants, []);
+});
+
+test("Polza greeting provider retries transient chat failures before returning structured result", async () => {
+  const calls = [];
+  const now = new Date("2026-08-13T09:05:00.000Z");
+  const provider = new PolzaGreetingAIProvider({
+    apiKey: "sk-polza-test-api-key-with-enough-length",
+    model: "openai/gpt-4o-mini",
+    baseUrl: "https://polza.test/api/v1",
+    timeoutMs: 5000,
+    retryAttempts: 1,
+    rateLimitPerMinute: 30,
+    now: () => now,
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url, options });
+      return calls.length === 1
+        ? jsonResponse(500, { error: { message: "temporary unavailable" } })
+        : createGigaChatCompletionResponse();
+    },
+  });
+
+  const result = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(result.status, "generated");
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].url, "https://polza.test/api/v1/chat/completions");
+  assert.equal(calls[1].url, "https://polza.test/api/v1/chat/completions");
+});
+
+test("Polza greeting provider maps timeout to safe failed result", async () => {
+  const now = new Date("2026-08-13T09:05:00.000Z");
+  const provider = new PolzaGreetingAIProvider({
+    apiKey: "sk-polza-test-api-key-with-enough-length",
+    model: "openai/gpt-4o-mini",
+    baseUrl: "https://polza.test/api/v1",
+    timeoutMs: 1,
+    retryAttempts: 1,
+    rateLimitPerMinute: 30,
+    now: () => now,
+    fetchImpl: async (url, options = {}) => new Promise((resolve, reject) => {
+      const abort = () => {
+        const error = new Error("aborted");
+        error.name = "AbortError";
+        reject(error);
+      };
+      if (options.signal?.aborted) {
+        abort();
+        return;
+      }
+      options.signal?.addEventListener("abort", abort, { once: true });
+    }),
+  });
+
+  const result = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.reason, "provider_timeout");
+  assert.deepEqual(result.variants, []);
+});
+
+test("Polza greeting provider applies local rate limiting before chat calls", async () => {
+  const baseMs = Date.parse("2026-08-13T09:05:00.000Z");
+  let currentMs = baseMs;
+  const calls = [];
+  const provider = new PolzaGreetingAIProvider({
+    apiKey: "sk-polza-test-api-key-with-enough-length",
+    model: "openai/gpt-4o-mini",
+    baseUrl: "https://polza.test/api/v1",
+    timeoutMs: 5000,
+    retryAttempts: 0,
+    rateLimitPerMinute: 1,
+    now: () => new Date(currentMs),
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url, options, calledAt: Date.now() });
+      return createGigaChatCompletionResponse();
+    },
+  });
+
+  await provider.generateGreeting(createBirthdayGreetingRequest());
+  currentMs = baseMs + 59_980;
+  const beforeSecondRequest = Date.now();
+  const second = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(second.status, "generated");
+  assert.equal(calls.length, 2);
+  assert.ok(Date.now() - beforeSecondRequest >= 10);
+});
+
+test("Greeting provider env factory creates Polza provider from server configuration", async () => {
+  const calls = [];
+  const provider = createGreetingAIProviderFromEnv({
+    FOCUS_GREETING_AI_PROVIDER: "polza",
+    FOCUS_POLZA_API_KEY: "sk-polza-test-api-key-with-enough-length",
+    FOCUS_POLZA_MODEL: "openai/gpt-4o-mini",
+    FOCUS_POLZA_BASE_URL: "https://polza.test/api/v1",
+    FOCUS_POLZA_TIMEOUT_MS: "5000",
+    FOCUS_POLZA_RETRY_ATTEMPTS: "0",
+    FOCUS_POLZA_RATE_LIMIT_PER_MINUTE: "30",
+  }, {
+    now: () => new Date("2026-08-13T09:05:00.000Z"),
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url, options });
+      return createGigaChatCompletionResponse();
+    },
+  });
+
+  const result = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(provider instanceof PolzaGreetingAIProvider, true);
+  assert.equal(result.status, "generated");
+  assert.equal(calls[0].url, "https://polza.test/api/v1/chat/completions");
+  assert.equal(JSON.parse(calls[0].options.body).model, "openai/gpt-4o-mini");
 });
 
 test("GigaChat greeting provider uses server token cache and structured chat payload", async () => {

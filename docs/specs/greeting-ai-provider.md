@@ -30,7 +30,8 @@ Implemented adapters:
 
 - `MockGreetingAIProvider` for development and tests.
 - `DisabledGreetingAIProvider` for controlled unavailable state.
-- `GigaChatGreetingAIProvider` for the first Russian production release.
+- `PolzaGreetingAIProvider` for the selected ChatGPT-over-Polza.ai production direction.
+- `GigaChatGreetingAIProvider` remains available as a non-primary backend adapter for legacy rollout or comparison.
 
 Future `YandexGreetingAIProvider` and `OpenAIGreetingAIProvider` adapters must implement the same contract. UI, draft models, and Greeting Assistant business logic must not change for a provider swap.
 
@@ -39,7 +40,7 @@ Future `YandexGreetingAIProvider` and `OpenAIGreetingAIProvider` adapters must i
 The Greeting Assistant section is ready for the first mock-backed release when these items stay true:
 
 - frontend and mobile clients call only Focus backend greeting endpoints;
-- no GigaChat key, access token, model name, base URL, or OAuth URL exists in client code, localStorage, or draft payloads;
+- no provider key, access token, model name, base URL, or OAuth URL exists in client code, localStorage, or draft payloads;
 - default development/runtime provider is `MockGreetingAIProvider` when no provider is configured;
 - `DisabledGreetingAIProvider` shows the controlled unavailable state and still allows saving the questionnaire;
 - `generateGreeting` and `reviseGreeting` use the shared `GreetingAIProvider` contract;
@@ -48,14 +49,14 @@ The Greeting Assistant section is ready for the first mock-backed release when t
 - Greeting Assistant drafts persist only UI-safe form fields, variants, editor text, and normalized input context;
 - browser smoke covers mock generation/revision/copy/save/reopen and mobile disabled state;
 - static and fake-fetch client boundary tests stay green;
-- server fake-fetch GigaChat tests stay green without live API calls.
+- server fake-fetch Polza and GigaChat tests stay green without live API calls.
 
 Mock-release verification commands:
 
 ```text
 node --test tests\greeting-client-boundary.test.mjs
 node --test --test-name-pattern "app shell exposes server-side greeting assistant provider flow" tests\sync-integration-assets.test.mjs
-node --test --test-name-pattern "sync greeting|GigaChat greeting provider" tests\focus-sync-server.test.mjs
+node --test --test-name-pattern "sync greeting|Polza greeting provider|GigaChat greeting provider" tests\focus-sync-server.test.mjs
 ```
 
 ## Development Mode
@@ -87,54 +88,58 @@ Smoke artifacts are written under ignored `output/playwright/` paths and must no
 
 ## Server Fake-Fetch Coverage
 
-`tests/focus-sync-server.test.mjs` covers `GigaChatGreetingAIProvider` without live API calls:
+`tests/focus-sync-server.test.mjs` covers `PolzaGreetingAIProvider` without live API calls:
 
-- server token cache and structured chat payload;
-- token refresh after 401/403 provider auth failure;
+- OpenAI-compatible `/chat/completions` payload shape;
+- server-only bearer key use;
+- model selection through server configuration;
+- provider-not-configured state when key/model are absent;
 - limited retry for transient chat failures;
 - timeout mapped to a safe failed result;
 - local rate limiting before chat calls;
 - HTTP provider errors mapped to safe reasons;
 - shared server validation rejecting invalid structured output.
 
-## Production GigaChat Setup
+Legacy `GigaChatGreetingAIProvider` fake-fetch coverage remains in place for token cache, token refresh, retry, timeout, rate limiting, HTTP error mapping, and validation.
+
+## Production Polza.ai Setup
 
 Use server-side environment variables or the existing server secrets mechanism. Never commit these values.
 
 Required:
 
 ```text
-FOCUS_GREETING_AI_PROVIDER=gigachat
-FOCUS_GIGACHAT_AUTHORIZATION_KEY=<authorization key>
-FOCUS_GIGACHAT_MODEL=<model name selected by server configuration>
+FOCUS_GREETING_AI_PROVIDER=polza
+FOCUS_POLZA_API_KEY=<server secret>
+FOCUS_POLZA_MODEL=<model id selected by server configuration>
 ```
 
 Optional:
 
 ```text
-FOCUS_GIGACHAT_SCOPE=GIGACHAT_API_PERS
-FOCUS_GIGACHAT_BASE_URL=https://api.giga.chat
-FOCUS_GIGACHAT_OAUTH_URL=https://ngw.devices.sberbank.ru:9443/api/v2/oauth
-FOCUS_GIGACHAT_TIMEOUT_MS=30000
-FOCUS_GIGACHAT_RETRY_ATTEMPTS=2
-FOCUS_GIGACHAT_RATE_LIMIT_PER_MINUTE=30
+FOCUS_POLZA_BASE_URL=https://polza.ai/api/v1
+FOCUS_POLZA_TIMEOUT_MS=30000
+FOCUS_POLZA_RETRY_ATTEMPTS=2
+FOCUS_POLZA_RATE_LIMIT_PER_MINUTE=30
 ```
 
-Compatibility aliases are accepted for the initial rollout: `GIGACHAT_AUTHORIZATION_KEY`, `GIGACHAT_SCOPE`, `GIGACHAT_MODEL`, `GIGACHAT_BASE_URL`, `GIGACHAT_TIMEOUT`, `GIGACHAT_TIMEOUT_MS`.
+Compatibility aliases are accepted for the initial rollout: `POLZA_API_KEY`, `POLZA_AI_API_KEY`, `POLZA_MODEL`, `POLZA_BASE_URL`, `POLZA_TIMEOUT`, `POLZA_TIMEOUT_MS`, `POLZA_RETRY_ATTEMPTS`, `POLZA_RATE_LIMIT_PER_MINUTE`.
+
+Initial low-cost candidate for comparison: `openai/gpt-4o-mini`. Do not hardcode this candidate in UI, draft models, or Greeting Assistant business logic. The selected model must be provided only by server configuration.
 
 Production activation checklist:
 
-- Configure the authorization key only in server secrets.
+- Configure the Polza API key only in server secrets.
 - Set the model name in server config, not in UI or business logic.
-- Verify `/api/sync/greetings/status` does not expose model, token, key, or provider URLs.
+- Verify `/api/sync/greetings/status` does not expose model, key, token, or provider URLs.
 - Run server tests with fake provider calls; do not run live API calls in CI.
 - Run a separate manual production smoke test only in an approved environment.
 
 Production-only remaining work:
 
-- select candidate GigaChat model names through a separate quality/cost comparison;
-- provision the real authorization key in the server secrets mechanism, not in source code;
-- configure `FOCUS_GREETING_AI_PROVIDER=gigachat` and `FOCUS_GIGACHAT_MODEL` only in the production server environment;
+- select candidate Polza/OpenAI-compatible model ids through a separate quality/cost comparison;
+- provision the real Polza API key in the server secrets mechanism, not in source code;
+- configure `FOCUS_GREETING_AI_PROVIDER=polza` and `FOCUS_POLZA_MODEL` only in the production server environment;
 - confirm timeout, retry, and rate-limit values for the real deployment envelope;
 - run the model comparison matrix in this document on an approved environment;
 - record average latency and cost per request for the selected model;
@@ -181,7 +186,7 @@ Greeting drafts persist only UI-safe form fields, selected variants, editor text
 
 ## Model Comparison Before Production
 
-Before enabling a production model, compare candidate GigaChat models on at least these scenarios:
+Before enabling a production model, compare candidate Polza/OpenAI-compatible models on at least these scenarios:
 
 - short birthday greeting;
 - personal greeting;
@@ -211,9 +216,18 @@ Measure:
 - average latency;
 - cost per request.
 
-## GigaChat API Notes
+## Polza.ai API Notes
 
-The production adapter follows the server-side OAuth/token flow documented by GigaChat: obtain an access token with an authorization key, cache it until expiry, and call chat completions with a bearer token. The adapter uses structured output and server validation before returning text to Focus UI.
+The selected production direction is ChatGPT through Polza.ai. Polza uses an OpenAI-compatible API: server calls `https://polza.ai/api/v1/chat/completions` with `Authorization: Bearer <server key>`, `model`, `messages`, `max_tokens`, `temperature`, and structured `response_format` when supported by the selected model. The adapter never exposes the API key, model, base URL, or provider response metadata to clients.
+
+Official Polza references checked on 2026-08-13:
+
+- https://polza.ai/blog/api-neyrosetei
+- https://polza.ai/models/openai/gpt-4o-mini
+
+## GigaChat Adapter Notes
+
+The GigaChat adapter is no longer the selected production direction for Greeting Assistant. It remains available behind the same backend-only contract for legacy rollout or comparison. If enabled later, it follows the server-side OAuth/token flow documented by GigaChat: obtain an access token with an authorization key, cache it until expiry, and call chat completions with a bearer token. The adapter uses structured output and server validation before returning text to Focus UI.
 
 Official docs to verify again before production activation:
 

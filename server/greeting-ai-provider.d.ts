@@ -88,6 +88,12 @@ export class DisabledGreetingAIProvider implements GreetingAIProvider {
   reviseGreeting(input: GreetingRevisionInput): Promise<GreetingGenerationResult>;
 }
 
+export class PolzaGreetingAIProvider implements GreetingAIProvider {
+  generateGreeting(input: GreetingGenerationInput): Promise<GreetingGenerationResult>;
+  reviseGreeting(input: GreetingRevisionInput): Promise<GreetingGenerationResult>;
+  isConfigured(): boolean;
+}
+
 export class GigaChatGreetingAIProvider implements GreetingAIProvider {
   generateGreeting(input: GreetingGenerationInput): Promise<GreetingGenerationResult>;
   reviseGreeting(input: GreetingRevisionInput): Promise<GreetingGenerationResult>;

@@ -46,8 +46,9 @@ test("greeting model comparison matrix covers required production scenarios", ()
   requiredScenarioIds.forEach(id => {
     assert.match(comparisonDoc, new RegExp(`\\\`${id}\\\``));
   });
-  assert.match(comparisonDoc, /FOCUS_GREETING_AI_PROVIDER=gigachat/);
-  assert.match(comparisonDoc, /FOCUS_GIGACHAT_MODEL=<candidate model name>/);
+  assert.match(comparisonDoc, /FOCUS_GREETING_AI_PROVIDER=polza/);
+  assert.match(comparisonDoc, /FOCUS_POLZA_MODEL=<candidate model id>/);
+  assert.match(comparisonDoc, /openai\/gpt-4o-mini/);
   assert.match(comparisonDoc, /\/api\/sync\/greetings\/generate/);
   assert.match(comparisonDoc, /Do not run this matrix in local development or CI/);
 });

@@ -8,16 +8,16 @@ const appJs = readFileSync("public/js/app.js", "utf8");
 const syncJs = readFileSync("public/js/sync.js", "utf8");
 const indexHtml = readFileSync("public/index.html", "utf8");
 
-test("greeting client shell does not contain direct GigaChat provider endpoints or env names", () => {
+test("greeting client shell does not contain direct provider endpoints or env names", () => {
   const clientShell = [indexHtml, appJs, syncJs].join("\n");
 
   assert.doesNotMatch(
     clientShell,
-    /FOCUS_GIGACHAT_|GIGACHAT_|GIGACHAT_AUTHORIZATION_KEY|GIGACHAT_MODEL|api\.giga\.chat|ngw\.devices\.sberbank\.ru|\/v1\/chat\/completions|\/api\/v2\/oauth/iu,
+    /FOCUS_GIGACHAT_|GIGACHAT_|GIGACHAT_AUTHORIZATION_KEY|GIGACHAT_MODEL|FOCUS_POLZA_|POLZA_|POLZA_API_KEY|POLZA_MODEL|api\.giga\.chat|ngw\.devices\.sberbank\.ru|polza\.ai\/api|sk-polza-|\/v1\/chat\/completions|\/api\/v2\/oauth/iu,
   );
   assert.doesNotMatch(
     clientShell,
-    /localStorage\.setItem\([^)]*(?:GIGACHAT|access[_-]?token|authorizationKey|accessToken)/iu,
+    /localStorage\.setItem\([^)]*(?:GIGACHAT|POLZA|sk-polza|apiKey|access[_-]?token|authorizationKey|accessToken)/iu,
   );
 });
 
@@ -33,7 +33,7 @@ test("greeting sync methods only call Focus backend and do not expose provider i
   assert.match(syncGreetingBoundary, /\/sync\/greetings\/revise/);
   assert.doesNotMatch(
     syncGreetingBoundary,
-    /\b(?:providerModel|model|baseUrl|oauthUrl|accessToken|authorizationKey|access_token)\b|GIGACHAT|api\.giga\.chat|chat\/completions/iu,
+    /\b(?:providerModel|model|baseUrl|oauthUrl|apiKey|polzaApiKey|accessToken|authorizationKey|access_token)\b|GIGACHAT|POLZA|api\.giga\.chat|polza\.ai|chat\/completions/iu,
   );
 });
 
@@ -51,7 +51,7 @@ test("greeting sync serializer allowlists request fields before sending JSON", (
   assert.doesNotMatch(serializerBoundary, /\.\.\.requestBody|\.\.\.source/);
   assert.doesNotMatch(
     serializerBoundary,
-    /\b(?:providerModel|model|baseUrl|oauthUrl|accessToken|authorizationKey|access_token)\b|GIGACHAT/iu,
+    /\b(?:providerModel|model|baseUrl|oauthUrl|apiKey|polzaApiKey|accessToken|authorizationKey|access_token)\b|GIGACHAT|POLZA/iu,
   );
 });
 
@@ -67,7 +67,7 @@ test("greeting draft payload does not persist provider metadata", () => {
   assert.match(draftBoundary, /normalizeGreetingDraftInput/);
   assert.doesNotMatch(
     draftBoundary,
-    /\b(?:providerConfigured|disabledMessage|providerModel|model|baseUrl|oauthUrl|accessToken|authorizationKey|access_token|sentStatus|reminder|reminders)\b|provider:|GIGACHAT/iu,
+    /\b(?:providerConfigured|disabledMessage|providerModel|model|baseUrl|oauthUrl|apiKey|polzaApiKey|accessToken|authorizationKey|access_token|sentStatus|reminder|reminders)\b|provider:|GIGACHAT|POLZA/iu,
   );
 });
 
@@ -96,6 +96,8 @@ test("greeting sync client strips provider-only fields from outbound request bod
     baseInput: createLeakyClientGreetingRequest(),
     accessToken: "client-access-token-secret",
     authorizationKey: "client-authorization-key-secret",
+    apiKey: "client-polza-api-key-secret",
+    polzaApiKey: "sk-polza-client-secret-with-enough-length",
     model: "client-model-secret",
     baseUrl: "https://client-gigachat-secret.test",
   });
@@ -202,6 +204,8 @@ function createLeakyClientGreetingRequest() {
     authorizationKey: "client-authorization-key-secret",
     accessToken: "client-access-token-secret",
     access_token: "client-access-token-secret",
+    apiKey: "client-polza-api-key-secret",
+    polzaApiKey: "sk-polza-client-secret-with-enough-length",
     baseUrl: "https://client-gigachat-secret.test",
     oauthUrl: "https://client-oauth-secret.test",
   };
@@ -211,6 +215,8 @@ function assertNoForbiddenGreetingClientKeys(payload) {
   const forbiddenKeys = new Set([
     "model",
     "providerModel",
+    "apiKey",
+    "polzaApiKey",
     "authorizationKey",
     "accessToken",
     "access_token",
@@ -225,6 +231,8 @@ function assertNoForbiddenGreetingClientKeys(payload) {
   [
     "client-model-secret",
     "client-provider-model-secret",
+    "client-polza-api-key-secret",
+    "sk-polza-client-secret-with-enough-length",
     "client-authorization-key-secret",
     "client-access-token-secret",
     "https://client-gigachat-secret.test",

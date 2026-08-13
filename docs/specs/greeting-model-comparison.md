@@ -1,24 +1,26 @@
 # Greeting Model Comparison Matrix
 
-This document is the production-only evaluation plan for selecting the configured `FOCUS_GIGACHAT_MODEL`.
+This document is the production-only evaluation plan for selecting the configured `FOCUS_POLZA_MODEL`.
 
-Do not run this matrix in local development or CI. Run it only in an approved server environment where the GigaChat authorization key is stored in server secrets. All calls must go through Focus backend greeting endpoints, never directly from frontend or mobile clients.
+Do not run this matrix in local development or CI. Run it only in an approved server environment where the Polza API key is stored in server secrets. All calls must go through Focus backend greeting endpoints, never directly from frontend or mobile clients.
 
 ## Candidate Setup
 
 For each candidate model:
 
 ```text
-FOCUS_GREETING_AI_PROVIDER=gigachat
-FOCUS_GIGACHAT_AUTHORIZATION_KEY=<server secret>
-FOCUS_GIGACHAT_MODEL=<candidate model name>
+FOCUS_GREETING_AI_PROVIDER=polza
+FOCUS_POLZA_API_KEY=<server secret>
+FOCUS_POLZA_MODEL=<candidate model id>
 ```
 
-Keep the authorization key, access token, model name, base URL, and OAuth URL out of client code, localStorage, screenshots, logs intended for users, and committed artifacts.
+Keep the API key, model id, base URL, provider response metadata, and authorization-looking values out of client code, localStorage, screenshots, logs intended for users, and committed artifacts.
+
+Initial low-cost ChatGPT candidate: `openai/gpt-4o-mini`. This is only a candidate for comparison and must not be hardcoded in UI, drafts, or Greeting Assistant business logic.
 
 ## Evaluation Flow
 
-1. Select one candidate model in server configuration.
+1. Select one candidate model id in server configuration.
 2. Run every scenario in the matrix through Focus backend `/api/sync/greetings/generate`.
 3. For revision-sensitive scenarios, also run `/api/sync/greetings/revise` with the listed revision instruction.
 4. Store only sanitized outputs: scenario id, candidate model label, generated variants, validation result, latency, and estimated cost.
@@ -87,7 +89,7 @@ A candidate can be selected only if:
 Date:
 Evaluator:
 Approved environment:
-Candidate model:
+Candidate model id:
 Scenario set version: greeting-model-comparison@2026-08-13.v1
 
 Pass/fail summary:
