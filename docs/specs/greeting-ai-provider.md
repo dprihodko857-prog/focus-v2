@@ -141,6 +141,8 @@ Production-only remaining work:
 - run one approved live production smoke after secrets are installed;
 - keep live provider calls out of local development and CI.
 
+Use `docs/specs/greeting-model-comparison.md` as the production-only comparison matrix and decision-record template.
+
 ## Server Validation
 
 Every provider result goes through the same server validation:
