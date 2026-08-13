@@ -30,6 +30,31 @@ Initial low-cost ChatGPT candidate: `openai/gpt-4o-mini`. This is only a candida
 5. Reject a candidate immediately on secret leakage, profanity, malformed structured output, direct policy/contract violation, or repeated invented facts.
 6. Compare surviving candidates by Russian quality, naturalness, compliance, latency, and cost.
 
+## Executable Backend Runner
+
+The executable backend-only scenario fixtures live in `scripts/greeting-model-comparison-runner.mjs`.
+
+Local development and CI must use the default mock mode only:
+
+```text
+node scripts/greeting-model-comparison-runner.mjs summary
+node scripts/greeting-model-comparison-runner.mjs run --provider=mock --candidate=mock --out=output/greeting-model-comparison/mock.jsonl
+```
+
+The runner writes sanitized JSONL records under ignored `output/` paths. Records include scenario id, safe candidate label, provider adapter name, server validation result, generated variants, latency, usage when supplied by the provider, and manual metric placeholders. Records must not include API keys, access tokens, provider base URLs, OAuth URLs, raw request/response payloads, authorization headers, or frontend-readable model configuration.
+
+Only in an approved server-side comparison environment, after the key is installed in server secrets, the same runner may be pointed at the environment-configured provider:
+
+```text
+FOCUS_GREETING_AI_PROVIDER=polza
+FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED=true
+FOCUS_POLZA_API_KEY=<server secret>
+FOCUS_POLZA_MODEL=<candidate model id>
+node scripts/greeting-model-comparison-runner.mjs run --provider=env --candidate=<safe candidate label> --out=output/greeting-model-comparison/<safe candidate label>.jsonl
+```
+
+Do not commit live comparison JSONL results. Review them manually with the required metrics below, then copy only sanitized aggregate numbers into the decision record.
+
 ## Scenario Matrix
 
 | ID | Scenario | Required Input Shape | Special Checks |

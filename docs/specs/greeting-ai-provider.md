@@ -156,7 +156,7 @@ Production-only remaining work:
 - provision the real Polza API key in the server secrets mechanism, not in source code;
 - configure `FOCUS_GREETING_AI_PROVIDER=polza`, `FOCUS_POLZA_MODEL`, `FOCUS_POLZA_PRODUCTION_ENABLED`, and `FOCUS_POLZA_MODEL_COMPARISON_APPROVED` only in the production server environment;
 - confirm timeout, retry, and rate-limit values for the real deployment envelope;
-- run the model comparison matrix in this document on an approved environment;
+- run the model comparison matrix in `docs/specs/greeting-model-comparison.md` with `scripts/greeting-model-comparison-runner.mjs` on an approved environment;
 - record average latency and cost per request for the selected model;
 - run one approved live production smoke after secrets are installed;
 - keep live provider calls out of local development and CI.

@@ -27,7 +27,7 @@ Before enabling `FOCUS_GREETING_AI_PROVIDER=polza`, all gates must pass:
 
 - owner explicitly approves production activation and one live smoke;
 - production source includes `PolzaGreetingAIProvider` behind the shared `GreetingAIProvider` contract;
-- the model comparison matrix in `docs/specs/greeting-model-comparison.md` is completed for the selected model;
+- the model comparison matrix in `docs/specs/greeting-model-comparison.md` is completed for the selected model with sanitized JSONL from `scripts/greeting-model-comparison-runner.mjs`;
 - server config includes explicit activation gates: `FOCUS_POLZA_PRODUCTION_ENABLED=true` and `FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true`;
 - expected average latency and cost per request are recorded;
 - `.env.example` remains a placeholder-only committed reference;
@@ -67,7 +67,7 @@ The production gate flags do not have compatibility aliases. If either `FOCUS_PO
 
 1. Deploy a source artifact that has passed the mock and fake-fetch Greeting Assistant checks.
 2. Install or rotate `FOCUS_POLZA_API_KEY` only in the server secret store.
-3. Set `FOCUS_POLZA_MODEL` to the selected model id from the completed comparison matrix.
+3. Set `FOCUS_POLZA_MODEL` to the selected model id from the completed comparison matrix. The approved comparison environment should capture sanitized runner output with `node scripts/greeting-model-comparison-runner.mjs run --provider=env --candidate=<safe candidate label> --out=output/greeting-model-comparison/<safe candidate label>.jsonl`.
 4. Set `FOCUS_POLZA_PRODUCTION_ENABLED=true` and `FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true` only after the owner approval and model comparison record are available.
 5. Set conservative timeout, retry, and rate-limit values for the production envelope.
 6. Restart only the Focus backend service after secrets are installed.

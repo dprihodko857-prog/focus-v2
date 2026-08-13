@@ -50,6 +50,10 @@ test("greeting model comparison matrix covers required production scenarios", ()
   assert.match(comparisonDoc, /FOCUS_POLZA_MODEL=<candidate model id>/);
   assert.match(comparisonDoc, /openai\/gpt-4o-mini/);
   assert.match(comparisonDoc, /\/api\/sync\/greetings\/generate/);
+  assert.match(comparisonDoc, /scripts\/greeting-model-comparison-runner\.mjs/);
+  assert.match(comparisonDoc, /node scripts\/greeting-model-comparison-runner\.mjs summary/);
+  assert.match(comparisonDoc, /--provider=mock/);
+  assert.match(comparisonDoc, /--provider=env/);
   assert.match(comparisonDoc, /Do not run this matrix in local development or CI/);
 });
 
