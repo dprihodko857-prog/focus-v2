@@ -112,15 +112,7 @@ test("polza env provider stays disabled without production gates and performs no
 test("approved polza env provider reports ready and generates/revises through fake adapter without response leaks", async () => {
   const db = createSyncDatabase(":memory:");
   const providerCalls = [];
-  const provider = createGreetingAIProviderFromEnv({
-    FOCUS_GREETING_AI_PROVIDER: "polza",
-    FOCUS_POLZA_PRODUCTION_ENABLED: "true",
-    FOCUS_POLZA_MODEL_COMPARISON_APPROVED: "true",
-    FOCUS_POLZA_API_KEY: "fake-polza-production-key-with-enough-length",
-    FOCUS_POLZA_MODEL: "openai/gpt-4o-mini",
-    FOCUS_POLZA_BASE_URL: "https://llm-provider.test/api/v1",
-    FOCUS_POLZA_RETRY_ATTEMPTS: "0",
-  }, {
+  const provider = createGreetingAIProviderFromEnv(createApprovedPolzaEnv(), {
     fetchImpl: async (url, options = {}) => {
       providerCalls.push({ url, options });
       return createOpenAICompatibleCompletionResponse();
@@ -228,6 +220,109 @@ test("approved polza env provider reports ready and generates/revises through fa
   }
 });
 
+test("approved polza env provider failures stay safe and leave Focus data unchanged", async () => {
+  const failureCases = [
+    {
+      name: "http_rate_limited",
+      fetchImpl: async () => createJsonResponse(429, {
+        error: {
+          message: "rate limit for fake-polza-production-key-with-enough-length at https://llm-provider.test/api/v1",
+          model: "openai/gpt-4o-mini",
+        },
+      }),
+    },
+    {
+      name: "invalid_structured_output",
+      fetchImpl: async () => createJsonResponse(200, {
+        choices: [{
+          message: {
+            content: "not json from openai/gpt-4o-mini using fake-polza-production-key-with-enough-length",
+          },
+        }],
+      }),
+    },
+    {
+      name: "timeout",
+      fetchImpl: async () => {
+        const error = new Error("provider timeout for fake-polza-production-key-with-enough-length");
+        error.name = "AbortError";
+        throw error;
+      },
+    },
+  ];
+
+  for (const failureCase of failureCases) {
+    const db = createSyncDatabase(":memory:");
+    let providerCallCount = 0;
+    const provider = createGreetingAIProviderFromEnv(createApprovedPolzaEnv(), {
+      fetchImpl: async (url, options = {}) => {
+        providerCallCount += 1;
+        assert.equal(url, "https://llm-provider.test/api/v1/chat/completions", failureCase.name);
+        assert.equal(options.headers.Authorization, "Bearer fake-polza-production-key-with-enough-length", failureCase.name);
+        return failureCase.fetchImpl(url, options);
+      },
+      now: () => new Date("2026-08-13T09:00:00.000Z"),
+    });
+    const server = createFocusSyncServer({
+      db,
+      greetingAIProvider: provider,
+      now: () => "2026-08-13T09:00:00.000Z",
+      fetchImpl: async () => {
+        throw new Error("Unexpected server fetch call.");
+      },
+    });
+    const baseUrl = await listen(server);
+    const accountId = `account-greeting-polza-failure-${failureCase.name}`;
+    const birthdays = [{
+      id: "birthday-failure",
+      name: "Maria",
+      dateOfBirth: "1990-08-13",
+      reminderEnabled: true,
+    }];
+    const reminders = [{
+      id: "reminder-failure",
+      title: "Congratulate Maria",
+      scheduledAt: "2026-08-13T09:30:00.000Z",
+    }];
+    db.createAccount({ accountId, displayName: null, createdAt: "2026-08-13T08:00:00.000Z" });
+    db.saveBirthdaySnapshot({ accountId, birthdays, updatedAt: "2026-08-13T08:01:00.000Z" });
+    db.saveReminderSnapshot({ accountId, reminders, updatedAt: "2026-08-13T08:01:00.000Z" });
+    const birthdayBefore = db.getBirthdaySnapshot(accountId);
+    const reminderBefore = db.getReminderSnapshot(accountId);
+
+    try {
+      const generateResponse = await fetch(`${baseUrl}/api/sync/greetings/generate`, {
+        method: "POST",
+        headers: {
+          ...createAccountHeaders(accountId),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(createBirthdayGreetingRequest()),
+      });
+      assert.equal(generateResponse.status, 502, failureCase.name);
+      assertSafeFailedGreetingResponse(await generateResponse.json(), accountId, failureCase.name);
+
+      const reviseResponse = await fetch(`${baseUrl}/api/sync/greetings/revise`, {
+        method: "POST",
+        headers: {
+          ...createAccountHeaders(accountId),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(createGreetingRevisionRequest()),
+      });
+      assert.equal(reviseResponse.status, 502, failureCase.name);
+      assertSafeFailedGreetingResponse(await reviseResponse.json(), accountId, failureCase.name);
+
+      assert.equal(providerCallCount, 2, failureCase.name);
+      assert.deepEqual(db.getBirthdaySnapshot(accountId), birthdayBefore, failureCase.name);
+      assert.deepEqual(db.getReminderSnapshot(accountId), reminderBefore, failureCase.name);
+    } finally {
+      await close(server);
+      db.close();
+    }
+  }
+});
+
 function listen(server) {
   return new Promise(resolve => {
     server.listen(0, "127.0.0.1", () => {
@@ -290,6 +385,18 @@ function createGreetingRevisionRequest({ sourceText = "Maria, happy birthday." }
   };
 }
 
+function createApprovedPolzaEnv() {
+  return {
+    FOCUS_GREETING_AI_PROVIDER: "polza",
+    FOCUS_POLZA_PRODUCTION_ENABLED: "true",
+    FOCUS_POLZA_MODEL_COMPARISON_APPROVED: "true",
+    FOCUS_POLZA_API_KEY: "fake-polza-production-key-with-enough-length",
+    FOCUS_POLZA_MODEL: "openai/gpt-4o-mini",
+    FOCUS_POLZA_BASE_URL: "https://llm-provider.test/api/v1",
+    FOCUS_POLZA_RETRY_ATTEMPTS: "0",
+  };
+}
+
 function assertProviderCallShape(call) {
   assert.equal(call.url, "https://llm-provider.test/api/v1/chat/completions");
   assert.equal(call.options.headers.Authorization, "Bearer fake-polza-production-key-with-enough-length");
@@ -348,6 +455,29 @@ function createOpenAICompatibleCompletionResponse() {
   };
 }
 
+function createJsonResponse(status, body) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    async json() {
+      return body;
+    },
+  };
+}
+
+function assertSafeFailedGreetingResponse(payload, accountId, label) {
+  assert.equal(payload.accountId, accountId, label);
+  assert.equal(payload.error, "greeting_provider_failed", label);
+  assert.equal(payload.status, "failed", label);
+  assert.equal(payload.provider, "polza", label);
+  assert.equal(payload.promptVersion, GREETING_PROMPT_VERSION, label);
+  assert.equal(payload.reason, "provider_validation_failed", label);
+  assert.deepEqual(payload.errors, ["status", "variants_required"], label);
+  assert.equal("variants" in payload, false, label);
+  assert.equal("usage" in payload, false, label);
+  assertNoGreetingBoundaryLeaks(payload);
+}
+
 function assertNoGreetingBoundaryLeaks(payload) {
   const serialized = JSON.stringify(payload);
   assert.doesNotMatch(
@@ -363,6 +493,12 @@ function assertNoGreetingBoundaryLeaks(payload) {
     "access_token",
     "baseUrl",
     "oauthUrl",
+    "draft",
+    "birthday",
+    "birthdays",
+    "reminder",
+    "reminders",
+    "sentStatus",
   ].forEach(key => {
     assert.equal(collectJsonKeys(payload).has(key), false, `Greeting response leaked ${key}`);
   });

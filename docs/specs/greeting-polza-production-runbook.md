@@ -127,7 +127,7 @@ node --test tests\greeting-production-config.test.mjs tests\greeting-production-
 node --test --test-name-pattern "Polza greeting provider|Greeting provider env factory|sync greeting" tests\focus-sync-server.test.mjs
 ```
 
-The readiness smoke covers both Polza disabled-without-gates and approved fake-fetch ready/generate/revise paths.
+The readiness smoke covers Polza disabled-without-gates, approved fake-fetch ready/generate/revise paths, and safe failed responses for approved provider failures without birthday or reminder changes.
 
 Run the browser smoke in mock and disabled modes only until production activation is explicitly approved.
 
