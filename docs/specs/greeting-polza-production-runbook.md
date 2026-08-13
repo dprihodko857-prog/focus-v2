@@ -131,6 +131,10 @@ npm run test:greeting:server
 
 The readiness smoke covers Polza disabled-without-gates, approved fake-fetch ready/generate/revise paths, and safe failed responses for approved provider failures without birthday or reminder changes.
 
-Run the browser smoke in mock and disabled modes only until production activation is explicitly approved.
+Run the browser smoke in mock and disabled modes only until production activation is explicitly approved. The accepted local browser smoke covers:
+
+- mock desktop flow from a birthday record with readiness `ready`, three generated variants, editable saved draft, and no provider/secrets markers in rendered DOM/HTML;
+- disabled mobile `390x844` flow with readiness `disabled`, disabled generation button, save-draft still available, zero variants, and no horizontal overflow;
+- loopback-only Focus backend and preview proxy, with artifacts under ignored `output/greeting-ui-smoke/` paths.
 
 Use `docs/specs/greeting-polza-production-smoke-report.md` as the production-only reporting template after an approved live smoke.

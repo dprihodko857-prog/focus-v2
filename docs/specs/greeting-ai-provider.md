@@ -82,17 +82,20 @@ Last local smoke pass after the Polza production-direction switch: 2026-08-13.
 
 Verified without credentials and without live provider calls:
 
-- `FOCUS_GREETING_AI_PROVIDER=mock`: full Greeting Assistant flow from a birthday record, generate 3 variants, revise, copy, save draft, reopen, restore draft, and confirm localStorage has no provider credentials.
-- `FOCUS_GREETING_AI_PROVIDER=disabled`: mobile controlled disabled state, generation button disabled, copy button disabled, questionnaire draft can still be saved, and localStorage has no provider credentials.
+- `FOCUS_GREETING_AI_PROVIDER=mock`: desktop flow from a birthday record, generate 3 variants, edit the selected variant, save the questionnaire draft, and confirm the rendered DOM contains no provider credentials or provider internals.
+- `FOCUS_GREETING_AI_PROVIDER=disabled`: mobile `390x844` controlled disabled state, generation button disabled, questionnaire draft can still be saved, no horizontal overflow, and the rendered DOM contains no provider credentials or provider internals.
 - `/api/sync/greetings/readiness`: mock mode returns `readinessStatus: "ready"` and disabled mode returns `readinessStatus: "disabled"` through Focus backend only, with no model id, API key, bearer token, base URL, provider metadata, or live provider call.
 - Greeting Assistant modal uses backend readiness for its `data-readiness` UI state and generation/revision button gating.
-- Browser smoke runner: `output/playwright/greeting-assistant-smoke.mjs` served local mock API responses on `127.0.0.1:8096`, used local Chrome, and made no live provider calls.
+- Browser smoke used local Focus backend plus local preview proxy on loopback-only ports, with mock and disabled providers only.
 - Smoke screenshots:
-  - `output/playwright/greeting-polza-mock-smoke.png`
-  - `output/playwright/greeting-polza-disabled-smoke.png`
+  - `output/greeting-ui-smoke/greeting-mock-desktop.png`
+  - `output/greeting-ui-smoke/greeting-disabled-mobile-390.png`
+- Smoke JSON evidence:
+  - `output/greeting-ui-smoke/greeting-mock-desktop.json`
+  - `output/greeting-ui-smoke/greeting-disabled-mobile-390.json`
 - Runtime resource checks confirmed the frontend did not call `polza.ai`, GigaChat hosts, `chat/completions`, or OAuth endpoints directly.
 
-Smoke artifacts are written under ignored `output/playwright/` paths and must not be treated as production source.
+Smoke artifacts are written under ignored `output/` paths and must not be treated as production source.
 
 ## Server Fake-Fetch Coverage
 

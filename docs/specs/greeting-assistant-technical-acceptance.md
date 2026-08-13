@@ -95,6 +95,19 @@ Accepted fake-fetch smoke coverage includes:
 - safe timeout response;
 - unchanged birthday and reminder snapshots after provider failures.
 
+Accepted local browser smoke evidence, run without credentials and without live provider calls:
+
+- mock desktop flow from a birthday record: readiness `ready`, generation button enabled, three generated variants, editor draft saved, and no provider/secrets markers in rendered DOM/HTML;
+- disabled mobile flow at `390x844`: readiness `disabled`, generation button disabled, questionnaire draft saved, zero variants, no horizontal overflow, and no provider/secrets markers in rendered DOM/HTML;
+- loopback-only Focus backend and preview proxy were used; no Polza, GigaChat, chat completions, OAuth, bearer token, API key, model id, or provider base URL was exposed to the client.
+
+Ignored smoke artifacts:
+
+- `output/greeting-ui-smoke/greeting-mock-desktop.json`
+- `output/greeting-ui-smoke/greeting-mock-desktop.png`
+- `output/greeting-ui-smoke/greeting-disabled-mobile-390.json`
+- `output/greeting-ui-smoke/greeting-disabled-mobile-390.png`
+
 ## Accepted Documentation Artifacts
 
 - `docs/specs/greeting-ai-provider.md`: architecture, contract, adapters, server validation, client boundary, production setup.

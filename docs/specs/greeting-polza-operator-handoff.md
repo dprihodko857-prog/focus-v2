@@ -49,6 +49,7 @@ Expected coverage:
 - Provider failure, timeout, and malformed output return safe failed responses.
 - Birthday and reminder data are unchanged by provider output or provider failures.
 - Frontend assets contain no provider keys, model ids, provider URLs, bearer tokens, or Polza/GigaChat endpoints.
+- Local browser smoke covers mock desktop generation from a birthday record and disabled mobile `390x844` save-draft flow, using only loopback Focus backend routes and ignored `output/greeting-ui-smoke/` artifacts.
 
 ## 3. Production Activation
 

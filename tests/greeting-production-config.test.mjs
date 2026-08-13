@@ -113,6 +113,31 @@ test("production docs point operators to server-only Polza configuration", () =>
   assert.match(comparisonDoc, /Initial low-cost ChatGPT candidate: `openai\/gpt-4o-mini`/);
 });
 
+test("local browser smoke evidence stays mock disabled and ignored", () => {
+  const localSmokeSection = sliceBetween(providerDoc, "## Local Smoke Verification", "## Server Fake-Fetch Coverage");
+
+  [
+    "FOCUS_GREETING_AI_PROVIDER=mock",
+    "FOCUS_GREETING_AI_PROVIDER=disabled",
+    "desktop flow from a birthday record",
+    "mobile `390x844` controlled disabled state",
+    "rendered DOM contains no provider credentials or provider internals",
+    "local Focus backend plus local preview proxy",
+    "loopback-only ports",
+    "output/greeting-ui-smoke/greeting-mock-desktop.json",
+    "output/greeting-ui-smoke/greeting-mock-desktop.png",
+    "output/greeting-ui-smoke/greeting-disabled-mobile-390.json",
+    "output/greeting-ui-smoke/greeting-disabled-mobile-390.png",
+    "Smoke artifacts are written under ignored `output/` paths",
+  ].forEach(marker => {
+    assert.match(localSmokeSection, new RegExp(escapeRegExp(marker)));
+  });
+
+  assert.doesNotMatch(localSmokeSection, /output\/playwright\/greeting-polza-(?:mock|disabled)-smoke\.png/);
+  assert.doesNotMatch(localSmokeSection, /FOCUS_GREETING_AI_PROVIDER=polza/);
+  assert.doesNotMatch(localSmokeSection, /sk-polza-|sk-proj-|Authorization:\s*Bearer\s+[^<\s]|polza\.ai\/api|api\.giga\.chat/iu);
+});
+
 test("production runbook documents approved server-only Polza activation", () => {
   [
     "https://polza.ai/docs/api-reference/introduction",
@@ -134,6 +159,9 @@ test("production runbook documents approved server-only Polza activation", () =>
     "npm run test:greeting:server",
     "approved fake-fetch ready/generate/revise paths",
     "safe failed responses for approved provider failures without birthday or reminder changes",
+    "mock desktop flow from a birthday record with readiness `ready`",
+    "disabled mobile `390x844` flow with readiness `disabled`",
+    "output/greeting-ui-smoke/",
     "docs/specs/greeting-polza-production-smoke-report.md",
   ].forEach(marker => {
     assert.match(runbookDoc, new RegExp(escapeRegExp(marker)));
@@ -228,6 +256,7 @@ test("operator handoff documents production activation order without secrets", (
     "Provider failure, timeout, and malformed output return safe failed responses.",
     "Birthday and reminder data are unchanged by provider output or provider failures.",
     "UI shows the controlled disabled state and still allows saving the questionnaire.",
+    "Local browser smoke covers mock desktop generation from a birthday record and disabled mobile `390x844` save-draft flow",
   ].forEach(marker => {
     assert.match(operatorHandoffDoc, new RegExp(escapeRegExp(marker)));
   });
@@ -266,6 +295,14 @@ test("technical acceptance snapshot captures implemented greeting assistant gate
     "npm run test:greeting",
     "npm run test:greeting:server",
     "npm run greeting:comparison:mock",
+    "Accepted local browser smoke evidence",
+    "mock desktop flow from a birthday record: readiness `ready`",
+    "disabled mobile flow at `390x844`",
+    "loopback-only Focus backend and preview proxy",
+    "output/greeting-ui-smoke/greeting-mock-desktop.json",
+    "output/greeting-ui-smoke/greeting-mock-desktop.png",
+    "output/greeting-ui-smoke/greeting-disabled-mobile-390.json",
+    "output/greeting-ui-smoke/greeting-disabled-mobile-390.png",
     "scripts/greeting-model-comparison-runner.mjs",
     "docs/specs/greeting-model-comparison.md",
     "docs/specs/greeting-polza-production-runbook.md",
@@ -328,4 +365,12 @@ function createIncrementingId() {
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function sliceBetween(source, startMarker, endMarker) {
+  const start = source.indexOf(startMarker);
+  assert.notEqual(start, -1, `Missing start marker: ${startMarker}`);
+  const end = source.indexOf(endMarker, start + startMarker.length);
+  assert.notEqual(end, -1, `Missing end marker: ${endMarker}`);
+  return source.slice(start, end);
 }
