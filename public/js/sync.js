@@ -2203,12 +2203,9 @@ function serializeGreetingRequest(requestBody) {
     return "";
   }
 
-  const body = {
-    ...requestBody,
-    promptVersion: typeof requestBody.promptVersion === "string"
-      ? requestBody.promptVersion
-      : GREETING_PROMPT_VERSION,
-  };
+  const body = normalizeGreetingRequestBody(requestBody);
+  if (!body) return "";
+
   let serialized = "";
   try {
     serialized = JSON.stringify(body);
@@ -2217,6 +2214,109 @@ function serializeGreetingRequest(requestBody) {
   }
 
   return serialized.length <= MAX_GREETING_REQUEST_LENGTH ? serialized : "";
+}
+
+function normalizeGreetingRequestBody(requestBody) {
+  const source = requestBody && typeof requestBody === "object" && !Array.isArray(requestBody)
+    ? requestBody
+    : null;
+  if (!source) return null;
+
+  if ("sourceText" in source || "instruction" in source || "baseInput" in source || "revision" in source || "text" in source) {
+    return {
+      sourceText: sanitizeText(source.sourceText || source.text, 2200),
+      instruction: sanitizeText(source.instruction || source.revision, 500),
+      baseInput: normalizeGreetingGenerationRequest(source.baseInput || source.input || {}),
+      promptVersion: GREETING_PROMPT_VERSION,
+    };
+  }
+
+  return normalizeGreetingGenerationRequest(source);
+}
+
+function normalizeGreetingGenerationRequest(input) {
+  const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+  const event = source.event && typeof source.event === "object" && !Array.isArray(source.event) ? source.event : {};
+  const context = source.context && typeof source.context === "object" && !Array.isArray(source.context) ? source.context : {};
+  const bans = source.bans && typeof source.bans === "object" && !Array.isArray(source.bans) ? source.bans : {};
+
+  return {
+    scenario: source.scenario === "holiday" ? "holiday" : source.scenario === "birthday" ? "birthday" : "",
+    holidayType: normalizeGreetingHolidayType(source.holidayType),
+    recipient: normalizeGreetingRequestPerson(source.recipient),
+    sender: sanitizeText(source.sender, 160),
+    addressMode: source.addressMode === "ty" ? "ty" : "vy",
+    tone: normalizeGreetingTone(source.tone),
+    length: ["short", "medium", "long"].includes(source.length) ? source.length : "medium",
+    format: ["plain_text", "message", "toast"].includes(source.format) ? source.format : "plain_text",
+    variantCount: Math.max(1, Math.min(3, Math.floor(Number(source.variantCount) || 3))),
+    event: {
+      title: sanitizeText(event.title, 240),
+      date: normalizeDateInput(event.date),
+      holidayType: normalizeGreetingHolidayType(event.holidayType),
+      tradition: sanitizeText(event.tradition, 80),
+      description: sanitizeText(event.description, 1200),
+    },
+    context: normalizeGreetingRequestContext(context),
+    bans: {
+      mentionAge: bans.mentionAge === true,
+      personalTopics: Array.isArray(bans.personalTopics)
+        ? bans.personalTopics.map(item => sanitizeText(item, 120)).filter(Boolean).slice(0, 8)
+        : [],
+    },
+    promptVersion: GREETING_PROMPT_VERSION,
+  };
+}
+
+function normalizeGreetingRequestPerson(person) {
+  const source = person && typeof person === "object" && !Array.isArray(person) ? person : {};
+  return {
+    name: sanitizeText(source.name, 160),
+    role: sanitizeText(source.role, 160),
+    gender: sanitizeText(source.gender, 40),
+  };
+}
+
+function normalizeGreetingRequestContext(context) {
+  const source = context && typeof context === "object" && !Array.isArray(context) ? context : {};
+  const birthday = source.birthday && typeof source.birthday === "object" && !Array.isArray(source.birthday)
+    ? source.birthday
+    : null;
+  const holiday = source.holiday && typeof source.holiday === "object" && !Array.isArray(source.holiday)
+    ? source.holiday
+    : null;
+
+  return {
+    personalNote: sanitizeText(source.personalNote, 1200),
+    existingText: sanitizeText(source.existingText, 2200),
+    allowedFacts: Array.isArray(source.allowedFacts)
+      ? source.allowedFacts.map(item => sanitizeText(item, 240)).filter(Boolean).slice(0, 8)
+      : [],
+    birthday: birthday ? {
+      name: sanitizeText(birthday.name, 160),
+      dateOfBirth: normalizeDateInput(birthday.dateOfBirth),
+      age: Number.isFinite(Number(birthday.age)) ? Math.max(0, Math.floor(Number(birthday.age))) : null,
+      note: sanitizeText(birthday.note, 1200),
+    } : null,
+    holiday: holiday ? {
+      title: sanitizeText(holiday.title, 240),
+      description: sanitizeText(holiday.description, 1200),
+      source: sanitizeText(holiday.source, 240),
+    } : null,
+  };
+}
+
+function normalizeGreetingHolidayType(value) {
+  return ["public_holiday", "professional_holiday", "religious_holiday"].includes(value) ? value : null;
+}
+
+function normalizeGreetingTone(value) {
+  return ["warm", "official", "personal", "light_humor", "respectful"].includes(value) ? value : "warm";
+}
+
+function normalizeDateInput(value) {
+  const normalized = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
 }
 
 function normalizeGreetingResult(result = {}, fallbackAccountId = "") {

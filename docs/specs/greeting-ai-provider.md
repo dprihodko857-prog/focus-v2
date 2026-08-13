@@ -134,6 +134,14 @@ The `/api/sync/greetings/status`, `/generate`, and `/revise` responses must not 
 
 Provider output can only return generated text variants after server validation. Draft saving, copying, birthday edits, holiday edits, reminder creation, message sending, and sent status changes remain separate Focus business actions after explicit user input.
 
+## Client Boundary
+
+Focus frontend and mobile clients call only Focus backend greeting endpoints. The sync client allowlists outbound greeting request fields before JSON serialization, so provider-only fields such as model names, tokens, authorization keys, provider URLs, and OAuth URLs are not sent from the client even if they are accidentally present in a caller object.
+
+Greeting drafts persist only UI-safe form fields, selected variants, editor text, and normalized input context. Provider availability state, disabled messages, provider metadata, model names, tokens, and URLs are not stored in Greeting Assistant drafts.
+
+`tests/greeting-client-boundary.test.mjs` covers the static and fake-fetch client boundary.
+
 ## Model Comparison Before Production
 
 Before enabling a production model, compare candidate GigaChat models on at least these scenarios:
