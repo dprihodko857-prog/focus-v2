@@ -34,6 +34,30 @@ Implemented adapters:
 
 Future `YandexGreetingAIProvider` and `OpenAIGreetingAIProvider` adapters must implement the same contract. UI, draft models, and Greeting Assistant business logic must not change for a provider swap.
 
+## Mock Release Checklist
+
+The Greeting Assistant section is ready for the first mock-backed release when these items stay true:
+
+- frontend and mobile clients call only Focus backend greeting endpoints;
+- no GigaChat key, access token, model name, base URL, or OAuth URL exists in client code, localStorage, or draft payloads;
+- default development/runtime provider is `MockGreetingAIProvider` when no provider is configured;
+- `DisabledGreetingAIProvider` shows the controlled unavailable state and still allows saving the questionnaire;
+- `generateGreeting` and `reviseGreeting` use the shared `GreetingAIProvider` contract;
+- generated and revised provider results pass shared server validation before they reach UI;
+- provider output cannot save drafts, copy text, edit birthdays/holidays, create reminders, send messages, or mark a greeting as sent;
+- Greeting Assistant drafts persist only UI-safe form fields, variants, editor text, and normalized input context;
+- browser smoke covers mock generation/revision/copy/save/reopen and mobile disabled state;
+- static and fake-fetch client boundary tests stay green;
+- server fake-fetch GigaChat tests stay green without live API calls.
+
+Mock-release verification commands:
+
+```text
+node --test tests\greeting-client-boundary.test.mjs
+node --test --test-name-pattern "app shell exposes server-side greeting assistant provider flow" tests\sync-integration-assets.test.mjs
+node --test --test-name-pattern "sync greeting|GigaChat greeting provider" tests\focus-sync-server.test.mjs
+```
+
 ## Development Mode
 
 Do not request or add real credentials during development. When `FOCUS_GREETING_AI_PROVIDER` is absent, Focus uses `MockGreetingAIProvider`, so the full UI flow works with mock results.
@@ -105,6 +129,17 @@ Production activation checklist:
 - Verify `/api/sync/greetings/status` does not expose model, token, key, or provider URLs.
 - Run server tests with fake provider calls; do not run live API calls in CI.
 - Run a separate manual production smoke test only in an approved environment.
+
+Production-only remaining work:
+
+- select candidate GigaChat model names through a separate quality/cost comparison;
+- provision the real authorization key in the server secrets mechanism, not in source code;
+- configure `FOCUS_GREETING_AI_PROVIDER=gigachat` and `FOCUS_GIGACHAT_MODEL` only in the production server environment;
+- confirm timeout, retry, and rate-limit values for the real deployment envelope;
+- run the model comparison matrix in this document on an approved environment;
+- record average latency and cost per request for the selected model;
+- run one approved live production smoke after secrets are installed;
+- keep live provider calls out of local development and CI.
 
 ## Server Validation
 
