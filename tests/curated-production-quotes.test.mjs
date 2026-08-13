@@ -26,25 +26,40 @@ import {
   QUOTE_SEED_ID_PREFIX,
 } from "../scripts/seed-production-quotes.mjs";
 
+const EXPECTED_CURATED_QUOTE_COUNT = 4000;
+const EXPECTED_PRODUCTION_CATEGORY_MINIMUM = 450;
+const DISALLOWED_CURATED_AUTHOR_PATTERN = /^(Редакция Focus|Focus Editorial|.{1,2}|К|Мат|Род|Размер подлинника|С (?:английского|арабского|восточного|китайского|персидского)|(?:арабское|персидское|суфи))$|^(?:английского|квакерского) журнала|^журнал(?:\s|$)|^\(?составлено(?:\s|$)|^\d{4}\.|^изложил(?:\s|$)|^псал\.|(?:^|\s)(?:гл|ст|стр|кн|том|часть)\.?\s*\d|(?:^|\s)по книгам(?:\s|$)/iu;
+
 test("curated production quotes contain only clean quote text and real authors", () => {
   const quotes = createCuratedProductionQuotes();
   const summary = getCuratedProductionQuoteSummary(quotes);
   const rawIntegrity = inspectRawQuoteCatalog(quotes);
 
-  assert.equal(quotes.length, 2000);
-  assert.equal(summary.quoteCount, 2000);
+  assert.equal(quotes.length, EXPECTED_CURATED_QUOTE_COUNT);
+  assert.equal(summary.quoteCount, EXPECTED_CURATED_QUOTE_COUNT);
   assert.ok(summary.authorCount >= 7);
   assert.ok(summary.sourceCount >= 10);
   assert.equal(new Set(quotes.map(quote => quote.id)).size, quotes.length);
   assert.ok(quotes.every(quote => String(quote.id).startsWith(`${CURATED_QUOTE_ID_PREFIX}-`)));
   assert.ok(quotes.every(quote => !String(quote.id).startsWith(`${QUOTE_SEED_ID_PREFIX}-`)));
   assert.ok(quotes.every(quote => quote.text && !quote.text.startsWith("В теме ")));
+  assert.ok(quotes.every(quote => /^(?:[А-ЯЁ«"„“]|[—–]\s*[А-ЯЁ])/u.test(quote.text)));
+  assert.ok(quotes.every(quote => !/[«»]/u.test(quote.text)));
+  assert.ok(quotes.every(quote => !/\d/u.test(quote.text)));
+  assert.ok(quotes.every(quote => (quote.text.match(/\(/gu) || []).length === (quote.text.match(/\)/gu) || []).length));
+  assert.ok(quotes.every(quote => !/^(?:А ты|И он|И она|И они|И сказал|И стала|И стали|И были|Он|Она|Они|Но\s)(?:\s|:)?/iu.test(quote.text)));
+  assert.ok(quotes.every(quote => !/^И\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ]/u.test(quote.text)));
+  assert.ok(quotes.every(quote => !/(?:^|\s)(?:сказал|сказала|сказали|говорил|говорила|говорили|думает|спросил|спросила|спросили|ответил|ответила|ответили|пошел|пошёл|пошла|выпустили|чувствовал|снесли|положили|бросился|доплыл|вытащил|оставив|подошел|подошёл)(?:\s|,|:|\.)/iu.test(quote.text)));
+  assert.ok(quotes.every(quote => !/издательств|книжная фабрика|росглавполиграфпром|государственного комитета|коллективный псевдоним/iu.test(quote.text)));
   assert.ok(quotes.every(quote => quote.authorName && !/^(Редакция Focus|Focus Editorial)$/u.test(quote.authorName)));
-  assert.ok(quotes.every(quote => !/^(К|Мат|Род|Размер подлинника|С (?:английского|арабского|восточного|китайского|персидского))$|^(?:английского|квакерского) журнала/iu.test(quote.authorName)));
+  assert.ok(quotes.every(quote => !DISALLOWED_CURATED_AUTHOR_PATTERN.test(quote.authorName)));
   assert.ok(quotes.every(quote => quote.sourceTitle && quote.sourceReference && quote.sourceUrl));
   assert.ok(quotes.every(quote => quote.verificationStatus === "verified"));
   assert.ok(quotes.every(quote => quote.rightsStatus === "public_domain"));
   assert.ok(quotes.every(quote => Array.isArray(quote.categoryCodes) && quote.categoryCodes.length > 0));
+  Object.values(summary.perCategory).forEach(count => {
+    assert.equal(count >= EXPECTED_PRODUCTION_CATEGORY_MINIMUM, true);
+  });
   assert.equal(rawIntegrity.disallowedContentQuoteCount, 0);
 });
 
@@ -90,9 +105,9 @@ test("curated quote import replaces generated seed records and preserves manual 
     assert.equal(result.replaceGenerated, true);
     assert.equal(result.preservedQuoteCount, 1);
     assert.equal(result.removedGeneratedQuoteCount, 14);
-    assert.equal(result.curatedQuoteCount, 2000);
-    assert.equal(result.importedCuratedQuoteCount, 2000);
-    assert.equal(result.totalQuoteCount, 2001);
+    assert.equal(result.curatedQuoteCount, EXPECTED_CURATED_QUOTE_COUNT);
+    assert.equal(result.importedCuratedQuoteCount, EXPECTED_CURATED_QUOTE_COUNT);
+    assert.equal(result.totalQuoteCount, EXPECTED_CURATED_QUOTE_COUNT + 1);
     assert.equal(result.audit.blockedQuotes, 0);
 
     const importedAudit = auditProductionQuotes(dbPath, { checkedAt: "2026-08-05T08:30:00.000Z" });
@@ -106,7 +121,10 @@ test("curated quote import replaces generated seed records and preserves manual 
 
     assert.ok(importedCatalog.some(quote => quote.id === "manual-curated-import-quote"));
     assert.equal(importedCatalog.some(quote => String(quote.id).startsWith(`${QUOTE_SEED_ID_PREFIX}-`)), false);
-    assert.equal(importedCatalog.filter(quote => String(quote.id).startsWith(`${CURATED_QUOTE_ID_PREFIX}-`)).length, 2000);
+    assert.equal(
+      importedCatalog.filter(quote => String(quote.id).startsWith(`${CURATED_QUOTE_ID_PREFIX}-`)).length,
+      EXPECTED_CURATED_QUOTE_COUNT,
+    );
   } finally {
     rmSync(tempDir, { force: true, recursive: true });
   }

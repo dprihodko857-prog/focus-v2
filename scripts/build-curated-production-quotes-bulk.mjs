@@ -11,7 +11,9 @@ import {
   MANUAL_CURATED_PRODUCTION_QUOTES,
 } from "./curated-production-quotes.mjs";
 
-const TARGET_QUOTE_COUNT = 2000;
+const TARGET_QUOTE_COUNT = 4000;
+const PRODUCTION_CATEGORY_MINIMUM = 450;
+const MAX_CATEGORY_CODES_PER_QUOTE = 3;
 const OUTPUT_PATH = fileURLToPath(new URL("./curated-production-quotes.bulk.json", import.meta.url));
 const CACHE_DIR = fileURLToPath(new URL("../.codex/wikisource-cache/", import.meta.url));
 const WIKISOURCE_API_URL = "https://ru.wikisource.org/w/api.php";
@@ -40,6 +42,24 @@ const CATEGORY_CODES = [
 ];
 
 const PAGE_RANGE_SOURCES = [
+  {
+    titlePrefix: "L. N. Tolstoy. All in 90 volumes. Volume 41.pdf/",
+    pageStart: 10,
+    pageEnd: 610,
+    slugPrefix: "tolstoy-circle-reading-v41",
+    sourceTitle: "Круг чтения",
+    sourceReferencePrefix: "том 41",
+    publicationYear: 1906,
+  },
+  {
+    titlePrefix: "L. N. Tolstoy. All in 90 volumes. Volume 42.pdf/",
+    pageStart: 10,
+    pageEnd: 709,
+    slugPrefix: "tolstoy-circle-reading-v42",
+    sourceTitle: "Круг чтения",
+    sourceReferencePrefix: "том 42",
+    publicationYear: 1906,
+  },
   {
     titlePrefix: "L. N. Tolstoy. All in 90 volumes. Volume 43.pdf/",
     pageStart: 10,
@@ -76,7 +96,7 @@ const NORMAL_PAGE_SOURCES = [
     authorName: "Козьма Прутков",
     sourceTitle: "Плоды раздумья",
     publicationYear: 1854,
-    categoryCodes: ["humor", "life_wisdom", "self_development"],
+    categoryCodes: ["humor", "life_wisdom"],
   },
   {
     pageTitle: "Мысли и афоризмы I (Прутков)",
@@ -84,7 +104,7 @@ const NORMAL_PAGE_SOURCES = [
     authorName: "Козьма Прутков",
     sourceTitle: "Мысли и афоризмы I",
     publicationYear: 1854,
-    categoryCodes: ["humor", "life_wisdom", "self_development"],
+    categoryCodes: ["humor", "life_wisdom"],
   },
   {
     pageTitle: "Мысли и афоризмы II (Прутков)",
@@ -92,7 +112,116 @@ const NORMAL_PAGE_SOURCES = [
     authorName: "Козьма Прутков",
     sourceTitle: "Мысли и афоризмы II",
     publicationYear: 1854,
-    categoryCodes: ["humor", "life_wisdom", "self_development"],
+    categoryCodes: ["humor", "life_wisdom"],
+  },
+];
+
+const CATEGORY_KEYWORD_RULES = [
+  {
+    code: "business",
+    keywords: [
+      "беден", "бедн", "богат", "власть", "государ", "дело", "деньг", "закон", "имуще",
+      "куп", "народ", "общество", "польз", "прибыл", "прода", "решен", "риск", "собствен",
+      "торгов", "управ", "ценн",
+    ],
+  },
+  {
+    code: "calm_balance",
+    keywords: [
+      "безмолв", "выдерж", "гнев", "мир", "молча", "молчи", "пауза", "покой", "прост",
+      "равновес", "сдерж", "смир", "спокой", "терп", "тих", "ясн",
+    ],
+  },
+  {
+    code: "creativity",
+    keywords: [
+      "воображ", "знан", "искус", "книга", "мысл", "образ", "писа", "поэз", "разум",
+      "слово", "созда", "талант", "твор", "ум", "учен", "читать", "язык",
+    ],
+  },
+  {
+    code: "family_children",
+    keywords: [
+      "брат", "воспит", "дет", "дом", "дочь", "жена", "забот", "матер", "мать", "муж",
+      "отец", "родител", "родн", "семь", "сестр", "сын",
+    ],
+  },
+  {
+    code: "friendship_people",
+    keywords: [
+      "ближн", "враг", "довер", "друг", "люд", "народ", "общен", "отнош", "помог",
+      "помощ", "приятел", "сосед", "товарищ", "человек",
+    ],
+  },
+  {
+    code: "goals_success",
+    keywords: [
+      "вперед", "выбор", "выбрать", "готов", "добь", "достиг", "достиж", "жел", "идти",
+      "иск", "ищ", "надеж", "найд", "намерен", "направ", "побед", "план", "приоритет",
+      "путь", "реш", "след", "старай", "стрем", "трудись", "упор", "усили", "успех",
+      "хоч", "цель",
+    ],
+  },
+  {
+    code: "health_self_care",
+    keywords: [
+      "береж", "боль", "болез", "врач", "гнев", "душ", "жизнен", "здоров", "пища",
+      "печал", "радост", "самочув", "сила", "слаб", "сон", "спокой", "страдан",
+      "страх", "тело", "устал",
+    ],
+  },
+  {
+    code: "humor",
+    keywords: [
+      "блаж", "весел", "весель", "глуп", "довол", "забав", "ирон", "легк", "наслаж",
+      "остроум", "прият", "рад", "радост", "светл", "сме", "смеш", "счаст", "улыб",
+      "хорошее настроение", "шут",
+    ],
+  },
+  {
+    code: "life_wisdom",
+    keywords: [
+      "вечн", "жизн", "мудр", "смерт", "смысл", "судьб",
+    ],
+  },
+  {
+    code: "love_relationships",
+    keywords: [
+      "близ", "братск", "доброт", "добр", "жалост", "забот", "любви", "любить", "любов",
+      "милосерд", "нежн", "ненавист", "помог", "помощ", "прощ", "сердц", "сострадан",
+      "сочув", "уважен",
+    ],
+  },
+  {
+    code: "motivation",
+    keywords: [
+      "будь", "верь", "делай", "дерз", "долж", "мож", "мужеств", "надо", "начин",
+      "поступ", "смел", "сила", "старай", "станет", "трудись",
+    ],
+  },
+  {
+    code: "self_development",
+    keywords: [
+      "вниман", "знан", "исправ", "мудр", "опыт", "привыч", "разум", "рост", "сам",
+      "соверш", "ум", "уч", "характер",
+    ],
+  },
+  {
+    code: "time_productivity",
+    keywords: [
+      "будущ", "вечер", "век", "время", "всегда", "день", "долго", "ежеднев", "завтра",
+      "каждый", "лет", "медл", "мгновен", "минут", "молодость", "никогда", "ночь", "поздно",
+      "пока", "после", "прежде", "прошл", "рано", "сейчас", "скоро", "срок", "сегодня",
+      "старость", "утро", "час",
+    ],
+  },
+  {
+    code: "work_vocation",
+    keywords: [
+      "выполн", "дела", "делай", "делать", "дело", "действ", "долг", "должн", "задач",
+      "занят", "исполн", "мастер", "обязан", "поруч", "праздн", "призван", "профес",
+      "работ", "ремесл", "служ", "созид", "творить", "труд", "усили", "учитель",
+    ],
   },
 ];
 
@@ -128,16 +257,21 @@ const ATTRIBUTION_ALIASES = new Map([
 ]);
 
 const ADDITIONAL_ATTRIBUTION_ALIASES = new Map([
+  ["а. балу", "Адин Балу"],
+  ["а. и. герцен", "Герцен"],
   ["амиелъ", "Амиель"],
   ["амиелю", "Амиель"],
+  ["анатолъ франс", "Анатоль Франс"],
   ["ангелусу силезиусу", "Ангелус Силезиус"],
   ["ангелусъ силезіусъ", "Ангелус Силезиус"],
   ["баллу", "Адин Балу"],
   ["балу", "Адин Балу"],
   ["браминского закона ману", "Законы Ману"],
+  ["бэкону", "Фрэнсис Бэкон"],
   ["архангельскому", "Архангельский"],
   ["бернардъ шоу", "Бернард Шоу"],
   ["вивекананде", "Вивекананда"],
+  ["виктор гюго. изложил л. н. толстой", "Виктор Гюго"],
   ["генри джорджу", "Генри Джордж"],
   ["гераклиту", "Гераклит"],
   ["гоголь", "Николай Гоголь"],
@@ -148,19 +282,29 @@ const ADDITIONAL_ATTRIBUTION_ALIASES = new Map([
   ["сковорода", "Григорий Сковорода"],
   ["сковороде", "Григорий Сковорода"],
   ["дж. рёскину", "Джон Рёскин"],
+  ["джону рёскину", "Джон Рёскин"],
   ["рёскин", "Джон Рёскин"],
   ["рёскину", "Джон Рёскин"],
+  ["джеферсон", "Томас Джефферсон"],
   ["джеферсону", "Томас Джефферсон"],
   ["джефферсон", "Томас Джефферсон"],
   ["джефферсону", "Томас Джефферсон"],
   ["достоевский", "Фёдор Достоевский"],
   ["достоевскому", "Фёдор Достоевский"],
+  ["законы maнy", "Законы Ману"],
+  ["законы ману", "Законы Ману"],
+  ["и. с. тургенев", "Иван Тургенев"],
+  ["ив. тургенев", "Иван Тургенев"],
+  ["индийские ману", "Законы Ману"],
+  ["индийское ману", "Законы Ману"],
   ["иоанн златоуст,", "Иоанн Златоуст"],
   ["иоанну златоусту", "Иоанн Златоуст"],
   ["канту", "Иммануил Кант"],
+  ["карпентеру", "Эдвард Карпентер"],
   ["карлейлъ", "Томас Карлейль"],
   ["карлейль", "Томас Карлейль"],
   ["карлейлю", "Томас Карлейль"],
+  ["книга ману", "Законы Ману"],
   ["кришне", "Кришна"],
   ["ксенофонту", "Ксенофонт"],
   ["ламеннэ", "Фелисите де Ламенне"],
@@ -168,6 +312,8 @@ const ADDITIONAL_ATTRIBUTION_ALIASES = new Map([
   ["лао-тсе", "Лао-Цзы"],
   ["лao-тсе", "Лао-Цзы"],
   ["лao-tce", "Лао-Цзы"],
+  ["л. авилова", "Лидия Авилова"],
+  ["л. н. толстой", "Лев Толстой"],
   ["л. толстой", "Лев Толстой"],
   ["лессинг", "Готхольд Лессинг"],
   ["лессингу", "Готхольд Лессинг"],
@@ -176,27 +322,36 @@ const ADDITIONAL_ATTRIBUTION_ALIASES = new Map([
   ["лихтпенберг", "Георг Лихтенберг"],
   ["люси маллори", "Люси Маллори"],
   ["люси малори", "Люси Маллори"],
+  ["люси малорu", "Люси Маллори"],
   ["люси малоpu", "Люси Маллори"],
   ["магометъ", "Мухаммед"],
   ["мадзини", "Иосиф Мадзини"],
   ["марку аврелию", "Марк Аврелий"],
+  ["мильтон", "Джон Мильтон"],
   ["мильтону", "Джон Мильтон"],
   ["монтень", "Мишель де Монтень"],
   ["монтэнь", "Мишель де Монтень"],
   ["мор", "Томас Мор"],
   ["паркер", "Паркер"],
   ["паскалю", "Блез Паскаль"],
+  ["персидская кейям", "Омар Хайям"],
+  ["персидский хейям xi столетия", "Омар Хайям"],
+  ["поп", "Александр Поуп"],
   ["первое послание иоанна", "Первое послание Иоанна"],
   ["первое послание иоанна", "Первое послание Иоанна"],
   ["петр хелъчицкий", "Пётр Хельчицкий"],
   ["петр хельчицкий", "Пётр Хельчицкий"],
+  ["плутарху", "Плутарх"],
   ["псалом 38", "Псалтирь"],
   ["рамакришне", "Рамакришна"],
   ["беседы сократа", "Сократ"],
   ["прощальной беседы сократа с учениками", "Сократ"],
   ["речи сократа на суде", "Сократ"],
+  ["сенеке", "Сенека"],
   ["сократу", "Сократ"],
   ["солтеру", "Солтер"],
+  ["сольтер", "Солтер"],
+  ["спинозе", "Спиноза"],
   ["рихтеру", "Рихтер"],
   ["талмуду", "Талмуд"],
   ["цицерону", "Цицерон"],
@@ -211,19 +366,35 @@ const ADDITIONAL_ATTRIBUTION_ALIASES = new Map([
   ["эмерсону", "Ральф Уолдо Эмерсон"],
   ["эмерсонъ", "Ральф Уолдо Эмерсон"],
   ["эпиктету", "Эпиктет"],
+  ["эразм", "Эразм Роттердамский"],
   ["эразму", "Эразм Роттердамский"],
+  ["фенелону", "Фенелон"],
+  ["гете", "Гёте"],
+  ["лао-tce", "Лао-Цзы"],
+  ["лao-tce", "Лао-Цзы"],
+  ["хардюэну", "Гардюен"],
   ["ювеналу", "Ювенал"],
+  ["саади", "Саади"],
   ["cаади", "Саади"],
   ["учение 12 апостолов", "Учение двенадцати апостолов"],
   ["«учение 12 апостолов»", "Учение двенадцати апостолов"],
 ]);
 
 const REJECTED_ATTRIBUTION_PATTERNS = [
+  /^.{1,2}$/iu,
+  /^\(?составлено(?:\s|$)/iu,
+  /^\d{4}\./iu,
   /^к$/iu,
   /^род$/iu,
   /^размер подлинника$/iu,
+  /^изложил(?:\s|$)/iu,
   /^с (?:английского|арабского|восточного|китайского|персидского)$/iu,
+  /^(?:арабское|персидское|суфи)$/iu,
   /^(?:английского|квакерского) журнала/iu,
+  /^журнал(?:\s|$)/iu,
+  /^псал\./iu,
+  /(?:^|\s)(?:гл|ст|стр|кн|том|часть)\.?\s*\d/iu,
+  /(?:^|\s)по книгам(?:\s|$)/iu,
 ];
 
 async function main() {
@@ -444,7 +615,7 @@ function extractAttributedPageCandidates(page, source) {
       }
       const categoryCodes = assignCategories(text, {
         authorName,
-        fallback: ["life_wisdom", "self_development"],
+        fallback: ["life_wisdom"],
       });
       candidates.push({
         slug: createSlug(`${source.slugPrefix}-${page.pageNumber}-${entryIndex}-${candidates.length + 1}`),
@@ -487,7 +658,10 @@ function extractNormalPageCandidates(page, source) {
         sourceReference: `афоризм ${candidates.length + 1}`,
         sourceUrl: createWikisourceUrl(page.title),
         publicationYear: source.publicationYear,
-        categoryCodes: uniqueCategoryCodes(source.categoryCodes),
+        categoryCodes: assignCategories(textVariant, {
+          authorName: source.authorName,
+          fallback: source.categoryCodes,
+        }),
       });
     }
   }
@@ -578,20 +752,50 @@ function normalizeAttribution(rawValue) {
 function canonicalizeAttribution(value) {
   const normalized = normalizeAttributionKey(value);
 
+  if (/^генри джорджу\s+изложил/iu.test(normalized)) {
+    return "Генри Джордж";
+  }
+  if (/^лескову\s+изложил/iu.test(normalized)) {
+    return "Николай Лесков";
+  }
+  if (/^псал\./iu.test(normalized)) {
+    return "Псалтирь";
+  }
+  if (normalized.includes("хейям")) {
+    return "Омар Хайям";
+  }
   if (/^(?:мф|мат\.?|матф|матфея)(?:\b|[.,\s])/iu.test(normalized) || normalized === "мат") {
     return "Евангелие от Матфея";
   }
   if (/^(?:ин\.?|иоан\.?|иоанн|иоан,|иоанна)(?:\b|[.,\s])/iu.test(normalized) || normalized === "иоанна") {
     return "Евангелие от Иоанна";
   }
-  if (/^(?:лук|луки|лука)(?:\b|[.,\s])/iu.test(normalized) || normalized === "луки" || normalized === "лука") {
+  if (/^(?:лк\.?|лук|луки|лука)(?:\b|[.,\s])/iu.test(normalized) || normalized === "луки" || normalized === "лука") {
     return "Евангелие от Луки";
   }
-  if (/^i\s*кор/iu.test(normalized)) {
+  if (/^(?:мрк\.?|марк)(?:\b|[.,\s])/iu.test(normalized)) {
+    return "Евангелие от Марка";
+  }
+  if (/^(?:i|1(?:-е)?)\s*кор/iu.test(normalized)) {
     return "Первое послание к Коринфянам";
   }
-  if (/^i\s*посл.*иоан/iu.test(normalized)) {
+  if (/^(?:i|1(?:-е)?)\s*посл.*иоан/iu.test(normalized)) {
     return "Первое послание Иоанна";
+  }
+  if (/^2\s*посл.*фессал/iu.test(normalized)) {
+    return "Второе послание к Фессалоникийцам";
+  }
+  if (/^посл.*иак/iu.test(normalized)) {
+    return "Послание Иакова";
+  }
+  if (/^пс\.?\s*\d/iu.test(normalized)) {
+    return "Псалтирь";
+  }
+  if (/^исаии\s*гл/iu.test(normalized)) {
+    return "Книга пророка Исаии";
+  }
+  if (/^михея\s*гл/iu.test(normalized)) {
+    return "Книга пророка Михея";
   }
 
   return ADDITIONAL_ATTRIBUTION_ALIASES.get(normalized)
@@ -600,11 +804,25 @@ function canonicalizeAttribution(value) {
 }
 
 function normalizeAttributionKey(value) {
-  return String(value || "")
+  return normalizeLookalikeLetters(String(value || ""))
     .toLocaleLowerCase("ru")
     .replace(/[’']/gu, "'")
     .replace(/\s+/gu, " ")
     .trim();
+}
+
+function normalizeLookalikeLetters(value) {
+  return value
+    .replace(/[Aa]/gu, "а")
+    .replace(/[Cc]/gu, "с")
+    .replace(/[Ee]/gu, "е")
+    .replace(/[Ll]/gu, "л")
+    .replace(/[Mm]/gu, "м")
+    .replace(/[Oo]/gu, "о")
+    .replace(/[Pp]/gu, "р")
+    .replace(/[Tt]/gu, "т")
+    .replace(/[Xx]/gu, "х")
+    .replace(/[Yy]/gu, "у");
 }
 
 function isRejectedAttribution(value) {
@@ -616,10 +834,37 @@ function isUsableQuoteText(text) {
   if (text.length < MIN_TEXT_LENGTH || text.length > MAX_TEXT_LENGTH) {
     return false;
   }
+  if (!/^(?:[А-ЯЁ«"„“]|[—–]\s*[А-ЯЁ])/u.test(text)) {
+    return false;
+  }
   if (!/[А-Яа-яЁё]/u.test(text)) {
     return false;
   }
   if (/[{}[\]<>|=]/u.test(text)) {
+    return false;
+  }
+  if (/[«»]/u.test(text) || /\d/u.test(text)) {
+    return false;
+  }
+  if ((text.match(/\(/gu) || []).length !== (text.match(/\)/gu) || []).length) {
+    return false;
+  }
+  if (/^(?:А ты|И он|И она|И они|И сказал|И стала|И стали|И были|Он|Она|Они|Но\s)(?:\s|:)?/iu.test(text)) {
+    return false;
+  }
+  if (/^И\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ]/u.test(text)) {
+    return false;
+  }
+  if (/^Когда\s+[А-ЯЁ]/u.test(text)) {
+    return false;
+  }
+  if (/(?:^|\s)(?:сказал|сказала|сказали|говорил|говорила|говорили|думает|спросил|спросила|спросили|ответил|ответила|ответили|пошел|пошёл|пошла|выпустили|чувствовал|снесли|положили|бросился|доплыл|вытащил|оставив|подошел|подошёл)(?:\s|,|:|\.)/iu.test(text)) {
+    return false;
+  }
+  if (/(?:Пашка|Жан Вальжан|Евгений Николаевич|Анатолий Лёрэ|Дрожжин|Самуил|Магомет|Меженецкий)/u.test(text)) {
+    return false;
+  }
+  if (/издательств|книжная фабрика|росглавполиграфпром|государственного комитета|коллективный псевдоним/iu.test(text)) {
     return false;
   }
   if (/https?:|www\.|категория:|файл:|источник|примечания|править|pagequality/iu.test(text)) {
@@ -640,36 +885,50 @@ function isUsableQuoteText(text) {
 
 function assignCategories(text, { authorName = "", fallback = ["life_wisdom"] } = {}) {
   const lower = text.toLocaleLowerCase("ru");
-  const categories = new Set(fallback);
-
-  addByKeywords(categories, lower, "love_relationships", ["любов", "сердц", "любить", "любви", "ненавист"]);
-  addByKeywords(categories, lower, "family_children", ["семь", "дет", "ребен", "сын", "дочь", "отец", "мать", "родител"]);
-  addByKeywords(categories, lower, "friendship_people", ["друг", "люд", "человек", "ближн", "общеж", "отнош"]);
-  addByKeywords(categories, lower, "health_self_care", ["здоров", "болез", "тело", "душ", "страх", "гнев", "печал", "страдан", "спокой"]);
-  addByKeywords(categories, lower, "work_vocation", ["труд", "работ", "служ", "ремесл", "дело", "обязан", "занят"]);
-  addByKeywords(categories, lower, "business", ["деньг", "богат", "бедн", "собствен", "закон", "государ", "власть", "общество", "торгов"]);
-  addByKeywords(categories, lower, "goals_success", ["цель", "успех", "достиг", "побед", "стрем", "усили", "намерен"]);
-  addByKeywords(categories, lower, "time_productivity", ["время", "день", "час", "мину", "сейчас", "сегодня", "завтра", "всегда"]);
-  addByKeywords(categories, lower, "creativity", ["мысл", "слово", "книга", "искус", "поэз", "знан", "учен", "истин"]);
-  addByKeywords(categories, lower, "humor", ["смеш", "смех", "шут", "острот", "глуп", "смешон"]);
-  addByKeywords(categories, lower, "calm_balance", ["мир", "покой", "терп", "смир", "тих", "спокой", "молчи", "гнев"]);
-  addByKeywords(categories, lower, "motivation", ["мож", "надо", "долж", "сила", "верь", "делай", "поступ", "станет"]);
+  const categoryScores = new Map();
 
   if (authorName === "Козьма Прутков") {
-    categories.add("humor");
+    addCategoryScore(categoryScores, "humor", 4);
   }
 
-  if (categories.size < 2) {
-    categories.add("self_development");
+  for (const rule of CATEGORY_KEYWORD_RULES) {
+    const matchCount = countKeywordMatches(lower, rule.keywords);
+    if (matchCount > 0) {
+      addCategoryScore(categoryScores, rule.code, matchCount);
+    }
   }
 
-  return uniqueCategoryCodes([...categories].slice(0, 5));
+  if (categoryScores.size === 0) {
+    for (const code of fallback) {
+      addCategoryScore(categoryScores, code, 1);
+    }
+  } else {
+    for (const code of fallback) {
+      addCategoryScore(categoryScores, code, 0.15);
+    }
+  }
+
+  const sortedCategoryCodes = [...categoryScores.entries()]
+    .sort(([firstCode, firstScore], [secondCode, secondScore]) => {
+      if (secondScore !== firstScore) {
+        return secondScore - firstScore;
+      }
+      return CATEGORY_CODES.indexOf(firstCode) - CATEGORY_CODES.indexOf(secondCode);
+    })
+    .map(([code]) => code);
+
+  return uniqueCategoryCodes(sortedCategoryCodes.slice(0, MAX_CATEGORY_CODES_PER_QUOTE));
 }
 
-function addByKeywords(categories, text, categoryCode, keywords) {
-  if (keywords.some(keyword => text.includes(keyword))) {
-    categories.add(categoryCode);
+function countKeywordMatches(text, keywords) {
+  return keywords.reduce((count, keyword) => count + (text.includes(keyword) ? 1 : 0), 0);
+}
+
+function addCategoryScore(categoryScores, categoryCode, score) {
+  if (!CATEGORY_CODES.includes(categoryCode)) {
+    return;
   }
+  categoryScores.set(categoryCode, (categoryScores.get(categoryCode) || 0) + score);
 }
 
 function uniqueCategoryCodes(categoryCodes) {
@@ -753,7 +1012,10 @@ function selectCandidates(candidates, { existingQuotes, neededQuoteCount, target
   const authorCounts = new Map();
   const sourceCounts = new Map();
   const remaining = candidates.slice();
-  const categoryTarget = Math.ceil(targetQuoteCount / CATEGORY_CODES.length);
+  const categoryTarget = Math.max(
+    PRODUCTION_CATEGORY_MINIMUM,
+    Math.ceil((targetQuoteCount * 2.25) / CATEGORY_CODES.length),
+  );
 
   for (const quoteRecord of existingQuotes) {
     for (const code of quoteRecord.categoryCodes || []) {
@@ -769,8 +1031,15 @@ function selectCandidates(candidates, { existingQuotes, neededQuoteCount, target
     for (let index = 0; index < remaining.length; index += 1) {
       const candidate = remaining[index];
       const categoryDeficit = candidate.categoryCodes
-        .reduce((sum, code) => sum + Math.max(0, categoryTarget - (categoryCounts.get(code) || 0)), 0);
-      const authorPenalty = (authorCounts.get(candidate.authorName) || 0) * 0.25;
+        .reduce((sum, code) => {
+          const currentCount = categoryCounts.get(code) || 0;
+          const minimumDeficit = Math.max(0, PRODUCTION_CATEGORY_MINIMUM - currentCount);
+          const targetDeficit = Math.max(0, categoryTarget - currentCount);
+          const overTarget = Math.max(0, currentCount - categoryTarget);
+          return sum + minimumDeficit * 6 + targetDeficit - overTarget * 1.5;
+        }, 0);
+      const authorCount = authorCounts.get(candidate.authorName) || 0;
+      const authorPenalty = authorCount * 0.2 + Math.max(0, authorCount - 55) * 4;
       const sourcePenalty = (sourceCounts.get(candidate.sourceUrl) || 0) * 0.05;
       const lengthBonus = 1 - Math.abs(candidate.text.length - 110) / 220;
       const score = categoryDeficit * 10 + lengthBonus - authorPenalty - sourcePenalty;
