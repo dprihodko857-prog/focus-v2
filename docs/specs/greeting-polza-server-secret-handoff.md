@@ -58,7 +58,8 @@ node scripts/greeting-model-comparison-runner.mjs summary
 node scripts/greeting-model-comparison-runner.mjs run --provider=env --candidate=<safe candidate label> --out=output/greeting-model-comparison/<safe candidate label>.jsonl
 ```
 
-Do not commit live JSONL. Record only sanitized aggregate quality, latency, cost, and decision notes in `docs/specs/greeting-model-comparison.md`.
+Use `docs/specs/greeting-model-comparison.md` for the required scenario matrix.
+Do not commit live JSONL. Record only sanitized aggregate quality, latency, cost, and decision notes in `docs/specs/greeting-polza-model-comparison-decision-record.md`.
 
 ## Production Secret Set
 

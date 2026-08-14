@@ -114,6 +114,7 @@ Ignored smoke artifacts:
 
 - `docs/specs/greeting-ai-provider.md`: architecture, contract, adapters, server validation, client boundary, production setup.
 - `docs/specs/greeting-model-comparison.md`: required model comparison matrix and decision-record template.
+- `docs/specs/greeting-polza-model-comparison-decision-record.md`: sanitized go/no-go record for model selection.
 - `scripts/greeting-model-comparison-runner.mjs`: executable backend-only comparison runner.
 - `scripts/greeting-production-preflight.mjs`: dry production configuration and client-boundary preflight with no provider call.
 - `docs/specs/greeting-production-readiness-checklist.md`: final keyless readiness gate before any real provider key is installed.

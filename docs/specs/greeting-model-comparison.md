@@ -1,6 +1,7 @@
 # Greeting Model Comparison Matrix
 
 This document is the production-only evaluation plan for selecting the configured `FOCUS_POLZA_MODEL`.
+Use `docs/specs/greeting-polza-model-comparison-decision-record.md` to record the sanitized go/no-go decision after an approved server-side comparison run.
 
 Do not run this matrix in local development or CI. Run it only in an approved server environment where the Polza API key is stored in server secrets. All calls must go through Focus backend greeting endpoints, never directly from frontend or mobile clients.
 
@@ -53,7 +54,7 @@ FOCUS_POLZA_MODEL=<candidate model id>
 node scripts/greeting-model-comparison-runner.mjs run --provider=env --candidate=<safe candidate label> --out=output/greeting-model-comparison/<safe candidate label>.jsonl
 ```
 
-Do not commit live comparison JSONL results. Review them manually with the required metrics below, then copy only sanitized aggregate numbers into the decision record.
+Do not commit live comparison JSONL results. Review them manually with the required metrics below, then copy only sanitized aggregate numbers into `docs/specs/greeting-polza-model-comparison-decision-record.md`.
 
 ## Scenario Matrix
 
