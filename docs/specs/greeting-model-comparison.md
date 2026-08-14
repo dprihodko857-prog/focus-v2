@@ -1,6 +1,7 @@
 # Greeting Model Comparison Matrix
 
 This document is the production-only evaluation plan for selecting the configured `FOCUS_POLZA_MODEL`.
+Use `docs/specs/greeting-polza-model-comparison-operator-checklist.md` as the step-by-step operator checklist for the approved server-side comparison run.
 Use `docs/specs/greeting-polza-model-comparison-decision-record.md` to record the sanitized go/no-go decision after an approved server-side comparison run.
 
 Do not run this matrix in local development or CI. Run it only in an approved server environment where the Polza API key is stored in server secrets. All calls must go through Focus backend greeting endpoints, never directly from frontend or mobile clients.

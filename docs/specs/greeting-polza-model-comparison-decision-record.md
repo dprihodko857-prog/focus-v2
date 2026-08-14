@@ -17,6 +17,7 @@ This record must contain only sanitized aggregate results. Do not paste API keys
 - Keyless readiness pass: `docs/specs/greeting-pre-key-readiness-report.md`.
 - Server-secret handoff: `docs/specs/greeting-polza-server-secret-handoff.md`.
 - Scenario matrix: `docs/specs/greeting-model-comparison.md`.
+- Operator checklist: `docs/specs/greeting-polza-model-comparison-operator-checklist.md`.
 - Backend runner: `scripts/greeting-model-comparison-runner.mjs`.
 - Scenario set version: `greeting-model-comparison@2026-08-13.v1`.
 
