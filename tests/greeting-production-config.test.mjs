@@ -456,6 +456,7 @@ test("technical acceptance snapshot captures implemented greeting assistant gate
     "scripts/greeting-model-comparison-runner.mjs",
     "scripts/greeting-production-preflight.mjs",
     "docs/specs/greeting-model-comparison.md",
+    "docs/specs/greeting-polza-model-comparison-operator-brief.md",
     "docs/specs/greeting-polza-model-comparison-operator-checklist.md",
     "docs/specs/greeting-polza-model-comparison-decision-record.md",
     "docs/specs/greeting-production-readiness-checklist.md",

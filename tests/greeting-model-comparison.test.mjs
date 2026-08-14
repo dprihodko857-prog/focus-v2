@@ -4,6 +4,7 @@ import { test } from "node:test";
 
 const comparisonDoc = readFileSync("docs/specs/greeting-model-comparison.md", "utf8");
 const decisionRecordDoc = readFileSync("docs/specs/greeting-polza-model-comparison-decision-record.md", "utf8");
+const operatorBriefDoc = readFileSync("docs/specs/greeting-polza-model-comparison-operator-brief.md", "utf8");
 const operatorChecklistDoc = readFileSync("docs/specs/greeting-polza-model-comparison-operator-checklist.md", "utf8");
 const providerDoc = readFileSync("docs/specs/greeting-ai-provider.md", "utf8");
 
@@ -81,6 +82,7 @@ test("greeting model comparison decision record stays sanitized and pending appr
     "docs/specs/greeting-polza-server-secret-handoff.md",
     "docs/specs/greeting-model-comparison.md",
     "docs/specs/greeting-polza-model-comparison-operator-checklist.md",
+    "docs/specs/greeting-polza-model-comparison-operator-brief.md",
     "scripts/greeting-model-comparison-runner.mjs",
     "Scenario set version: `greeting-model-comparison@2026-08-13.v1`",
     "openai/gpt-4o-mini",
@@ -135,6 +137,7 @@ test("greeting model comparison operator checklist defines approved server-side 
     "docs/specs/greeting-pre-key-readiness-report.md",
     "docs/specs/greeting-polza-server-secret-handoff.md",
     "docs/specs/greeting-model-comparison.md",
+    "docs/specs/greeting-polza-model-comparison-operator-brief.md",
     "docs/specs/greeting-polza-model-comparison-decision-record.md",
     "FOCUS_GREETING_AI_PROVIDER=polza",
     "FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED=true",
@@ -176,6 +179,63 @@ test("greeting model comparison operator checklist defines approved server-side 
   assert.doesNotMatch(operatorChecklistDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
   assert.doesNotMatch(operatorChecklistDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
   assert.doesNotMatch(operatorChecklistDoc, /https:\/\/polza\.ai\/api|api\.giga\.chat|ngw\.devices\.sberbank\.ru/iu);
+});
+
+test("greeting model comparison operator brief is copy-paste safe", () => {
+  [
+    "Greeting Polza.ai Model Comparison Operator Brief",
+    "copy/paste-safe operator brief",
+    "does not contain a real key",
+    "Focus section \"Compose greeting\" only",
+    "docs/specs/greeting-polza-model-comparison-operator-checklist.md",
+    "docs/specs/greeting-polza-model-comparison-decision-record.md",
+    "docs/specs/greeting-polza-server-secret-handoff.md",
+    "Please run the Focus Greeting Assistant Polza.ai model-comparison check",
+    "FOCUS_GREETING_AI_PROVIDER=polza",
+    "FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED=true",
+    "FOCUS_POLZA_PRODUCTION_ENABLED=false",
+    "FOCUS_POLZA_MODEL_COMPARISON_APPROVED=false",
+    "FOCUS_POLZA_API_KEY installed only in server secrets",
+    "FOCUS_POLZA_MODEL installed only in server configuration",
+    "npm run greeting:preflight -- --env-file <server-only env file path>",
+    "status: \"passed\"",
+    "requestedProvider: \"polza\"",
+    "effectiveProvider: \"polza\"",
+    "activationMode: \"model_comparison\"",
+    "productionActivationReady: false",
+    "liveProviderCallPerformed: false",
+    "clientBoundary.passed: true",
+    "node scripts/greeting-model-comparison-runner.mjs summary",
+    "node scripts/greeting-model-comparison-runner.mjs run --provider=env",
+    "Keep the live JSONL only in the ignored output path.",
+    "Return only these sanitized facts:",
+    "source commit id",
+    "safe candidate label",
+    "generated records count",
+    "revision records count",
+    "average latency",
+    "cost per request",
+    "current Polza availability verified: yes/no",
+    "current pricing verified: yes/no",
+    "Do not set FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true.",
+    "Do not set FOCUS_POLZA_PRODUCTION_ENABLED=true.",
+    "Do not run a production live smoke.",
+  ].forEach(marker => {
+    assert.match(operatorBriefDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  [
+    "Do not paste, print, screenshot, commit, or send the provider key",
+    "If preflight fails or prints secret/model/provider URL values, stop.",
+    "Do not commit or send it.",
+    "The return message must not include the API key",
+  ].forEach(marker => {
+    assert.match(operatorBriefDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  assert.doesNotMatch(operatorBriefDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
+  assert.doesNotMatch(operatorBriefDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
+  assert.doesNotMatch(operatorBriefDoc, /https:\/\/polza\.ai\/api|api\.giga\.chat|ngw\.devices\.sberbank\.ru/iu);
 });
 
 test("greeting provider spec links to production-only comparison matrix", () => {

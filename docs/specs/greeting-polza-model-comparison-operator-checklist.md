@@ -12,6 +12,7 @@ Scope: Focus section "Compose greeting" only.
 - `docs/specs/greeting-pre-key-readiness-report.md` records a passed keyless readiness gate.
 - `docs/specs/greeting-polza-server-secret-handoff.md` has been followed for server-only secret installation.
 - `docs/specs/greeting-model-comparison.md` is the scenario matrix for the run.
+- `docs/specs/greeting-polza-model-comparison-operator-brief.md` is the copy/paste-safe message for the server operator.
 - `docs/specs/greeting-polza-model-comparison-decision-record.md` is ready to receive sanitized aggregate results.
 - The operator has shell access only to the approved server-side comparison environment.
 
