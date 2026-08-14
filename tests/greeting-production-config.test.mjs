@@ -10,6 +10,7 @@ const syncService = readFileSync("server/focus-v2-sync.service", "utf8");
 const providerDoc = readFileSync("docs/specs/greeting-ai-provider.md", "utf8");
 const acceptanceDoc = readFileSync("docs/specs/greeting-assistant-technical-acceptance.md", "utf8");
 const comparisonDoc = readFileSync("docs/specs/greeting-model-comparison.md", "utf8");
+const preKeyReadinessReportDoc = readFileSync("docs/specs/greeting-pre-key-readiness-report.md", "utf8");
 const readinessChecklistDoc = readFileSync("docs/specs/greeting-production-readiness-checklist.md", "utf8");
 const runbookDoc = readFileSync("docs/specs/greeting-polza-production-runbook.md", "utf8");
 const operatorHandoffDoc = readFileSync("docs/specs/greeting-polza-operator-handoff.md", "utf8");
@@ -145,6 +146,7 @@ test("production readiness checklist captures the final keyless gate", () => {
     "FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true",
     "FOCUS_POLZA_MODEL",
     "docs/specs/greeting-model-comparison.md",
+    "docs/specs/greeting-pre-key-readiness-report.md",
     "docs/specs/greeting-polza-production-smoke-report.md",
     "FOCUS_GREETING_AI_PROVIDER=disabled",
     "No real Polza key is requested in chat.",
@@ -164,6 +166,41 @@ test("production readiness checklist captures the final keyless gate", () => {
 
   assert.doesNotMatch(readinessChecklistDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
   assert.doesNotMatch(readinessChecklistDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
+});
+
+test("pre-key readiness report records a sanitized passed gate", () => {
+  [
+    "Greeting Pre-Key Readiness Report",
+    "passed for keyless readiness",
+    "Recorded date: 2026-08-14",
+    "Focus section \"Compose greeting\" only",
+    "5d320ad docs: add greeting production readiness checklist",
+    "docs/specs/greeting-production-readiness-checklist.md",
+    "npm run greeting:preflight",
+    "npm run test:greeting",
+    "npm run test:greeting:server",
+    "requestedProvider`: `mock`",
+    "effectiveProvider`: `mock`",
+    "activationMode`: `development`",
+    "productionActivationReady`: `false`",
+    "liveProviderCallPerformed`: `false`",
+    "clientBoundary.passed`: `true`",
+    "clientBoundary.findings`: none",
+    "35 tests passed, 0 failed",
+    "22 tests passed, 0 failed",
+    "No real provider key was requested, installed, pasted, committed, or used.",
+    "No live Polza or GigaChat API call was performed.",
+    "NOT APPROVED: real provider key installation remains a separate server-secret operation.",
+    "docs/specs/greeting-model-comparison.md",
+    "docs/specs/greeting-polza-production-runbook.md",
+    "Do not paste a real provider key into this chat or into repository files.",
+  ].forEach(marker => {
+    assert.match(preKeyReadinessReportDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  assert.doesNotMatch(preKeyReadinessReportDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
+  assert.doesNotMatch(preKeyReadinessReportDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
+  assert.doesNotMatch(preKeyReadinessReportDoc, /https:\/\/polza\.ai\/api|api\.giga\.chat|ngw\.devices\.sberbank\.ru/iu);
 });
 
 test("local browser smoke evidence stays mock disabled and ignored", () => {
@@ -365,6 +402,7 @@ test("technical acceptance snapshot captures implemented greeting assistant gate
     "scripts/greeting-production-preflight.mjs",
     "docs/specs/greeting-model-comparison.md",
     "docs/specs/greeting-production-readiness-checklist.md",
+    "docs/specs/greeting-pre-key-readiness-report.md",
     "docs/specs/greeting-polza-production-runbook.md",
     "docs/specs/greeting-polza-operator-handoff.md",
     "docs/specs/greeting-polza-production-smoke-report.md",

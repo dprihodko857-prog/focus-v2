@@ -6,6 +6,8 @@ Date: 2026-08-13
 
 Scope: Focus section "Compose greeting" only.
 
+Latest recorded keyless pass: `docs/specs/greeting-pre-key-readiness-report.md`.
+
 ## Current Accepted State
 
 - Default committed configuration keeps `FOCUS_GREETING_AI_PROVIDER=mock`.

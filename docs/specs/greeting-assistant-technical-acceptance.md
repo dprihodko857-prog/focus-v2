@@ -117,6 +117,7 @@ Ignored smoke artifacts:
 - `scripts/greeting-model-comparison-runner.mjs`: executable backend-only comparison runner.
 - `scripts/greeting-production-preflight.mjs`: dry production configuration and client-boundary preflight with no provider call.
 - `docs/specs/greeting-production-readiness-checklist.md`: final keyless readiness gate before any real provider key is installed.
+- `docs/specs/greeting-pre-key-readiness-report.md`: sanitized record of the keyless readiness pass.
 - `docs/specs/greeting-polza-production-runbook.md`: full production activation runbook.
 - `docs/specs/greeting-polza-operator-handoff.md`: short operator checklist.
 - `docs/specs/greeting-polza-production-smoke-report.md`: sanitized live activation evidence template.
