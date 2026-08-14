@@ -69,6 +69,6 @@ Production activation:
 
 ## Next Allowed Step
 
-The next allowed step is preparation for the separate model-comparison or server-secret handoff workflow.
+The next allowed step is preparation for the separate model-comparison or server-secret handoff workflow in `docs/specs/greeting-polza-server-secret-handoff.md`.
 
 Do not paste a real provider key into this chat or into repository files.

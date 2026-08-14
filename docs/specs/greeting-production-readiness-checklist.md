@@ -60,6 +60,7 @@ Do not proceed to production activation until all of these are true:
 - The provider key is installed only through the server secret mechanism.
 - `FOCUS_POLZA_PRODUCTION_ENABLED=true` and `FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true` are set only after approval.
 - `docs/specs/greeting-polza-production-smoke-report.md` is ready for sanitized live-smoke evidence.
+- `docs/specs/greeting-polza-server-secret-handoff.md` is used for the separate server-secret handoff and contains no real provider key.
 - Rollback to `FOCUS_GREETING_AI_PROVIDER=disabled` is prepared and verified.
 
 ## User-Visible Acceptance

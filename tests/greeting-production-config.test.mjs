@@ -14,6 +14,7 @@ const preKeyReadinessReportDoc = readFileSync("docs/specs/greeting-pre-key-readi
 const readinessChecklistDoc = readFileSync("docs/specs/greeting-production-readiness-checklist.md", "utf8");
 const runbookDoc = readFileSync("docs/specs/greeting-polza-production-runbook.md", "utf8");
 const operatorHandoffDoc = readFileSync("docs/specs/greeting-polza-operator-handoff.md", "utf8");
+const secretHandoffDoc = readFileSync("docs/specs/greeting-polza-server-secret-handoff.md", "utf8");
 const smokeReportDoc = readFileSync("docs/specs/greeting-polza-production-smoke-report.md", "utf8");
 const clientShell = [
   readFileSync("public/index.html", "utf8"),
@@ -110,7 +111,9 @@ test("production docs point operators to server-only Polza configuration", () =>
   assert.match(providerDoc, /docs\/specs\/greeting-production-readiness-checklist\.md/);
   assert.match(runbookDoc, /docs\/specs\/greeting-polza-operator-handoff\.md/);
   assert.match(runbookDoc, /docs\/specs\/greeting-production-readiness-checklist\.md/);
+  assert.match(runbookDoc, /docs\/specs\/greeting-polza-server-secret-handoff\.md/);
   assert.match(operatorHandoffDoc, /docs\/specs\/greeting-production-readiness-checklist\.md/);
+  assert.match(operatorHandoffDoc, /docs\/specs\/greeting-polza-server-secret-handoff\.md/);
   assert.match(providerDoc, /FOCUS_GREETING_AI_PROVIDER=polza/);
   assert.match(providerDoc, /FOCUS_POLZA_PRODUCTION_ENABLED=true/);
   assert.match(providerDoc, /FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true/);
@@ -148,6 +151,7 @@ test("production readiness checklist captures the final keyless gate", () => {
     "docs/specs/greeting-model-comparison.md",
     "docs/specs/greeting-pre-key-readiness-report.md",
     "docs/specs/greeting-polza-production-smoke-report.md",
+    "docs/specs/greeting-polza-server-secret-handoff.md",
     "FOCUS_GREETING_AI_PROVIDER=disabled",
     "No real Polza key is requested in chat.",
     "No live Polza or GigaChat call is part of development, CI, mock smoke, disabled smoke, or this readiness checklist.",
@@ -193,6 +197,7 @@ test("pre-key readiness report records a sanitized passed gate", () => {
     "NOT APPROVED: real provider key installation remains a separate server-secret operation.",
     "docs/specs/greeting-model-comparison.md",
     "docs/specs/greeting-polza-production-runbook.md",
+    "docs/specs/greeting-polza-server-secret-handoff.md",
     "Do not paste a real provider key into this chat or into repository files.",
   ].forEach(marker => {
     assert.match(preKeyReadinessReportDoc, new RegExp(escapeRegExp(marker)));
@@ -201,6 +206,55 @@ test("pre-key readiness report records a sanitized passed gate", () => {
   assert.doesNotMatch(preKeyReadinessReportDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
   assert.doesNotMatch(preKeyReadinessReportDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
   assert.doesNotMatch(preKeyReadinessReportDoc, /https:\/\/polza\.ai\/api|api\.giga\.chat|ngw\.devices\.sberbank\.ru/iu);
+});
+
+test("server secret handoff documents safe Polza secret installation without credentials", () => {
+  [
+    "Greeting Polza.ai Server Secret Handoff",
+    "server-secret handoff template only",
+    "does not contain a real key",
+    "Focus section \"Compose greeting\" only",
+    "docs/specs/greeting-pre-key-readiness-report.md",
+    "npm run greeting:preflight",
+    "npm run test:greeting",
+    "npm run test:greeting:server",
+    "deployment secret store",
+    "/opt/focus-v2/data/focus-v2.env",
+    "EnvironmentFile=-/opt/focus-v2/data/focus-v2.env",
+    "FOCUS_GREETING_AI_PROVIDER=polza",
+    "FOCUS_POLZA_MODEL_COMPARISON_EVALUATION_ENABLED=true",
+    "FOCUS_POLZA_API_KEY=<server secret installed outside chat>",
+    "FOCUS_POLZA_MODEL=<candidate model id selected by server configuration>",
+    "FOCUS_POLZA_PRODUCTION_ENABLED=true",
+    "FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true",
+    "FOCUS_POLZA_MODEL=<selected model id selected by server configuration>",
+    "FOCUS_POLZA_TIMEOUT_MS=30000",
+    "FOCUS_POLZA_RETRY_ATTEMPTS=2",
+    "FOCUS_POLZA_RATE_LIMIT_PER_MINUTE=30",
+    "node scripts/greeting-model-comparison-runner.mjs summary",
+    "node scripts/greeting-model-comparison-runner.mjs run --provider=env",
+    "docs/specs/greeting-model-comparison.md",
+    "npm run greeting:preflight -- --env-file <server-only env file path>",
+    "liveProviderCallPerformed: false",
+    "clientBoundary.passed: true",
+    "FOCUS_GREETING_AI_PROVIDER=disabled",
+    "readinessStatus: \"disabled\"",
+    "rotate it before any reactivation",
+  ].forEach(marker => {
+    assert.match(secretHandoffDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  [
+    "The provider key must never be pasted into Codex chat",
+    "Do not put real provider values in `server/focus-v2-sync.service`, `.env.example`, repository docs, local browser storage, client assets, mobile assets, or tests.",
+    "Do not commit live JSONL.",
+    "Do not record the key, bearer token, authorization header, raw provider response, provider request headers, provider base URL override, or copied env-file contents.",
+  ].forEach(marker => {
+    assert.match(secretHandoffDoc, new RegExp(escapeRegExp(marker)));
+  });
+
+  assert.doesNotMatch(secretHandoffDoc, /sk-polza-|sk-proj-|YOUR_API_KEY|POLZA_AI_API_KEY>|Authorization:\s*Bearer\s+[^<\s]/iu);
+  assert.doesNotMatch(secretHandoffDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
 });
 
 test("local browser smoke evidence stays mock disabled and ignored", () => {
@@ -403,6 +457,7 @@ test("technical acceptance snapshot captures implemented greeting assistant gate
     "docs/specs/greeting-model-comparison.md",
     "docs/specs/greeting-production-readiness-checklist.md",
     "docs/specs/greeting-pre-key-readiness-report.md",
+    "docs/specs/greeting-polza-server-secret-handoff.md",
     "docs/specs/greeting-polza-production-runbook.md",
     "docs/specs/greeting-polza-operator-handoff.md",
     "docs/specs/greeting-polza-production-smoke-report.md",
