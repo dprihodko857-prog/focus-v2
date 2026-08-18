@@ -6458,12 +6458,15 @@ function getTodayInterestingTodayResponse(db, { accountId, timezone, checkedAt, 
     }
   }
 
+  const generationReason = existingSet
+    ? INTERESTING_TODAY_FALLBACK_REASON
+    : INTERESTING_TODAY_GENERATION_REASON;
   const generated = generateInterestingTodaySet(db, {
     timezone: normalizedTimezone,
     countryCode: preferences.countryCode,
     language: preferences.language,
     localDate,
-    generationReason: INTERESTING_TODAY_FALLBACK_REASON,
+    generationReason,
     checkedAt,
     createId,
   });
@@ -6473,7 +6476,7 @@ function getTodayInterestingTodayResponse(db, { accountId, timezone, checkedAt, 
       accountId,
       eventType: "interesting_today_generation_failed",
       localDate,
-      generationReason: INTERESTING_TODAY_FALLBACK_REASON,
+      generationReason,
       createdAt: checkedAt,
     });
     return {
@@ -6492,18 +6495,20 @@ function getTodayInterestingTodayResponse(db, { accountId, timezone, checkedAt, 
     };
   }
 
-  db.saveInterestingTodayEvent({
-    accountId,
-    eventType: "interesting_today_recovery_used",
-    localDate,
-    generationReason: INTERESTING_TODAY_FALLBACK_REASON,
-    createdAt: checkedAt,
-  });
+  if (generationReason === INTERESTING_TODAY_FALLBACK_REASON) {
+    db.saveInterestingTodayEvent({
+      accountId,
+      eventType: "interesting_today_recovery_used",
+      localDate,
+      generationReason,
+      createdAt: checkedAt,
+    });
+  }
   db.saveInterestingTodayEvent({
     accountId,
     eventType: "interesting_today_generated",
     localDate,
-    generationReason: INTERESTING_TODAY_FALLBACK_REASON,
+    generationReason,
     createdAt: checkedAt,
   });
 

@@ -324,6 +324,7 @@ test("interesting today API creates one stable country date set across accounts"
     assert.equal(first.localDate, "2026-08-05");
     assert.equal(first.countryCode, "RU");
     assert.equal(first.catalogVersion, INTERESTING_TODAY_CATALOG_VERSION);
+    assert.equal(first.generationReason, "recovery_fallback");
     assert.equal(first.validFromUtc, "2026-08-04T21:00:00.000Z");
     assert.equal(first.availableEvents, 5);
     assert.equal(first.events.length, 5);
@@ -391,6 +392,7 @@ test("interesting today preferences hide one section and details expose sources"
     });
     assert.equal(todayResponse.status, 200);
     const today = await todayResponse.json();
+    assert.equal(today.generationReason, "scheduled_midnight");
     assert.ok(today.events.length > 0);
     assert.deepEqual(today.people, []);
 
