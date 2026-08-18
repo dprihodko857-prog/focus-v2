@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+function createFullInterestingTodayCoverageDates() {
+  const dates = [];
+  const start = new Date(Date.UTC(2026, 7, 5));
+  const end = new Date(Date.UTC(2027, 7, 4));
+  for (const date = new Date(start); date <= end; date.setUTCDate(date.getUTCDate() + 1)) {
+    dates.push(date.toISOString().slice(0, 10));
+  }
+  dates.push("2028-02-29");
+  return dates;
+}
+
 import {
   DEFAULT_INTERESTING_TODAY_CATALOG,
   createInterestingTodayCatalogReport,
@@ -17,8 +28,8 @@ test("default interesting today catalog is production eligible and source backed
 
   assert.equal(report.ok, true);
   assert.equal(report.fixtureIds.length, 0);
-  assert.ok(report.eventCount >= 219);
-  assert.ok(report.personCount >= 218);
+  assert.ok(report.eventCount >= 1121);
+  assert.ok(report.personCount >= 1137);
   assert.ok(report.sourceCount >= report.eligibleRecordCount);
 });
 
@@ -43,79 +54,27 @@ test("daily interesting today selection is date and country aware", () => {
   assert.ok(selection.people.some(person => person.id === "it-person-1930-08-05-neil-armstrong"));
 });
 
-test("near-term interesting today catalog covers the next seventy local dates", () => {
-  const dates = [
-    "2026-08-06",
-    "2026-08-07",
-    "2026-08-08",
-    "2026-08-09",
-    "2026-08-10",
-    "2026-08-11",
-    "2026-08-12",
-    "2026-08-13",
-    "2026-08-14",
-    "2026-08-15",
-    "2026-08-16",
-    "2026-08-17",
-    "2026-08-18",
-    "2026-08-19",
-    "2026-08-20",
-    "2026-08-21",
-    "2026-08-22",
-    "2026-08-23",
-    "2026-08-24",
-    "2026-08-25",
-    "2026-08-26",
-    "2026-08-27",
-    "2026-08-28",
-    "2026-08-29",
-    "2026-08-30",
-    "2026-08-31",
-    "2026-09-01",
-    "2026-09-02",
-    "2026-09-03",
-    "2026-09-04",
-    "2026-09-05",
-    "2026-09-06",
-    "2026-09-07",
-    "2026-09-08",
-    "2026-09-09",
-    "2026-09-10",
-    "2026-09-11",
-    "2026-09-12",
-    "2026-09-13",
-    "2026-09-14",
-    "2026-09-15",
-    "2026-09-16",
-    "2026-09-17",
-    "2026-09-18",
-    "2026-09-19",
-    "2026-09-20",
-    "2026-09-21",
-    "2026-09-22",
-    "2026-09-23",
-    "2026-09-24",
-    "2026-09-25",
-    "2026-09-26",
-    "2026-09-27",
-    "2026-09-28",
-    "2026-09-29",
-    "2026-09-30",
-    "2026-10-01",
-    "2026-10-02",
-    "2026-10-03",
-    "2026-10-04",
-    "2026-10-05",
-    "2026-10-06",
-    "2026-10-07",
-    "2026-10-08",
-    "2026-10-09",
-    "2026-10-10",
-    "2026-10-11",
-    "2026-10-12",
-    "2026-10-13",
-    "2026-10-14",
-  ];
+test("russian audience selection leads with local records when available", () => {
+  const selection = selectInterestingTodayRecords({
+    catalog: DEFAULT_INTERESTING_TODAY_CATALOG,
+    countryCode: "RU",
+    language: "ru",
+    localDate: "2026-08-18",
+  });
+
+  const compactEvents = selection.events.slice(0, 2);
+  const compactPeople = selection.people.slice(0, 2);
+
+  assert.equal(compactEvents.length, 2);
+  assert.equal(compactPeople.length, 2);
+  assert.ok(compactEvents.every(event => event.countryCodes.includes("RU")));
+  assert.ok(compactPeople.every(person => person.primaryCountryCode === "RU"));
+  assert.ok(selection.events.some(event => event.id === "it-event-1845-08-18-russian-geographical-society-founded"));
+  assert.ok(selection.people.some(person => person.id === "it-person-1921-08-18-lidiya-litvyak"));
+});
+
+test("near-term interesting today catalog covers configured local dates", () => {
+  const dates = createFullInterestingTodayCoverageDates();
 
   dates.forEach(localDate => {
     const selection = selectInterestingTodayRecords({
@@ -129,6 +88,48 @@ test("near-term interesting today catalog covers the next seventy local dates", 
     assert.ok(selection.availablePeople >= 3, `${localDate} should have at least 3 people`);
     assert.ok(selection.events.every(event => event.sources.length > 0));
     assert.ok(selection.people.every(person => person.sources.length > 0));
+  });
+});
+
+test("nearest interesting today selections use concrete country badges", () => {
+  const dates = createFullInterestingTodayCoverageDates();
+
+  dates.forEach(localDate => {
+    const selection = selectInterestingTodayRecords({
+      catalog: DEFAULT_INTERESTING_TODAY_CATALOG,
+      countryCode: "RU",
+      language: "ru",
+      localDate,
+    });
+
+    const leadingEvents = selection.events.slice(0, 3);
+    const leadingPeople = selection.people.slice(0, 3);
+    const compactEvents = selection.events.slice(0, 2);
+    const compactPeople = selection.people.slice(0, 2);
+
+    assert.ok(leadingEvents.every(event => event.primaryCountryCode !== "WORLD"), `${localDate} events should have concrete primary countries`);
+    assert.ok(leadingPeople.every(person => person.primaryCountryCode !== "WORLD"), `${localDate} people should have concrete primary countries`);
+    assert.ok(leadingEvents.filter(event => event.primaryCountryCode === "US").length <= 1, `${localDate} leading events should not be US-heavy`);
+    assert.ok(leadingPeople.filter(person => person.primaryCountryCode === "US").length <= 1, `${localDate} leading people should not be US-heavy`);
+    assert.ok(compactEvents.filter(event => event.countryCodes.includes("RU")).length >= 2, `${localDate} compact events should be led by Russian-context records`);
+    assert.ok(compactPeople.filter(person => person.countryCodes.includes("RU")).length >= 2, `${localDate} compact people should be led by Russian-context records`);
+  });
+});
+
+test("foreign-only records are not tagged as Russian context", () => {
+  const catalog = normalizeInterestingTodayCatalog(DEFAULT_INTERESTING_TODAY_CATALOG);
+  const recordsById = new Map(catalog.map(record => [record.id, record]));
+  const foreignOnlyIds = [
+    "it-event-1863-01-10-calend-ru-4196-v-londone-otkrylas-pervaya-v-mire-liniya-metro",
+    "it-event-1999-09-24-calend-ru-5299-v-londone-na-bei-ker-strit-otkryt-pamyatnik-sherloku-kholmsu",
+    "it-person-1792-02-29-dzhoakkino-rossini-um-1868",
+  ];
+
+  foreignOnlyIds.forEach(id => {
+    const record = recordsById.get(id);
+    assert.ok(record, `${id} should exist`);
+    assert.equal(record.countryCodes.includes("RU"), false, `${id} should not use the RU badge`);
+    assert.notEqual(record.primaryCountryCode, "RU", `${id} should not use RU as primary country`);
   });
 });
 
