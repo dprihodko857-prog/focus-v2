@@ -5828,7 +5828,7 @@ function normalizeGreetingDraftVariant(variant, index) {
   if (!text) return null;
   return {
     id: sanitizeGreetingUiText(variant.id, 120) || `variant-${index + 1}`,
-    title: sanitizeGreetingUiText(variant.title, 120) || `??????? ${index + 1}`,
+    title: sanitizeGreetingUiText(variant.title, 120) || `Вариант ${index + 1}`,
     text,
     tone: sanitizeGreetingUiText(variant.tone, 80) || "warm",
     format: sanitizeGreetingUiText(variant.format, 80) || "plain_text",

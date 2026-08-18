@@ -27,7 +27,7 @@ test("greeting readiness client loads safe diagnostics and strips provider inter
         access_token: "client-must-not-see-access-token",
         baseUrl: "https://polza.ai/api/v1",
         oauthUrl: "https://client-must-not-see-oauth.test",
-        promptVersion: "greeting-assistant@2026-08-06.v1",
+        promptVersion: "greeting-assistant@2026-08-18.v3",
         readinessStatus: "ready",
         disabledMessage: "client-must-not-see-disabled-secret",
         checks: {
@@ -57,7 +57,7 @@ test("greeting readiness client loads safe diagnostics and strips provider inter
     featureKey: "greetingAssistant",
     providerConfigured: true,
     provider: "polza",
-    promptVersion: "greeting-assistant@2026-08-06.v1",
+    promptVersion: "greeting-assistant@2026-08-18.v3",
     readinessStatus: "ready",
     disabledMessage: null,
     checks: {
@@ -100,7 +100,7 @@ test("greeting readiness client maps offline state to controlled disabled diagno
   assert.equal(result.featureKey, "greetingAssistant");
   assert.equal(result.providerConfigured, false);
   assert.equal(result.provider, null);
-  assert.equal(result.promptVersion, "greeting-assistant@2026-08-06.v1");
+  assert.equal(result.promptVersion, "greeting-assistant@2026-08-18.v3");
   assert.equal(result.readinessStatus, "disabled");
   assert.equal(typeof result.disabledMessage, "string");
   assert.notEqual(result.disabledMessage.trim(), "");

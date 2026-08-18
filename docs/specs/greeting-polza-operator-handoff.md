@@ -112,7 +112,18 @@ Run only after owner approval and after server secrets are installed:
 
 Record sanitized evidence in `docs/specs/greeting-polza-production-smoke-report.md`. Never record or paste the key.
 
-## 6. Rollback
+## 6. Post-Activation Monitoring
+
+After activation and UI smoke:
+
+- verify `systemctl is-active focus-v2-sync.service` is `active`;
+- inspect `journalctl -u focus-v2-sync.service --since '15 minutes ago' --no-pager`;
+- run `node scripts/greeting-production-preflight.mjs --env-file /opt/focus-v2/data/focus-v2.env` from `/opt/focus-v2` when checking gates;
+- confirm preflight still reports `activationMode: "production"`, `productionActivationReady: true`, `clientBoundary.passed: true`, and `liveProviderCallPerformed: false`;
+- watch for `greeting_provider_failed`, `provider_http_401`, `provider_http_402`, `provider_http_429`, `provider_timeout`, and `provider_validation_failed`;
+- do not run repeated paid production generations without a separate owner approval.
+
+## 7. Rollback
 
 If activation fails, disable production provider access:
 
@@ -127,5 +138,7 @@ Restart the backend and verify:
 - `/api/sync/greetings/status` returns `providerConfigured: false`;
 - `/api/sync/greetings/readiness` returns `readinessStatus: "disabled"`;
 - UI shows the controlled disabled state and still allows saving the questionnaire.
+
+For the 2026-08-18 activation, the pre-activation server env backup was recorded at `/opt/focus-v2/deploy-backups/focus-v2-env-pre-polza-production-20260818-145802.env`. Use it only when returning exactly to that pre-activation state; otherwise edit only the rollback flags in the server-only env mechanism.
 
 If a key may have been exposed, rotate it in Polza before any reactivation.

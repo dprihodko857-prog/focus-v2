@@ -29,6 +29,7 @@ import {
   createGreetingAIProviderFromEnv,
   isPolzaModelComparisonEvaluationEnabled,
   isPolzaProductionActivationApproved,
+  validateGreetingGenerationResult,
 } from "../server/greeting-ai-provider.mjs";
 
 import {
@@ -2575,10 +2576,127 @@ test("Polza greeting provider uses OpenAI-compatible chat completions and struct
   const body = JSON.parse(calls[0].options.body);
   assert.equal(body.model, "openai/gpt-4o-mini");
   assert.equal(body.response_format.type, "json_schema");
-  assert.equal(body.response_format.strict, true);
+  assert.equal(body.response_format.json_schema.name, "focus_greeting_generation_result");
+  assert.equal(body.response_format.json_schema.strict, true);
+  assert.equal(body.response_format.json_schema.schema.type, "object");
+  assert.equal(body.response_format.json_schema.schema.properties.variants.minItems, 3);
+  assert.equal(body.response_format.json_schema.schema.properties.variants.maxItems, 3);
+  assert.equal(body.temperature, 0.45);
   assert.equal(body.messages[0].role, "system");
+  assert.match(body.messages[0].content, /аккуратный русскоязычный редактор/);
+  assert.match(body.messages[0].content, /согласование рода, числа и падежа/);
+  assert.match(body.messages[0].content, /Избегай шаблонного перечисления/);
+  assert.match(body.messages[0].content, /счастья, здоровья, успехов/);
+  assert.match(body.messages[0].content, /сбудутся все мечты/);
+  assert.match(body.messages[0].content, /новые горизонты/);
+  assert.match(body.messages[0].content, /Дорогой\/Дорогая/);
+  assert.match(body.messages[0].content, /спасаете жизни/);
+  assert.match(body.messages[0].content, /Не выдумывай факты|Не добавляй факты/);
   assert.equal(body.messages[1].role, "user");
   assert.doesNotMatch(calls[0].options.body, /sk-polza-test-api-key/);
+});
+
+test("greeting result validation requires requested distinct variants", () => {
+  const input = createBirthdayGreetingRequest();
+  const missingVariants = validateGreetingGenerationResult({
+    status: "generated",
+    variants: [
+      {
+        id: "one",
+        title: "One",
+        text: "Анна, поздравляю вас с днем рождения. Желаю спокойной радости и хорошего дня.",
+        tone: "warm",
+        format: "message",
+      },
+    ],
+    warnings: [],
+  }, input);
+
+  assert.equal(missingVariants.ok, false);
+  assert.ok(missingVariants.errors.includes("variants_missing"));
+
+  const similarVariants = validateGreetingGenerationResult({
+    status: "generated",
+    variants: [
+      {
+        id: "one",
+        title: "One",
+        text: "Анна, поздравляю вас с днем рождения. Желаю радости, вдохновения и теплого настроения каждый день.",
+        tone: "warm",
+        format: "message",
+      },
+      {
+        id: "two",
+        title: "Two",
+        text: "Анна, поздравляю вас с днем рождения. Желаю радости, вдохновения и теплого настроения на каждый день.",
+        tone: "warm",
+        format: "message",
+      },
+      {
+        id: "three",
+        title: "Three",
+        text: "Анна, поздравляю вас с днем рождения. Желаю радости, вдохновения и теплого настроения каждый день.",
+        tone: "warm",
+        format: "message",
+      },
+    ],
+    warnings: [],
+  }, input);
+
+  assert.equal(similarVariants.ok, false);
+  assert.ok(similarVariants.errors.includes("variants_too_similar"));
+
+  const informalInFormalMode = validateGreetingGenerationResult({
+    status: "generated",
+    variants: createGreetingValidationVariants([
+      "Анна, поздравляем тебя с днем рождения. Желаем радости, здоровья и вдохновения.",
+      "Анна, пусть твой день рождения принесет много тепла, улыбок и приятных событий.",
+      "Анна, желаем тебе счастья, спокойствия и добрых новостей в этот день.",
+    ]),
+    warnings: [],
+  }, { ...input, addressMode: "vy" });
+
+  assert.equal(informalInFormalMode.ok, false);
+  assert.ok(informalInFormalMode.errors.includes("informal_address_used"));
+
+  const formalInInformalMode = validateGreetingGenerationResult({
+    status: "generated",
+    variants: createGreetingValidationVariants([
+      "Катя, поздравляю вас с днем рождения. Желаю радости и вдохновения.",
+      "Катя, пусть ваш день будет светлым, теплым и наполненным улыбками.",
+      "Катя, желаю вам счастья, спокойствия и приятных новостей.",
+    ]),
+    warnings: [],
+  }, { ...input, recipient: { name: "Катя", role: "подруга" }, addressMode: "ty" });
+
+  assert.equal(formalInInformalMode.ok, false);
+  assert.ok(formalInInformalMode.errors.includes("formal_address_used"));
+
+  const languageQualityFailure = validateGreetingGenerationResult({
+    status: "generated",
+    variants: createGreetingValidationVariants([
+      "Ирина Сергеевна, поздравляем вас. Пусть работа приносит радость от общений с коллегами.",
+      "Елена, ваша трудолюбие помогает команде сохранять спокойный рабочий ритм.",
+      "Павел, пусть мир откроется перед вами новыми горизонтах и возможностями.",
+    ]),
+    warnings: [],
+  }, input);
+
+  assert.equal(languageQualityFailure.ok, false);
+  assert.ok(languageQualityFailure.errors.includes("language_quality_phrase"));
+
+  const blockedClicheFailure = validateGreetingGenerationResult({
+    status: "generated",
+    variants: createGreetingValidationVariants([
+      "Анна, поздравляем вас. Пусть сбудутся все мечты и рядом будет поддержка.",
+      "Павел, желаем вам открывать новые горизонты и радоваться путешествиям.",
+      "Мария, пусть каждый момент приносит море положительных эмоций.",
+    ]),
+    warnings: [],
+  }, input);
+
+  assert.equal(blockedClicheFailure.ok, false);
+  assert.ok(blockedClicheFailure.errors.includes("blocked_cliche_phrase"));
 });
 
 test("Polza greeting provider is unavailable until server key and model are configured", async () => {
@@ -2629,6 +2747,32 @@ test("Polza greeting provider maps provider HTTP errors to safe failed results",
   assert.equal(rateLimited.status, "failed");
   assert.equal(rateLimited.reason, "provider_rate_limited");
   assert.deepEqual(rateLimited.variants, []);
+});
+
+test("Polza greeting provider retries once after structured validation failure", async () => {
+  const calls = [];
+  const provider = new PolzaGreetingAIProvider({
+    apiKey: "sk-polza-test-api-key-with-enough-length",
+    model: "openai/gpt-4o-mini",
+    baseUrl: "https://polza.test/api/v1",
+    timeoutMs: 5000,
+    retryAttempts: 1,
+    rateLimitPerMinute: 30,
+    now: () => new Date("2026-08-13T09:05:00.000Z"),
+    fetchImpl: async (url, options = {}) => {
+      calls.push({ url, options });
+      return calls.length === 1
+        ? createGigaChatCompletionResponse({ variants: [] })
+        : createGigaChatCompletionResponse();
+    },
+  });
+
+  const result = await provider.generateGreeting(createBirthdayGreetingRequest());
+
+  assert.equal(result.status, "generated");
+  assert.equal(result.variants.length, 3);
+  assert.equal(calls.length, 2);
+  assert.doesNotMatch(calls[1].options.body, /sk-polza-test-api-key/);
 });
 
 test("Polza greeting provider retries transient chat failures before returning structured result", async () => {
@@ -2851,6 +2995,13 @@ test("GigaChat greeting provider uses server token cache and structured chat pay
   assert.equal(chatBody.model, "GigaChat-Test");
   assert.equal(chatBody.response_format.type, "json_schema");
   assert.equal(chatBody.response_format.strict, true);
+  assert.equal(chatBody.response_format.schema.properties.variants.minItems, 3);
+  assert.equal(chatBody.response_format.schema.properties.variants.maxItems, 3);
+  assert.equal(chatBody.temperature, 0.45);
+  assert.match(chatBody.messages[0].content, /аккуратный русскоязычный редактор/);
+  assert.match(chatBody.messages[0].content, /Избегай шаблонного перечисления/);
+  assert.match(chatBody.messages[0].content, /Дорогой\/Дорогая/);
+  assert.match(chatBody.messages[0].content, /спасаете жизни/);
   assert.equal(calls[1].options.headers.Authorization, "Bearer access-token-with-enough-length");
 });
 
@@ -6005,6 +6156,16 @@ function createGigaChatCompletionVariants() {
       format: "plain_text",
     },
   ];
+}
+
+function createGreetingValidationVariants(texts) {
+  return texts.map((text, index) => ({
+    id: `validation-${index + 1}`,
+    title: `Validation ${index + 1}`,
+    text,
+    tone: "warm",
+    format: "message",
+  }));
 }
 
 function createTestAccount(db, accountId, createdAt = "2026-07-10T00:00:00.000Z") {

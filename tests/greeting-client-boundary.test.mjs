@@ -147,7 +147,7 @@ function createGreetingSuccessResponse() {
     accountId: "account-client-boundary",
     status: "generated",
     provider: "mock",
-    promptVersion: "greeting-assistant@2026-08-06.v1",
+    promptVersion: "greeting-assistant@2026-08-18.v3",
     variants: [{
       id: "one",
       title: "One",

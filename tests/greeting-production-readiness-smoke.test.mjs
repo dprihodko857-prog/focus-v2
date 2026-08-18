@@ -403,7 +403,20 @@ function assertProviderCallShape(call) {
   const providerRequest = JSON.parse(call.options.body);
   assert.equal(providerRequest.model, "openai/gpt-4o-mini");
   assert.equal(providerRequest.response_format.type, "json_schema");
+  assert.equal(providerRequest.response_format.json_schema.name, "focus_greeting_generation_result");
+  assert.equal(providerRequest.response_format.json_schema.strict, true);
+  assert.equal(providerRequest.response_format.json_schema.schema.type, "object");
+  assert.equal(providerRequest.response_format.json_schema.schema.properties.variants.minItems, 3);
+  assert.equal(providerRequest.response_format.json_schema.schema.properties.variants.maxItems, 3);
+  assert.equal(providerRequest.temperature, 0.45);
   assert.equal(providerRequest.messages[0].role, "system");
+  assert.match(providerRequest.messages[0].content, /аккуратный русскоязычный редактор/);
+  assert.match(providerRequest.messages[0].content, /согласование рода, числа и падежа/);
+  assert.match(providerRequest.messages[0].content, /Избегай шаблонного перечисления/);
+  assert.match(providerRequest.messages[0].content, /сбудутся все мечты/);
+  assert.match(providerRequest.messages[0].content, /новые горизонты/);
+  assert.match(providerRequest.messages[0].content, /Дорогой\/Дорогая/);
+  assert.match(providerRequest.messages[0].content, /спасаете жизни/);
   assert.equal(providerRequest.messages[1].role, "user");
   assert.doesNotMatch(call.options.body, /fake-polza-production-key-with-enough-length/);
 }

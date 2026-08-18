@@ -72,11 +72,11 @@ test("greeting model comparison matrix covers revision and metric requirements",
   assert.match(comparisonDoc, /Scenario set version: greeting-model-comparison@2026-08-13\.v1/);
 });
 
-test("greeting model comparison decision record stays sanitized and pending approval", () => {
+test("greeting model comparison decision record stays sanitized after owner-approved production activation", () => {
   [
     "Greeting Polza.ai Model Comparison Decision Record",
-    "decision-record template only",
-    "No production model is selected by this document",
+    "full live comparison recorded for prompt v3; candidate passed technical and manual gates, and production was activated after separate owner approval",
+    "No real key is included",
     "Focus section \"Compose greeting\" only",
     "docs/specs/greeting-pre-key-readiness-report.md",
     "docs/specs/greeting-polza-server-secret-handoff.md",
@@ -85,13 +85,16 @@ test("greeting model comparison decision record stays sanitized and pending appr
     "docs/specs/greeting-polza-model-comparison-operator-brief.md",
     "scripts/greeting-model-comparison-runner.mjs",
     "Scenario set version: `greeting-model-comparison@2026-08-13.v1`",
+    "openai/gpt-5.4-mini",
     "openai/gpt-4o-mini",
-    "This is not a production selection.",
+    "This is a production selection record.",
     "The selected model id must stay in server configuration only.",
     "node scripts/greeting-model-comparison-runner.mjs run --provider=env",
     "Do not commit live JSONL.",
-    "Selected for production: no",
-    "Reason: no approved live comparison run has been recorded yet.",
+    "Selected for production: yes",
+    "greeting-assistant@2026-08-18.v3",
+    "the first candidate that passed the full technical and manual comparison gates",
+    "Reason: prompt v3 with `openai/gpt-5.4-mini` passed the full technical and manual comparison gates; owner approved production activation",
     "FOCUS_POLZA_MODEL_COMPARISON_APPROVED=true",
   ].forEach(marker => {
     assert.match(decisionRecordDoc, new RegExp(escapeRegExp(marker)));
@@ -110,15 +113,19 @@ test("greeting model comparison decision record stays sanitized and pending appr
   });
 
   [
-    "Current Polza availability verified: yes/no",
-    "Current pricing verified: yes/no",
-    "Generated records count:",
-    "Revision records count:",
-    "Server validation failures:",
-    "Manual metric failures:",
-    "Average latency:",
-    "Cost per request:",
-    "Approval reference:",
+    "Current Polza availability verified: yes",
+    "Current pricing verified: yes",
+    "Generated records count: 15",
+    "Revision records count: 4",
+    "Server validation failures: 0",
+    "Manual metric failures: 0",
+    "Average latency: 2518 ms",
+    "Cost per request: 0.188099 RUB",
+    "Approval reference: owner explicitly approved production activation in Codex on 2026-08-18 for Polza `openai/gpt-5.4-mini`",
+    "Production preflight passed after service restart",
+    "one backend smoke generation returned 3 server-validated variants",
+    "Production UI smoke from Greeting Assistant passed generation, revision, save-draft, boundary, service, and cleanup checks",
+    "docs/specs/greeting-polza-production-smoke-report.md",
   ].forEach(marker => {
     assert.match(decisionRecordDoc, new RegExp(escapeRegExp(marker)));
   });

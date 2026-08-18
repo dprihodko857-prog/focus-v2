@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
@@ -309,6 +309,13 @@ test("production runbook documents approved server-only Polza activation", () =>
     "disabled mobile `390x844` flow with readiness `disabled`",
     "output/greeting-ui-smoke/",
     "docs/specs/greeting-polza-production-smoke-report.md",
+    "Post-Activation Monitoring",
+    "systemctl is-active focus-v2-sync.service",
+    "journalctl -u focus-v2-sync.service --since '15 minutes ago' --no-pager",
+    "node scripts/greeting-production-preflight.mjs --env-file /opt/focus-v2/data/focus-v2.env",
+    "productionActivationReady: true",
+    "provider_validation_failed",
+    "/opt/focus-v2/deploy-backups/focus-v2-env-pre-polza-production-20260818-145802.env",
   ].forEach(marker => {
     assert.match(runbookDoc, new RegExp(escapeRegExp(marker)));
   });
@@ -326,11 +333,14 @@ test("production runbook documents approved server-only Polza activation", () =>
   assert.doesNotMatch(runbookDoc, /^[A-Z0-9_]*(?:API_KEY|AUTHORIZATION_KEY|ACCESS_TOKEN)=[^\s#<][^\r\n]*$/m);
 });
 
-test("production smoke report template captures sanitized live activation evidence", () => {
+test("production smoke report captures sanitized completed live activation evidence", () => {
   [
+    "completed sanitized production UI smoke",
+    "Smoke date: 2026-08-18",
     "Owner approval reference",
     "Approved environment",
     "Deployed source id",
+    "openai/gpt-5.4-mini",
     "Selected model id",
     "Secret installation method",
     "Production gate flags enabled",
@@ -340,11 +350,21 @@ test("production smoke report template captures sanitized live activation eviden
     "provider: \"polza\"",
     "readinessStatus: \"ready\"",
     "checks.liveProviderCallPerformed: false",
+    "status: \"passed\"",
+    "activationMode: \"production\"",
+    "clientBoundary.passed: true",
     "https://polza.ai/api/v1/chat/completions",
     "localStorage",
     "server validation passed",
+    "state: \"generated\"",
+    "variantCount: 3",
+    "state: \"saved\"",
+    "Тестовый Получатель",
+    "was removed after verification",
     "Average latency",
+    "3256 ms",
     "Estimated cost per generate request",
+    "0.188099 RUB",
     "Cost per request source",
     "FOCUS_GREETING_AI_PROVIDER=disabled",
     "providerConfigured: false",
@@ -392,8 +412,15 @@ test("operator handoff documents production activation order without secrets", (
     "readinessStatus: \"ready\"",
     "checks.liveProviderCallPerformed: false",
     "docs/specs/greeting-polza-production-smoke-report.md",
+    "Post-Activation Monitoring",
+    "systemctl is-active focus-v2-sync.service",
+    "journalctl -u focus-v2-sync.service --since '15 minutes ago' --no-pager",
+    "node scripts/greeting-production-preflight.mjs --env-file /opt/focus-v2/data/focus-v2.env",
+    "productionActivationReady: true",
+    "greeting_provider_failed",
     "FOCUS_POLZA_PRODUCTION_ENABLED=false",
     "FOCUS_POLZA_MODEL_COMPARISON_APPROVED=false",
+    "/opt/focus-v2/deploy-backups/focus-v2-env-pre-polza-production-20260818-145802.env",
   ].forEach(marker => {
     assert.match(operatorHandoffDoc, new RegExp(escapeRegExp(marker)));
   });

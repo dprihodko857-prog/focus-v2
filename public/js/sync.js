@@ -35,7 +35,7 @@ const MAX_TRANSCRIPTION_DURATION_MS = 60 * 1000;
 const PERSONAL_SCHEDULE_PROMPT_VERSION = "personal-schedule-planner@2026-08-04.v1";
 const MAX_PERSONAL_SCHEDULE_REQUEST_LENGTH = 96 * 1024;
 const GREETING_ASSISTANT_FEATURE_KEY = "greetingAssistant";
-const GREETING_PROMPT_VERSION = "greeting-assistant@2026-08-06.v1";
+const GREETING_PROMPT_VERSION = "greeting-assistant@2026-08-18.v3";
 const GREETING_DISABLED_MESSAGE = "Генерация поздравлений пока недоступна. Анкету можно сохранить и продолжить позднее.";
 const MAX_GREETING_REQUEST_LENGTH = 32 * 1024;
 const TRANSCRIPTION_MIME_TYPES = new Set([
@@ -188,6 +188,52 @@ export function createFocusSyncClient({
       "ignored",
       "provider-not-configured",
     ].includes(normalizedStatus) ? normalizedStatus : "pending";
+  };
+  const normalizeCheckoutReadinessStatus = status => {
+    const normalizedStatus = String(status || "").trim().replace(/_/g, "-");
+    return ["ready", "provider-not-configured", "account-required", "invalid-feature", "offline"].includes(normalizedStatus)
+      ? normalizedStatus
+      : "provider-not-configured";
+  };
+  const normalizeCheckoutReadinessProvider = provider => {
+    const normalizedProvider = String(provider || "").trim().toLowerCase();
+    return ["yookassa", "fallback", "none"].includes(normalizedProvider)
+      ? normalizedProvider
+      : "none";
+  };
+  const normalizeCheckoutReadinessPrice = price => {
+    const source = price && typeof price === "object" && !Array.isArray(price) ? price : {};
+    return {
+      amount: sanitizeText(source.amount, 32),
+      currency: sanitizeText(source.currency, 12).toUpperCase(),
+      label: sanitizeText(source.label, 80),
+    };
+  };
+  const normalizeYooKassaCheckoutReadiness = yookassa => {
+    const source = yookassa && typeof yookassa === "object" && !Array.isArray(yookassa) ? yookassa : {};
+    return {
+      ready: source.ready === true,
+      webhookReady: source.webhookReady === true,
+      shopIdConfigured: source.shopIdConfigured === true,
+      secretKeyConfigured: source.secretKeyConfigured === true,
+      returnUrlConfigured: source.returnUrlConfigured === true,
+      paymentsUrlConfigured: source.paymentsUrlConfigured === true,
+      amountConfigured: source.amountConfigured === true,
+      webhookTokenConfigured: source.webhookTokenConfigured === true,
+    };
+  };
+  const normalizeSubscriptionCheckoutReadiness = (result, accountId, featureKey) => {
+    const source = result && typeof result === "object" && !Array.isArray(result) ? result : {};
+    return {
+      status: normalizeCheckoutReadinessStatus(source.status),
+      accountId: normalizeAccountId(source.accountId) || accountId,
+      featureKey: normalizePaidFeatureKey(source.featureKey) || featureKey,
+      checkedAt: normalizeTimestamp(source.checkedAt),
+      provider: normalizeCheckoutReadinessProvider(source.provider),
+      price: normalizeCheckoutReadinessPrice(source.price),
+      yookassa: normalizeYooKassaCheckoutReadiness(source.yookassa),
+      fallbackCheckoutUrlConfigured: source.fallbackCheckoutUrlConfigured === true,
+    };
   };
   const withAccountHeaders = (accountId, deviceId = getDeviceId()) => ({
     "content-type": "application/json",
@@ -1218,6 +1264,67 @@ export function createFocusSyncClient({
           accountId,
           featureKey: normalizedFeatureKey,
           checkoutUrl: null,
+        };
+      }
+    },
+
+    async getSubscriptionCheckoutReadiness({ featureKey = VOICE_TRANSCRIPTION_FEATURE_KEY } = {}) {
+      const normalizedFeatureKey = normalizePaidFeatureKey(featureKey);
+      const accountId = getStored(ACCOUNT_KEY);
+
+      if (!accountId) {
+        return normalizeSubscriptionCheckoutReadiness({
+          status: "account-required",
+          accountId: "",
+          featureKey: normalizedFeatureKey,
+          provider: "none",
+        }, "", normalizedFeatureKey);
+      }
+
+      if (!normalizedFeatureKey) {
+        return {
+          ...normalizeSubscriptionCheckoutReadiness({
+            status: "provider_not_configured",
+            accountId,
+            featureKey: "",
+            provider: "none",
+          }, accountId, ""),
+          status: "invalid-feature",
+        };
+      }
+
+      try {
+        const response = await fetchImpl(apiUrl(apiBaseUrl, `/sync/checkout/readiness?featureKey=${encodeURIComponent(normalizedFeatureKey)}`), {
+          headers: withAccountHeaders(accountId),
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (response.status === 400) {
+          return {
+            ...normalizeSubscriptionCheckoutReadiness({
+              status: "provider_not_configured",
+              accountId,
+              featureKey: normalizedFeatureKey,
+              provider: "none",
+            }, accountId, normalizedFeatureKey),
+            status: "invalid-feature",
+          };
+        }
+
+        if (!response.ok) {
+          throw new Error("Focus subscription checkout readiness failed.");
+        }
+
+        return normalizeSubscriptionCheckoutReadiness(result, accountId, normalizedFeatureKey);
+      } catch {
+        return {
+          ...normalizeSubscriptionCheckoutReadiness({
+            status: "provider_not_configured",
+            accountId,
+            featureKey: normalizedFeatureKey,
+            provider: "none",
+          }, accountId, normalizedFeatureKey),
+          status: "offline",
         };
       }
     },

@@ -658,6 +658,9 @@ function createValidatedComparisonRecord({
   costConfig,
 }) {
   const validation = validateGreetingGenerationResult(result, input);
+  const recordResult = validation.ok
+    ? { ...validation.result, usage: result?.usage }
+    : result;
   return createComparisonRecord({
     recordType,
     scenario,
@@ -673,7 +676,7 @@ function createValidatedComparisonRecord({
       ok: validation.ok,
       errors: validation.errors,
     },
-    result: validation.ok ? validation.result : result,
+    result: recordResult,
     costConfig,
   });
 }

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-export const GREETING_PROMPT_VERSION = "greeting-assistant@2026-08-06.v1";
+export const GREETING_PROMPT_VERSION = "greeting-assistant@2026-08-18.v3";
 export const GREETING_DISABLED_MESSAGE = "Генерация поздравлений пока недоступна. Анкету можно сохранить и продолжить позднее.";
 
 const DEFAULT_GIGACHAT_BASE_URL = "https://api.giga.chat";
@@ -17,6 +17,8 @@ const DEFAULT_POLZA_RATE_LIMIT_PER_MINUTE = 30;
 const POLZA_PRODUCTION_ACTIVATION_TRUE_VALUES = new Set(["1", "true", "yes", "approved", "enabled"]);
 const MAX_GREETING_TEXT_LENGTH = 1800;
 const MAX_GREETING_REQUEST_LENGTH = 32 * 1024;
+const GREETING_VARIANT_SIMILARITY_THRESHOLD = 0.86;
+const GREETING_TEMPERATURE = 0.45;
 
 const GREETING_SCENARIOS = new Set(["birthday", "holiday"]);
 const HOLIDAY_GREETING_TYPES = new Set(["public_holiday", "professional_holiday", "religious_holiday"]);
@@ -24,6 +26,32 @@ const ADDRESS_MODES = new Set(["ty", "vy"]);
 const GREETING_TONES = new Set(["warm", "official", "personal", "light_humor", "respectful"]);
 const GREETING_LENGTHS = new Set(["short", "medium", "long"]);
 const GREETING_FORMATS = new Set(["plain_text", "message", "toast"]);
+
+const GREETING_STYLE_INSTRUCTIONS = [
+  "Работай как аккуратный русскоязычный редактор: перед JSON молча проверь согласование рода, числа и падежа во всех фразах.",
+  "Пиши короткими синтаксически простыми предложениями; если фраза звучит громоздко или неестественно, переформулируй проще.",
+  "Избегай шаблонного перечисления «счастья, здоровья, успехов»; не используй «сбудутся все мечты», «море положительных эмоций», «новые горизонты» и «каждый момент» как универсальные пожелания.",
+  "Не повторяй одни и те же пожелания между вариантами; каждый вариант должен отличаться углом, лексикой и ритмом.",
+  "Для официального, уважительного тона, руководителя, партнера или клиента используй нейтральное обращение без «Дорогой/Дорогая»; предпочитай «Уважаемый/Уважаемая», если обращение уместно.",
+  "В официальных и коллективных поздравлениях избегай разговорных преувеличений и обещаний от имени всей команды, если они не следуют из входных данных.",
+  "Не используй громкие профессиональные утверждения вроде «спасаете жизни», «меняете мир» или «делаете мир лучше», если таких фактов нет во входных данных.",
+  "Юмор допускается только при tone=light_humor; он должен быть легким, доброжелательным и без сарказма.",
+  "Для length=short верни не больше двух коротких предложений в каждом варианте; для medium держи 2-4 предложения без канцелярита.",
+];
+
+const RU_GREETING_LANGUAGE_QUALITY_MARKERS = [
+  /радост[ьи]\s+от\s+общений/iu,
+  /ваша\s+трудолюбие/iu,
+  /новыми\s+горизонтах/iu,
+  /в\s+вашей\s+важной\s+профессии/iu,
+];
+
+const RU_GREETING_BLOCKED_CLICHE_MARKERS = [
+  /сбудутся\s+все\s+мечты/iu,
+  /море\s+положительных\s+эмоций/iu,
+  /новые\s+горизонты/iu,
+  /каждый\s+момент/iu,
+];
 
 const RU_PROFANITY_MARKERS = [
   [0x0445, 0x0443, 0x0439],
@@ -193,32 +221,40 @@ export class GigaChatGreetingAIProvider {
       const payload = operation === "revise"
         ? createGigaChatRevisionPayload({ model: this.model, input })
         : createGigaChatGenerationPayload({ model: this.model, input });
-      const result = await this.fetchChatCompletion({ token, payload });
-      const providerResult = parseGigaChatGreetingResult({
-        body: result.body,
-        provider: this.provider,
-        input: operation === "revise" ? input.baseInput : input,
-        checkedAt,
-      });
-      const validation = validateGreetingGenerationResult(
-        providerResult,
-        operation === "revise" ? input.baseInput : input,
-      );
+      const baseInput = operation === "revise" ? input.baseInput : input;
+      const validationAttempts = getStructuredValidationAttempts(this.retryAttempts);
+      let validationErrors = [];
 
-      if (!validation.ok) {
-        return createProviderFailedGreetingResult({
+      for (let attempt = 0; attempt < validationAttempts; attempt += 1) {
+        const result = await this.fetchChatCompletion({ token, payload });
+        const providerResult = parseGigaChatGreetingResult({
+          body: result.body,
           provider: this.provider,
-          reason: "provider_validation_failed",
-          errors: validation.errors,
-          input: operation === "revise" ? input.baseInput : input,
+          input: baseInput,
           checkedAt,
         });
+        const validation = validateGreetingGenerationResult(providerResult, baseInput);
+
+        if (validation.ok) {
+          return {
+            ...validation.result,
+            usage: normalizeGigaChatUsage(result.body?.usage),
+          };
+        }
+
+        validationErrors = validation.errors;
+        if (attempt < validationAttempts - 1) {
+          await sleep(getRetryDelayMs(attempt));
+        }
       }
 
-      return {
-        ...validation.result,
-        usage: normalizeGigaChatUsage(result.body?.usage),
-      };
+      return createProviderFailedGreetingResult({
+        provider: this.provider,
+        reason: "provider_validation_failed",
+        errors: validationErrors,
+        input: baseInput,
+        checkedAt,
+      });
     } catch (error) {
       return createProviderFailedGreetingResult({
         provider: this.provider,
@@ -460,29 +496,39 @@ export class PolzaGreetingAIProvider {
       const payload = operation === "revise"
         ? createOpenAICompatibleRevisionPayload({ model: this.model, input })
         : createOpenAICompatibleGenerationPayload({ model: this.model, input });
-      const result = await this.fetchChatCompletion({ payload });
-      const providerResult = parseOpenAICompatibleGreetingResult({
-        body: result.body,
-        provider: this.provider,
-        input: baseInput,
-        checkedAt,
-      });
-      const validation = validateGreetingGenerationResult(providerResult, baseInput);
+      const validationAttempts = getStructuredValidationAttempts(this.retryAttempts);
+      let validationErrors = [];
 
-      if (!validation.ok) {
-        return createProviderFailedGreetingResult({
+      for (let attempt = 0; attempt < validationAttempts; attempt += 1) {
+        const result = await this.fetchChatCompletion({ payload });
+        const providerResult = parseOpenAICompatibleGreetingResult({
+          body: result.body,
           provider: this.provider,
-          reason: "provider_validation_failed",
-          errors: validation.errors,
           input: baseInput,
           checkedAt,
         });
+        const validation = validateGreetingGenerationResult(providerResult, baseInput);
+
+        if (validation.ok) {
+          return {
+            ...validation.result,
+            usage: normalizeOpenAICompatibleUsage(result.body?.usage),
+          };
+        }
+
+        validationErrors = validation.errors;
+        if (attempt < validationAttempts - 1) {
+          await sleep(getRetryDelayMs(attempt));
+        }
       }
 
-      return {
-        ...validation.result,
-        usage: normalizeOpenAICompatibleUsage(result.body?.usage),
-      };
+      return createProviderFailedGreetingResult({
+        provider: this.provider,
+        reason: "provider_validation_failed",
+        errors: validationErrors,
+        input: baseInput,
+        checkedAt,
+      });
     } catch (error) {
       return createProviderFailedGreetingResult({
         provider: this.provider,
@@ -696,8 +742,10 @@ export function validateGreetingGenerationResult(result = {}, input = {}) {
   const errors = [];
   const source = isPlainObject(result) ? result : {};
   const normalizedInput = normalizeGreetingGenerationInput(input).input;
-  const variants = Array.isArray(source.variants)
-    ? source.variants
+  const expectedVariantCount = clampInteger(normalizedInput.variantCount, 1, 3, 3);
+  const sourceVariants = Array.isArray(source.variants) ? source.variants : [];
+  const variants = sourceVariants.length
+    ? sourceVariants
       .map((variant, index) => normalizeGreetingVariant(variant, index))
       .filter(Boolean)
       .slice(0, 3)
@@ -709,17 +757,26 @@ export function validateGreetingGenerationResult(result = {}, input = {}) {
   if (!variants.length) {
     errors.push("variants_required");
   }
-  if (variants.length > 3) {
+  if (variants.length > 0 && variants.length < expectedVariantCount) {
+    errors.push("variants_missing");
+  }
+  if (sourceVariants.length > 3) {
     errors.push("variants_too_many");
   }
 
   const uniqueTexts = new Set();
-  variants.forEach(variant => {
+  variants.forEach((variant, index) => {
     const normalizedText = variant.text.toLocaleLowerCase("ru-RU").replace(/\s+/g, " ").trim();
     if (uniqueTexts.has(normalizedText)) {
       errors.push("variants_not_distinct");
     }
     uniqueTexts.add(normalizedText);
+
+    variants.slice(index + 1).forEach(nextVariant => {
+      if (areGreetingVariantsTooSimilar(variant.text, nextVariant.text)) {
+        errors.push("variants_too_similar");
+      }
+    });
 
     const textErrors = validateGreetingText(variant.text, normalizedInput);
     errors.push(...textErrors);
@@ -986,14 +1043,30 @@ function createGigaChatRevisionPayload({ model, input }) {
 }
 
 function createOpenAICompatibleGenerationPayload({ model, input }) {
-  return createGigaChatGenerationPayload({ model, input });
+  return createOpenAICompatiblePayload(createGigaChatGenerationPayload({ model, input }));
 }
 
 function createOpenAICompatibleRevisionPayload({ model, input }) {
-  return createGigaChatRevisionPayload({ model, input });
+  return createOpenAICompatiblePayload(createGigaChatRevisionPayload({ model, input }));
+}
+
+function createOpenAICompatiblePayload(payload) {
+  const schema = payload?.response_format?.schema || createGreetingResultJsonSchema();
+  return {
+    ...payload,
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "focus_greeting_generation_result",
+        schema,
+        strict: true,
+      },
+    },
+  };
 }
 
 function createGigaChatPayload({ model, instruction, input }) {
+  const expectedVariantCount = resolveGreetingOutputVariantCount(input);
   return {
     model,
     messages: [
@@ -1005,6 +1078,9 @@ function createGigaChatPayload({ model, instruction, input }) {
           "Пиши естественно по-русски. Не добавляй факты, которых нет во входных данных.",
           "Провайдер не сохраняет черновики, не копирует текст, не меняет события и не отправляет сообщения.",
           "Если есть запреты, соблюдай их строго.",
+          `Верни ровно ${expectedVariantCount} разных варианта в массиве variants.`,
+          "Строго соблюдай addressMode: vy = обращение только на «вы», ty = обращение только на «ты».",
+          ...GREETING_STYLE_INSTRUCTIONS,
           instruction,
         ].join("\n"),
       },
@@ -1013,17 +1089,18 @@ function createGigaChatPayload({ model, instruction, input }) {
         content: JSON.stringify(input),
       },
     ],
-    temperature: 0.7,
+    temperature: GREETING_TEMPERATURE,
     max_tokens: 1600,
     response_format: {
       type: "json_schema",
-      schema: createGreetingResultJsonSchema(),
+      schema: createGreetingResultJsonSchema(expectedVariantCount),
       strict: true,
     },
   };
 }
 
-function createGreetingResultJsonSchema() {
+function createGreetingResultJsonSchema(variantCount = 3) {
+  const expectedVariantCount = clampInteger(variantCount, 1, 3, 3);
   return {
     type: "object",
     additionalProperties: false,
@@ -1031,8 +1108,8 @@ function createGreetingResultJsonSchema() {
       status: { type: "string", enum: ["generated"] },
       variants: {
         type: "array",
-        minItems: 1,
-        maxItems: 3,
+        minItems: expectedVariantCount,
+        maxItems: expectedVariantCount,
         items: {
           type: "object",
           additionalProperties: false,
@@ -1053,6 +1130,12 @@ function createGreetingResultJsonSchema() {
     },
     required: ["status", "variants", "warnings"],
   };
+}
+
+function resolveGreetingOutputVariantCount(input = {}) {
+  const source = isPlainObject(input) ? input : {};
+  const baseInput = isPlainObject(source.baseInput) ? source.baseInput : null;
+  return clampInteger(baseInput?.variantCount ?? source.variantCount, 1, 3, 3);
 }
 
 function parseGigaChatGreetingResult({ body, provider, input, checkedAt }) {
@@ -1171,11 +1254,23 @@ function validateGreetingText(text, input) {
   if (RU_PROFANITY_MARKERS.some(marker => normalizedText.includes(marker))) {
     errors.push("profanity_detected");
   }
+  if (RU_GREETING_LANGUAGE_QUALITY_MARKERS.some(marker => marker.test(text))) {
+    errors.push("language_quality_phrase");
+  }
+  if (RU_GREETING_BLOCKED_CLICHE_MARKERS.some(marker => marker.test(text))) {
+    errors.push("blocked_cliche_phrase");
+  }
   if (/(?:\b(?:authorization|access_token|bearer|gigachat_auth|polza[_-]?api|api[_-]?key)\b|sk-polza-)/iu.test(text)) {
     errors.push("secret_leak_marker");
   }
   if (input?.bans?.mentionAge && /\b\d{1,3}\s*(?:лет|года|год|годик|годиков)\b/giu.test(text)) {
     errors.push("age_mentioned");
+  }
+  if (input?.addressMode === "vy" && containsInformalRussianAddress(normalizedText)) {
+    errors.push("informal_address_used");
+  }
+  if (input?.addressMode === "ty" && containsFormalRussianAddress(normalizedText)) {
+    errors.push("formal_address_used");
   }
   for (const topic of input?.bans?.personalTopics || []) {
     if (topic && normalizedText.includes(topic.toLocaleLowerCase("ru-RU"))) {
@@ -1183,6 +1278,39 @@ function validateGreetingText(text, input) {
     }
   }
   return errors;
+}
+
+function containsInformalRussianAddress(normalizedText) {
+  return /(?<![a-zа-яё])(?:ты|тебя|тебе|тобой|тобою|твой|твоя|твое|твоё|твою|твои|твоего|твоей|твоем|твоём|твоему|твоим|твоих|твоими)(?![a-zа-яё])/iu.test(normalizedText);
+}
+
+function containsFormalRussianAddress(normalizedText) {
+  return /(?<![a-zа-яё])(?:вы|вас|вам|вами|ваш|ваша|ваше|ваши|вашего|вашей|вашем|вашему|вашим|ваших|вашими|вашу)(?![a-zа-яё])/iu.test(normalizedText);
+}
+
+function areGreetingVariantsTooSimilar(left, right) {
+  const leftTokens = createGreetingSimilarityTokens(left);
+  const rightTokens = createGreetingSimilarityTokens(right);
+  const union = new Set([...leftTokens, ...rightTokens]);
+  if (union.size < 8) return false;
+
+  let intersection = 0;
+  leftTokens.forEach(token => {
+    if (rightTokens.has(token)) intersection += 1;
+  });
+
+  return intersection / union.size >= GREETING_VARIANT_SIMILARITY_THRESHOLD;
+}
+
+function createGreetingSimilarityTokens(text) {
+  return new Set(
+    String(text || "")
+      .toLocaleLowerCase("ru-RU")
+      .replace(/ё/giu, "е")
+      .replace(/[^a-zа-я0-9]+/giu, " ")
+      .split(/\s+/u)
+      .filter(token => token.length > 2),
+  );
 }
 
 async function fetchJsonWithTimeout({ fetchImpl, url, options, timeoutMs }) {
@@ -1214,6 +1342,11 @@ function shouldRetryProviderResponse(status) {
 
 function getRetryDelayMs(attempt) {
   return Math.min(1500, 250 * (attempt + 1));
+}
+
+function getStructuredValidationAttempts(retryAttempts) {
+  const attempts = Math.floor(Number(retryAttempts) || 0) + 1;
+  return Math.max(1, Math.min(2, attempts));
 }
 
 function sleep(ms) {

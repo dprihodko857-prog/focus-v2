@@ -114,6 +114,49 @@ test("greeting comparison runner completes the matrix on mock provider without l
   assertNoForbiddenGreetingComparisonLeaks(parsed);
 });
 
+test("greeting comparison runner preserves provider usage for cost estimates", async () => {
+  const mockProvider = new MockGreetingAIProvider({
+    now: () => new Date("2026-08-13T09:00:00.000Z"),
+    createId: createIncrementingId("usage-comparison"),
+  });
+  const provider = {
+    provider: "usage-test",
+    async generateGreeting(input) {
+      const result = await mockProvider.generateGreeting(input);
+      return {
+        ...result,
+        usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
+      };
+    },
+    async reviseGreeting(input) {
+      return mockProvider.reviseGreeting(input);
+    },
+  };
+
+  const report = await runGreetingModelComparison({
+    provider,
+    candidateModelLabel: "usage-candidate",
+    checkedAt: "2026-08-13T09:00:00.000Z",
+    scenarioIds: ["birthday-short"],
+    includeRevisions: false,
+    costConfig: { inputPer1k: 0.1, outputPer1k: 0.2, currency: "RUB" },
+  });
+
+  assert.equal(report.summary.allValidationPassed, true);
+  assert.equal(report.summary.averageEstimatedCost, 0.02);
+  assert.equal(report.summary.estimatedCostCurrency, "RUB");
+  assert.deepEqual(report.records[0].usage, {
+    promptTokens: 100,
+    completionTokens: 50,
+    totalTokens: 150,
+  });
+  assert.deepEqual(report.records[0].estimatedCost, {
+    amount: 0.02,
+    currency: "RUB",
+    source: "operator_pricing_input",
+  });
+});
+
 test("greeting comparison runner keeps disabled provider as controlled unavailable records", async () => {
   const report = await runGreetingModelComparison({
     provider: new DisabledGreetingAIProvider(),
@@ -146,7 +189,7 @@ test("greeting comparison report redacts secret-looking provider text before JSO
     candidateModelLabel: "candidate",
     provider: "mock",
     status: "failed",
-    promptVersion: "greeting-assistant@2026-08-06.v1",
+    promptVersion: "greeting-assistant@2026-08-18.v3",
     checkedAt: "2026-08-13T09:00:00.000Z",
     latencyMs: 0,
     inputSummary: {},

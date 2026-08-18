@@ -97,6 +97,31 @@ Run only after owner approval and after secrets are installed on the server:
 
 The provider must not save drafts, copy text, edit birthdays, edit holidays, create reminders, send messages, or mark greetings as sent. Those actions remain Focus business logic after explicit user action.
 
+## Post-Activation Monitoring
+
+After the approved live smoke, keep the monitoring loop narrow and server-side:
+
+- verify `systemctl is-active focus-v2-sync.service` returns `active`;
+- run `journalctl -u focus-v2-sync.service --since '15 minutes ago' --no-pager` after the smoke and after any restart;
+- run `node scripts/greeting-production-preflight.mjs --env-file /opt/focus-v2/data/focus-v2.env` from `/opt/focus-v2` when checking activation gates; this preflight must keep `liveProviderCallPerformed: false`;
+- watch for `greeting_provider_failed`, `provider_http_401`, `provider_http_402`, `provider_http_429`, `provider_timeout`, and `provider_validation_failed`;
+- limit manual production checks to one generate and one revise call unless the owner explicitly approves more paid calls;
+- keep generated text, raw provider JSONL, provider request ids, provider metadata, keys, tokens, and env-file contents out of docs, chat, screenshots, and logs;
+- keep the saved env backup path in the activation record so rollback does not require guessing.
+
+Expected steady state after activation:
+
+```text
+requestedProvider: "polza"
+effectiveProvider: "polza"
+activationMode: "production"
+productionActivationReady: true
+providerConfigured: true
+readinessStatus: "ready"
+clientBoundary.passed: true
+liveProviderCallPerformed: false
+```
+
 ## Rollback
 
 If Polza activation fails or the provider becomes unavailable, do not switch production users to mock output. Use the controlled disabled state:
@@ -108,6 +133,14 @@ FOCUS_POLZA_MODEL_COMPARISON_APPROVED=false
 ```
 
 Then restart the backend and verify `/api/sync/greetings/status` returns `providerConfigured: false` with the unavailable message, and `/api/sync/greetings/readiness` returns `readinessStatus: "disabled"`. Users must still be able to save the questionnaire and continue later.
+
+For the 2026-08-18 activation, the server-only env backup before enabling production Polza was recorded as:
+
+```text
+/opt/focus-v2/deploy-backups/focus-v2-env-pre-polza-production-20260818-145802.env
+```
+
+Use that backup only if the operator intends to return exactly to the pre-activation env state. Otherwise prefer editing only the three rollback flags above in the server-only env mechanism.
 
 If the key may have been exposed, rotate it in Polza before any reactivation.
 
@@ -142,4 +175,4 @@ Run the browser smoke in mock and disabled modes only until production activatio
 - disabled mobile `390x844` flow with readiness `disabled`, disabled generation button, save-draft still available, zero variants, and no horizontal overflow;
 - loopback-only Focus backend and preview proxy, with artifacts under ignored `output/greeting-ui-smoke/` paths.
 
-Use `docs/specs/greeting-polza-production-smoke-report.md` as the production-only reporting template after an approved live smoke.
+Use `docs/specs/greeting-polza-production-smoke-report.md` as the production-only reporting record after an approved live smoke.
