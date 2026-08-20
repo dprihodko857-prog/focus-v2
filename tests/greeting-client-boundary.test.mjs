@@ -72,6 +72,31 @@ test("greeting draft payload does not persist provider metadata", () => {
   );
 });
 
+test("greeting assistant failure copy handles provider errors without leaking internals", () => {
+  const failureCopyBoundary = sliceBetween(
+    appJs,
+    "function getGreetingAssistantFailureMessage",
+    "function selectGreetingAssistantVariant",
+  );
+
+  [
+    "provider_rate_limited",
+    "provider_timeout",
+    "provider_payment_required",
+    "provider_auth_failed",
+    "provider_unavailable",
+    "provider_validation_failed",
+    "offline",
+  ].forEach(reason => {
+    assert.match(failureCopyBoundary, new RegExp(reason));
+  });
+  assert.match(failureCopyBoundary, /Анкету можно сохранить/);
+  assert.doesNotMatch(
+    failureCopyBoundary,
+    /GIGACHAT|POLZA|api\.giga\.chat|polza\.ai|chat\/completions|apiKey|accessToken|authorizationKey|baseUrl|oauthUrl|sk-polza-/iu,
+  );
+});
+
 test("greeting sync client strips provider-only fields from outbound request bodies", async () => {
   const requests = [];
   const client = createFocusSyncClient({

@@ -5201,6 +5201,8 @@ function createEmptyGreetingAssistantState() {
     revisionInstruction: "",
     lastInput: null,
     errors: [],
+    failureReason: "",
+    failureMessage: "",
     warnings: [],
     savedAt: "",
     checkedAt: "",
@@ -5490,7 +5492,9 @@ function getGreetingAssistantStatusText() {
   if (greetingAssistantState.status === "draft") return "Открыта сохраненная анкета. Можно продолжить или сформировать новые варианты.";
   if (greetingAssistantState.status === "saved") return "Анкета сохранена локально. Можно продолжить позднее.";
   if (greetingAssistantState.status === "invalid") return "Заполните обязательные поля анкеты.";
-  if (greetingAssistantState.status === "failed") return "Не удалось сформировать поздравление. Попробуйте позже или сохраните анкету.";
+  if (greetingAssistantState.status === "failed") {
+    return greetingAssistantState.failureMessage || "Не удалось сформировать поздравление. Попробуйте позже или сохраните анкету.";
+  }
   if (greetingAssistantState.status === "disabled") return greetingAssistantState.disabledMessage || GREETING_DISABLED_MESSAGE;
   return "Заполните анкету и сформируйте варианты.";
 }
@@ -5623,6 +5627,8 @@ async function generateGreetingAssistant() {
     status: "generating",
     lastInput: input,
     errors: [],
+    failureReason: "",
+    failureMessage: "",
   };
   renderGreetingAssistant();
 
@@ -5659,6 +5665,8 @@ async function reviseGreetingAssistant(button) {
     status: "revising",
     revisionInstruction: instruction,
     errors: [],
+    failureReason: "",
+    failureMessage: "",
   };
   renderGreetingAssistant();
 
@@ -5686,6 +5694,8 @@ function applyGreetingAssistantResult(result, input) {
       lastInput: normalizeGreetingDraftInput(input),
       warnings: result.warnings || [],
       errors: [],
+      failureReason: "",
+      failureMessage: "",
       checkedAt: result.checkedAt || greetingAssistantState.checkedAt,
     };
   } else if (result.status === "provider-not-configured") {
@@ -5698,16 +5708,53 @@ function applyGreetingAssistantResult(result, input) {
       readinessChecks: createGreetingAssistantReadinessChecks(null, false),
       disabledMessage: result.disabledMessage || GREETING_DISABLED_MESSAGE,
       errors: [],
+      failureReason: "",
+      failureMessage: "",
     };
   } else {
     greetingAssistantState = {
       ...greetingAssistantState,
       status: result.status === "invalid-request" ? "invalid" : "failed",
       errors: result.errors || [],
+      failureReason: result.reason || "",
+      failureMessage: getGreetingAssistantFailureMessage(result),
     };
   }
   saveGreetingAssistantDraft({ capture: false });
   renderGreetingAssistant();
+}
+
+function getGreetingAssistantFailureMessage(result = {}) {
+  const reason = sanitizeGreetingUiText(result.reason, 120);
+  if (result.status === "offline") {
+    return "Нет связи с сервером. Анкету можно сохранить и продолжить позднее.";
+  }
+
+  if (reason === "provider_rate_limited") {
+    return "Слишком много запросов к генерации. Сохраните анкету и попробуйте через пару минут.";
+  }
+
+  if (reason === "provider_timeout") {
+    return "Генерация не ответила вовремя. Сохраните анкету и попробуйте ещё раз позже.";
+  }
+
+  if (reason === "provider_payment_required") {
+    return "Генерация временно недоступна из-за серверного ограничения оплаты. Анкету можно сохранить и продолжить позднее.";
+  }
+
+  if (reason === "provider_auth_failed") {
+    return "Генерация временно недоступна из-за серверной настройки доступа. Анкету можно сохранить и продолжить позднее.";
+  }
+
+  if (reason === "provider_unavailable") {
+    return "Генерация временно недоступна. Анкету можно сохранить и продолжить позднее.";
+  }
+
+  if (reason === "provider_validation_failed") {
+    return "Ответ генерации не прошёл серверную проверку. Попробуйте ещё раз или сохраните анкету.";
+  }
+
+  return "Не удалось сформировать поздравление. Попробуйте позже или сохраните анкету.";
 }
 
 function selectGreetingAssistantVariant(variantId) {
