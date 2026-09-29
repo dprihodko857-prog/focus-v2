@@ -7,6 +7,7 @@ This record was filled only after the model comparison matrix was complete, prod
 ## Approval
 
 - Smoke date: 2026-08-18.
+- Draft restore follow-up date: 2026-09-29.
 - Owner approval reference: owner approved production Polza activation for section "Compose greeting" with model `openai/gpt-5.4-mini` on 2026-08-18, then approved continuing with production UI smoke.
 - Operator: Codex.
 - Approved environment: Focus production server `/opt/focus-v2`, public UI `focus-v2.dmnao83.ru`.
@@ -48,7 +49,8 @@ Do not paste or record provider keys, bearer tokens, authorization headers, raw 
 - [x] Confirmed saved state: `state: "saved"` and status text `Анкета сохранена локально. Можно продолжить позднее.`
 - [x] Confirmed no `Отправлено` status appeared; provider output did not send, copy, or mark the greeting as sent.
 - [x] Deleted the temporary birthday record after the smoke and verified after reload that `Тестовый Получатель` was absent.
-- [ ] Reopened Greeting Assistant and restored the saved draft: not repeated after cleanup; saved state was observed before the temporary birthday record was deleted.
+- [x] Reopened Greeting Assistant and restored the saved draft in a separate follow-up smoke on 2026-09-29. Recipient, role, tone, address mode, length, sender, personal note, forbidden topics, and the age-ban checkbox were all restored.
+- [x] Blocked both greeting generation endpoints during the draft-restore follow-up and confirmed that no generate or revise request was sent.
 - [x] Confirmed no API key, bearer token, provider base URL, provider metadata, or authorization-looking value was visible in the UI or recorded in this report.
 - [x] `localStorage` direct enumeration was not available in the browser automation context; client-boundary tests and reviewed frontend code still verify that provider keys, bearer tokens, model ids, provider URLs, and provider metadata are not written by Greeting Assistant client logic.
 
@@ -61,7 +63,7 @@ Do not paste or record provider keys, bearer tokens, authorization headers, raw 
 - Difference between three variants: passed at UI level; three separate variant cards rendered.
 - No profanity: passed; no UI or server validation failure appeared.
 - Structured result validity: passed; backend accepted generated and revised results.
-- Overall pass/fail: pass, with the reopen/restore substep noted as not repeated after cleanup.
+- Overall pass/fail: pass, including the completed reopen/restore follow-up.
 
 ## Runtime Metrics
 
